@@ -4,7 +4,7 @@ import { IdbAdapter } from '../core/idb.js';
 import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
-import { androidBridge, taskIdFromHash, watchReminders } from '../core/android.js';
+import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
@@ -452,9 +452,21 @@ function openPendingTask() {
 
 function openTaskFromHash() {
   const id = taskIdFromHash(location.hash);
-  if (!id) return;
+  if (!id) {
+    openAddFromHash();
+    return;
+  }
   history.replaceState(null, '', `${location.pathname}${location.search}`); // het adres weer schoon
   openTaskById(id);
+}
+
+/** De knop "+" van een widget van de Android-app: #add, #add=today of #add=<project-id> opent het venster Taak toevoegen. */
+function openAddFromHash() {
+  const context = addContextFromHash(location.hash, (id) => store.view.projects.has(id));
+  if (!context) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  if (document.querySelector('dialog[open]')) return; // er staat al een venster open
+  handlers.quickAdd(Object.keys(context).length > 0 ? context : null);
 }
 
 // ---------- tijdzone ----------
@@ -512,6 +524,7 @@ async function boot() {
   store.subscribe(maybeSetTimezone);
   store.subscribe(openPendingTask);
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
+  watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
   window.addEventListener('online', () => {
     events.restart();
     sync.requestSync(0);

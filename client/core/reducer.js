@@ -201,6 +201,8 @@ function taskMove(state, args, now) {
 function taskComplete(state, args, now) {
   const row = state.tasks.get(args.id);
   if (!row || row.checked) return;
+  // zoals de server: een terugkerende taak die al is doorgeschoven sinds de afzender hem zag, schuift niet nog eens door
+  if (row.due?.recurrence && args.if_due !== undefined && args.if_due !== row.due.date) return;
   const count = (row.completed_count ?? 0) + 1;
   const next = row.due?.recurrence ? nextOccurrence(row.due.date, row.due.recurrence) : null;
   if (next) {

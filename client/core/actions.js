@@ -148,7 +148,12 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       if (!parent_id) args.section_id = section_id;
       return send([{ type: 'task_move', args }]);
     },
-    completeTask: (id) => send([{ type: 'task_complete', args: { id } }]),
+    completeTask(id) {
+      // Een terugkerende taak sturen we mee met de datum die we zagen (if_due): zo schuift hij niet twee keer door als de
+      // widget van de Android-app of een ander apparaat hem tegelijk afvinkt.
+      const due = store.view.tasks.get(id)?.due;
+      return send([{ type: 'task_complete', args: due?.recurrence ? { id, if_due: due.date } : { id } }]);
+    },
     uncompleteTask: (id) => send([{ type: 'task_uncomplete', args: { id } }]),
     deleteTask: (id) => send([{ type: 'task_delete', args: { id } }]),
 
