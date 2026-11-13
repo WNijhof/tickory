@@ -3,6 +3,11 @@
 //
 // Gebruik: node scripts/e2e.ts [pad-naar-browser]
 // Schermafbeeldingen komen in .e2e/shots/. Sluit af met code 1 als een controle mislukt.
+//
+// De test loopt in het Nederlands, welke taal het systeem of de browser ook heeft: de talen van de browser worden via het
+// DevTools-protocol op Nederlands gezet. Eén stap zet ze op Engels (de app moet dan vanzelf Engels kiezen) en één stap
+// wisselt in de app naar Engels en terug. Met E2E_BROWSER_LANG=en-US start de browser zelf in die taal, om te
+// controleren dat de test daar niet van afhangt.
 
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -14,7 +19,10 @@ import { createApp } from '../server/main.ts';
 import type { App } from '../server/main.ts';
 import { handleSync } from '../server/sync.ts';
 import { createSession, createUser, hashPassword, setPasswordCostForTests } from '../server/users.ts';
-import { addDays, formatDate, todayString } from '../client/core/format.js';
+import { addDays, formatDate, formatDueLong, todayString } from '../client/core/format.js';
+import { setLanguage } from '../client/core/i18n.js';
+import dutchTexts from '../client/i18n/nl.js';
+import en from '../client/i18n/en.js';
 
 const BROWSERS = [
   process.argv[2],
@@ -67,7 +75,8 @@ const serverTask = (content: string) => (serverState().tasks as any[]).find((t) 
 await startServer();
 const browser = spawn(browserPath, [
   '--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${workDir}profile`,
-  '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', 'about:blank',
+  '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860',
+  ...(process.env.E2E_BROWSER_LANG ? [`--lang=${process.env.E2E_BROWSER_LANG}`] : []), 'about:blank',
 ], { stdio: 'ignore' });
 
 let ws: WebSocket;
@@ -139,8 +148,10 @@ async function waitFor(expression: string, what: string, timeoutMs = 10_000): Pr
  * Echt bijgewerkt. De statusregel loopt één beeldverversing achter op de wachtrij; daarom eerst twee verversingen wachten,
  * zodat een zojuist gemaakte wijziging al als "wachtend" in beeld staat voordat we "Bijgewerkt" geloven.
  */
-const SYNCED = `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(document.getElementById('sync-status').textContent === 'Bijgewerkt'))))`;
 const js = (v: unknown) => JSON.stringify(v);
+const synced = (label: string) => `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(document.getElementById('sync-status').textContent === ${js(label)}))))`;
+const SYNCED = synced('Bijgewerkt');
+const SYNCED_EN = synced('Up to date');
 /**
  * Een sync-verzoek van "een ander apparaat", rechtstreeks vanuit deze test. Eén herhaling bij een verbroken verbinding:
  * na het stoppen en starten van de server kan Node nog een oude, bewaarde verbinding proberen. Elk commando heeft een
@@ -201,10 +212,37 @@ try {
   const today = todayString();
   const tomorrow = addDays(today, 1);
 
+  // ---- 0. de taal: de app volgt de talen van de browser zolang er geen voorkeur is bewaard ----
+  // Hiermee staat de taal van de test ook vast: daarna Nederlands, wat de eigen taal van de browser ook is.
+  const { userAgent } = await send('Browser.getVersion');
+  const setBrowserLanguages = (list: string) => send('Emulation.setUserAgentOverride', { userAgent, acceptLanguage: list });
+  const ownLanguages = await evaluate<string[]>(`[...navigator.languages]`);
+  await setBrowserLanguages('en-US,en');
+  await send('Page.navigate', { url: `${BASE}/` });
+  await waitFor(`document.body.classList.contains('ready')`, 'app gestart (Engelse browser)');
+  await waitFor(`document.querySelector('dialog[open] input[type=password]')`, 'inlogscherm (Engelse browser)');
+  assert.deepEqual(await evaluate(`[...navigator.languages]`), ['en-US', 'en'], 'de browser meldt nu Engels');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), null, 'er is nog geen voorkeur bewaard');
+  assert.equal(await evaluate(`document.documentElement.lang`), 'en');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Sign in');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] label')].map((l) => l.firstChild.textContent)`), ['Username', 'Password']);
+  assert.equal(await evaluate(`document.getElementById('quick-input').placeholder`), en['quick.placeholder']);
+  assert.equal(await evaluate(`document.querySelector('#quick-add button[type=submit]').textContent`), 'Add');
+  assert.equal(await evaluate(`document.getElementById('sync-status').textContent`), 'Sign-in required');
+  await typeInto('dialog[open] input[autocomplete=username]', 'alice');
+  await typeInto('dialog[open] input[type=password]', 'verkeerd-wachtwoord');
+  await submit('dialog[open] form');
+  await waitFor(`document.querySelector('dialog[open] .error')?.textContent === 'Incorrect username or password.'`, 'Engelse foutmelding bij fout wachtwoord');
+  await shot('engels-inloggen');
+  await setBrowserLanguages('nl-NL,nl');
+  step(`taal: een Engelse browser krijgt vanzelf de Engelse app, met een eigen Engelse foutmelding (de browser van deze test meldt zelf ${JSON.stringify(ownLanguages)})`);
+
   // ---- 1. eerste keer openen: inloggen ----
   await send('Page.navigate', { url: `${BASE}/` });
   await waitFor(`document.body.classList.contains('ready')`, 'app gestart');
   await waitFor(`document.querySelector('dialog[open] input[type=password]')`, 'inlogscherm');
+  assert.deepEqual(await evaluate(`[...navigator.languages]`), ['nl-NL', 'nl'], 'de browser meldt nu Nederlands');
+  assert.equal(await evaluate(`document.documentElement.lang`), 'nl');
   await shot('inloggen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Inloggen');
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
@@ -462,6 +500,365 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'alles gesloten');
   step('account: apparatenlijst met "dit apparaat"; beheer: een account aanmaken via het scherm (te kort wachtwoord wordt geweigerd)');
 
+  // ---- 8d. Engels: in de app wisselen, de schermen nalopen, en terug naar Nederlands ----
+  /** Wat de app in het Engels zou tonen, uitgerekend met dezelfde code als de app (hier in Node). */
+  const inEnglish = <T>(fn: () => T): T => { setLanguage('en'); try { return fn(); } finally { setLanguage('nl'); } };
+  const texts = (selector: string) => evaluate<string[]>(`[...document.querySelectorAll(${js(selector)})].map((e) => e.textContent)`);
+  const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.trim())`);
+  const openMenu = async (label: string) => { await nav(label); await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu'); };
+  const openTask = async (content: string) => {
+    // een zojuist gesloten venster verdwijnt pas een tel later uit de pagina; daarop wachten, anders lezen we het oude uit
+    await waitFor(`!document.querySelector('#task-dialog')`, 'het vorige bewerkvenster is weg');
+    await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(content)}).querySelector('.task-body').click()`);
+    await waitFor(`document.querySelector('#task-dialog[open]')`, 'bewerkvenster');
+  };
+  /** Alles wat op dit moment te lezen is: de tekst op het scherm, en de teksten voor schermlezers, tooltips en lege velden. */
+  const screenText = () => evaluate<string>(`(() => {
+    const parts = [document.title, document.body.innerText];
+    for (const el of document.querySelectorAll('[aria-label], [title], [placeholder]')) {
+      for (const a of ['aria-label', 'title', 'placeholder']) if (el.getAttribute(a)) parts.push(el.getAttribute(a));
+    }
+    for (const el of document.querySelectorAll('option')) parts.push(el.textContent);
+    return parts.join('\\n');
+  })()`);
+  // Elk stuk Nederlandse tekst uit het woordenboek dat niet ook Engels is ("Project", "Deadline" en "nov" tellen dus niet mee).
+  const pieces = (dictionary: Record<string, unknown>) => Object.values(dictionary).flatMap((v) => (typeof v === 'string' ? [v] : Object.values(v as object) as string[]));
+  const asWord = (s: string) => new RegExp(`(?<![\\p{L}])${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu');
+  const englishText = pieces(en).join('\n');
+  const dutchPieces = [...new Set(pieces(dutchTexts).flatMap((text) => text.split(/\{\w+\}/)).map((s) => s.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')))]
+    .filter((s) => s.replace(/[^\p{L}]/gu, '').length >= 3 && !asWord(s).test(englishText));
+  assert.ok(dutchPieces.length > 150 && dutchPieces.includes('Vandaag') && dutchPieces.includes('lid') && !dutchPieces.includes('Project'), `de lijst met Nederlandse teksten klopt niet (${dutchPieces.length})`);
+  const checked: string[] = [];
+  /** Controleert dat er op dit scherm geen Nederlandse tekst van de app staat (gegevens van de gebruiker mogen Nederlands zijn). */
+  const noDutch = async (screen: string) => {
+    const text = await screenText();
+    const found = dutchPieces.filter((p) => asWord(p).test(text));
+    assert.deepEqual(found, [], `Nederlandse tekst in de Engelse interface (${screen})`);
+    checked.push(screen);
+  };
+  const fits = async (what: string) => {
+    assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true, `${what}: de pagina is breder dan het scherm`);
+    assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open]')].every((d) => d.scrollWidth <= d.clientWidth + 1 && d.getBoundingClientRect().right <= window.innerWidth + 1)`), true, `${what}: het venster past niet`);
+    // knoppen en vaste labels mogen niet afgekapt zijn (namen van de gebruiker wel: die krijgen bewust een beletselteken)
+    const clipped = await evaluate<string[]>(`[...document.querySelectorAll('button:not(.nav-item):not(.task-body), .field-label, .hint, .group-title, summary, .badge, h2')].filter((e) => e.offsetParent !== null && e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent.trim().slice(0, 40))`);
+    assert.deepEqual(clipped, [], `${what}: afgekapte tekst`);
+  };
+
+  // in het Nederlands geeft een Engelse datum geen uitleg over de datumtaal; die is er alleen in een andere taal
+  await typeInto('#quick-input', 'Call the dentist tomorrow');
+  await waitFor(`document.querySelector('#quick-preview .chip-title')?.textContent === 'Call the dentist tomorrow'`, 'voorbeeld in het Nederlands');
+  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null);
+  await typeInto('#quick-input', '');
+
+  // wisselen via Instellingen
+  await openMenu('Alice');
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  await clickText('Taal / Language');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
+  assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
+  await clickText('English');
+  await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'en'`, 'gewisseld naar Engels');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'en', 'de keuze is bewaard');
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.getElementById('sync-status').textContent === 'Up to date'`, 'na herladen nog steeds Engels (de browser zelf staat op Nederlands)', 15_000);
+  assert.deepEqual(await evaluate(`[...navigator.languages]`), ['nl-NL', 'nl']);
+  assert.equal(await evaluate(`document.documentElement.lang`), 'en');
+
+  // zijbalk en projectscherm
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'project Thuis in het Engels');
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Today', 'Upcoming', 'Inbox', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projects', 'Settings']);
+  assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('menu-button').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
+    ['Navigation', 'Views', 'Menu', 'Add project', 'Shared project', 'Click to sync now']);
+  assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent]`),
+    [en['quick.placeholder'], 'Add task', 'Add']);
+  assert.deepEqual(await buttons('.toolbar'), ['Add section', 'Shared', 'Project…']);
+  assert.equal(await evaluate(`document.querySelector('.shared-with').textContent`), 'Shared with Bob');
+  assert.equal(await evaluate(`document.title`), 'Thuis · Tickory');
+  assert.deepEqual(await taskMeta('Gordijnen ophangen'), ['for Bob']);
+  assert.deepEqual(await taskMeta('Planten water geven'), ['↻ tomorrow']);
+  assert.deepEqual(await taskMeta('Afwasmachine uitruimen'), [inEnglish(() => formatDate(expectedThursday, today))]);
+  assert.equal(await evaluate(`document.querySelector('.check').getAttribute('aria-label')`), 'Complete: Planten water geven');
+  await noDutch('project');
+  await fits('project');
+  await shot('engels-project');
+
+  // Vandaag en Binnenkort
+  await nav('Today');
+  await waitFor(`document.getElementById('view-title').textContent === 'Today'`, 'scherm Today');
+  assert.ok((await texts('.group-title')).some((x) => x === `Today · ${inEnglish(() => formatDueLong({ date: today }, today))}`), 'de kop van vandaag');
+  await noDutch('today');
+  await nav('Upcoming');
+  await waitFor(`document.getElementById('view-title').textContent === 'Upcoming'`, 'scherm Upcoming');
+  assert.equal((await texts('.group-title'))[0], `Tomorrow · ${inEnglish(() => formatDueLong({ date: tomorrow }, today))}`);
+  assert.deepEqual(await taskMeta('Tandarts bellen'), ['tomorrow 09:00', '@bellen', 'Inbox']);
+  await noDutch('upcoming');
+  await shot('engels-binnenkort');
+
+  // een taak toevoegen: alleen notaties die in elke taal werken, en een eerlijke hint bij een Engelse datum
+  await nav('Inbox');
+  await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'Inbox in het Engels');
+  await typeInto('#quick-input', 'Call the dentist tomorrow');
+  await waitFor(`document.querySelector('#quick-preview .preview-note')`, 'uitleg over de datumtaal');
+  assert.deepEqual(await texts('#quick-preview .chip'), ['Call the dentist tomorrow']);
+  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note').textContent`), en['date.dutchOnly']);
+  await shot('engels-datumhint');
+  const newYearsEve = nextFixed(12, 31);
+  await typeInto('#quick-input', 'Call the dentist 31-12 p1 @calls');
+  await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 4`, 'voorbeeld onder het invoerveld (Engels)');
+  assert.deepEqual(await texts('#quick-preview .chip'), ['Call the dentist', inEnglish(() => formatDate(newYearsEve, today)), '@calls (new)', 'P1']);
+  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null, 'bij een herkende datum geen uitleg');
+  await shot('engels-quick-add');
+  await submit('#quick-add');
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Call the dentist')`, 'Engelse taak in de Inbox');
+  await waitFor(`await ${SYNCED_EN}`, 'gesynchroniseerd (Engels)');
+  assert.equal(serverTask('Call the dentist').due.date, newYearsEve);
+  assert.equal(serverTask('Call the dentist').priority, 1);
+  await quickAdd('   ');
+  await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent === 'Give the task a name.')`, 'melding bij een lege taak');
+  await typeInto('#quick-input', '');
+  await noDutch('inbox met meldingen');
+
+  // het bewerkvenster
+  await openTask('Call the dentist');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .field-label')].filter((l) => !l.hidden).map((l) => l.firstChild.textContent)`), ['Due date', 'Deadline', 'Priority', 'Labels', 'Project', 'Section']);
+  assert.deepEqual(await buttons('#task-dialog'), ['Add', 'Delete', 'Cancel', 'Save']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask']);
+  assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['P1 – highest', 'P2', 'P3', 'P4 – none', 'Inbox', 'Thuis', '(no section)']);
+  const dueInput = `#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`;
+  assert.equal(await evaluate(`document.querySelector(${js(dueInput)}).value`), newYearsEve, 'de datum staat er in een vorm zonder Nederlands woord');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), `Now: ${inEnglish(() => formatDueLong({ date: newYearsEve }, today))}`);
+  await typeInto(dueInput, 'tomorrow at 9');
+  await waitFor(`document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'onbekende datum (Engels)');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), `I don't recognize this date. ${en['date.dutchOnly']}`);
+  await submit('#task-dialog form');
+  await waitFor(`document.querySelector('#task-dialog .error').textContent === ${js(en['task.dueError'])}`, 'Engelse foutmelding bij een onbekende datum');
+  await noDutch('bewerkvenster met foutmelding');
+  await fits('bewerkvenster');
+  await shot('engels-bewerken-fout');
+  await typeInto(dueInput, '');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), en['date.dutchOnly'], 'bij een leeg datumveld staat welke notaties werken');
+  await typeInto(dueInput, '2027-01-15T09:30');
+  await waitFor(`document.querySelector('#task-dialog .hint').textContent === 'Will be: Fri 15 Jan 2027 09:30'`, 'uitleg bij de datum (Engels)');
+  await typeInto('#task-dialog input[placeholder="Add subtask"]', 'Bring the forms');
+  await clickText('Add', `document.querySelector('#task-dialog')`);
+  await waitFor(`[...document.querySelectorAll('#task-dialog .hint')].some((e) => e.textContent === 'Subtask added: Bring the forms')`, 'subtaak toegevoegd (Engels)');
+  await shot('engels-bewerken');
+  await submit('#task-dialog form');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten (Engels)');
+  await waitFor(`await ${SYNCED_EN}`, 'gesynchroniseerd (Engels)');
+  assert.equal(serverTask('Call the dentist').due.date, '2027-01-15T09:30');
+  assert.deepEqual(await taskMeta('Call the dentist'), ['15 Jan 2027 09:30', '@calls']);
+  await openTask('Bring the forms');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Subtask of: Call the dentist');
+  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'subtaak gesloten');
+  await openTask('Call the dentist');
+  assert.equal(await evaluate(`document.querySelector(${js(dueInput)}).value`), '2027-01-15T09:30', 'datum met tijd: de vorm die de herkenner weer leest');
+  await clickText('Delete', `document.querySelector('#task-dialog')`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete task?')`, 'bevestiging (Engels)');
+  assert.ok(await evaluate(`[...document.querySelectorAll('dialog[open] p')].some((e) => e.textContent === '"Call the dentist" and any subtasks will be deleted.')`));
+  await noDutch('taak verwijderen');
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(`!document.querySelector('dialog[open]') && ![...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Call the dentist')`, 'Engelse taak verwijderd');
+  await waitFor(`await ${SYNCED_EN}`, 'gesynchroniseerd (Engels)');
+  assert.equal(serverTask('Call the dentist'), undefined);
+
+  // afvinken met ongedaan maken
+  await check('Boodschappen doen');
+  await waitFor(`document.querySelector('.toast-action')?.textContent === 'Undo'`, 'melding met Undo');
+  assert.ok((await texts('.toast-text')).includes('Task completed'));
+  await click('.toast-action');
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Boodschappen doen')`, 'taak terug na Undo');
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
+
+  // het deelvenster, met een geweigerde uitnodiging
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (Engels)');
+  await openTask('Gordijnen ophangen');
+  assert.deepEqual(await texts('#task-dialog select[aria-label="Assigned to"] option'), ['(no one)', 'Alice (you)', 'Bob']);
+  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
+  await clickText('Shared');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
+  assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · member']);
+  assert.deepEqual(await buttons(), ['Remove', 'Share', 'Close']);
+  assert.deepEqual(await evaluate(`[document.querySelector('dialog[open] input').placeholder, document.querySelector('dialog[open] input').getAttribute('aria-label')]`), ['Username', "The person's username"]);
+  await typeInto(`dialog[open] input[aria-label="The person's username"]`, 'niemand-bekend');
+  await submit('dialog[open] form.subtask-row');
+  await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent === "Couldn't share the project. There's no user with that username.")`, 'Engelse melding: gebruiker bestaat niet');
+  await noDutch('deelvenster met foutmelding');
+  await fits('deelvenster');
+  await shot('engels-delen');
+  await clickText('Remove', `document.querySelector('dialog[open]')`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Remove from project?')`, 'bevestiging uit het project halen');
+  assert.deepEqual(await evaluate(`[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('p, button')].map((e) => e.textContent)`),
+    ['Bob will no longer see "Thuis". Their assignments and reminders for this project will be removed.', 'Cancel', 'Remove from project']);
+  await noDutch('uit het project halen');
+  await clickText('Cancel', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'deelvenster gesloten');
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
+  assert.equal((serverState(bob.id).projects as any[]).some((p) => p.name === 'Thuis'), true, 'Bob is nog lid');
+
+  // het projectmenu
+  await clickText('Project…');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
+  assert.deepEqual(await buttons(), ['Rename', 'Share…', 'Delete project', 'Close']);
+  await clickText('Delete project');
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete project?')`, 'bevestiging project verwijderen');
+  assert.ok(await evaluate(`document.querySelector('dialog[open] p').textContent === '"Thuis" will be deleted, along with all its sections, tasks and subprojects — also for the people you share it with.'`));
+  await noDutch('project verwijderen');
+  await clickText('Cancel', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bevestiging gesloten');
+
+  // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
+  await openMenu('Alice');
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  await clickText('Account, password and devices');
+  await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
+  assert.deepEqual(await texts('dialog[open] summary'), ['Signed-in devices', 'Change password']);
+  assert.ok((await texts('dialog[open] .device .hint')).every((x) => /^Last used: \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'datum en tijd in het Engels');
+  await evaluate(`document.querySelectorAll('dialog[open] details')[1].open = true`);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] details')[1].querySelectorAll('.field-label')].map((l) => l.firstChild.textContent)`), ['Current password', 'New password', 'Repeat new password']);
+  await typeInto('dialog[open] input[aria-label="Current password"]', PASSWORD_ALICE);
+  await typeInto('dialog[open] input[aria-label="New password"]', 'kort');
+  await typeInto('dialog[open] input[aria-label="Repeat new password"]', 'kort');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`document.querySelector('dialog[open] .section-form .error')?.textContent === 'The new password needs at least 10 characters.'`, 'te kort wachtwoord (Engels)');
+  await typeInto('dialog[open] input[aria-label="Current password"]', 'niet-het-goede-wachtwoord');
+  await typeInto('dialog[open] input[aria-label="New password"]', 'een-nieuw-wachtwoord-1');
+  await typeInto('dialog[open] input[aria-label="Repeat new password"]', 'een-nieuw-wachtwoord-1');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`document.querySelector('dialog[open] .section-form .error')?.textContent === 'The current password is incorrect.'`, 'fout huidig wachtwoord: eigen Engelse vertaling van de servermelding');
+  // één ander apparaat (de "Telefoon" van eerder) met een eigen knop, het formulier, en de knoppen van het venster
+  assert.deepEqual(await buttons(), ['Sign out', 'Change password', 'Sign out', 'User management', 'Close']);
+  await noDutch('account');
+  await fits('account');
+  await shot('engels-account');
+  await clickText('User management');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .device strong')].some((e) => e.textContent.startsWith('Carol de Vries'))`, 'gebruikerslijst (Engels)');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'User management');
+  assert.deepEqual(await texts('dialog[open] summary'), ['Accounts', 'New account']);
+  assert.ok((await texts('dialog[open] .badge')).includes('admin'));
+  await evaluate(`document.querySelectorAll('dialog[open] details')[1].open = true`);
+  await typeInto('dialog[open] input[aria-label="Username"]', '.dave');
+  await typeInto('dialog[open] input[aria-label="Initial password"]', 'dave-wachtwoord-1');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`document.querySelector('dialog[open] p[role=status]').textContent === ${js(en['account.usernameInvalid'])}`, 'ongeldige gebruikersnaam: Engelse melding vóór het versturen');
+  await typeInto('dialog[open] input[aria-label="Username"]', 'dave-wachtwoord-1');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`document.querySelector('dialog[open] p[role=status]').textContent === "The password can't be the same as the username."`, 'wachtwoord gelijk aan gebruikersnaam (Engels)');
+  await typeInto('dialog[open] input[aria-label="Username"]', 'bob');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`document.querySelector('dialog[open] p[role=status]').textContent === 'This username is already taken.'`, 'bestaande gebruikersnaam: eigen Engelse vertaling van de servermelding');
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM users WHERE username IN ('.dave', 'dave-wachtwoord-1')").get() as any).n, 0, 'ongeldige invoer is niet verstuurd');
+  await evaluate(`[...document.querySelectorAll('dialog[open] .device')].find((d) => d.querySelector('strong').textContent.startsWith('Carol de Vries')).querySelector('button').click()`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Carol de Vries (@carol)')`, 'menu van een gebruiker');
+  assert.deepEqual(await evaluate(`[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('button')].map((b) => b.textContent)`), ['Reset password', 'Block account', 'Make admin', 'Close']);
+  await noDutch('gebruikersbeheer');
+  await fits('gebruikersbeheer');
+  await shot('engels-beheer');
+  await clickText('Block account', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Block account?')`, 'bevestiging blokkeren');
+  assert.deepEqual(await evaluate(`[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('p, button')].map((e) => e.textContent)`),
+    ['Carol de Vries can no longer sign in and has been signed out everywhere. Their data is kept.', 'Cancel', 'Block']);
+  await clickText('Cancel', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Account'`, 'terug in het accountscherm (Engels)');
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'alles gesloten (Engels)');
+
+  // telefoonformaat in het Engels: niets afgekapt, niets buiten beeld
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  await fits('telefoon: project');
+  await shot('engels-telefoon-project');
+  await click('#menu-button');
+  await sleep(350);
+  await shot('engels-telefoon-menu');
+  await click('#scrim');
+  await openTask('Afwasmachine uitruimen');
+  await typeInto(`#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`, 'next friday');
+  await waitFor(`document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'onbekende datum (telefoon)');
+  await fits('telefoon: bewerkvenster');
+  await shot('engels-telefoon-bewerken');
+  await evaluate(`document.querySelector('#task-dialog').scrollTo(0, 9999)`);
+  await shot('engels-telefoon-bewerken-onder');
+  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten (telefoon)');
+  await clickText('Shared');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (telefoon)');
+  await fits('telefoon: deelvenster');
+  await shot('engels-telefoon-delen');
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await click('#menu-button');
+  await sleep(350);
+  await nav('Alice');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu (telefoon)');
+  await fits('telefoon: instellingen');
+  await shot('engels-telefoon-instellingen');
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await click('#scrim');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+
+  // offline in het Engels: de statusregel met het juiste meervoud
+  await stopServer();
+  await quickAdd('Written offline 31-12');
+  await waitFor(`document.getElementById('sync-status').textContent === 'Offline · 1 change waiting'`, 'status offline (Engels, enkelvoud)', 45_000);
+  await quickAdd('Written offline too');
+  await waitFor(`document.getElementById('sync-status').textContent === 'Offline · 2 changes waiting'`, 'status offline (Engels, meervoud)', 45_000);
+  await noDutch('offline');
+  await shot('engels-offline');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  await fits('telefoon: offline met wachtende wijzigingen');
+  assert.equal(await evaluate(`(() => { const s = document.getElementById('sync-status').getBoundingClientRect(); return s.left >= 0 && s.right <= window.innerWidth; })()`), true, 'de statusregel past op de telefoon');
+  await shot('engels-telefoon-offline');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  await evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === 'Alice').click()`);
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu (offline)');
+  await clickText('Sign out and clear local data');
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sign out?')`, 'bevestiging afmelden (Engels)');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] p, dialog[open] button')].map((e) => e.textContent)`),
+    ["2 changes are still waiting and haven't been sent to the server. They will be lost.", 'Cancel', 'Sign out']);
+  await noDutch('afmelden met wachtende wijzigingen');
+  await clickText('Cancel', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bevestiging gesloten');
+  await startServer();
+  await click('#sync-status');
+  await waitFor(`await ${SYNCED_EN}`, 'weer bijgewerkt (Engels)', 15_000);
+  assert.equal(serverTask('Written offline').due.date, nextFixed(12, 31));
+  for (const content of ['Written offline', 'Written offline too']) {
+    await openTask(content);
+    await clickText('Delete', `document.querySelector('#task-dialog')`);
+    await waitFor(`document.querySelectorAll('dialog[open]').length === 2`, 'bevestiging');
+    await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+    await waitFor(`!document.querySelector('dialog[open]')`, 'taak verwijderd');
+  }
+  await waitFor(`document.querySelectorAll('.task').length === 6 && await ${SYNCED_EN}`, 'opgeruimd (Engels)');
+
+  // terug naar Nederlands: alles staat er weer zoals voorheen, en ook dat blijft bewaard
+  await openMenu('Alice');
+  await clickText('Taal / Language');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze (Engels)');
+  assert.deepEqual(await buttons(), ['Nederlands', 'English ✓', 'Close']);
+  await clickText('Nederlands');
+  await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Vandaag', 'Binnenkort', 'Inbox', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
+  assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent, document.getElementById('sync-status').title, document.getElementById('sidebar').getAttribute('aria-label')]`),
+    ['Nieuwe taak, bv. Bellen morgen p1', 'Taak toevoegen', 'Toevoegen', 'Klik om nu bij te werken', 'Navigatie']);
+  assert.deepEqual(await taskMeta('Gordijnen ophangen'), ['voor Bob']);
+  await waitFor(`await ${SYNCED}`, 'bijgewerkt (Nederlands)');
+  step(`Engels: wisselen via Instellingen werkt direct en blijft bewaard (ook na herladen, in een browser die op Nederlands staat); ${checked.length} schermen zonder Nederlandse tekst van de app (${checked.join(', ')}); datums, meervouden en foutmeldingen in het Engels; niets afgekapt, ook niet op telefoonformaat; daarna terug naar Nederlands`);
+
   // ---- 9. telefoonformaat en donkere modus ----
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await nav('Thuis');
@@ -545,10 +942,11 @@ try {
 
   // ---- fouten in de console ----
   const own = consoleErrors.filter((e) => !/adguard/i.test(e));
-  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 400 .*\/api\/v1\/admin\/users/i.test(e));
+  // Een te kort wachtwoord of een ongeldige gebruikersnaam hoort hier niet meer bij: dat houdt de app zelf tegen vóór het versturen.
+  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 403 .*\/api\/v1\/auth\/password|status of 409 .*\/api\/v1\/admin\/users/i.test(e));
   const unexpected = own.filter((e) => !expected.includes(e));
   assert.deepEqual(unexpected, [], 'onverwachte fouten in de console van de browser');
-  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-test, het foute wachtwoord, het te korte wachtwoord en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
+  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-tests, de foute wachtwoorden, de bestaande gebruikersnaam en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
 } catch (err) {
   failed = err;
   try {
