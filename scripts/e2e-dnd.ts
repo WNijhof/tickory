@@ -414,6 +414,7 @@ export async function dragAndDropScenario(c: any): Promise<void> {
     const from = await rowRect('Regel 05');
     const to = await rowRect('Regel 02');
     const pa = { x: Math.round(from.x + 120), y: Math.round(from.y + from.h / 2) };
+    const scrollBefore = await evaluate<number>(`window.scrollY`);
     await touch('touchStart', pa.x, pa.y);
     await sleep(520);
     assert.equal((await dragState()).ghost, true, 'na lang indrukken begint het slepen');
@@ -421,6 +422,7 @@ export async function dragAndDropScenario(c: any): Promise<void> {
     for (let i = 1; i <= steps; i++) { await touch('touchMove', pa.x, Math.round(pa.y + ((to.y + to.h * 0.1 - pa.y) * i) / steps)); await sleep(16); }
     await sleep(80);
     assert.equal((await dragState()).line, true);
+    assert.ok(Math.abs((await evaluate<number>(`window.scrollY`)) - scrollBefore) <= 2, 'de pagina scrolt niet mee terwijl je sleept');
     await shot('telefoon-slepen-lang-indrukken');
     await touch('touchEnd', pa.x, Math.round(to.y + to.h * 0.1));
     await settle();

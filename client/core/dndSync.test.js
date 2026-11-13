@@ -345,3 +345,16 @@ test('slepen met het toetsenbord: stap voor stap omhoog, omlaag, in en uit, tot 
   assert.equal([...w.alice.store.view.tasks.values()].filter((t) => t.project_id === project).length, 5);
   assert.equal(currentTaskPlan(w.alice.store.view, ids.c).project_id, project);
 });
+
+test('moveTask met een ouder in een sectie: de plek tussen de subtaken klopt ook als de aanroeper de sectie weglaat', async () => {
+  const w = world(['alice']);
+  await start(w.alice);
+  const project = await w.alice.actions.addProject({ name: 'Klus' });
+  const section = await w.alice.actions.addSection(project, 'Sectie');
+  const parent = await w.alice.actions.addTask({ content: 'ouder', project_id: project, section_id: section });
+  const a = await w.alice.actions.addTask({ content: 'a', project_id: project, parent_id: parent });
+  await w.alice.actions.addTask({ content: 'b', project_id: project, parent_id: parent });
+  const loose = await w.alice.actions.addTask({ content: 'los', project_id: project });
+  await settles(w.alice, () => w.alice.actions.moveTask(loose, { project_id: project, parent_id: parent, beforeId: a }));
+  assert.deepEqual(order(w.alice, project, section, parent), ['los', 'a', 'b']);
+});
