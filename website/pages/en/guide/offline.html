@@ -14,6 +14,7 @@ description: Tickory also works without a connection: what you can do offline, w
 <h2>What you can do offline</h2>
 <p>Everything to do with your tasks: adding, editing, ticking off, moving, creating projects and sections. You see the result immediately; the change waits on your device until it can go to the server.</p>
 <p>What does need a connection: signing in, changing your password, the list of devices and user management. If you share a project while offline, that is only carried out once there is a connection again, and only then do you see the other person in the list.</p>
+<p>You can set <strong>reminders</strong> offline, like any other change. Whether they go off without a connection depends on the device: the <a href="android-app.html">Android app</a> sets them as alarms on the phone itself, so what the app already knows also goes off without internet (a reminder you have just made offline is only scheduled once it has reached the server). Notifications in the browser come from the server through your browser's push service; they arrive as soon as the device is back online, if that is within an hour of the moment (and only after the change has reached the server). See <a href="reminders.html">Reminders</a>.</p>
 
 <h2>The status in the top right</h2>
 <div class="table-wrap">
@@ -22,16 +23,16 @@ description: Tickory also works without a connection: what you can do offline, w
       <tr><th>It says</th><th>Meaning</th></tr>
     </thead>
     <tbody>
-      <tr><td>Bijgewerkt</td><td class="wrap-ok">Up to date: everything is on the server and you have the latest state.</td></tr>
-      <tr><td>Bezig…</td><td class="wrap-ok">Busy: the app is exchanging data with the server right now.</td></tr>
-      <tr><td>2 wachtend</td><td class="wrap-ok">2 waiting: changes are ready and will be sent in a moment.</td></tr>
-      <tr><td>Offline · 2 wachtend</td><td class="wrap-ok">The server cannot be reached. Your changes are kept and sent later.</td></tr>
-      <tr><td>Bijwerken mislukt</td><td class="wrap-ok">Sync failed: the server can be reached but returned an error. See <a href="troubleshooting.html">Troubleshooting</a>.</td></tr>
-      <tr><td>Inloggen nodig</td><td class="wrap-ok">Sign-in required: you are not (or no longer) signed in on this device. See <a href="signing-in.html">Signing in</a>.</td></tr>
+      <tr><td><x-ui k="sync.upToDate"></x-ui></td><td class="wrap-ok">Everything is on the server and you have the latest state.</td></tr>
+      <tr><td><x-ui k="sync.syncing"></x-ui></td><td class="wrap-ok">The app is exchanging data with the server right now.</td></tr>
+      <tr><td><x-ui k="sync.waiting" n="2"></x-ui></td><td class="wrap-ok">Changes are ready and will be sent in a moment.</td></tr>
+      <tr><td><x-ui k="sync.offline"></x-ui> · <x-ui k="sync.waiting" n="2"></x-ui></td><td class="wrap-ok">The server cannot be reached. Your changes are kept and sent later.</td></tr>
+      <tr><td><x-ui k="sync.failed"></x-ui></td><td class="wrap-ok">The server can be reached but returned an error. See <a href="troubleshooting.html">Troubleshooting</a>.</td></tr>
+      <tr><td><x-ui k="sync.signInNeeded"></x-ui></td><td class="wrap-ok">You are not (or no longer) signed in on this device. See <a href="signing-in.html">Signing in</a>.</td></tr>
     </tbody>
   </table>
 </div>
-<p>Click the status to sync right away. You can also do that through <strong>Instellingen</strong> (your name at the bottom of the sidebar) and then <strong>Nu bijwerken</strong> (sync now).</p>
+<p>Click the status to sync right away. You can also do that through <x-ui k="settings.title"></x-ui> (your name at the bottom of the sidebar) and then <x-ui k="settings.syncNow"></x-ui> (sync now).</p>
 
 <h2>When the connection comes back</h2>
 <ul>
@@ -39,7 +40,7 @@ description: Tickory also works without a connection: what you can do offline, w
   <li>Your waiting changes go to the server in the order in which you made them. Each change is carried out at most once, even if the connection drops halfway.</li>
   <li>What others changed in the meantime comes in. Your waiting changes are kept while that happens.</li>
   <li>If you and someone else changed the same field of the same task, whoever reached the server last wins.</li>
-  <li>If a change can no longer be applied, for example because the task was deleted in the meantime, you get a message about it (“Niet gelukt …”, failed) and the app shows the actual state again.</li>
+  <li>If a change can no longer be applied, for example because the task was deleted in the meantime, you get a message about it (“Couldn't …”) and the app shows the actual state again.</li>
 </ul>
 
 <h2>Several devices and tabs</h2>
@@ -49,6 +50,6 @@ description: Tickory also works without a connection: what you can do offline, w
 <ul>
   <li><strong>Signing out erases the copy on that device</strong>, including changes that were still waiting. The app warns you if that is the case. So sync first before you sign out.</li>
   <li><strong>The browser manages the storage.</strong> If you clear the site's data in your browser, or use a private window, the copy is gone; everything that was already on the server comes back the next time you open the app.</li>
-  <li>If the browser cannot store anything at all, the app says so: “Lokale opslag is niet beschikbaar” (local storage is not available). The app then works, but only while the window is open and there is a connection.</li>
+  <li>If the browser cannot store anything at all, the app says so: “Local storage isn't available”. The app then works, but only while the window is open and there is a connection.</li>
   <li><strong>A new version of the app</strong> is fetched in the background and is active when you open the app again after that.</li>
 </ul>

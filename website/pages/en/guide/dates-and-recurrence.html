@@ -3,13 +3,13 @@ title: Dates and recurrences
 description: All dates and recurrences Tickory understands in plain Dutch, with examples and translations: morgen, over twee weken, elke tweede dinsdag, voor Sinterklaas, and more.
 -->
 <h1>Dates and recurrences</h1>
-<p class="intro">You type a date the way you would say it, in Dutch. The app recognises it in the line you add a task with, and in the Datum (date) field when you edit a task.</p>
+<p class="intro">You type a date the way you would say it, in Dutch. The app recognises it in the line you add a task with, and in the <x-ui k="task.due"></x-ui> field when you edit a task.</p>
 
 <p>Every example on this page was checked against the app's own date parser. They assume <strong>Tuesday 17 November 2026, 10 in the morning</strong>; on another day the resulting dates are of course different.</p>
 
 <div class="note">
   <span class="note-label">Good to know</span>
-  <p>The date language is Dutch. English input such as <em>tomorrow</em> is not recognised; an English interface and English date language are in development. Until then, this page gives the Dutch phrases with their meaning.</p>
+  <p>The app is bilingual, but the date language is Dutch for now, also when you set the interface to English. English input such as <em>tomorrow</em> is not recognised; English date language comes later. Until then, this page gives the Dutch phrases with their meaning. What works in any language: <code>31-12</code>, <code>31-12-2026</code> and, in the <x-ui k="task.due"></x-ui> field, <code>2026-12-31</code> and <code>2026-12-31T14:30</code>.</p>
 </div>
 
 <h2>A day</h2>
@@ -262,13 +262,13 @@ description: All dates and recurrences Tickory understands in plain Dutch, with 
   <li>Dates in the past, and English or other languages.</li>
 </ul>
 
-<h2>The Datum field in the edit window</h2>
-<p>Click a task and you find the field <strong>Datum</strong> (date). There you type the same language as above. Right below the field the app shows what it makes of it (“Wordt: do 26 nov”, becomes Thu 26 Nov), so that with a phrase like “volgende week donderdag” you can see which day it will be. If the app does not recognise the text, it says so and the task is not saved until you correct it. Empty the field to remove the date.</p>
+<h2>The Due date field in the edit window</h2>
+<p>Click a task and you find the field <x-ui k="task.due"></x-ui>. There you type the same language as above. Right below the field the app shows what it makes of it (<em>Will be: Thu 26 Nov</em>), so that with a phrase like “volgende week donderdag” you can see which day it will be. If the app does not recognise the text, it says so and the task is not saved until you correct it. Empty the field to remove the date. If the task already has a date, the English interface shows it in the field as <code>2026-11-17T17:30</code> (a recurrence as you typed it); the Dutch interface shows <code>17-11-2026 om 17:30</code>.</p>
 <p>The <strong>deadline</strong> is chosen there with your browser's date picker.</p>
 
 <h2>How dates are shown in the list</h2>
 <ul>
-  <li><strong>vandaag</strong> (today), <strong>morgen</strong> (tomorrow) and <strong>gisteren</strong> (yesterday) are shown as words; a day within a week as a weekday (“vrijdag”); further away as “do 26 nov”, and with the year added in another year.</li>
-  <li>A time follows it: “morgen 09:00”.</li>
-  <li>A date that has passed turns red, and from the day after the task is listed in Vandaag under <strong>Te laat</strong> (overdue). A task with a time already turns red as soon as that time has passed, but stays among today's tasks for the rest of that day.</li>
+  <li><strong>today</strong>, <strong>tomorrow</strong> and <strong>yesterday</strong> are shown as words; a day within a week as a weekday (“Friday”); further away as “Thu 26 Nov”, and with the year added in another year. (In the Dutch interface: vandaag, morgen, gisteren, “vrijdag”, “do 26 nov”.)</li>
+  <li>A time follows it: “tomorrow 09:00”. The app uses a 24-hour clock in both languages.</li>
+  <li>A date that has passed turns red, and from the day after the task is listed in <x-ui k="nav.today"></x-ui> under <x-ui k="view.overdue"></x-ui>. A task with a time already turns red as soon as that time has passed, but stays among today's tasks for the rest of that day.</li>
 </ul>

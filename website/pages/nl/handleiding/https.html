@@ -7,10 +7,10 @@ description: Tickory via HTTPS bereikbaar maken: met Tailscale, met een reverse 
 
 <h2>Waarom</h2>
 <ul>
-  <li>Browsers staan <strong>offline gebruik</strong> en <strong>installeren als app</strong> alleen toe op een beveiligd adres. De enige uitzondering is <code>localhost</code>, en dat is op een telefoon de telefoon zelf.</li>
+  <li>Browsers staan <strong>offline gebruik</strong>, <strong>installeren als app</strong> en <strong>meldingen</strong> (herinneringen in de browser) alleen toe op een beveiligd adres. De enige uitzondering is <code>localhost</code>, en dat is op een telefoon de telefoon zelf.</li>
   <li>Zonder HTTPS gaan je wachtwoord en je aanmelding onversleuteld over het netwerk.</li>
 </ul>
-<p>Zonder HTTPS werkt Tickory op je telefoon dus wel in de browser, zolang er verbinding is, maar niet offline en niet als geïnstalleerde app.</p>
+<p>Zonder HTTPS werkt Tickory op je telefoon dus wel in de browser, zolang er verbinding is, maar niet offline, niet als geïnstalleerde app en zonder meldingen. De <a href="android-app.html">Android-app</a> heeft voor herinneringen geen HTTPS nodig.</p>
 
 <h2>Tailscale</h2>
 <p>Het eenvoudigst, en er komt niets op het open internet. Je apparaten vormen samen een eigen, afgeschermd netwerk.</p>
@@ -45,8 +45,9 @@ description: Tickory via HTTPS bereikbaar maken: met Tailscale, met een reverse 
 <h2>Controleren</h2>
 <ol>
   <li>Open het <code>https://</code>-adres op je telefoon en log in.</li>
-  <li>Zet de telefoon in vliegtuigmodus en open het adres opnieuw: de app hoort te starten en je taken te tonen, met rechtsboven <strong>Offline</strong>.</li>
+  <li>Zet de telefoon in vliegtuigmodus en open het adres opnieuw: de app hoort te starten en je taken te tonen, met rechtsboven <x-ui k="sync.offline"></x-ui>.</li>
   <li>Kijk of je browser aanbiedt om de app te installeren; zie <a href="installeren-als-app.html">Installeren als app</a>.</li>
+  <li>Zet <a href="herinneringen.html#meldingen-in-de-browser">meldingen aan</a> (<x-ui k="settings.notifications"></x-ui>) en kies <x-ui k="notify.test"></x-ui>.</li>
 </ol>
 
 <h2>Goed om te weten</h2>

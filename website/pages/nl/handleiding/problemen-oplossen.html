@@ -56,6 +56,29 @@ docker compose logs --tail 100</code></pre>
   <dd>De browser staat het bewaren van gegevens niet toe, bijvoorbeeld in een privévenster met strenge instellingen. De app werkt, maar bewaart niets als je het venster sluit.</dd>
 </dl>
 
+<h2 id="meldingen-komen-niet-aan">Meldingen komen niet aan</h2>
+<p>Dit gaat over meldingen in de browser. De <a href="android-app.html">Android-app</a> plant haar alarmen zelf in; daar kijk je onder <x-ui k="settings.notifications"></x-ui> en op het scherm met problemen (zie <a href="android-app.html">Android-app</a>). Meer over het geheel staat bij <a href="herinneringen.html#meldingen">Herinneringen</a>.</p>
+<dl>
+  <dt>Er is geen herinnering, of ze staat op een ander tijdstip dan je dacht</dt>
+  <dd>Kijk eerst in het venster van de taak of de herinnering er staat, en of de taak een tijdstip heeft: een herinnering vooraf bestaat alleen bij een taak mét tijd. Controleer ook je tijdzone onder <x-ui k="settings.notifications"></x-ui>; de tijden in de app en de melding gaan uit van die tijdzone.</dd>
+  <dt>De knop <x-ui k="notify.enable"></x-ui> ontbreekt, of de app zegt dat de browser geen meldingen kan ontvangen</dt>
+  <dd>Het adres begint niet met <code>https://</code> (en is niet <code>localhost</code>), of de browser kent geen pushmeldingen. Op een iPhone of iPad werkt het alleen in de app die je <a href="installeren-als-app.html">op het beginscherm</a> hebt gezet. Zie <a href="https.html">HTTPS</a>.</dd>
+  <dt>“<x-ui k="notify.denied"></x-ui>”</dt>
+  <dd>Je hebt de toestemming eerder geweigerd. Tickory kan die niet zelf terugzetten: sta meldingen voor de site toe in de instellingen van je browser (meestal via het slotje of de sitegegevens naast het adres) en kies daarna <x-ui k="notify.enable"></x-ui> opnieuw.</dd>
+  <dt>Het apparaat staat aangemeld, maar de testmelding komt niet</dt>
+  <dd>Kijk onder <x-ui k="notify.devices"></x-ui> bij dit apparaat: daar staat de laatste fout, of dat er nog niets is bezorgd. Zegt de test dat er geen apparaat is aangemeld (“<x-ui k="notify.testNone"></x-ui>”), zet meldingen dan eerst aan. Op de computer kan ook het besturingssysteem (niet storen, concentratiemodus) de melding verbergen.</dd>
+  <dt>De test mislukt met een fout van de server</dt>
+  <dd>De server moet zelf naar buiten kunnen, naar de pushdiensten van Google, Mozilla, Microsoft en Apple. Is uitgaand verkeer afgeschermd, laat het dan toe. Kijk ook in het logboek. Een apparaat dat bij de pushdienst niet meer bestaat, vergeet de server vanzelf; zet meldingen dan opnieuw aan.</dd>
+  <dt>Alleen Safari op iPhone of iPad geeft problemen</dt>
+  <dd>De pushdienst van Apple vraagt om een contactadres. Zet <code>VAPID_SUBJECT</code> in <code>.env</code> en start de container opnieuw; zie <a href="herinneringen.html#voor-beheerders">Herinneringen, voor beheerders</a>.</dd>
+  <dt>Meldingen komen te laat, of een oude herinnering is nooit gekomen</dt>
+  <dd>De server kijkt elke 20 seconden. Was de server of het apparaat uit, dan wordt wat hooguit een uur te laat is nog verstuurd; wat ouder is vervalt.</dd>
+  <dt>Na een back-up terugzetten of een lege database komen er geen meldingen</dt>
+  <dd>De sleutels voor de meldingen horen bij de database. Start je met een nieuwe, dan gelden er nieuwe sleutels: open de app op elk apparaat opnieuw, zodat het zich vanzelf opnieuw aanmeldt, of zet meldingen opnieuw aan.</dd>
+  <dt>Alleen een van je apparaten krijgt meldingen</dt>
+  <dd>Meldingen staan per apparaat en per browser aan. Zet ze aan op elk apparaat waar je ze wilt. Een geblokkeerd account of een afgemeld apparaat krijgt er geen meer.</dd>
+</dl>
+
 <h2>Na het terugzetten van een back-up</h2>
 <p>Zien apparaten taken die er niet meer horen te zijn, of ontbreekt er juist iets? Meld op elk apparaat af en weer aan. Zie <a href="back-up.html#daarna-op-elk-apparaat-opnieuw-aanmelden">Back-up en terugzetten</a>.</p>
 

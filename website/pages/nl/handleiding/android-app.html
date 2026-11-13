@@ -1,38 +1,105 @@
 <!--
 title: Android-app
-description: Een Android-app (APK) voor Tickory is in ontwikkeling. Tot die er is, gebruik je de web-app in de browser van je telefoon; zo werkt dat.
+description: De Android-app van Tickory: je eigen server in een app, met herinneringen als alarm op de telefoon, ook zonder internet. Installeren, serveradres, toestemmingen, beperkingen en updates. De eerste APK komt met de eerstvolgende versie.
 -->
 <h1>Android-app</h1>
-<p class="intro">Er komt een app voor Android die je als APK installeert. Die is nog niet uitgebracht.</p>
+<p class="intro">De Android-app toont de web-app van je eigen server in een eigen app en plant je herinneringen als alarm op de telefoon zelf. Ze gaan dus ook af als de app dicht is en als je telefoon geen internet heeft.</p>
 
-<div class="note wip">
-  <span class="note-label">In ontwikkeling</span>
-  <p>In versie {{version}} is er <strong>geen Android-app om te downloaden</strong>. Deze pagina wordt aangevuld zodra de app is uitgebracht.</p>
+<div class="note warn">
+  <span class="note-label">Nog geen download</span>
+  <p>Er is nog geen uitgebrachte APK. De <strong>eerste APK komt met de eerstvolgende versie</strong> van Tickory, als bestand bij die versie op de <a href="{{repo}}/releases">releasepagina op GitHub</a>. Tot dan gebruik je de <a href="installeren-als-app.html">web-app in de browser</a> van je telefoon, of bouw je de app zelf; zie <a href="#zelf-bouwen">zelf bouwen</a>.</p>
 </div>
 
-<h2>Wat je nu gebruikt</h2>
-<p>De web-app werkt op Android in de browser en is daar als app te installeren:</p>
-<ol>
-  <li>Open het adres van jullie Tickory in Chrome en log in.</li>
-  <li>Kies in het menu van de browser <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.</li>
-</ol>
-<p>Je krijgt een pictogram tussen je apps, een eigen venster, en de app werkt ook zonder verbinding. Daarvoor moet de server via HTTPS bereikbaar zijn. Meer in <a href="installeren-als-app.html">Installeren als app</a> en <a href="offline.html">Offline werken</a>.</p>
-
-<h2>Wat de web-app op Android niet doet</h2>
+<h2>Wat de app is</h2>
 <ul>
-  <li>Meldingen sturen; zie <a href="herinneringen.html">Herinneringen</a>.</li>
-  <li>Een widget op je startscherm tonen.</li>
-  <li>Tekst uit een andere app ontvangen via “Delen”.</li>
+  <li>Een eigen app in Kotlin die jouw Tickory-server in de ingebouwde browser van Android (<em>Android System WebView</em>) toont. Het is dezelfde app als in je browser, met dezelfde schermen.</li>
+  <li>Daarbij haalt de app je taken en herinneringen op en zet ze als <strong>alarmen op het toestel</strong>. Een herinnering gaat af zonder dat de server of een pushdienst erbij betrokken is.</li>
+  <li><strong>Geen diensten van Google</strong>: geen Google Play, geen Firebase, geen trackers of statistieken. De app praat alleen met de server die jij invult. De ingebouwde browser stuurt geen gebruiksstatistieken naar Google en gebruikt geen <em>Safe Browsing</em>.</li>
+  <li>Je aanmelding staat versleuteld op het toestel (sleutel in de Android Keystore). Niets van de app gaat mee in back-ups naar de cloud of bij het overzetten naar een ander toestel.</li>
+</ul>
+<p>Je hebt Android 8 of nieuwer nodig. De app volgt de taal van het toestel (Nederlands of Engels; een andere taal krijgt Nederlands), en de web-app erin volgt zijn eigen taalkeuze.</p>
+
+<div class="note">
+  <span class="note-label">Eerlijk over de status</span>
+  <p>De app is getest op een computer: de rekenregels (ook rond zomer- en wintertijd), een nagebootste Android met alarmen, meldingen, knoppen en schermen, en één test tegen een echte server. De maker heeft hem <strong>nog niet op een echte telefoon uitgeprobeerd</strong>. Dat is het eerste wat er moet gebeuren; merk je iets op een toestel, meld het dan op <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>Installeren</h2>
+<p>Zodra er een APK is:</p>
+<ol>
+  <li>Download het bestand <code>tickory-&lt;versie&gt;.apk</code> van de releasepagina op de telefoon.</li>
+  <li>Open het bestand. Android vraagt de eerste keer of de app waarmee je het opent (je browser of bestandsbeheer) <strong>onbekende apps mag installeren</strong>. Sta dat toe en ga terug. Dit hoeft maar één keer.</li>
+  <li>Open Tickory, vul het <a href="#serveradres">adres van je server</a> in en log in.</li>
+  <li>Sta <strong>meldingen</strong> toe als de app daarom vraagt.</li>
+</ol>
+<p>Een APK van buiten Google Play controleert Android niet voor je. Download hem daarom alleen van de releasepagina van de repo zelf.</p>
+
+<h2 id="serveradres">Het adres van je server</h2>
+<p>Bij de eerste keer vraagt de app om het adres waarop je Tickory in de browser opent, bijvoorbeeld <code>https://taken.voorbeeld.nl</code> of, op je thuisnetwerk, <code>http://192.168.1.10:8787</code>.</p>
+<ul>
+  <li>Typ je geen <code>http://</code> of <code>https://</code>, dan neemt de app <code>https</code> aan. Een pad achter het adres en een poort 443 of 80 laat hij weg.</li>
+  <li>Zet geen gebruikersnaam of wachtwoord in het adres; je logt daarna in de app in.</li>
+  <li>De app bewaart het adres pas als de server er antwoordt zoals een Tickory-server hoort (het adres <code>/health</code>). Staat er iets anders of niets, dan zegt hij dat, met een tip: het adres bestaat niet, de server draait niet, het certificaat wordt niet vertrouwd, of het adres stuurt door naar een ander adres (de app opent alleen het adres dat je invult).</li>
+  <li><strong>https</strong> is de aanbevolen keuze. Met <code>http://</code> is de verbinding niet versleuteld; de app waarschuwt als je zo'n adres invult. Gebruik dat alleen op je eigen thuisnetwerk.</li>
+  <li>Het adres veranderen kan later: de app vraagt dan bevestiging, want je wordt afgemeld, de geplande alarmen verdwijnen en wijzigingen die nog niet naar de server zijn gestuurd gaan verloren.</li>
 </ul>
 
-<!-- LATER INVULLEN (zodra de APK is uitgebracht). Vervang het blok "In ontwikkeling" hierboven en vul deze koppen:
-<h2>Downloaden en installeren</h2>     waar de APK staat, hoe je controleert dat hij echt is, installeren buiten de Play Store om
-<h2>Verbinden met je server</h2>       het adres invullen en inloggen
-<h2>Meldingen</h2>                     welke toestemmingen de app vraagt en waarom
+<h2>Toestemmingen, en waarom</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Toestemming</th><th>Waarvoor</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Internet</td><td class="wrap-ok">De server bereiken.</td></tr>
+      <tr><td>Meldingen (Android 13 en nieuwer; de app vraagt erom)</td><td class="wrap-ok">De herinneringen tonen. Zonder deze toestemming zie je ze niet.</td></tr>
+      <tr><td>Exacte alarmen</td><td class="wrap-ok">Een herinnering op de minuut laten afgaan, ook in de slaapstand. Op Android 13 en nieuwer staat dit vast aan. Op Android 12 kun je het uitzetten; de herinnering komt dan soms enkele minuten later.</td></tr>
+      <tr><td>Starten na het opstarten</td><td class="wrap-ok">Android wist alarmen als de telefoon uitgaat; de app zet ze na het opstarten opnieuw (ook na een andere tijdzone, een verzette klok of een update van de app).</td></tr>
+      <tr><td>Apparaten in de buurt (alleen Android 17 en nieuwer; de app vraagt erom)</td><td class="wrap-ok">Android 17 laat een app alleen bij adressen op je thuisnetwerk komen na deze toestemming. De app vraagt hem alleen als je server thuis staat (zoals <code>192.168.…</code> of <code>nas.local</code>) en gebruikt hem alleen om die server te bereiken.</td></tr>
+      <tr><td>Netwerkstatus en wakker blijven</td><td class="wrap-ok">Voor het verversen op de achtergrond: alleen met verbinding, en het werk afmaken voordat het toestel weer slaapt.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>De app vraagt geen toegang tot locatie, contacten, bestanden, camera of microfoon.</p>
+
+<h2>Herinneringen in de app</h2>
+<p>De herinneringen stel je in zoals in de browser; zie <a href="herinneringen.html">Herinneringen</a>. De app ververst je gegevens direct na het inloggen, direct na een wijziging aan een taak of herinnering, daarna elk kwartier (met verbinding) en telkens als je hem opent.</p>
+<ul>
+  <li>In de melding staan de knoppen <x-ui k="sw.complete"></x-ui> en <x-ui k="sw.snooze"></x-ui>. <x-ui k="sw.snooze"></x-ui> brengt dezelfde melding tien minuten later terug. Heeft de telefoon geen verbinding, dan onthoudt de app <x-ui k="sw.complete"></x-ui> en vinkt de taak af zodra het kan (drie dagen lang; daarna geeft hij het op en zegt dat).</li>
+  <li>Tik je op de melding, dan opent de app bij die taak.</li>
+  <li>Wat hooguit een uur te laat is (de telefoon stond uit), wordt alsnog getoond; wat ouder is niet. De app plant hooguit 200 herinneringen, tot 30 dagen vooruit; dat venster schuift bij elke verversing mee.</li>
+</ul>
+
+<h2>Als de meldingen niet komen</h2>
+<p>Open in de app <x-ui k="settings.title"></x-ui> en kies <x-ui k="settings.notifications"></x-ui>. Onder <x-ui k="notify.deviceTitle"></x-ui> zie je wat er nog niet goed staat, met een knop naar de juiste instelling van Android:</p>
+<ul>
+  <li><strong>Meldingen staan uit</strong> voor Tickory (<x-ui k="notify.androidAllow"></x-ui>). Zet ze aan, ook het kanaal <em>Herinneringen</em>, in de instellingen van Android onder Apps, Tickory, Meldingen.</li>
+  <li><strong>Exacte alarmen staan uit</strong> (alleen Android 12): zet <em>Wekkers en herinneringen</em> voor Tickory aan.</li>
+  <li><strong>Batterijbesparing staat aan</strong> voor Tickory (<x-ui k="notify.androidBatterySettings"></x-ui>). Kies <em>Onbeperkt</em>. Sommige merken (Xiaomi, Huawei, OnePlus, Samsung) sluiten apps op de achtergrond extra streng af; zoek dan ook naar <em>Automatisch starten</em> of <em>Slapende apps</em> en haal Tickory daaruit.</li>
+  <li>Na <em>Gedwongen stoppen</em> geeft Android niets meer door tot je de app weer opent.</li>
+  <li><em>Niet storen</em> of een stil profiel houdt het geluid tegen; de melding staat er dan wel.</li>
+</ul>
+<p>Staat alles goed, dan zie je <em><x-ui k="notify.androidOk"></x-ui></em>, met het versienummer van de app eronder.</p>
+
+<h2>Beperkingen</h2>
+<ul>
+  <li><strong>Zonder verbinding openen werkt alleen met https.</strong> De web-app bewaart zichzelf met een service worker en browsers staan die alleen toe op https. Met een <code>http://</code>-adres opent de app buitenshuis dus niet; de herinneringen gaan wel af.</li>
+  <li><strong>Alleen certificaten die Android zelf vertrouwt</strong> (zoals van Let's Encrypt). Een zelfgemaakt of zelf toegevoegd certificaat wordt niet geaccepteerd.</li>
+  <li><strong>Een inlogpagina vóór je server</strong> (Authelia, Cloudflare Access en dergelijke) werkt niet: de app opent alleen het ingestelde adres en kan <code>/health</code> en <code>/api/</code> dan niet bereiken.</li>
+  <li><strong>Geen bestandskiezer</strong> in de app. Tickory heeft nu geen bijlagen of andere onderdelen die een bestand vragen, dus je merkt dit niet.</li>
+  <li>Een melding vervangt de web-app niet: een herinnering is een alarm van de telefoon. Op een toestel zonder <em>Android System WebView</em> (of met WebView uitgezet) start de app niet; hij zegt dat.</li>
+</ul>
+
 <h2>Bijwerken</h2>
-<h2>Verschillen met de web-app</h2>
-Werk ook bij: de Engelse pagina (en/guide/android-app.html), de lijst "Wat het (nog) niet kan" op beide startpagina's,
-de pagina "Installeren als app", het menu in site.json, en README.md / README.nl.md.
--->
-<h2>Wat eraan komt</h2>
-<p>Volgens het plan in <a href="{{repo}}/blob/main/SPEC.md">SPEC.md</a> wordt het een eigen app die de web-app van jullie server toont en herinneringen als alarmen op het toestel zelf inplant, zonder diensten van Google. Dat is een plan en nog geen belofte: wat de app werkelijk doet, staat hier zodra hij is uitgebracht.</p>
+<p>Installeer de nieuwe APK over de oude heen; je gegevens blijven staan. Android werkt een app alleen bij als de nieuwe APK met <strong>dezelfde sleutel</strong> is ondertekend als de oude.</p>
+<ul>
+  <li>APK's van de releasepagina zijn getekend met de sleutel van de maker en kunnen elkaar opvolgen. Dat geldt zodra de maker die sleutel in GitHub heeft ingesteld; zonder sleutel bouwt GitHub een <em>debug-APK</em>.</li>
+  <li><strong>Een debug-APK kan geen eerdere versie bijwerken</strong> (elke bouw heeft een andere wegwerpsleutel): verwijder dan eerst de oude app. Dat geldt ook voor een APK die je zelf bouwt met <code>assembleDebug</code> op een andere computer.</li>
+  <li>Kijk in de app onder <x-ui k="settings.notifications"></x-ui> welke versie je hebt.</li>
+</ul>
+
+<h2 id="zelf-bouwen">Zelf bouwen</h2>
+<p>Wil je niet op de eerste release wachten? Je hebt JDK 21 (17 of nieuwer werkt) en de Android SDK nodig; Gradle komt vanzelf mee. De volledige uitleg, de gekozen versies en het ondertekenen met een eigen sleutel staan in <a href="{{repo}}/blob/main/android/README.md">android/README.md</a> (in het Nederlands).</p>
+<pre><code>cd android
+./gradlew assembleDebug     # app/build/outputs/apk/debug/tickory-debug.apk</code></pre>
+<p>Zet het bestand op je telefoon en installeer het zoals hierboven. Die debug-APK is om te proberen; wil je hem blijvend gebruiken en kunnen bijwerken, onderteken hem dan met een eigen sleutel (<code>assembleRelease</code>) en bewaar die sleutel goed: wie hem kwijtraakt, moet de app verwijderen en opnieuw installeren.</p>

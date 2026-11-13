@@ -40,3 +40,11 @@
   .demo-bar-long { display: none; }
   .demo-bar-short { display: inline; }
 }
+
+/* Meldingen kunnen in de demo niet aan: ze komen van je eigen server. demo.js zorgt dat de app ze hier niet probeert aan te bieden
+   (de browser meldt dan "geen pushmeldingen"); in "Herinneringen en meldingen" staat daarom bij "Meldingen op dit apparaat" een
+   tekst over de browser. Die vervangen we hier door de juiste uitleg. De taal volgt die van de app (de app zet lang op <html>). */
+.dialog-form details.section:nth-of-type(3) > .section-form > * { display: none; }
+.dialog-form details.section:nth-of-type(3) > .section-form::before { color: var(--text-soft); font-size: 0.9rem; }
+html:lang(nl) .dialog-form details.section:nth-of-type(3) > .section-form::before { content: "In de demo kun je geen meldingen aanzetten: die komen van je eigen server."; }
+html:lang(en) .dialog-form details.section:nth-of-type(3) > .section-form::before { content: "You can't turn on notifications in the demo: they come from your own server."; }

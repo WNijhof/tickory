@@ -1,36 +1,155 @@
 <!--
 title: Reminders
-description: Reminders with a notification are still in development in Tickory. What is and is not there today, and what you can do until then.
+description: Reminders and notifications in Tickory: setting a reminder on a task, the automatic reminder, quick add with !30m, the time zone, and notifications in the browser or in the Android app.
 -->
 <h1>Reminders</h1>
-<p class="intro">A reminder is a notification at the moment you need to do something. This part is not finished yet.</p>
+<p class="intro">A reminder tells you at an agreed moment that a task is due. You set it on a task; the notification arrives in your browser or in the Android app.</p>
 
-<div class="note wip">
-  <span class="note-label">In development</span>
-  <p>In version {{version}} you <strong>cannot set reminders</strong> in the app and <strong>no notification is sent anywhere</strong>. This page will be completed once reminders are part of a released version.</p>
+<h2>In short</h2>
+<ul>
+  <li>A task with a <strong>time</strong> gets a reminder by itself, <strong>30 minutes</strong> before by default. You can change that, or switch it off.</li>
+  <li>You can add reminders yourself: at the time of the task, from 10 minutes to 3 days before, or at a date and time of your own.</li>
+  <li>Reminders are <strong>personal</strong>: even in a shared project nobody sees yours.</li>
+  <li>A notification arrives on your device if you have <a href="#notifications-in-the-browser">turned on notifications in the browser</a> or use the <a href="android-app.html">Android app</a>. Without that you only see the bell 🔔 in the list.</li>
+</ul>
+
+<h2 id="a-reminder-on-a-task">A reminder on a task</h2>
+<p>Click a task. In the <x-ui k="task.edit"></x-ui> window there is a <x-ui k="reminder.title"></x-ui> part with your reminders on this task.</p>
+<x-shot name="herinneringen" alt="The Reminders part of a task window: three reminders (1 day before, at a set time, 30 minutes before), each with the moment it goes off and a button to delete it, and below them the drop-down list with the Add reminder button.">Three reminders on the task “Tandarts bellen voor controle” (due tomorrow at 9). Each reminder shows when it goes off.</x-shot>
+<ol>
+  <li>Under <x-ui k="reminder.choose"></x-ui> choose when: <x-ui k="reminder.atTime"></x-ui>, 10, 30 or 45 minutes before, 1, 2 or 3 hours before, 1, 2 or 3 days before, or <x-ui k="reminder.custom"></x-ui> for a moment of your own.</li>
+  <li>If you choose a moment of your own, fill in the date and the time.</li>
+  <li>Choose <x-ui k="reminder.add"></x-ui>.</li>
+</ol>
+<p>You delete a reminder with the × button after its line. This takes effect <strong>immediately</strong>, just like adding subtasks: you do not have to click <x-ui k="common.save"></x-ui>, and <x-ui k="common.cancel"></x-ui> does not undo it. If you add exactly the same reminder again, nothing happens.</p>
+
+<h3>Two kinds</h3>
+<dl>
+  <dt>Before (<x-ui k="reminder.minutesBefore" n="30"></x-ui>)</dt>
+  <dd>Tied to the time of the task. If you move the task to another time, the reminder moves with it. This works <strong>only on a task with a time</strong>, for example “tomorrow at 2 pm”. On a task with only a day, the reminder shows <em><x-ui k="reminder.waiting"></x-ui></em>: it does nothing yet and goes off as soon as the task gets a time.</dd>
+  <dt><x-ui k="reminder.fixed"></x-ui></dt>
+  <dd>A date and time of your own, independent of the task. Also on a task without a date.</dd>
+</dl>
+<p>The lines are in the order they go off; whatever does nothing yet is at the bottom. If you remove the time from a task, your reminders before it disappear (a reminder at a set time stays). If you later give a task without any reminder a time, the automatic reminder is added.</p>
+
+<h3>The bell</h3>
+<p>A task for which a reminder is going to go off has a bell 🔔 in the list. If a task only has a reminder before it but no time yet, there is no bell: nothing will go off. A completed task no longer gives notifications.</p>
+
+<h2 id="the-automatic-reminder">The automatic reminder</h2>
+<p>If you add a task with a time and do not give a reminder yourself, it gets one by itself: 30 minutes before by default. The same applies when you give an existing task a time for the first time and it had no reminder yet.</p>
+<ol>
+  <li>Click your name at the bottom of the sidebar (<x-ui k="settings.title"></x-ui>) and choose <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Under <x-ui k="notify.autoTitle"></x-ui> pick an option from the list: at the time of the task, 10 minutes to 3 days before, or <x-ui k="notify.autoNone"></x-ui>.</li>
+</ol>
+<x-shot name="meldingen" alt="The Reminders and notifications window: the automatic reminder (30 minutes before, a drop-down list) and the time zone (Europe/Amsterdam).">The settings for reminders. Below these, “Notifications on this device” shows what still has to be done on this device; see below.</x-shot>
+<p>This changes nothing about reminders that already exist. It applies to tasks you add or give a time afterwards.</p>
+
+<h2 id="quick-add-with">Quick add with !</h2>
+<p>In the line you <a href="adding-tasks.html">add a task</a> with, you can include reminders with an exclamation mark. Below the input field you see them as 🔔. (Dates are typed in Dutch for now, so these examples are too.)</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-reminders="30">Tandarts bellen morgen om 9 uur !30m</code></td>
+        <td class="wrap-ok">A reminder 30 minutes before. Units: <code>m</code> (minutes), <code>u</code> (hours, from Dutch <em>uur</em>), <code>d</code> (days), <code>w</code> (weeks); the Dutch words <code>min</code>, <code>uur</code> and <code>dagen</code> work too.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Boodschappen doen" data-date="2026-11-20T17:30" data-reminders="60">Boodschappen doen vrijdag om 17:30 !1u</code></td>
+        <td class="wrap-ok">One hour before.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Training" data-date="2026-11-17T19:30" data-reminders="60,0">Training elke dinsdag om 19:30 !1u !0</code></td>
+        <td class="wrap-ok">Several reminders at once are fine. <code>!0</code> is at the time itself.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Verjaardag Jan" data-date="2026-12-05T09:00" data-reminders="2880">Verjaardag Jan 5 december om 9 uur !2d</code></td>
+        <td class="wrap-ok">Two days before.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Bellen met Jan" data-date="2026-11-18T09:00" data-reminders="15">Bellen met Jan morgen om 9 uur !(een kwartier ervoor)</code></td>
+        <td class="wrap-ok">Between parentheses you can use plain Dutch: a quarter of an hour before.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Pil innemen" data-date="" data-reminders="2026-11-17T20:00">Pil innemen !(vandaag om 20:00)</code></td>
+        <td class="wrap-ok">Between parentheses you can also put a date and time: a reminder at a set time, without the task itself having a date.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<ul>
+  <li>If you give reminders yourself, the automatic one is <strong>not</strong> added.</li>
+  <li>Whatever cannot be understood stays in the title. A date without a time between parentheses is not a reminder.</li>
+  <li>Mind the difference: <code>!!1</code> to <code>!!4</code> (two exclamation marks) is the priority, <code>!30m</code> is a reminder.</li>
+</ul>
+
+<h2 id="the-time-zone">The time zone</h2>
+<p>A time on a task is a <em>clock time</em>: “9 o'clock” is 9 o'clock wherever you are. Notifications that the server sends are converted using the time zone in your settings.</p>
+<ul>
+  <li>The app records your device's time zone by itself the first time you open it, if none has been set.</li>
+  <li>In <x-ui k="settings.notifications"></x-ui>, under <x-ui k="notify.zoneTitle"></x-ui>, you see which time zone applies. If your device differs (you moved or are travelling), there is a button to use this device's time zone.</li>
+  <li>If a user has no time zone yet, the server uses its default time zone (<code>DEFAULT_TIMEZONE</code>, see <a href="#for-administrators">for administrators</a>).</li>
+  <li>The Android app schedules reminders by the clock of the phone itself.</li>
+</ul>
+
+<h2 id="personal-and-in-shared-projects">Personal, and in shared projects</h2>
+<ul>
+  <li>Every user has their own reminders. If you set a reminder on a task in a shared project, only you see and get it.</li>
+  <li>It does not matter who the task is assigned to: you can set a reminder on any task you can see.</li>
+  <li>If you leave a project, or the owner removes you, your reminders on those tasks lapse.</li>
+  <li>If a task is completed or deleted (by you or by someone else in the project), its reminders no longer go off.</li>
+</ul>
+
+<h2 id="recurring-tasks">Recurring tasks</h2>
+<p>For a recurring task a reminder before the time goes off <strong>every time</strong>: when you tick the task off, its date moves to the next occurrence and the reminder moves with it. “Every weekday at 8:30” with 30 minutes before therefore gives a notification every weekday at 8:00. A reminder at a set time goes off once; it does not move along.</p>
+
+<h2 id="notifications">Notifications</h2>
+<p>Without a notification you only see a reminder when you open the app. How the notification reaches you depends on the device.</p>
+
+<h3 id="notifications-in-the-browser">In the browser</h3>
+<p>Your browser can show a notification even when Tickory is not open. The server sends it through your browser's push service (Web Push). What you need:</p>
+<ul>
+  <li>Your Tickory is reachable over <strong>HTTPS</strong> (or you use <code>localhost</code>). See <a href="https.html">HTTPS</a>.</li>
+  <li>A browser with push notifications. On an <strong>iPhone or iPad</strong> it only works if you first <a href="install-as-app.html">add Tickory to the home screen</a> and open the app from there.</li>
+</ul>
+<ol>
+  <li>Open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Under <x-ui k="notify.deviceTitle"></x-ui> choose <x-ui k="notify.enable"></x-ui>. Your browser asks for permission; allow it.</li>
+  <li>Choose <x-ui k="notify.test"></x-ui>. If a notification arrives, it works. If not, the window says what went wrong.</li>
+</ol>
+<p>This turns notifications on for <strong>this device and this browser</strong>; do it on every device where you want them. Under <x-ui k="notify.devices"></x-ui> you see which devices are registered, when something was last delivered and whether there was an error. <x-ui k="notify.disable"></x-ui> turns them off again. If you have blocked notifications for this site in your browser, you first have to allow them in the browser's settings. Signing out in the app also turns off notifications on that device.</p>
+
+<h3>What you see</h3>
+<ul>
+  <li>The title of the notification is the name of the task; below it is <em><x-ui k="sw.reminder"></x-ui> · 09:00</em> (the time of the task). The notification stays until you do something with it.</li>
+  <li>If you tap or click the notification, Tickory opens at that task.</li>
+  <li>The buttons <x-ui k="sw.complete"></x-ui> and <x-ui k="sw.snooze"></x-ui> work without opening the app. <x-ui k="sw.complete"></x-ui> ticks the task off (a recurring task moves on). <x-ui k="sw.snooze"></x-ui> sets a new reminder at a set time, ten minutes later; you will see it in the task window afterwards. The buttons work for a day; if it fails (no connection), the notification comes back.</li>
+  <li>The text of the notification follows the language you chose in the app.</li>
+</ul>
+
+<div class="note">
+  <span class="note-label">What this does and does not guarantee</span>
+  <p>Sending has been tested with a simulated push service. Whether a notification arrives on your device, and whether that also happens when the browser is closed, depends on your browser, your operating system and their push service (Google, Mozilla, Microsoft or Apple). So use <x-ui k="notify.test"></x-ui>, and do not rely on it if it proves unreliable on your device: the Android app schedules the reminders itself and does not depend on that.</p>
 </div>
 
-<h2>What is there now</h2>
-<ul>
-  <li>The server can already store reminders and sync them between your devices. The data model knows two kinds: a number of minutes before the time of the task, or a fixed date and time.</li>
-  <li>Reminders are personal: in a shared project everyone will set their own reminders.</li>
-  <li>The app has no screen for them yet, and nothing delivers a notification yet.</li>
-</ul>
+<h3 id="notifications-in-the-android-app">In the Android app</h3>
+<p>The <a href="android-app.html">Android app</a> fetches your reminders from your server and sets them as alarms on the phone itself. That is why they also go off when your phone has no internet. The app does not need a push service, so no HTTPS for the notifications either. What still has to be allowed is shown in <x-ui k="settings.notifications"></x-ui>, under <x-ui k="notify.deviceTitle"></x-ui>.</p>
 
-<h2>What you can do until then</h2>
-<ul>
-  <li>Give a task a <strong>date with a time</strong>, for example <code>morgen om 9 uur</code> (tomorrow at 9). The task is then listed on that day in <a href="projects.html#today-and-upcoming">Vandaag</a> and turns red as soon as the time has passed.</li>
-  <li>Open <strong>Vandaag</strong> as the fixed start of your day. The number next to it counts what is due today and what is overdue.</li>
-  <li>For something that really must not go wrong, set an alarm or an appointment in your phone's calendar.</li>
-</ul>
+<h3>How late is too late</h3>
+<p>The server checks every 20 seconds which reminders are due, so a notification arrives within about half a minute of the moment. If the server was down for a while, or a notification could not be delivered, it is still sent as long as it is at most <strong>an hour</strong> late; anything older lapses. The same reminder at the same moment arrives only once. The Android app shows what is at most an hour late in the same way.</p>
 
-<!-- TO FILL IN LATER (once reminders have been released). Replace the "In development" block above and fill these headings:
-<h2>Setting a reminder</h2>            where in the app, relative (so many minutes before) and at a fixed time
-<h2>Receiving notifications</h2>       per kind of device: what you have to allow or install
-<h2>For administrators</h2>            what has to be configured on the server (time zone, notification channel)
-<h2>When a notification does not arrive</h2>
-Also update: the Dutch page (nl/handleiding/herinneringen.html), the list "What it cannot do (yet)" on both home pages,
-the menu in site.json (this page then belongs under "For users"), and README.md / README.nl.md.
--->
-<h2>What is coming</h2>
-<p>The plan is that you can set one or more reminders on a task, and that you get a notification for them on your phone or computer. How exactly that will work will be described here once it is finished; until then we promise nothing that does not exist yet. You can follow the state of the work on <a href="{{repo}}">GitHub</a>.</p>
+<h2 id="for-administrators">For administrators</h2>
+<ul>
+  <li><strong>There is nothing to install.</strong> On first start the server creates its own keys for notifications and keeps them in the database. A <a href="backup.html">backup</a> therefore contains them; if you start with an empty database, they are new keys and every device registers again by itself when the app is opened.</li>
+  <li><code>VAPID_SUBJECT</code> in <code>.env</code> is your contact address for the push service, <code>mailto:you@example.org</code> or an https address. Leaving it empty is allowed: no address is sent then. Apple's push service (Safari, iPhone, iPad) does ask for one. There is deliberately no default, so that the project's address is not sent on behalf of every installation. An invalid value is ignored, with a warning in the log.</li>
+  <li><code>DEFAULT_TIMEZONE</code> is the time zone for users who have not set one themselves; <code>Europe/Amsterdam</code> by default.</li>
+  <li>The server itself must be able to reach the outside: it connects to the push services of Google, Mozilla, Microsoft and Apple (only those; over https). If you have restricted outgoing traffic, allow those.</li>
+  <li>A device registers with a session. If that session is revoked or the account is blocked, that device gets no more notifications. At most 20 devices per user are registered; the oldest lapse.</li>
+  <li>Notifications in the browser only work over HTTPS; that does not apply to the Android app.</li>
+</ul>
+<pre><code># .env
+VAPID_SUBJECT=mailto:you@example.org
+DEFAULT_TIMEZONE=Europe/Amsterdam</code></pre>
+<p>Notifications not arriving? See <a href="troubleshooting.html#notifications-do-not-arrive">Troubleshooting</a>.</p>

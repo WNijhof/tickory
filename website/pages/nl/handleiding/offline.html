@@ -14,6 +14,7 @@ description: Tickory werkt ook zonder verbinding: wat je offline kunt doen, wat 
 <h2>Wat je offline kunt doen</h2>
 <p>Alles wat met je taken te maken heeft: toevoegen, bewerken, afvinken, verplaatsen, projecten en secties maken. Je ziet het resultaat meteen; de wijziging wacht op je apparaat tot ze naar de server kan.</p>
 <p>Wat wel verbinding nodig heeft: inloggen, je wachtwoord wijzigen, de lijst met apparaten en het gebruikersbeheer. Deel je offline een project, dan wordt dat pas uitgevoerd als er weer verbinding is, en zie je de ander dan pas in de lijst.</p>
+<p><strong>Herinneringen</strong> instellen kan offline, net als elke andere wijziging. Of ze afgaan zonder verbinding hangt af van het apparaat: de <a href="android-app.html">Android-app</a> zet ze als alarm op de telefoon zelf, dus wat de app al kent gaat ook zonder internet af (een herinnering die je net offline hebt gemaakt, wordt pas ingepland als ze naar de server is gegaan). Meldingen in de browser komen van de server via de pushdienst van je browser; ze komen binnen zodra het apparaat weer online is, als dat binnen een uur na het moment is (en pas nadat de wijziging naar de server is gegaan). Zie <a href="herinneringen.html">Herinneringen</a>.</p>
 
 <h2>De status rechtsboven</h2>
 <div class="table-wrap">
@@ -22,16 +23,16 @@ description: Tickory werkt ook zonder verbinding: wat je offline kunt doen, wat 
       <tr><th>Er staat</th><th>Betekenis</th></tr>
     </thead>
     <tbody>
-      <tr><td>Bijgewerkt</td><td class="wrap-ok">Alles staat op de server en je hebt de laatste stand.</td></tr>
-      <tr><td>Bezig…</td><td class="wrap-ok">De app wisselt nu gegevens uit met de server.</td></tr>
-      <tr><td>2 wachtend</td><td class="wrap-ok">Er staan wijzigingen klaar die zo worden verstuurd.</td></tr>
-      <tr><td>Offline · 2 wachtend</td><td class="wrap-ok">De server is niet bereikbaar. Je wijzigingen worden bewaard en later verstuurd.</td></tr>
-      <tr><td>Bijwerken mislukt</td><td class="wrap-ok">De server is wel bereikbaar, maar gaf een fout. Zie <a href="problemen-oplossen.html">Problemen oplossen</a>.</td></tr>
-      <tr><td>Inloggen nodig</td><td class="wrap-ok">Je bent op dit apparaat niet (meer) aangemeld. Zie <a href="inloggen.html">Inloggen</a>.</td></tr>
+      <tr><td><x-ui k="sync.upToDate"></x-ui></td><td class="wrap-ok">Alles staat op de server en je hebt de laatste stand.</td></tr>
+      <tr><td><x-ui k="sync.syncing"></x-ui></td><td class="wrap-ok">De app wisselt nu gegevens uit met de server.</td></tr>
+      <tr><td><x-ui k="sync.waiting" n="2"></x-ui></td><td class="wrap-ok">Er staan wijzigingen klaar die zo worden verstuurd.</td></tr>
+      <tr><td><x-ui k="sync.offline"></x-ui> · <x-ui k="sync.waiting" n="2"></x-ui></td><td class="wrap-ok">De server is niet bereikbaar. Je wijzigingen worden bewaard en later verstuurd.</td></tr>
+      <tr><td><x-ui k="sync.failed"></x-ui></td><td class="wrap-ok">De server is wel bereikbaar, maar gaf een fout. Zie <a href="problemen-oplossen.html">Problemen oplossen</a>.</td></tr>
+      <tr><td><x-ui k="sync.signInNeeded"></x-ui></td><td class="wrap-ok">Je bent op dit apparaat niet (meer) aangemeld. Zie <a href="inloggen.html">Inloggen</a>.</td></tr>
     </tbody>
   </table>
 </div>
-<p>Klik op de status om meteen bij te werken. Dat kan ook via <strong>Instellingen</strong> (je naam onderaan de zijbalk) en dan <strong>Nu bijwerken</strong>.</p>
+<p>Klik op de status om meteen bij te werken. Dat kan ook via <x-ui k="settings.title"></x-ui> (je naam onderaan de zijbalk) en dan <x-ui k="settings.syncNow"></x-ui>.</p>
 
 <h2>Als de verbinding terugkomt</h2>
 <ul>
@@ -39,7 +40,7 @@ description: Tickory werkt ook zonder verbinding: wat je offline kunt doen, wat 
   <li>Je wachtende wijzigingen gaan in de volgorde waarin je ze maakte naar de server. Elke wijziging wordt hooguit één keer uitgevoerd, ook als de verbinding halverwege wegvalt.</li>
   <li>Wat anderen intussen hebben gewijzigd, komt binnen. Jouw wachtende wijzigingen blijven daarbij staan.</li>
   <li>Hebben jij en iemand anders hetzelfde veld van dezelfde taak gewijzigd, dan wint wie het laatst bij de server aankwam.</li>
-  <li>Kan een wijziging niet meer worden doorgevoerd, bijvoorbeeld omdat de taak intussen is verwijderd, dan krijg je daar een melding van (“Niet gelukt …”) en toont de app weer de werkelijke stand.</li>
+  <li>Kan een wijziging niet meer worden doorgevoerd, bijvoorbeeld omdat de taak intussen is verwijderd, dan krijg je daar een melding van (“Niet gelukt (…)”) en toont de app weer de werkelijke stand.</li>
 </ul>
 
 <h2>Meer apparaten en tabbladen</h2>

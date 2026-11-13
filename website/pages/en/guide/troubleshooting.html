@@ -12,9 +12,9 @@ docker compose logs --tail 100</code></pre>
 
 <h2>Signing in</h2>
 <dl>
-  <dt>“Gebruikersnaam of wachtwoord klopt niet” (username or password is incorrect), although you are sure of the password</dt>
-  <dd>The account may be blocked: that deliberately gives the same message. Check with <code>docker compose exec tickory node server/main.ts user list</code> whether it says “(geblokkeerd)” after it, and activate it with <code>user enable</code>. See <a href="managing-users.html">Managing users</a>.</dd>
-  <dt>“Te veel mislukte pogingen” (too many failed attempts)</dt>
+  <dt>“Incorrect username or password.”, although you are sure of the password</dt>
+  <dd>The account may be blocked: that deliberately gives the same message. Check with <code>docker compose exec tickory node server/main.ts user list</code> whether it says “(geblokkeerd)” (blocked) after it, and activate it with <code>user enable</code>. See <a href="managing-users.html">Managing users</a>.</dd>
+  <dt>“Too many failed attempts. Try again in … minutes.”</dt>
   <dd>Wait until the fifteen minutes have passed. If it happens to everyone at once and there is a reverse proxy in front, set <code>TRUST_PROXY=1</code>; see <a href="https.html#trust-proxy">HTTPS</a>.</dd>
   <dt>The password of the only administrator is lost</dt>
   <dd>Set a new password from the server: <code>docker compose exec -it tickory node server/main.ts user passwd &lt;name&gt;</code>.</dd>
@@ -40,9 +40,9 @@ docker compose logs --tail 100</code></pre>
 <dl>
   <dt>The top right keeps saying “Offline”</dt>
   <dd>The app cannot reach the server. Check whether the server is running and whether the address can be reached from this device (with Tailscale: is Tailscale switched on on this device?). Click the status to try again. Your changes are kept in the meantime.</dd>
-  <dt>“Bijwerken mislukt” (sync failed)</dt>
+  <dt>“Sync failed”</dt>
   <dd>The server or a proxy in between returned an error. Look at the log of Tickory and of your proxy.</dd>
-  <dt>A message “Niet gelukt (…)” (failed)</dt>
+  <dt>A message “Couldn't …”</dt>
   <dd>The server refused one change, usually because something was deleted or changed on another device in the meantime. The reason is in the message; the rest of your changes went through as usual.</dd>
   <dt>On the phone it does not work offline, or installing is not offered</dt>
   <dd>The address does not start with <code>https://</code>. See <a href="https.html">HTTPS</a>.</dd>
@@ -52,8 +52,31 @@ docker compose logs --tail 100</code></pre>
   <dd>The browser, or a network filter such as AdGuard, can erase the stored files of the app. The app fills them up again by itself as soon as you open it with a connection.</dd>
   <dt>A date is not recognised, or is recognised where it should not be</dt>
   <dd>See <a href="dates-and-recurrence.html">Dates and recurrences</a>. A <code>~</code> switches recognition off.</dd>
-  <dt>“Lokale opslag is niet beschikbaar” (local storage is not available)</dt>
+  <dt>“Local storage isn't available”</dt>
   <dd>The browser does not allow data to be stored, for example in a private window with strict settings. The app works, but keeps nothing when you close the window.</dd>
+</dl>
+
+<h2 id="notifications-do-not-arrive">Notifications do not arrive</h2>
+<p>This is about notifications in the browser. The <a href="android-app.html">Android app</a> schedules its alarms itself; look under <x-ui k="settings.notifications"></x-ui> and at the problems screen there (see <a href="android-app.html">Android app</a>). The whole picture is in <a href="reminders.html#notifications">Reminders</a>.</p>
+<dl>
+  <dt>There is no reminder, or it is at another time than you thought</dt>
+  <dd>First look in the task window to see whether the reminder is there, and whether the task has a time: a reminder before the task only exists for a task <em>with</em> a time. Also check your time zone under <x-ui k="settings.notifications"></x-ui>; the times in the app and in the notification follow that time zone.</dd>
+  <dt>The <x-ui k="notify.enable"></x-ui> button is missing, or the app says the browser cannot receive notifications</dt>
+  <dd>The address does not start with <code>https://</code> (and is not <code>localhost</code>), or the browser has no push notifications. On an iPhone or iPad it only works in the app that you have put <a href="install-as-app.html">on the home screen</a>. See <a href="https.html">HTTPS</a>.</dd>
+  <dt>“<x-ui k="notify.denied"></x-ui>”</dt>
+  <dd>You refused permission earlier. Tickory cannot undo that itself: allow notifications for the site in your browser's settings (usually through the padlock or the site information next to the address) and then choose <x-ui k="notify.enable"></x-ui> again.</dd>
+  <dt>The device is registered, but the test notification does not come</dt>
+  <dd>Look under <x-ui k="notify.devices"></x-ui> at this device: it shows the last error, or that nothing has been delivered yet. If the test says that no device is registered (“<x-ui k="notify.testNone"></x-ui>”), turn notifications on first. On a computer the operating system (do not disturb, focus mode) can hide the notification too.</dd>
+  <dt>The test fails with an error from the server</dt>
+  <dd>The server itself must be able to reach the outside world, namely the push services of Google, Mozilla, Microsoft and Apple. If outgoing traffic is blocked, allow it. Look at the log as well. A device that no longer exists at the push service is forgotten by the server by itself; turn notifications on again then.</dd>
+  <dt>Only Safari on an iPhone or iPad gives trouble</dt>
+  <dd>Apple's push service asks for a contact address. Put <code>VAPID_SUBJECT</code> in <code>.env</code> and restart the container; see <a href="reminders.html#for-administrators">Reminders, for administrators</a>.</dd>
+  <dt>Notifications come late, or an old reminder never came</dt>
+  <dd>The server looks every 20 seconds. If the server or the device was off, whatever is at most an hour late is still sent; anything older lapses.</dd>
+  <dt>No notifications after restoring a backup or starting with an empty database</dt>
+  <dd>The keys for notifications belong to the database. If you start with a new one, new keys apply: open the app again on each device so that it registers again by itself, or turn notifications on again.</dd>
+  <dt>Only one of your devices gets notifications</dt>
+  <dd>Notifications are turned on per device and per browser. Turn them on on every device where you want them. A blocked account or a signed-out device gets none any more.</dd>
 </dl>
 
 <h2>After restoring a backup</h2>

@@ -13,23 +13,35 @@
   },
   "snel-toevoegen": {
     "width": 1696,
-    "height": 622
+    "height": 616
   },
   "taak-bewerken": {
-    "width": 2240,
-    "height": 1440
+    "width": 1296,
+    "height": 1766
+  },
+  "herinneringen": {
+    "width": 1148,
+    "height": 494
   },
   "delen": {
-    "width": 2240,
-    "height": 1440
+    "width": 1296,
+    "height": 930
+  },
+  "instellingen": {
+    "width": 976,
+    "height": 866
+  },
+  "meldingen": {
+    "width": 1296,
+    "height": 830
   },
   "account": {
-    "width": 2240,
-    "height": 1440
+    "width": 1296,
+    "height": 1008
   },
   "gebruikersbeheer": {
-    "width": 2240,
-    "height": 1440
+    "width": 1296,
+    "height": 1290
   },
   "telefoon-vandaag": {
     "width": 780,
@@ -40,6 +52,62 @@
     "height": 1560
   },
   "telefoon-menu": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/vandaag": {
+    "width": 2240,
+    "height": 1440
+  },
+  "en/binnenkort": {
+    "width": 2240,
+    "height": 1440
+  },
+  "en/project": {
+    "width": 2240,
+    "height": 1440
+  },
+  "en/snel-toevoegen": {
+    "width": 1696,
+    "height": 616
+  },
+  "en/taak-bewerken": {
+    "width": 1296,
+    "height": 1766
+  },
+  "en/herinneringen": {
+    "width": 1148,
+    "height": 494
+  },
+  "en/delen": {
+    "width": 1296,
+    "height": 930
+  },
+  "en/instellingen": {
+    "width": 976,
+    "height": 866
+  },
+  "en/meldingen": {
+    "width": 1296,
+    "height": 830
+  },
+  "en/account": {
+    "width": 1296,
+    "height": 1008
+  },
+  "en/gebruikersbeheer": {
+    "width": 1296,
+    "height": 1290
+  },
+  "en/telefoon-vandaag": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/telefoon-project": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/telefoon-menu": {
     "width": 780,
     "height": 1560
   }

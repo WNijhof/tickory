@@ -7,10 +7,10 @@ description: Making Tickory reachable over HTTPS: with Tailscale, with a reverse
 
 <h2>Why</h2>
 <ul>
-  <li>Browsers only allow <strong>offline use</strong> and <strong>installing as an app</strong> on a secure address. The only exception is <code>localhost</code>, and on a phone that is the phone itself.</li>
+  <li>Browsers only allow <strong>offline use</strong>, <strong>installing as an app</strong> and <strong>notifications</strong> (reminders in the browser) on a secure address. The only exception is <code>localhost</code>, and on a phone that is the phone itself.</li>
   <li>Without HTTPS your password and your session travel over the network unencrypted.</li>
 </ul>
-<p>So without HTTPS Tickory does work in your phone's browser, as long as there is a connection, but not offline and not as an installed app.</p>
+<p>So without HTTPS Tickory does work in your phone's browser, as long as there is a connection, but not offline, not as an installed app and without notifications. The <a href="android-app.html">Android app</a> does not need HTTPS for reminders.</p>
 
 <h2>Tailscale</h2>
 <p>The simplest, and nothing ends up on the open internet. Your devices together form a private, shielded network.</p>
@@ -45,8 +45,9 @@ description: Making Tickory reachable over HTTPS: with Tailscale, with a reverse
 <h2>Checking</h2>
 <ol>
   <li>Open the <code>https://</code> address on your phone and sign in.</li>
-  <li>Put the phone in flight mode and open the address again: the app should start and show your tasks, with <strong>Offline</strong> in the top right.</li>
+  <li>Put the phone in flight mode and open the address again: the app should start and show your tasks, with <x-ui k="sync.offline"></x-ui> in the top right.</li>
   <li>See whether your browser offers to install the app; see <a href="install-as-app.html">Install as an app</a>.</li>
+  <li>Turn on <a href="reminders.html#notifications-in-the-browser">notifications</a> (<x-ui k="settings.notifications"></x-ui>) and choose <x-ui k="notify.test"></x-ui>.</li>
 </ol>
 
 <h2>Good to know</h2>

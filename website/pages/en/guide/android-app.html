@@ -1,38 +1,105 @@
 <!--
 title: Android app
-description: An Android app (APK) for Tickory is in development. Until it exists, you use the web app in your phone's browser; this is how.
+description: The Tickory Android app: your own server in an app, with reminders as alarms on the phone, also without internet. Installing, server address, permissions, limitations and updates. The first APK comes with the next version.
 -->
 <h1>Android app</h1>
-<p class="intro">There will be an app for Android that you install as an APK. It has not been released yet.</p>
+<p class="intro">The Android app shows the web app of your own server in an app of its own and schedules your reminders as alarms on the phone itself. So they also go off when the app is closed and when your phone has no internet.</p>
 
-<div class="note wip">
-  <span class="note-label">In development</span>
-  <p>In version {{version}} there is <strong>no Android app to download</strong>. This page will be completed once the app has been released.</p>
+<div class="note warn">
+  <span class="note-label">No download yet</span>
+  <p>There is no released APK yet. The <strong>first APK comes with the next version</strong> of Tickory, as a file attached to that version on the <a href="{{repo}}/releases">releases page on GitHub</a>. Until then you use the <a href="install-as-app.html">web app in your phone's browser</a>, or you build the app yourself; see <a href="#building-it-yourself">building it yourself</a>.</p>
 </div>
 
-<h2>What you use now</h2>
-<p>The web app works in the browser on Android and can be installed as an app there:</p>
-<ol>
-  <li>Open the address of your Tickory in Chrome and sign in.</li>
-  <li>In the browser's menu, choose <strong>Install app</strong> or <strong>Add to Home screen</strong>.</li>
-</ol>
-<p>You get an icon among your apps, a window of its own, and the app also works without a connection. For that the server has to be reachable over HTTPS. More in <a href="install-as-app.html">Install as an app</a> and <a href="offline.html">Working offline</a>.</p>
-
-<h2>What the web app on Android does not do</h2>
+<h2>What the app is</h2>
 <ul>
-  <li>Send notifications; see <a href="reminders.html">Reminders</a>.</li>
-  <li>Show a widget on your home screen.</li>
-  <li>Receive text from another app through “Share”.</li>
+  <li>An app of its own, written in Kotlin, that shows your Tickory server in Android's built-in browser (<em>Android System WebView</em>). It is the same app as in your browser, with the same screens.</li>
+  <li>On top of that the app fetches your tasks and reminders and sets them as <strong>alarms on the device</strong>. A reminder goes off without the server or a push service being involved.</li>
+  <li><strong>No Google services</strong>: no Google Play, no Firebase, no trackers or statistics. The app only talks to the server you enter. The built-in browser sends no usage statistics to Google and does not use <em>Safe Browsing</em>.</li>
+  <li>Your sign-in is stored encrypted on the device (key in the Android Keystore). Nothing from the app goes into cloud backups or when transferring to another device.</li>
+</ul>
+<p>You need Android 8 or newer. The app follows the language of the device (Dutch or English; any other language gets Dutch), and the web app inside it follows its own language choice.</p>
+
+<div class="note">
+  <span class="note-label">Honest about the status</span>
+  <p>The app has been tested on a computer: the calculation rules (also around summer and winter time), a simulated Android with alarms, notifications, buttons and screens, and one test against a real server. The maker has <strong>not yet tried it on a real phone</strong>. That is the first thing that has to happen; if you notice something on a device, please report it on <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>Installing</h2>
+<p>As soon as there is an APK:</p>
+<ol>
+  <li>Download the file <code>tickory-&lt;version&gt;.apk</code> from the releases page on the phone.</li>
+  <li>Open the file. The first time, Android asks whether the app you open it with (your browser or file manager) may <strong>install unknown apps</strong>. Allow that and go back. You only have to do this once.</li>
+  <li>Open Tickory, enter the <a href="#server-address">address of your server</a> and sign in.</li>
+  <li>Allow <strong>notifications</strong> if the app asks.</li>
+</ol>
+<p>Android does not check an APK from outside Google Play for you. So only download it from the releases page of the repository itself.</p>
+
+<h2 id="server-address">The address of your server</h2>
+<p>The first time, the app asks for the address you open Tickory with in the browser, for example <code>https://tasks.example.org</code> or, on your home network, <code>http://192.168.1.10:8787</code>.</p>
+<ul>
+  <li>If you do not type <code>http://</code> or <code>https://</code>, the app assumes <code>https</code>. It drops a path after the address and the port 443 or 80.</li>
+  <li>Do not put a username or password in the address; you sign in afterwards, in the app.</li>
+  <li>The app only saves the address once the server answers like a Tickory server should (the address <code>/health</code>). If it is something else or nothing, it says so, with a tip: the address does not exist, the server is not running, the certificate is not trusted, or the address redirects to another address (the app only opens the address you enter).</li>
+  <li><strong>https</strong> is the recommended choice. With <code>http://</code> the connection is not encrypted; the app warns you when you enter such an address. Only use that on your own home network.</li>
+  <li>You can change the address later: the app asks for confirmation, because you are signed out, the scheduled alarms disappear and changes that have not been sent to the server yet are lost.</li>
 </ul>
 
-<!-- TO FILL IN LATER (once the APK has been released). Replace the "In development" block above and fill these headings:
-<h2>Downloading and installing</h2>    where the APK is, how to check it is genuine, installing outside the Play Store
-<h2>Connecting to your server</h2>     entering the address and signing in
-<h2>Notifications</h2>                 which permissions the app asks for and why
+<h2>Permissions, and why</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Permission</th><th>What for</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Internet</td><td class="wrap-ok">Reaching the server.</td></tr>
+      <tr><td>Notifications (Android 13 and newer; the app asks for it)</td><td class="wrap-ok">Showing the reminders. Without this permission you do not see them.</td></tr>
+      <tr><td>Exact alarms</td><td class="wrap-ok">Making a reminder go off on the minute, also in sleep mode. On Android 13 and newer this is always on. On Android 12 you can turn it off; the reminder then sometimes arrives a few minutes late.</td></tr>
+      <tr><td>Starting after boot</td><td class="wrap-ok">Android erases alarms when the phone is switched off; the app sets them again after boot (also after a time zone change, a changed clock or an update of the app).</td></tr>
+      <tr><td>Nearby devices (Android 17 and newer only; the app asks for it)</td><td class="wrap-ok">Android 17 only lets an app reach addresses on your home network after this permission. The app only asks for it if your server is at home (such as <code>192.168.…</code> or <code>nas.local</code>) and only uses it to reach that server.</td></tr>
+      <tr><td>Network state and staying awake</td><td class="wrap-ok">For refreshing in the background: only with a connection, and finishing the work before the device sleeps again.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>The app asks for no access to location, contacts, files, camera or microphone.</p>
+
+<h2>Reminders in the app</h2>
+<p>You set the reminders as in the browser; see <a href="reminders.html">Reminders</a>. The app refreshes your data right after signing in, right after a change to a task or reminder, then every quarter of an hour (with a connection) and every time you open it.</p>
+<ul>
+  <li>The notification has the buttons <x-ui k="sw.complete"></x-ui> and <x-ui k="sw.snooze"></x-ui>. <x-ui k="sw.snooze"></x-ui> brings the same notification back ten minutes later. If the phone has no connection, the app remembers <x-ui k="sw.complete"></x-ui> and ticks the task off as soon as it can (for three days; after that it gives up and says so).</li>
+  <li>If you tap the notification, the app opens at that task.</li>
+  <li>What is at most an hour late (the phone was off) is still shown; anything older is not. The app schedules at most 200 reminders, up to 30 days ahead; that window moves along with every refresh.</li>
+</ul>
+
+<h2>When the notifications do not arrive</h2>
+<p>In the app open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.notifications"></x-ui>. Under <x-ui k="notify.deviceTitle"></x-ui> you see what is not right yet, with a button to the right Android setting:</p>
+<ul>
+  <li><strong>Notifications are off</strong> for Tickory (<x-ui k="notify.androidAllow"></x-ui>). Turn them on, including the channel <em>Reminders</em>, in Android's settings under Apps, Tickory, Notifications.</li>
+  <li><strong>Exact alarms are off</strong> (Android 12 only): turn on <em>Alarms &amp; reminders</em> for Tickory.</li>
+  <li><strong>Battery saver is on</strong> for Tickory (<x-ui k="notify.androidBatterySettings"></x-ui>). Choose <em>Unrestricted</em>. Some brands (Xiaomi, Huawei, OnePlus, Samsung) shut down background apps extra strictly; also look for <em>Autostart</em> or <em>Sleeping apps</em> and take Tickory out of those.</li>
+  <li>After <em>Force stop</em>, Android passes nothing on until you open the app again.</li>
+  <li><em>Do not disturb</em> or a silent profile stops the sound; the notification is still there.</li>
+</ul>
+<p>If everything is right you see <em><x-ui k="notify.androidOk"></x-ui></em>, with the version number of the app below it.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li><strong>Opening without a connection only works with https.</strong> The web app stores itself with a service worker and browsers only allow that on https. With an <code>http://</code> address the app therefore does not open away from home; the reminders do go off.</li>
+  <li><strong>Only certificates that Android itself trusts</strong> (such as those from Let's Encrypt). A self-made or self-added certificate is not accepted.</li>
+  <li><strong>A sign-in page in front of your server</strong> (Authelia, Cloudflare Access and the like) does not work: the app only opens the address that is set and then cannot reach <code>/health</code> and <code>/api/</code>.</li>
+  <li><strong>No file picker</strong> in the app. Tickory currently has no attachments or other parts that ask for a file, so you will not notice this.</li>
+  <li>A notification does not replace the web app: a reminder is an alarm of the phone. On a device without <em>Android System WebView</em> (or with WebView turned off) the app does not start; it says so.</li>
+</ul>
+
 <h2>Updating</h2>
-<h2>Differences from the web app</h2>
-Also update: the Dutch page (nl/handleiding/android-app.html), the list "What it cannot do (yet)" on both home pages,
-the page "Install as an app", the menu in site.json, and README.md / README.nl.md.
--->
-<h2>What is coming</h2>
-<p>According to the plan in <a href="{{repo}}/blob/main/SPEC.md">SPEC.md</a> (in Dutch) it will be an app of its own that shows the web app of your server and schedules reminders as alarms on the device itself, without Google services. That is a plan and not yet a promise: what the app actually does will be described here once it has been released.</p>
+<p>Install the new APK over the old one; your data stays. Android only updates an app if the new APK is signed with the <strong>same key</strong> as the old one.</p>
+<ul>
+  <li>APKs from the releases page are signed with the maker's key and can succeed each other. That holds once the maker has set up that key in GitHub; without a key, GitHub builds a <em>debug APK</em>.</li>
+  <li><strong>A debug APK cannot update an earlier version</strong> (every build has a different throwaway key): remove the old app first. The same goes for an APK you build yourself with <code>assembleDebug</code> on another computer.</li>
+  <li>In the app, look under <x-ui k="settings.notifications"></x-ui> to see which version you have.</li>
+</ul>
+
+<h2 id="building-it-yourself">Building it yourself</h2>
+<p>Would you rather not wait for the first release? You need JDK 21 (17 or newer works) and the Android SDK; Gradle comes along by itself. The full instructions, the chosen versions and signing with your own key are in <a href="{{repo}}/blob/main/android/README.md">android/README.md</a> (in Dutch).</p>
+<pre><code>cd android
+./gradlew assembleDebug     # app/build/outputs/apk/debug/tickory-debug.apk</code></pre>
+<p>Put the file on your phone and install it as above. That debug APK is for trying out; if you want to keep using it and be able to update it, sign it with a key of your own (<code>assembleRelease</code>) and keep that key safe: whoever loses it has to remove the app and install it again.</p>

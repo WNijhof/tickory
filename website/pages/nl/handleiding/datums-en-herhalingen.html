@@ -9,7 +9,7 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
 
 <div class="note">
   <span class="note-label">Goed om te weten</span>
-  <p>De datumtaal is Nederlands. Engelse invoer zoals <em>tomorrow</em> wordt niet herkend; een Engelse interface en Engelse datumtaal zijn in ontwikkeling.</p>
+  <p>De app is tweetalig, maar de datumtaal is voorlopig Nederlands, ook als je de interface op Engels zet. Engelse invoer zoals <em>tomorrow</em> wordt niet herkend; Engelse datumtaal komt later. Wat in elke taal werkt: <code>31-12</code>, <code>31-12-2026</code> en, in het veld Datum, <code>2026-12-31</code> en <code>2026-12-31T14:30</code>.</p>
 </div>
 
 <h2>Een dag</h2>
@@ -263,12 +263,12 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
 </ul>
 
 <h2>Het veld Datum in het bewerkvenster</h2>
-<p>Klik op een taak en je vindt het veld <strong>Datum</strong>. Daar typ je dezelfde taal als hierboven. Onder het veld staat meteen wat de app ervan maakt (“Wordt: do 26 nov”), zodat je bij een aanduiding als “volgende week donderdag” ziet welke dag het wordt. Herkent de app de tekst niet, dan staat dat er en wordt de taak niet opgeslagen tot je het verbetert. Maak het veld leeg om de datum weg te halen.</p>
+<p>Klik op een taak en je vindt het veld <x-ui k="task.due"></x-ui>. Daar typ je dezelfde taal als hierboven. Onder het veld staat meteen wat de app ervan maakt (“Wordt: do 26 nov”), zodat je bij een aanduiding als “volgende week donderdag” ziet welke dag het wordt. Herkent de app de tekst niet, dan staat dat er en wordt de taak niet opgeslagen tot je het verbetert. Maak het veld leeg om de datum weg te halen. Heeft de taak al een datum, dan staat die in het veld als <code>17-11-2026 om 17:30</code> (een herhaling zoals je ze typte).</p>
 <p>De <strong>deadline</strong> kies je daar met de datumkiezer van je browser.</p>
 
 <h2>Hoe datums in de lijst staan</h2>
 <ul>
   <li><strong>vandaag</strong>, <strong>morgen</strong> en <strong>gisteren</strong> staan er als woord; een dag binnen een week als weekdag (“vrijdag”); verder weg als “do 26 nov”, en in een ander jaar met het jaartal erbij.</li>
   <li>Een tijdstip staat erachter: “morgen 09:00”.</li>
-  <li>Een datum die voorbij is, kleurt rood, en de taak staat vanaf de dag erna in Vandaag onder <strong>Te laat</strong>. Een taak met een tijdstip kleurt al rood zodra dat tijdstip voorbij is, maar blijft die dag gewoon bij de taken van vandaag staan.</li>
+  <li>Een datum die voorbij is, kleurt rood, en de taak staat vanaf de dag erna in Vandaag onder <x-ui k="view.overdue"></x-ui>. Een taak met een tijdstip kleurt al rood zodra dat tijdstip voorbij is, maar blijft die dag gewoon bij de taken van vandaag staan.</li>
 </ul>

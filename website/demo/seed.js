@@ -10,7 +10,7 @@
 import { applyCommand, emptyState } from './reducer.js';
 import { parseDateText } from './dateNl.js';
 import { addDays, todayString } from './format.js';
-import { ENTITIES } from '../../shared/schema.js';
+import { ENTITIES, settingsId } from '../../shared/schema.js';
 import { keyAfter } from '../../shared/orderKey.js';
 
 /** Alle accounts op deze denkbeeldige server. `anna` ben jij, en is beheerder. */
@@ -24,6 +24,8 @@ export const DEMO_USERS = [
   { id: 'user-kees', username: 'kees', name: 'Opa Kees', is_admin: false, is_disabled: false },
 ];
 export const DEMO_ME = 'user-anna';
+/** De tijdzone van de voorbeeldgebruiker: waarin de (denkbeeldige) server haar herinneringen zou laten afgaan. */
+export const DEMO_TIMEZONE = 'Europe/Amsterdam';
 
 const INBOX = `inbox-${DEMO_ME}`;
 
@@ -71,6 +73,8 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   // ---- de eigen Inbox (bestaat altijd; de server maakt hem aan bij het account) ----
   state.projects.set(INBOX, makeRow('project', INBOX, { name: 'Inbox', order_key: keyAfter(null) }, at));
   addMember(state, INBOX, DEMO_ME, 'owner', at, id('member'));
+  // je persoonlijke instellingen (de server maakt die rij zelf aan): de automatische herinnering staat op 30 minuten
+  state.settings.set(settingsId(DEMO_ME), makeRow('settings', settingsId(DEMO_ME), { auto_reminder: 30, timezone: DEMO_TIMEZONE, owner_id: DEMO_ME }, at));
 
   const labels = new Map();
   const label = (owner, name) => {
@@ -113,6 +117,11 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     return tid;
   };
 
+  /** Een herinnering van jou bij een taak: `minutes` vooraf (0 = op het tijdstip zelf), of `at` (een eigen datum en tijd). */
+  const reminder = (taskId, { minutes, at: when }) => {
+    run(DEMO_ME, 'reminder_add', { id: id('reminder'), task_id: taskId, ...(when ? { type: 'absolute', due: { date: when } } : { type: 'relative', minute_offset: minutes }) });
+  };
+
   const [anna, bram, sanne, joost, mila] = DEMO_USERS.map((u) => u.id);
   const bellen = label(anna, 'bellen');
   const boodschappen = label(anna, 'boodschappen');
@@ -121,11 +130,17 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   // ---- Inbox: alleen van jou ----
   task(anna, { content: 'Fietsband plakken', project: INBOX, due: day(-1) });
   task(anna, { content: 'Bibliotheekboeken terugbrengen', project: INBOX, due: day(-3), priority: 3 });
-  task(anna, { content: 'Tandarts bellen voor controle', project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen] });
-  task(anna, {
+  const tandarts = task(anna, { content: 'Tandarts bellen voor controle', project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen] });
+  const paspoort = task(anna, {
     content: 'Paspoort verlengen', project: INBOX, deadline: 21, priority: 2,
     description: 'Afspraak maken bij de gemeente. Meenemen: het oude paspoort en een nieuwe pasfoto.',
   });
+  // Herinneringen: de automatische (30 minuten vooraf, zoals de app ze zelf zet bij een taak met een tijd), een dag vooraf,
+  // en een herinnering op een eigen tijdstip bij een taak zonder datum.
+  reminder(tandarts, { minutes: 30 });
+  reminder(tandarts, { minutes: 1440 });
+  reminder(tandarts, { at: day(0, '20:00').date });
+  reminder(paspoort, { at: day(3, '09:00').date });
   task(anna, { content: 'Verjaardagskaart voor oma sturen', project: INBOX, due: due('volgende week donderdag') });
   task(anna, { content: 'Pakketje ophalen bij de buren', project: INBOX, done: true });
 
@@ -140,13 +155,15 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   task(anna, { content: 'Melk en eieren', project: huis, parent: boodschap });
   task(bram, { content: 'Koffiebonen', project: huis, parent: boodschap });
   task(sanne, { content: 'Hagelslag', project: huis, parent: boodschap });
-  task(bram, { content: 'Kattenvoer bestellen', project: huis, section: sBoodschappen, due: due('overmorgen') });
+  reminder(boodschap, { minutes: 30 });
+  // een herinnering "vooraf" bij een taak zonder tijd doet nog niets (geen belletje) en gaat af zodra de taak een tijd krijgt
+  reminder(task(bram, { content: 'Kattenvoer bestellen', project: huis, section: sBoodschappen, due: due('overmorgen') }), { minutes: 30 });
   task(anna, { content: 'Lamp in de gang vervangen', project: huis, section: sKlusjes, due: due('morgen'), priority: 2, assignee: bram });
   task(anna, { content: 'Kamer opruimen', project: huis, section: sKlusjes, due: day(0), assignee: sanne });
   task(bram, { content: 'Dakgoot schoonmaken', project: huis, section: sKlusjes, due: due('aanstaande zaterdag'), priority: 3, labels: [buiten] });
   task(anna, { content: 'Fietsenschuur opruimen', project: huis, section: sKlusjes, labels: [buiten] });
   task(anna, { content: 'Oud papier aan de straat', project: huis, section: sVast, due: due('elke tweede dinsdag') });
-  task(anna, { content: 'Vuilnis buiten zetten', project: huis, section: sVast, due: due('elke donderdag om 20:00'), assignee: bram });
+  reminder(task(anna, { content: 'Vuilnis buiten zetten', project: huis, section: sVast, due: due('elke donderdag om 20:00'), assignee: bram }), { minutes: 60 });
   task(anna, { content: 'Planten water geven', project: huis, section: sVast, due: due('elke zondag'), assignee: sanne });
   task(bram, { content: 'Stofzuigen', project: huis, section: sVast, due: due('elke zaterdag'), assignee: anna });
 
@@ -154,7 +171,9 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   const texel = project(anna, 'Vakantie Texel');
   const sRegelen = section(anna, texel, 'Regelen');
   const sInpakken = section(anna, texel, 'Inpakken');
-  task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag'), deadline: 10, priority: 1 });
+  const boot = task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1 });
+  reminder(boot, { minutes: 30 });
+  reminder(boot, { minutes: 1440 });
   task(anna, { content: 'Huisje aanbetalen', project: texel, section: sRegelen, due: due('over twee weken') });
   task(anna, { content: 'Oppas voor de kat vragen', project: texel, section: sRegelen, labels: [bellen] });
   task(anna, { content: 'Regenjassen', project: texel, section: sInpakken });

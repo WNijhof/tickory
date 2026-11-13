@@ -25,7 +25,6 @@
       "next": "Volgende",
       "copy": "Kopieer",
       "copied": "Gekopieerd",
-      "wip": "In ontwikkeling",
       "footer_tagline": "Tickory is vrije software onder de AGPL-3.0.",
       "footer_source": "Broncode op GitHub",
       "footer_license": "Licentie",
@@ -57,7 +56,6 @@
       "next": "Next",
       "copy": "Copy",
       "copied": "Copied",
-      "wip": "In development",
       "footer_tagline": "Tickory is free software under the AGPL-3.0.",
       "footer_source": "Source code on GitHub",
       "footer_license": "License",
@@ -82,9 +80,11 @@
         { "nl": "handleiding/taken-toevoegen.html", "en": "guide/adding-tasks.html" },
         { "nl": "handleiding/datums-en-herhalingen.html", "en": "guide/dates-and-recurrence.html" },
         { "nl": "handleiding/projecten.html", "en": "guide/projects.html" },
+        { "nl": "handleiding/herinneringen.html", "en": "guide/reminders.html" },
         { "nl": "handleiding/delen.html", "en": "guide/sharing.html" },
         { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
         { "nl": "handleiding/installeren-als-app.html", "en": "guide/install-as-app.html" },
+        { "nl": "handleiding/android-app.html", "en": "guide/android-app.html" },
         { "nl": "handleiding/account.html", "en": "guide/account.html" }
       ]
     },
@@ -97,13 +97,6 @@
         { "nl": "handleiding/bijwerken.html", "en": "guide/updating.html" },
         { "nl": "handleiding/back-up.html", "en": "guide/backup.html" },
         { "nl": "handleiding/problemen-oplossen.html", "en": "guide/troubleshooting.html" }
-      ]
-    },
-    {
-      "group": { "nl": "In ontwikkeling", "en": "In development" },
-      "pages": [
-        { "nl": "handleiding/herinneringen.html", "en": "guide/reminders.html" },
-        { "nl": "handleiding/android-app.html", "en": "guide/android-app.html" }
       ]
     }
   ]

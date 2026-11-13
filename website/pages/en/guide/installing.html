@@ -70,6 +70,8 @@ docker compose logs -f     # follow the log; stop with Ctrl+C</code></pre>
     <tbody>
       <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code><br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">The first account. Only used as long as not a single account exists.</td></tr>
       <tr><td><code>TRUST_PROXY</code></td><td class="wrap-ok">Set to <code>1</code> when your own reverse proxy is in front. See <a href="https.html#trust-proxy">HTTPS</a>.</td></tr>
+      <tr><td><code>VAPID_SUBJECT</code></td><td class="wrap-ok">Optional: your contact address for the browser's push service (<code>mailto:you@example.org</code> or an https address), for notifications. See <a href="reminders.html#for-administrators">Reminders</a>.</td></tr>
+      <tr><td><code>DEFAULT_TIMEZONE</code></td><td class="wrap-ok">The time zone for users who have not set one themselves; <code>Europe/Amsterdam</code> by default.</td></tr>
       <tr><td><code>PORT</code></td><td class="wrap-ok">The port the server listens on; 8787 by default.</td></tr>
       <tr><td><code>HOST</code></td><td class="wrap-ok">The address the server listens on; <code>127.0.0.1</code> by default, <code>0.0.0.0</code> in the container.</td></tr>
       <tr><td><code>DB_PATH</code></td><td class="wrap-ok">Where the database is; <code>./data/todo.db</code> by default, <code>/data/todo.db</code> in the container.</td></tr>
@@ -77,7 +79,7 @@ docker compose logs -f     # follow the log; stop with Ctrl+C</code></pre>
     </tbody>
   </table>
 </div>
-<p>The supplied <code>docker-compose.yml</code> only passes the first account and <code>TRUST_PROXY</code> on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
+<p>The supplied <code>docker-compose.yml</code> passes the first account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code> and <code>DEFAULT_TIMEZONE</code> on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
 
 <h2>The image is still private</h2>
 <p>As long as the repository and the image are private on GitHub, your server has to sign in once to be able to fetch them:</p>
