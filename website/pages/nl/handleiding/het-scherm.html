@@ -1,0 +1,85 @@
+<!--
+title: Het scherm: zijbalk en takenlijst
+description: Hoe Tickory eruitziet en werkt: de zijbalk met Inbox, Vandaag, Binnenkort, favorieten en projecten, de takenlijst met rondjes en labeltjes, afvinken met ongedaan maken, en het overzicht op een telefoon.
+-->
+<h1>Het scherm: zijbalk en takenlijst</h1>
+<p class="intro">Links staat de zijbalk om te kiezen wat je ziet, rechts de takenlijst. Hier lees je waar alles staat en wat de rondjes, getallen en labeltjes betekenen.</p>
+
+<x-shot name="vandaag" alt="Het overzicht Vandaag. Links de zijbalk met Taak toevoegen, Inbox, Vandaag, Binnenkort, Favorieten en Projecten. Rechts onder Te laat twee taken met een rode datum, en daaronder de taken van vandaag met het project waar ze in staan.">Het scherm met Vandaag. Links de zijbalk, rechts de lijst. Boven de lijst staat het invoerveld om snel een taak toe te voegen.</x-shot>
+
+<h2 id="de-zijbalk">De zijbalk</h2>
+<p>Van boven naar beneden:</p>
+<ul>
+  <li><strong><x-ui k="quick.addTask"></x-ui></strong> opent een venster om een taak toe te voegen, ook als je in een ander project staat. Zie <a href="taken-toevoegen.html#het-venster-taak-toevoegen">het venster Taak toevoegen</a>. De sneltoets is <kbd>q</kbd>.</li>
+  <li><strong>Inbox, <x-ui k="nav.today"></x-ui> en <x-ui k="nav.upcoming"></x-ui></strong>: je Inbox en de twee overzichten met taken uit al je projecten. Het getal erachter is het aantal openstaande taken (bij Vandaag: te laat en vandaag samen).</li>
+  <li><strong><x-ui k="nav.favorites"></x-ui></strong>: de projecten die je als favoriet hebt gemarkeerd. Dit kopje staat er alleen als je er minstens één hebt.</li>
+  <li><strong><x-ui k="nav.projects"></x-ui></strong>: al je andere projecten, elk met een gekleurd bolletje. Het teken met twee poppetjes betekent dat je het project met anderen deelt. Met de <strong>+</strong> naast het kopje maak je een nieuw project.</li>
+  <li><strong><x-ui k="nav.archived"></x-ui></strong>: onderaan, alleen als er gearchiveerde projecten zijn. Zie <a href="projecten.html#archiveren">archiveren</a>.</li>
+  <li><strong>Je naam met <x-ui k="settings.title"></x-ui></strong> onderaan: het menu met je account, herinneringen en meldingen, de taal en afmelden. Ernaast staat het toetsenbordpictogram dat de <a href="sneltoetsen.html">sneltoetsen</a> toont.</li>
+</ul>
+<p><strong>Subprojecten in- en uitklappen:</strong> heeft een project subprojecten, dan staat er een pijltje voor. Klik erop om de subprojecten te verbergen of te tonen De keuze hoort bij het project, niet bij jou: ze blijft ook op je andere apparaten staan, en in een gedeeld project zien de anderen hetzelfde.</p>
+<p>Welk scherm je het laatst bekeek, onthoudt de app op dat apparaat.</p>
+
+<h2 id="de-kop-van-een-project">De kop en de knoppen bovenaan</h2>
+<p>Boven de lijst staat de naam van het scherm, met het aantal openstaande taken ("14 taken"). In een project staan er rechts knoppen:</p>
+<ul>
+  <li><x-ui k="comment.projectButton"></x-ui>: de opmerkingen bij het hele project, met het aantal erachter. Zie <a href="taakvenster.html#opmerkingen">opmerkingen</a>.</li>
+  <li><x-ui k="project.share"></x-ui> (of <x-ui k="project.shared"></x-ui> bij een project dat al gedeeld is): zie <a href="delen.html">Delen en samenwerken</a>.</li>
+  <li><x-ui k="project.menu"></x-ui>: het menu van het project. Zie <a href="projecten.html#het-projectmenu">het projectmenu</a>.</li>
+</ul>
+<p>De Inbox heeft alleen de knop voor opmerkingen: je kunt hem niet delen of verwijderen.</p>
+
+<x-shot name="project" alt="Het project Huishouden met bovenaan de knoppen Opmerkingen (1), Gedeeld en Project…, daaronder een taak zonder sectie en de sectie Boodschappen met de taak Boodschappen doen, die drie subtaken ingesprongen heeft.">Een project: de knoppen bovenaan, de sectie Boodschappen en een taak met subtaken eronder.</x-shot>
+
+<h2 id="een-regel-in-de-lijst">Een regel in de lijst</h2>
+<p>Elke taak is één regel:</p>
+<ul>
+  <li><strong>Het rondje</strong> links is de knop om de taak af te vinken. De kleur van de rand is de prioriteit: rood voor P1, oranje voor P2, blauw voor P3 en grijs voor P4 (geen).</li>
+  <li><strong>De naam</strong> van de taak, en eronder in grijs de eerste regel van de beschrijving, als er een is. Klik op de naam of de regel om de taak te openen; zie <a href="taakvenster.html">Het taakvenster</a>.</li>
+  <li><strong>Labeltjes</strong> eronder, in deze volgorde: de datum (de kleur laat zien of hij te laat is, vandaag of later; bij een herhaling staat <strong>↻</strong> ervoor), de deadline, het aantal afgeronde subtaken ("1/4"), het aantal opmerkingen, de labels (<code>@naam</code>, met de kleur van het label), een belletje 🔔 als er een herinnering gaat afgaan, en voor wie de taak is ("voor Bram", "voor jou") in een gedeeld project.</li>
+  <li><strong>Het project</strong> staat rechts, met zijn kleur, in Vandaag en Binnenkort. Zit de taak in een sectie, dan staat die erbij ("Huishouden / Klusjes").</li>
+</ul>
+
+<h3 id="subtaken-in-de-lijst">Subtaken in de lijst</h3>
+<p>Subtaken staan ingesprongen onder hun taak. Heeft een taak subtaken, dan toont het label "1/4" een pijltje: klik erop om de subtaken te verbergen of te tonen. Dat onthoudt de app ook. Subtaken maak je in <a href="taakvenster.html#subtaken">het taakvenster</a>.</p>
+
+<h3 id="snelle-knoppen">Snelle knoppen</h3>
+<p>Wijs je een regel aan (of kom je er met het toetsenbord in), dan verschijnen rechts drie knoppen: <strong>potlood</strong> om de taak te bewerken, <strong>kalender</strong> om een andere dag te kiezen en <strong>prullenbak</strong> om haar te verwijderen. Met de kalenderknop kies je uit <x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui> of <x-ui k="task.quickNone"></x-ui>. Het tijdstip en een herhaling blijven daarbij zoals ze waren.</p>
+
+<h2 id="secties-in-de-lijst">Secties</h2>
+<p>In een project staan taken onder het kopje van hun sectie, met het aantal taken erachter. Taken zonder sectie staan bovenaan.</p>
+<ul>
+  <li>Klik op het pijltje voor de naam om een sectie in of uit te klappen. Dat blijft bewaard, net als het in- en uitklappen van subtaken.</li>
+  <li>De <strong>⋯</strong> rechts van de naam opent het menu van de sectie: hernoemen en verwijderen.</li>
+  <li>Onder elke sectie staat <strong><x-ui k="quick.addTask"></x-ui></strong>: de taak komt dan in die sectie. Onder <x-ui k="nav.today"></x-ui> komt de taak met de datum van vandaag.</li>
+  <li>Onderaan het project voeg je met <x-ui k="section.add"></x-ui> een sectie toe.</li>
+</ul>
+
+<h2 id="afvinken">Afvinken en terughalen</h2>
+<p>Klik op het rondje om een taak af te vinken. Even later verdwijnt ze uit de lijst en verschijnt onderaan een paar seconden de melding <x-ui k="task.completed"></x-ui> met de knop <x-ui k="task.undo"></x-ui>.</p>
+<ul>
+  <li><strong>Voltooide taken bekijken:</strong> onderaan een project staat <x-ui k="view.showCompleted" n="3"></x-ui> (met het aantal). Klik op het rondje van een voltooide taak om haar te heropenen. Heropen je een taak met subtaken, dan blijven de subtaken afgevinkt tot je ze zelf heropent.</li>
+  <li><strong>Terugkerende taken</strong> verdwijnen niet bij afvinken: de datum schuift door naar de volgende keer. Zie <a href="datums-en-herhalingen.html#wat-er-gebeurt-als-je-een-herhaling-afvinkt">herhalingen afvinken</a>.</li>
+  <li>Vink je een taak met subtaken af, dan zijn haar subtaken ook afgevinkt.</li>
+</ul>
+
+<h2 id="vandaag-en-binnenkort">Vandaag en Binnenkort</h2>
+<ul>
+  <li><x-ui k="nav.today"></x-ui> toont alle openstaande taken met de datum van vandaag, uit al je projecten, en daarboven wat <x-ui k="view.overdue"></x-ui> is. Is er niets te doen, dan zie je "Alles gedaan voor vandaag".</li>
+  <li><x-ui k="nav.upcoming"></x-ui> toont de komende veertien dagen, vanaf morgen, met een kopje per dag. Dagen zonder taken worden overgeslagen.</li>
+</ul>
+<p>Binnen een dag staan eerst de taken zonder tijdstip en dan die met een tijdstip, van vroeg naar laat; bij gelijke tijd gaat de hoogste prioriteit voor. In een gedeeld project zie je hier ook de taken die aan een ander zijn toegewezen. Taken zonder datum staan in geen van beide overzichten; die vind je in hun project.</p>
+
+<h2 id="op-een-telefoon">Op een telefoon</h2>
+<x-shot name="telefoon-project" alt="Het project Huishouden op een telefoon: bovenaan het menuknopje en de status, daaronder de titel met de knop Opmerkingen en de pictogrammen voor Delen en Project, het invoerveld en de takenlijst.">Op een smal scherm staat de zijbalk achter het knopje met de drie streepjes linksboven. De knoppen Delen en Project worden pictogrammen.</x-shot>
+<p>Op een smal scherm is de zijbalk verborgen. Tik linksboven op de knop met de drie streepjes om hem te openen; kies je iets, dan klapt hij vanzelf dicht. Tik naast de zijbalk (of druk op Escape) om hem te sluiten. Het taakvenster neemt op een telefoon het hele scherm in.</p>
+
+<h2 id="rechtsboven-de-status">De status rechtsboven</h2>
+<p>Rechtsboven staat of alles is bijgewerkt (<x-ui k="sync.upToDate"></x-ui>), of er wijzigingen wachten, of de server niet bereikbaar is. Klik erop om meteen bij te werken. Zie <a href="offline.html#de-status-rechtsboven">Offline werken</a>.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li><strong>Zoeken en filters.</strong> De zoekfunctie en de filtertaal zijn gebouwd, maar er zijn nog geen schermen voor; je kunt ze dus nog niet gebruiken.</li>
+  <li><strong>De volgorde wijzigen.</strong> Taken, secties en projecten staan in de volgorde waarin ze zijn gemaakt; slepen kan niet.</li>
+  <li>Een bord- of kalenderweergave, de duur van een taak, bijlagen, en labels hernoemen of verwijderen.</li>
+</ul>

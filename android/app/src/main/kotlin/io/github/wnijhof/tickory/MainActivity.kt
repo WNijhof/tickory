@@ -126,6 +126,12 @@ class MainActivity : ComponentActivity() {
             },
         )
 
+        if (prefs.cleartextToInternet) {
+            // Een eerder ingesteld http-adres naar een server buiten het eigen netwerk: niet laden, wel het adres kunnen wijzigen.
+            showError(getString(R.string.error_http_not_local_saved), canRetry = false)
+            return
+        }
+
         if (!createWebView()) {
             showError(getString(R.string.webview_missing), canRetry = false)
             return

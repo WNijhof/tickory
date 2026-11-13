@@ -7,7 +7,11 @@ import type { Col, Entity } from './schema.ts';
 export type Row = Record<string, unknown>;
 
 /** De context van één commando: de database, het versienummer dat het commando krijgt, het tijdstip en wie het uitvoert. */
-export interface Ctx { db: DatabaseSync; rev: number; now: string; userId: string }
+export interface Ctx {
+  db: DatabaseSync; rev: number; now: string; userId: string;
+  /** Tellingen voor de limieten (limits.ts), gedeeld door de commando's van één verzoek zodat ze niet steeds opnieuw tellen. */
+  counts?: Map<string, number>;
+}
 
 export class SyncError extends Error {
   code: string;
@@ -25,6 +29,18 @@ export function fail(code: string, message: string): never {
 export const newId = (): string => randomBytes(12).toString('base64url');
 export const has = (o: object, k: string): boolean => Object.hasOwn(o, k);
 export const placeholders = (n: number): string => Array.from({ length: n }, () => '?').join(', ');
+
+/**
+ * SQLite staat hooguit 32766 gebonden waarden in één query. Een lijst `IN (?, ?, …)` die met de hoeveelheid gegevens meegroeit
+ * (alle taken van een project, alle subtaken) hoort daarom in brokken van `size` tegelijk te worden gevraagd; een
+ * project met meer dan 32766 taken liet anders het verwijderen, verlaten of een lid eruit halen mislukken.
+ */
+export const IN_CHUNK = 500;
+export function chunked<T>(items: readonly T[], size: number = IN_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
 
 // ---------- versienummers ----------
 

@@ -25,9 +25,10 @@ TODO_ADMIN_PASSWORD=choose-a-long-password-here
 # The name as others see it (optional; otherwise the username):
 TODO_ADMIN_NAME=Anna de Vries</code></pre>
 <ul>
-  <li>The password has at least 10 characters and may not be the same as the username.</li>
+  <li>The password has at least 10 characters, may not be the same as the username and may not be easy to guess: no common word or password, not too few different characters. A long phrase works well.</li>
   <li>This account is created on the very first start and is an <strong>administrator</strong>. You then use it to create the other accounts in the app; see <a href="managing-users.html">Managing users</a>.</li>
-  <li>Once an account exists, these lines no longer do anything. So after the first start you can remove the password from <code>.env</code>.</li>
+  <li>Once an account exists, these lines no longer do anything. After the first start, remove the password from <code>.env</code> and recreate the container (<code>docker compose up -d --force-recreate</code>): otherwise it stays in the container's configuration, where <code>docker inspect</code> shows it.</li>
+  <li>Would you rather not have it in the environment at all? Set <code>TODO_ADMIN_PASSWORD_FILE</code> to the path (inside the container) of a file with the password, for example a Docker secret under <code>/run/secrets/</code>, and leave out <code>TODO_ADMIN_PASSWORD</code>.</li>
   <li>Never put <code>.env</code> in git. It is already listed in <code>.gitignore</code>.</li>
 </ul>
 
@@ -68,7 +69,7 @@ docker compose logs -f     # follow the log; stop with Ctrl+C</code></pre>
       <tr><th>Variable</th><th>Meaning</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code><br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">The first account. Only used as long as not a single account exists.</td></tr>
+      <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code> (or <code>TODO_ADMIN_PASSWORD_FILE</code>)<br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">The first account. Only used as long as not a single account exists.</td></tr>
       <tr><td><code>TRUST_PROXY</code></td><td class="wrap-ok">Set to <code>1</code> when your own reverse proxy is in front. See <a href="https.html#trust-proxy">HTTPS</a>.</td></tr>
       <tr><td><code>VAPID_SUBJECT</code></td><td class="wrap-ok">Optional: your contact address for the browser's push service (<code>mailto:you@example.org</code> or an https address), for notifications. See <a href="reminders.html#for-administrators">Reminders</a>.</td></tr>
       <tr><td><code>DEFAULT_TIMEZONE</code></td><td class="wrap-ok">The time zone for users who have not set one themselves; <code>Europe/Amsterdam</code> by default.</td></tr>

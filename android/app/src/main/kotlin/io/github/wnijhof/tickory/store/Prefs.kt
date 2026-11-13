@@ -3,6 +3,7 @@ package io.github.wnijhof.tickory.store
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import io.github.wnijhof.tickory.core.ServerAddress
 
 /** De instellingen van de app: welke server, en de (versleutelde) aanmelding. Privé-opslag van de app, niet in back-ups. */
 class Prefs(context: Context) {
@@ -15,6 +16,16 @@ class Prefs(context: Context) {
     var serverIsLocal: Boolean
         get() = prefs.getBoolean(KEY_LOCAL, false)
         set(value) = prefs.edit { putBoolean(KEY_LOCAL, value) }
+
+    /**
+     * Staat er een onversleuteld (http) adres ingesteld naar een server buiten het eigen netwerk? Dat staat de app niet toe
+     * (zie ServerAddress.cleartextAllowed); het kan alleen nog zo zijn bij een adres dat is ingesteld in een oudere versie.
+     */
+    val cleartextToInternet: Boolean
+        get() {
+            val address = serverOrigin?.let { ServerAddress.parse(it) } as? ServerAddress.Result.Ok ?: return false
+            return !ServerAddress.cleartextAllowed(address, serverIsLocal)
+        }
 
     /** De server gaf 401: niet meer verversen tot de web-app opnieuw een sessie doorgeeft. */
     var sessionExpired: Boolean

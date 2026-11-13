@@ -2,6 +2,7 @@
 // waarvan de gebruiker het antwoord (of de fout) meteen wil zien.
 
 import { nameKey } from '../../shared/text.js';
+import { weakPasswordReason } from '../../shared/password.js';
 import { DEFAULT_LANGUAGE, getLanguage, t } from './i18n.js';
 
 /** De taal waarin de server zijn foutteksten schrijft. */
@@ -27,6 +28,7 @@ function ownMessage(action, code) {
   switch (code) {
     case 'INVALID_CREDENTIALS': return t('api.invalidCredentials');
     case 'TOO_MANY_ATTEMPTS': return t('api.tooManyAttempts');
+    case 'BUSY': return t('api.busy');
     case 'UNAUTHORIZED': return t('error.unauthorized');
     case 'INTERNAL': return t('error.internal');
     case 'FORBIDDEN': return action === 'changePassword' ? t('api.wrongCurrentPassword') : admin ? t('api.adminOnly') : t('error.forbidden');
@@ -111,12 +113,23 @@ export function displayNameProblem(name) {
   return s.length < 1 || s.length > 100 || /[\u0000-\u001f\u007f]/u.test(s) ? t('account.nameInvalid') : '';
 }
 
-/** Een wachtwoord: minimaal 10 tekens, maximaal 200, en niet gelijk aan de gebruikersnaam (als die bekend is). */
+/** De redenen waarom een wachtwoord te makkelijk is (shared/password.js), elk met zijn eigen tekst in de taal van de interface. */
+const WEAK_REASON = {
+  few_characters: () => t('account.passwordWeak.fewCharacters'),
+  common: () => t('account.passwordWeak.common'),
+  digits_only: () => t('account.passwordWeak.digitsOnly'),
+  like_username: () => t('account.passwordWeak.likeUsername'),
+  repetition: () => t('account.passwordWeak.repetition'),
+};
+
+/** Een wachtwoord: minimaal 10 tekens, maximaal 200, niet gelijk aan de gebruikersnaam (als die bekend is) en niet te makkelijk te raden. */
 export function passwordProblem(password, username = '') {
   const raw = String(password ?? '');
   if ([...raw].length < MIN_PASSWORD_LENGTH) return t('account.passwordTooShort', { min: MIN_PASSWORD_LENGTH });
   if (raw.length > MAX_PASSWORD_LENGTH) return t('account.passwordTooLong', { max: MAX_PASSWORD_LENGTH });
   if (username && nameKey(raw) === nameKey(username)) return t('account.passwordIsUsername');
+  const weak = weakPasswordReason(raw, username);
+  if (weak) return t('account.passwordTooWeak', { reason: WEAK_REASON[weak]() });
   return '';
 }
 

@@ -25,9 +25,10 @@ TODO_ADMIN_PASSWORD=kies-hier-een-lang-wachtwoord
 # De naam zoals anderen die zien (optioneel; anders de gebruikersnaam):
 TODO_ADMIN_NAME=Anna de Vries</code></pre>
 <ul>
-  <li>Het wachtwoord heeft minimaal 10 tekens en mag niet gelijk zijn aan de gebruikersnaam.</li>
+  <li>Het wachtwoord heeft minimaal 10 tekens, mag niet gelijk zijn aan de gebruikersnaam en mag niet makkelijk te raden zijn: geen veelgebruikt woord of wachtwoord, niet te weinig verschillende tekens. Een lange zin werkt goed.</li>
   <li>Dit account wordt bij de allereerste start aangemaakt en is <strong>beheerder</strong>. Daarmee maak je daarna in de app de andere accounts aan; zie <a href="gebruikers-beheren.html">Gebruikers beheren</a>.</li>
-  <li>Bestaat er al een account, dan doen deze regels niets meer. Na de eerste start kun je het wachtwoord dus uit <code>.env</code> halen.</li>
+  <li>Bestaat er al een account, dan doen deze regels niets meer. Haal het wachtwoord na de eerste start uit <code>.env</code> en maak de container opnieuw aan (<code>docker compose up -d --force-recreate</code>): anders blijft het in de configuratie van de container staan, waar <code>docker inspect</code> het toont.</li>
+  <li>Liever helemaal niet in de omgeving? Zet <code>TODO_ADMIN_PASSWORD_FILE</code> op het pad (in de container) van een bestand met het wachtwoord, bijvoorbeeld een Docker-secret onder <code>/run/secrets/</code>, en laat <code>TODO_ADMIN_PASSWORD</code> weg.</li>
   <li>Zet <code>.env</code> nooit in git. Het staat al in <code>.gitignore</code>.</li>
 </ul>
 
@@ -68,7 +69,7 @@ docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
       <tr><th>Variabele</th><th>Betekenis</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code><br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">Het eerste account. Alleen gebruikt zolang er nog geen enkel account bestaat.</td></tr>
+      <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code> (of <code>TODO_ADMIN_PASSWORD_FILE</code>)<br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">Het eerste account. Alleen gebruikt zolang er nog geen enkel account bestaat.</td></tr>
       <tr><td><code>TRUST_PROXY</code></td><td class="wrap-ok">Zet op <code>1</code> als er een eigen reverse proxy voor staat. Zie <a href="https.html#trust-proxy">HTTPS</a>.</td></tr>
       <tr><td><code>VAPID_SUBJECT</code></td><td class="wrap-ok">Optioneel: jouw contactadres voor de pushdienst van de browser (<code>mailto:jij@voorbeeld.nl</code> of een https-adres), voor meldingen. Zie <a href="herinneringen.html#voor-beheerders">Herinneringen</a>.</td></tr>
       <tr><td><code>DEFAULT_TIMEZONE</code></td><td class="wrap-ok">De tijdzone voor gebruikers die er zelf nog geen hebben ingesteld; standaard <code>Europe/Amsterdam</code>.</td></tr>

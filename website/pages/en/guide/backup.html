@@ -20,7 +20,7 @@ description: Making a backup of Tickory while the app is running, getting the co
 <p>and put the directory <code>backups</code> somewhere else: on another computer, an external disk, or encrypted with a storage service. You clean up old copies yourself; they are not removed automatically.</p>
 <div class="note warn">
   <span class="note-label">Keep a backup the way you keep the database</span>
-  <p>A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications. Do not leave it where others can get at it.</p>
+  <p>A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications: the private key (VAPID) and the secret that signs the buttons in a notification. Whoever has it can use those buttons to complete or postpone any task of any user. Do not leave it where others can get at it, not even in a folder that other users of the server can read.</p>
 </div>
 
 <h2>Automatically, every night</h2>

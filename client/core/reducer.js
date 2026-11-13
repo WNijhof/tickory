@@ -246,11 +246,13 @@ function taskComplete(state, args, now) {
   const row = state.tasks.get(args.id);
   if (!row || row.checked) return;
   const count = (row.completed_count ?? 0) + 1;
-  if (row.due?.recurrence) {
+  const next = row.due?.recurrence ? nextOccurrence(row.due.date, row.due.recurrence) : null;
+  if (next) {
     // terugkerend: door naar de volgende datum, de taak blijft open
-    patch(state, 'tasks', row.id, { due: { ...row.due, date: nextOccurrence(row.due.date, row.due.recurrence) }, completed_count: count }, now);
+    patch(state, 'tasks', row.id, { due: { ...row.due, date: next }, completed_count: count }, now);
     return;
   }
+  // niet terugkerend, of geen volgende keer meer (na 9999-12-31): gewoon afvinken, zoals de server
   patch(state, 'tasks', row.id, { checked: true, completed_at: now, completed_count: count }, now);
   for (const kid of descendantIds(state, [row.id])) {
     if (!state.tasks.get(kid).checked) patch(state, 'tasks', kid, { checked: true, completed_at: now }, now);

@@ -88,7 +88,12 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS command_log_at ON command_log (at)');
   // Een taak die naar een ander project verhuist, verdwijnt voor wie dat project niet ziet. Dit logboek laat de sync
   // vertellen wie de taak kende maar hem nu niet meer ziet (zie collectResources in sync.ts).
-  db.exec('CREATE TABLE IF NOT EXISTS task_moves (task_id TEXT NOT NULL, from_project_id TEXT NOT NULL, rev INTEGER NOT NULL)');
+  // `at` (tijdstip van verhuizen) laat het logboek na verloop van tijd opruimen; zie pruneTaskMoves in sync.ts.
+  db.exec('CREATE TABLE IF NOT EXISTS task_moves (task_id TEXT NOT NULL, from_project_id TEXT NOT NULL, rev INTEGER NOT NULL, at TEXT)');
+  if (!(db.prepare('PRAGMA table_info(task_moves)').all() as { name: string }[]).some((c) => c.name === 'at')) {
+    db.exec('ALTER TABLE task_moves ADD COLUMN at TEXT'); // database van vóór het opruimen: de bestaande regels tellen vanaf nu
+    db.prepare('UPDATE task_moves SET at = ? WHERE at IS NULL').run(new Date().toISOString());
+  }
   db.exec('CREATE INDEX IF NOT EXISTS task_moves_rev ON task_moves (rev)');
   db.exec('DROP TABLE IF EXISTS commands'); // versie 0.1: zonder gebruiker; alle apparaten moeten toch opnieuw inloggen
 
@@ -122,6 +127,14 @@ export function createSchema(db: DatabaseSync): void {
     db.exec(`CREATE INDEX IF NOT EXISTS ${e.table}_rev ON ${e.table} (rev)`);
   }
   db.exec('CREATE INDEX IF NOT EXISTS tasks_project ON tasks (project_id, is_deleted)');
+  // De volgordesleutel van een nieuwe rij is "de hoogste van de lijst + 1" (nextKey in sync.ts). Met deze indexen is dat een
+  // opzoeking in plaats van een scan van alle taken van het project, waardoor toevoegen niet langzamer wordt naarmate een lijst groeit.
+  db.exec('CREATE INDEX IF NOT EXISTS tasks_order ON tasks (project_id, section_id, parent_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS sections_order ON sections (project_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS labels_order ON labels (owner_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS filters_order ON filters (owner_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS tasks_creator ON tasks (creator_id, is_deleted)'); // voor de limiet per gebruiker
+  db.exec('CREATE INDEX IF NOT EXISTS comments_project ON comments (project_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS tasks_parent ON tasks (parent_id)');
   db.exec('CREATE INDEX IF NOT EXISTS comments_task ON comments (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_task ON reminders (task_id)');

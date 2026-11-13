@@ -20,9 +20,10 @@ import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { nextOccurrence } from '../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
-import { bumpRev, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
+import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
+import { LIMITS } from './limits.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -108,7 +109,13 @@ function collect(ctx: Ctx, e: Entity, args: Args, mode: 'add' | 'update'): Row {
     if (given && mode === 'update' && c.immutable) fail('IMMUTABLE', `"${c.name}" kan hiermee niet worden gewijzigd`);
     if (given) {
       // Alle tekst in NFC: een ontleed getypte "é" (e + los accent) wordt dezelfde "é" als elke andere (zie shared/text.js).
-      const v = deepNormalize(args[c.name]);
+      let v: unknown;
+      try {
+        v = deepNormalize(args[c.name]);
+      } catch (error) {
+        if (error instanceof RangeError) fail('INVALID_ARG', `${e.name}.${c.name}: te diep genest`);
+        throw error;
+      }
       const err = validateValue(c, v);
       if (err) fail('INVALID_ARG', `${e.name}.${c.name}: ${err}`);
       if (c.ref && v !== null) requireLive(ctx, c.ref, v, `${e.name}.${c.name}`);
@@ -147,11 +154,20 @@ function nextKey(ctx: Ctx, e: Entity, v: Row): string {
 
 function descendantIds(db: DatabaseSync, rootIds: string[]): string[] {
   const all = new Set<string>();
+  const roots = new Set(rootIds);
   let frontier = rootIds;
   while (frontier.length > 0) {
-    const kids = db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND parent_id IN (${placeholders(frontier.length)})`).all(...frontier) as Row[];
-    frontier = kids.map((k) => k.id as string).filter((i) => !all.has(i) && !rootIds.includes(i));
-    frontier.forEach((i) => all.add(i));
+    const next: string[] = [];
+    for (const part of chunked(frontier)) {
+      const kids = db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND parent_id IN (${placeholders(part.length)})`).all(...part) as Row[];
+      for (const k of kids) {
+        const id = k.id as string;
+        if (all.has(id) || roots.has(id)) continue;
+        all.add(id);
+        next.push(id);
+      }
+    }
+    frontier = next;
   }
   return [...all];
 }
@@ -243,6 +259,53 @@ function addMembersForNewProject(ctx: Ctx, projectId: string, parentId: string |
   for (const [user_id, role] of members) insertRow(ctx, ENTITIES.member, newId(), { project_id: projectId, user_id, role });
 }
 
+/**
+ * Controleert een grens uit limits.ts en telt de nieuwe rij alvast mee. Het aantal wordt per verzoek één keer uit de database
+ * gehaald (`count`) en daarna bijgehouden, zodat honderd toevoegingen in één verzoek niet honderd keer tellen.
+ */
+function quota(ctx: Ctx, key: string, limit: number, what: string, count: () => number): void {
+  ctx.counts ??= new Map();
+  const have = ctx.counts.get(key) ?? count();
+  if (have >= limit) fail('LIMIT_REACHED', `${what}: de grens van ${limit} is bereikt`);
+  ctx.counts.set(key, have + 1);
+}
+const countOf = (db: DatabaseSync, sql: string, ...params: string[]): number => Number((db.prepare(sql).get(...params) as Row).n);
+
+/** De grenzen voor een nieuwe rij (zie limits.ts). `v` is de rij zoals hij bewaard gaat worden. */
+function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
+  const db = ctx.db;
+  switch (e.name) {
+    case 'project':
+      quota(ctx, `projects:${ctx.userId}`, LIMITS.projectsPerUser, 'projecten per gebruiker', () => countOf(db, "SELECT COUNT(*) AS n FROM project_members WHERE user_id = ? AND role = 'owner' AND is_deleted = 0", ctx.userId));
+      break;
+    case 'section':
+      quota(ctx, `sections:${v.project_id}`, LIMITS.sectionsPerProject, 'secties per project', () => countOf(db, 'SELECT COUNT(*) AS n FROM sections WHERE project_id = ? AND is_deleted = 0', v.project_id as string));
+      break;
+    case 'task':
+      quota(ctx, `tasks:p:${v.project_id}`, LIMITS.tasksPerProject, 'taken per project', () => countOf(db, 'SELECT COUNT(*) AS n FROM tasks WHERE project_id = ? AND is_deleted = 0', v.project_id as string));
+      quota(ctx, `tasks:u:${ctx.userId}`, LIMITS.tasksPerUser, 'taken per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM tasks WHERE creator_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'label':
+      quota(ctx, `labels:${ctx.userId}`, LIMITS.labelsPerUser, 'labels per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM labels WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'filter':
+      quota(ctx, `filters:${ctx.userId}`, LIMITS.filtersPerUser, 'filters per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM filters WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'comment': {
+      const byTask = v.task_id !== null && v.task_id !== undefined;
+      const parent = (byTask ? v.task_id : v.project_id) as string;
+      quota(ctx, `comments:${parent}`, LIMITS.commentsPerParent, 'opmerkingen per taak of project', () => countOf(db, `SELECT COUNT(*) AS n FROM comments WHERE ${byTask ? 'task_id' : 'project_id'} = ? AND is_deleted = 0`, parent));
+      break;
+    }
+    case 'reminder':
+      quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
+      quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    default:
+      break;
+  }
+}
+
 function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   const id = args.id === undefined ? newId() : args.id;
   if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
@@ -250,6 +313,7 @@ function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   if (getRow(ctx.db, e, id)) fail('ID_EXISTS', `${e.name} met dit id bestaat al`);
   const v = collect(ctx, e, args, 'add');
   verify(ctx, e, id, v, 'add', v);
+  checkLimits(ctx, e, v);
   const oc = e.cols.find((c) => c.orderKey);
   if (oc && v[oc.name] === undefined) v[oc.name] = nextKey(ctx, e, v);
   insertRow(ctx, e, id, v);
@@ -275,10 +339,12 @@ function onlyId(args: Args): string {
 function deleteTaskTree(ctx: Ctx, rootIds: string[]): void {
   if (rootIds.length === 0) return;
   const ids = [...rootIds, ...descendantIds(ctx.db, rootIds)];
-  const ph = placeholders(ids.length);
-  mark(ctx, 'tasks', `id IN (${ph})`, ids);
-  mark(ctx, 'comments', `task_id IN (${ph})`, ids);
-  mark(ctx, 'reminders', `task_id IN (${ph})`, ids);
+  for (const part of chunked(ids)) {
+    const ph = placeholders(part.length);
+    mark(ctx, 'tasks', `id IN (${ph})`, part);
+    mark(ctx, 'comments', `task_id IN (${ph})`, part);
+    mark(ctx, 'reminders', `task_id IN (${ph})`, part);
+  }
 }
 
 /**
@@ -378,23 +444,25 @@ function taskMove(ctx: Ctx, args: Args): void {
   const kids = descendantIds(ctx.db, [id]);
   if (projectChanges) {
     // Leden van het oude project die het nieuwe niet zien, krijgen via deze lijst te horen dat de taak (en subtaken) weg is.
-    const log = ctx.db.prepare('INSERT INTO task_moves (task_id, from_project_id, rev) VALUES (?, ?, ?)');
-    for (const t of [id, ...kids]) log.run(t, row.project_id as string, ctx.rev);
+    // Leden van het nieuwe project krijgen via dezelfde lijst ook de opmerkingen en herinneringen die bij de taak horen.
+    const log = ctx.db.prepare('INSERT INTO task_moves (task_id, from_project_id, rev, at) VALUES (?, ?, ?, ?)');
+    for (const t of [id, ...kids]) log.run(t, row.project_id as string, ctx.rev, ctx.now);
   }
   updateRow(ctx, ENTITIES.task, id, { project_id: projectId, section_id: sectionId, parent_id: parentId, order_key: orderKey });
 
   // subtaken gaan mee naar hetzelfde project en dezelfde sectie
-  if (kids.length > 0) {
+  for (const part of chunked(kids)) {
     ctx.db
-      .prepare(`UPDATE tasks SET project_id = ?, section_id = ?, rev = ?, updated_at = ? WHERE id IN (${placeholders(kids.length)})`)
-      .run(projectId, sectionId, ctx.rev, ctx.now, ...kids);
+      .prepare(`UPDATE tasks SET project_id = ?, section_id = ?, rev = ?, updated_at = ? WHERE id IN (${placeholders(part.length)})`)
+      .run(projectId, sectionId, ctx.rev, ctx.now, ...part);
   }
   if (projectChanges) {
     // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
-    const moved = [id, ...kids];
-    const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(moved.length)})`).all(...moved) as Row[])
-      .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
-    for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+    for (const part of chunked([id, ...kids])) {
+      const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(part.length)})`).all(...part) as Row[])
+        .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
+      for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+    }
   }
 }
 
@@ -404,17 +472,18 @@ function taskComplete(ctx: Ctx, args: Args): void {
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   const count = (row.completed_count as number) + 1;
-  if (due?.recurrence) {
+  const next = due?.recurrence ? nextOccurrence(due.date, due.recurrence) : null;
+  if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
-    updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: nextOccurrence(due.date, due.recurrence) }, completed_count: count });
+    updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
     return;
   }
+  // Niet terugkerend, of er is geen volgende keer meer (de volgende datum valt na 9999-12-31): gewoon afvinken.
   updateRow(ctx, ENTITIES.task, id, { checked: true, completed_at: ctx.now, completed_count: count });
-  const kids = descendantIds(ctx.db, [id]);
-  if (kids.length > 0) {
+  for (const part of chunked(descendantIds(ctx.db, [id]))) {
     ctx.db
-      .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(kids.length)})`)
-      .run(ctx.now, ctx.rev, ctx.now, ...kids);
+      .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(part.length)})`)
+      .run(ctx.now, ctx.rev, ctx.now, ...part);
   }
 }
 
@@ -435,11 +504,12 @@ function exactArgs(args: Args, allowed: string[]): void {
 function removeMember(ctx: Ctx, projectId: string, userId: string): void {
   mark(ctx, 'project_members', 'project_id = ? AND user_id = ?', [projectId, userId]);
   const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = 0').all(projectId) as Row[]).map((r) => r.id as string);
-  if (tasks.length === 0) return;
-  const ph = placeholders(tasks.length);
-  mark(ctx, 'reminders', `owner_id = ? AND task_id IN (${ph})`, [userId, ...tasks]);
-  const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...tasks) as Row[];
-  for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+  for (const part of chunked(tasks)) {
+    const ph = placeholders(part.length);
+    mark(ctx, 'reminders', `owner_id = ? AND task_id IN (${ph})`, [userId, ...part]);
+    const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...part) as Row[];
+    for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+  }
 }
 
 function projectShare(ctx: Ctx, args: Args): void {
@@ -456,6 +526,7 @@ function projectShare(ctx: Ctx, args: Args): void {
   // het project en de subprojecten waar de eigenaar ook eigenaar van is
   for (const p of projectTree(ctx.db, id)) {
     if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || isMember(ctx.db, target.id, p)) continue;
+    quota(ctx, `members:${p}`, LIMITS.membersPerProject, 'leden per project', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM project_members WHERE project_id = ? AND is_deleted = 0', p));
     insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role: 'member' });
   }
 }
@@ -504,6 +575,43 @@ HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
 
+// ---------- wie hoort dat er iets veranderd is ----------
+
+/**
+ * De gebruikers die iets te zien krijgen van wat er na versienummer `since` is veranderd, plus `actor`. Alleen zij krijgen het
+ * live-signaal (SSE) dat ze moeten synchroniseren; een ander hoort niet eens dát er iets gebeurde, laat staan hoe vaak.
+ * Gebruikers die uit een project zijn gehaald tellen mee: zij moeten horen dat het project voor hen verdween.
+ */
+export function audienceSince(db: DatabaseSync, since: number, actor: string): Set<string> {
+  const users = new Set<string>([actor]);
+  const collect = (sql: string, ...params: number[]): void => { for (const r of db.prepare(sql).all(...params) as Row[]) if (typeof r.user_id === 'string') users.add(r.user_id); };
+  // leden (ook oud-leden, in dezelfde ronde verwijderd) van elk project waarin iets is veranderd
+  collect(
+    `SELECT DISTINCT user_id FROM project_members WHERE project_id IN (
+       SELECT id FROM projects WHERE rev > ?
+       UNION SELECT project_id FROM sections WHERE rev > ?
+       UNION SELECT project_id FROM tasks WHERE rev > ?
+       UNION SELECT project_id FROM project_members WHERE rev > ?
+       UNION SELECT project_id FROM comments WHERE rev > ? AND project_id IS NOT NULL
+       UNION SELECT t.project_id FROM comments c JOIN tasks t ON t.id = c.task_id WHERE c.rev > ?
+       UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
+    since, since, since, since, since, since, since,
+  );
+  // wat van één persoon is: labels, filters, herinneringen en instellingen
+  collect(
+    `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
+     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?`,
+    since, since, since, since,
+  );
+  // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
+  for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
+    for (const r of db
+      .prepare(`SELECT DISTINCT m.user_id FROM tasks t JOIN project_members m ON m.project_id = t.project_id AND m.is_deleted = 0 WHERE t.is_deleted = 0 AND t.labels LIKE ?`)
+      .all(`%${l.id as string}%`) as Row[]) users.add(r.user_id as string);
+  }
+  return users;
+}
+
 // ---------- het sync-verzoek ----------
 
 export interface Command { type: string; uuid: string; args?: Args }
@@ -524,6 +632,23 @@ export interface SyncResponse {
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const MAX_COMMANDS = 100;
 const COMMAND_RETENTION_DAYS = 30;
+/** Hoe lang de sync onthoudt welke taken naar een ander project zijn verhuisd (voor wie die taak kende en het nieuwe project niet ziet). */
+export const TASK_MOVES_RETENTION_DAYS = 90;
+
+/** Het hoogste versienummer waarvan het verhuis-logboek is opgeruimd; wie een ouder token heeft, moet opnieuw beginnen. */
+function taskMovesFloor(db: DatabaseSync): number {
+  return Number((db.prepare("SELECT value FROM meta WHERE key = 'task_moves_floor'").get() as Row | undefined)?.value ?? 0);
+}
+
+/** Ruimt verhuis-regels op die ouder zijn dan de bewaartermijn, en onthoudt tot welk versienummer dat is gebeurd. */
+export function pruneTaskMoves(db: DatabaseSync, nowMs: number = Date.now()): number {
+  const cutoff = new Date(nowMs - TASK_MOVES_RETENTION_DAYS * 86_400_000).toISOString();
+  const oldest = (db.prepare('SELECT MAX(rev) AS r FROM task_moves WHERE at < ?').get(cutoff) as Row).r;
+  if (oldest === null || oldest === undefined) return 0;
+  const floor = Math.max(taskMovesFloor(db), Number(oldest));
+  db.prepare("INSERT INTO meta (key, value) VALUES ('task_moves_floor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(floor));
+  return Number(db.prepare('DELETE FROM task_moves WHERE at < ?').run(cutoff).changes);
+}
 
 function resolveResources(requested: unknown): { include: Set<string>; partial: boolean } {
   const list = requested === undefined ? ['all'] : requested;
@@ -560,23 +685,28 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
   }
 }
 
-/** Alles van een nieuw project dat de gebruiker nog niet kent, ook als het oud is (rev ≤ token). */
-function inProjects(name: EntityName, uid: string, projects: string[]): { sql: string; params: string[] } | null {
-  if (projects.length === 0) return null;
-  const ph = placeholders(projects.length);
-  const tasksIn = `SELECT id FROM tasks WHERE project_id IN (${ph})`;
+// Projecten die de gebruiker sinds het token erbij kreeg (en dus nog helemaal niet kent), als subquery. Een subquery in plaats
+// van een lijst met waarden: een lijst groeit met de gegevens mee en SQLite staat er hooguit 32766 in één query toe.
+const GAINED = 'SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0 AND rev > ?';
+// Het deel daarvan dat de gebruiker nooit eerder had: wie al eens lid was en tussendoor is verwijderd, kan er nog gegevens van
+// hebben, en moet dus ook horen wat er in de tussentijd is verwijderd (alleen als {id, is_deleted}, zonder inhoud).
+const GAINED_NEW = `${GAINED} AND project_id NOT IN (SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 1)`;
+const MOVED_SINCE = 'SELECT task_id FROM task_moves WHERE rev > ?';
+
+/** Alles van de projecten in `projects` (een subquery met zijn waarden), ook als het oud is (rev ≤ token). */
+function inProjects(name: EntityName, uid: string, projects: string, params: (string | number)[]): { sql: string; params: (string | number)[] } | null {
+  const tasksIn = `SELECT id FROM tasks WHERE project_id IN (${projects})`;
   switch (name) {
-    case 'project': return { sql: `id IN (${ph})`, params: projects };
-    case 'section': case 'task': case 'member': return { sql: `project_id IN (${ph})`, params: projects };
-    case 'comment': return { sql: `(project_id IN (${ph}) OR task_id IN (${tasksIn}))`, params: [...projects, ...projects] };
-    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...projects] };
+    case 'project': return { sql: `id IN (${projects})`, params: [...params] };
+    case 'section': case 'task': case 'member': return { sql: `project_id IN (${projects})`, params: [...params] };
+    case 'comment': return { sql: `(project_id IN (${projects}) OR task_id IN (${tasksIn}))`, params: [...params, ...params] };
+    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...params] };
     default: return null;
   }
 }
 
 function collectResources(db: DatabaseSync, uid: string, include: Set<string>, since: number, full: boolean, response: SyncResponse): void {
-  // Projecten die de gebruiker sinds het token erbij kreeg (en dus nog helemaal niet kent), of waar die uit is gehaald.
-  const gained = full ? [] : (db.prepare('SELECT DISTINCT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0 AND rev > ?').all(uid, since) as Row[]).map((r) => r.project_id as string);
+  // Projecten waar de gebruiker uit is gehaald.
   const lost = full
     ? []
     : (db
@@ -591,15 +721,6 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
            WHERE m.rev > ? AND m.from_project_id IN (${MY_PROJECTS}) AND t.project_id NOT IN (${MY_PROJECTS})`,
         )
         .all(since, uid, uid) as Row[]).map((r) => r.task_id as string);
-  // Labels van anderen worden zichtbaar doordat ze op een taak in een gedeeld project komen te staan; ook als het label zelf oud is.
-  let extraLabels: string[] = [];
-  if (!full && include.has('labels')) {
-    const taskLabels = db
-      .prepare(`SELECT labels FROM tasks WHERE is_deleted = 0 AND project_id IN (${MY_PROJECTS}) AND (rev > ?${gained.length ? ` OR project_id IN (${placeholders(gained.length)})` : ''})`)
-      .all(uid, since, ...gained) as Row[];
-    extraLabels = [...new Set(taskLabels.flatMap((t) => (t.labels ? (JSON.parse(t.labels as string) as string[]) : [])))];
-  }
-
   for (const e of ENTITY_LIST) {
     if (!include.has(e.resource)) continue;
     const vis = visibility(e.name, uid);
@@ -608,15 +729,30 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
     if (full) {
       where += ' AND is_deleted = 0';
     } else {
+      // Wat de gebruiker sinds het token wel mag zien maar niet kent, ook als het zelf oud is (rev ≤ token):
+      //  - alles van een project waar hij net lid van werd;
+      //  - de opmerkingen en herinneringen van een taak die naar een project van hem is verhuisd;
+      //  - labels van anderen die op een taak in zijn projecten zijn gekomen.
       const extra: string[] = [];
       const extraParams: (string | number)[] = [];
-      const np = inProjects(e.name, uid, gained);
+      const np = inProjects(e.name, uid, GAINED, [uid, since]);
       if (np) { extra.push(np.sql); extraParams.push(...np.params); }
-      if (e.name === 'label' && extraLabels.length > 0) { extra.push(`id IN (${placeholders(extraLabels.length)})`); extraParams.push(...extraLabels); }
+      if (e.name === 'comment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
+      if (e.name === 'reminder') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
+      if (e.name === 'label') {
+        extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);
+        extraParams.push(uid, since, uid, since);
+      }
       where += ` AND (rev > ?${extra.length ? ` OR (is_deleted = 0 AND (${extra.join(' OR ')}))` : ''})`;
       params.push(since, ...extraParams);
+      // Verwijderde rijen van een project dat de gebruiker nooit eerder had, zijn voor hem niet bestaand: niets sturen.
+      const fresh = inProjects(e.name, uid, GAINED_NEW, [uid, since, uid]);
+      if (fresh) { where += ` AND NOT (is_deleted = 1 AND (${fresh.sql}))`; params.push(...fresh.params); }
     }
-    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[]).map((row) => toApi(e, row));
+    // Een verwijderde rij gaat nooit met zijn inhoud mee, alleen als {id, is_deleted}: dat is wat een client nodig heeft om
+    // hem op te ruimen. De inhoud van wat is verwijderd, hoort niet bij iemand te komen die er nooit bij was.
+    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[])
+      .map((row) => (row.is_deleted === 1 ? { id: row.id, is_deleted: true } : toApi(e, row)));
     // verdwenen toegang: de client verwijdert het project met alles erin
     if (e.name === 'project') for (const p of lost) out.push({ id: p, is_deleted: true });
     if (e.name === 'task') for (const t of moved) out.push({ id: t, is_deleted: true });
@@ -650,7 +786,9 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
     if (commands.length > 0) {
       const cutoff = new Date(Date.now() - COMMAND_RETENTION_DAYS * 86_400_000).toISOString();
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
+      pruneTaskMoves(db);
     }
+    const counts = new Map<string, number>(); // tellingen voor de limieten, gedeeld door de commando's van dit verzoek
     for (const cmd of commands) {
       const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
       if (seen) {
@@ -664,7 +802,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
         const handler = Object.hasOwn(HANDLERS, cmd.type) ? HANDLERS[cmd.type] : undefined;
         if (!handler) fail('UNKNOWN_COMMAND', `onbekend commando "${cmd.type}"`);
         rev = bumpRev(db);
-        handler({ db, rev, now, userId }, cmd.args ?? {});
+        handler({ db, rev, now, userId, counts }, cmd.args ?? {});
         result = 'ok';
         db.exec('RELEASE cmd');
       } catch (err) {
@@ -685,6 +823,9 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
     let since = token === '*' ? 0 : Number(token);
     let full = token === '*';
     if (since > cur) { since = 0; full = true; } // de server is teruggezet: de client moet opnieuw beginnen
+    // Een token van vóór het opgeruimde deel van het verhuis-logboek: de server weet niet meer welke taken er sindsdien
+    // uit zijn projecten zijn verhuisd, dus de client moet opnieuw beginnen.
+    if (!full && since < taskMovesFloor(db)) { since = 0; full = true; }
     const response: SyncResponse = { sync_token: String(cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
     collectResources(db, userId, include, since, full, response);
     db.exec('COMMIT');

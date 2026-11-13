@@ -36,7 +36,7 @@ object Completer {
         val prefs = Prefs(app)
         val origin = prefs.serverOrigin
         val token = if (prefs.sessionExpired) null else TokenVault.load(app)
-        if (origin == null || token == null) {
+        if (origin == null || token == null || prefs.cleartextToInternet) {
             note(app, reminder, R.string.complete_signed_out)
             return Outcome.SETTLED
         }

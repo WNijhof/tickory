@@ -1,0 +1,29 @@
+# Houdt de bouwstenen bij die niet in package.json staan: de acties in de workflows (die op een commit zijn vastgezet, met de
+# versie als commentaar; Dependabot werkt beide bij), de Gradle-afhankelijkheden van de Android-app, de basisimage van Docker en
+# npm. De server en de web-app hebben geen npm-pakketten (zero dependencies); de npm-regel waakt ervoor dat dat zo blijft.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "Acties:"
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "Android:"
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "Docker:"
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "npm:"

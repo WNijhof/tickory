@@ -226,6 +226,12 @@ export default {
   'account.passwordTooShort': 'Wachtwoord: minimaal {min} tekens',
   'account.passwordTooLong': 'Wachtwoord: maximaal {max} tekens',
   'account.passwordIsUsername': 'Het wachtwoord mag niet gelijk zijn aan de gebruikersnaam',
+  'account.passwordTooWeak': 'Wachtwoord: te makkelijk te raden ({reason}); kies een langere zin of meer verschillende tekens',
+  'account.passwordWeak.fewCharacters': 'te weinig verschillende tekens',
+  'account.passwordWeak.common': 'een veelgebruikt wachtwoord',
+  'account.passwordWeak.digitsOnly': 'alleen cijfers en leestekens',
+  'account.passwordWeak.likeUsername': 'lijkt op de gebruikersnaam',
+  'account.passwordWeak.repetition': 'een herhaling van een kort stuk',
   'admin.title': 'Gebruikersbeheer',
   'admin.accounts': 'Accounts',
   'admin.manage': 'Beheren',
@@ -268,6 +274,7 @@ export default {
   // eigen vertaling per foutcode voor de andere talen; in het Nederlands staan ze er voor de volledigheid.
   'api.invalidCredentials': 'Gebruikersnaam of wachtwoord klopt niet.',
   'api.tooManyAttempts': 'Te veel mislukte pogingen. Probeer het later opnieuw.',
+  'api.busy': 'De server is druk. Probeer het over een paar seconden opnieuw.',
   'api.wrongCurrentPassword': 'Het huidige wachtwoord klopt niet.',
   'api.adminOnly': 'Dit kan alleen een beheerder.',
   'api.sessionGone': 'Dit apparaat was al afgemeld.',
@@ -309,6 +316,7 @@ export default {
   // Ook hier: in het Nederlands tonen we de tekst van de server; deze teksten zijn de eigen vertaling voor de andere talen.
   'error.forbidden': 'Je hebt hier geen rechten voor.',
   'error.unknown': 'Onbekende fout.',
+  'error.limitReached': 'De grens is bereikt: verwijder eerst iets anders.',
   'error.shareUserNotFound': 'Deze gebruiker bestaat niet.',
   'error.shareOwnerOnly': 'Alleen de eigenaar kan een project delen.',
   'error.shareInbox': 'De Inbox kan niet worden gedeeld.',

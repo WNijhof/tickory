@@ -20,7 +20,9 @@
     <string name="error_connect">Can\'t connect to the server. Check the address and make sure the server is running. Is the server at home? Then check that you are connected to your own Wi-Fi.</string>
     <string name="error_timeout">The server is not responding. Check the address and your connection, then try again.</string>
     <string name="error_tls">The secure connection failed: the server\'s certificate is not trusted.</string>
-    <string name="error_try_http">Does your server run without https? Then put http:// in front of the address.</string>
+    <string name="error_try_http">Does your server run at home without https? Then put http:// in front of the address; that is only allowed for an address on your own network.</string>
+    <string name="error_http_not_local">An address with http:// is only allowed on your own network (for example 192.168.1.10 or nas.local). A server on the internet needs https://, otherwise your password and sign-in travel unencrypted.</string>
+    <string name="error_http_not_local_saved">The configured address uses http:// for a server outside your own network. Tickory no longer connects to it, because your password and sign-in would travel unencrypted. Change the server address and use https://.</string>
     <string name="error_not_tickory">There is no Tickory server at this address (response %1$d).</string>
     <string name="error_redirect">This address redirects to %1$s. Enter that address if it is your server.</string>
     <string name="error_redirect_unknown">This address redirects to another address. Enter the address your server actually runs on.</string>
