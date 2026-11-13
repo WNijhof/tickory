@@ -17,6 +17,8 @@ docker build -t tickory:ci . && node scripts/docker-smoke.ts tickory:ci    # the
 
 Run `npm test` before every commit; run the browser tests when you touched the client, the website or the demo.
 
+The calendar tests (`client/core/calendar.test.js`) run every calculation in several time zones (UTC, Amsterdam, Los Angeles, Auckland) by setting the zone while they run, so they also work on Windows, where `TZ=America/Los_Angeles npm test` is ignored by Node.
+
 ## Ground rules
 
 - **Zero dependencies and no build step.** Server and client run on Node 26 and standard web APIs. No npm packages, no bundler, no CDN. If you think a dependency is unavoidable, make that case in an issue first.
@@ -37,7 +39,7 @@ Run `npm test` before every commit; run the browser tests when you touched the c
 
 Fijn dat je wilt helpen. Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo; open voor alles wat groter is dan een reparatie eerst een melding (issue) met wat je wilt veranderen en waarom.
 
-**Testen** (vereist Node 26; er is niets te installeren of te bouwen): `npm test` vóór elke commit; `npm run e2e` en `node scripts/build-site.ts && node scripts/site-check.ts` als je aan de client, de website of de demo hebt gezeten; `node scripts/docker-smoke.ts tickory:ci` voor de image.
+**Testen** (vereist Node 26; er is niets te installeren of te bouwen): `npm test` vóór elke commit; `npm run e2e` en `node scripts/build-site.ts && node scripts/site-check.ts` als je aan de client, de website of de demo hebt gezeten; `node scripts/docker-smoke.ts tickory:ci` voor de image. De kalendertests zetten de tijdzone zelf tijdens het draaien (UTC, Amsterdam, Los Angeles, Auckland), dus ook op Windows, waar Node `TZ=… npm test` negeert.
 
 **Uitgangspunten:**
 

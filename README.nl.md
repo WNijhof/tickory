@@ -264,7 +264,7 @@ scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
 
 Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen en een interface in het Nederlands en het Engels. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
 
-**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
+**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, per project een **lijst, bord of kalender** (de keuze staat in het project en geldt op al je apparaten; het bord heeft kolommen per sectie en een menu "Verplaats naar…", de kalender een maand of week met herhalingen op de komende datums, te late taken apart en een plus per dag; slepen kan nog niet; Binnenkort kan ook als kalender), voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
 
 **Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
 - **De eerste Android-APK.** De app bestaat en is op een computer getest, maar er is nog geen release en de maker heeft hem niet op een echte telefoon geprobeerd. De eerste APK komt met de eerstvolgende versie; tot die tijd gebruik je de web-app in de browser van je telefoon, of bouw je hem zelf (zie [android/README.md](android/README.md)).
@@ -273,7 +273,7 @@ Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen
 
 **Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
 - **Opmerkingen** bij taken en projecten.
-- Subprojecten, favorieten, **archiveren** van projecten en secties, de **duur** van een taak, en bord- of kalenderweergave.
+- Subprojecten, favorieten, **archiveren** van projecten en secties en de **duur** van een taak.
 
 **Ontbreekt helemaal:**
 - **Slepen of anderszins de volgorde van taken wijzigen.** Een nieuwe taak komt altijd achteraan.

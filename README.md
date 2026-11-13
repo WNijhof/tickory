@@ -66,6 +66,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app.
 - The interface in English and Dutch.
 - The views Today (with overdue tasks) and Upcoming (the next two weeks).
+- **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Dragging is not available yet.
 - Ticking off with undo; showing or hiding completed tasks.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
 - Installable as an app (PWA) on phone and computer, and an Android app of its own (see below).
@@ -84,7 +85,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
 
 - **Comments** on tasks and projects.
-- Sub-projects, favourites, **archiving** projects and sections, the **duration** of a task, and a board or calendar view.
+- Sub-projects, favourites, **archiving** projects and sections, and the **duration** of a task.
 
 **Missing entirely:**
 
