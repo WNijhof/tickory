@@ -309,6 +309,8 @@ if (wants('bestanden')) {
             title: q.content, date: q.due?.date ?? '', prio: String(q.priority), deadline: q.deadline ?? '',
             project: (view.projects.get(q.project_id) as any)?.name ?? '', section: q.section_id ? (view.sections.get(q.section_id) as any).name : '',
             labels: [...q.labels.map((id: string) => (view.labels.get(id) as any).name), ...q.newLabels.map((n: string) => `${n}*`)].join(','),
+            // herinneringen: een aantal minuten vooraf, of de datum en tijd van een herinnering op een vast tijdstip
+            reminders: q.reminders.map((r: any) => (r.type === 'relative' ? String(r.minute_offset) : r.due.date)).join(','),
           };
           for (const [key, value] of Object.entries(data)) {
             if (!(key in got)) problems.push(`${where}: onbekende verwachting data-${key}`);
@@ -408,6 +410,8 @@ if (wants('demo')) {
     assert.deepEqual(first.users.map((u: any) => u.username), ['anna', 'bram', 'joost', 'mila', 'sanne'], 'alleen wie een project met je deelt, op naam gesorteerd');
     for (const r of ['projects', 'sections', 'tasks', 'labels', 'comments', 'reminders', 'filters', 'members']) assert.ok(Array.isArray(first[r]), `${r} ontbreekt in het antwoord`);
     assert.ok(first.tasks.length > 25 && first.tasks.every((t: any) => t.is_deleted === false));
+    assert.deepEqual(first.settings.map((s: any) => [s.id, s.auto_reminder, s.timezone, s.owner_id]), [['settings-user-anna', 30, 'Europe/Amsterdam', 'user-anna']], 'de eigen instellingen komen mee, zoals op de echte server');
+    assert.ok(first.reminders.length >= 8 && first.reminders.every((r: any) => r.owner_id === 'user-anna'), 'er zijn voorbeeldherinneringen, alleen van jou');
 
     const idle = server.sync({ sync_token: first.sync_token });
     assert.equal(idle.full_sync, false);
@@ -458,10 +462,10 @@ if (wants('demo')) {
     const demo = new DemoServer({ strict: true });
     const demoFeest = demo.sync({ sync_token: '*' }).projects.find((p: any) => p.name === 'Buurtfeest').id;
     const sides = {
-      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
-      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, run: (commands: object[]) => demo.sync({ commands }) },
+      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
+      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
     };
-    const P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
+    const P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
     const weekly = { date: '2030-01-07', string: 'elke maandag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [1] } };
     /** De commando's, met de id's van de ene of de andere kant ingevuld. Bij elk commando de verwachte uitkomst. */
     const script = (x: typeof sides.real): [string, object, string][] => [
@@ -501,6 +505,26 @@ if (wants('demo')) {
       ['task_move', { id: T2 }, 'MISSING_ARG'],
       ['task_move', { id: T3, project_id: P, section_id: S }, 'ok'],
       ['label_update', { id: L, name: 'klussen' }, 'ok'],
+      // herinneringen: zelfde regels als op de server (relatief heeft een aantal minuten nodig, absoluut een datum met tijd)
+      ['reminder_add', { id: R1, task_id: T3, type: 'relative', minute_offset: 30 }, 'ok'],
+      ['reminder_add', { id: R2, task_id: T3, type: 'absolute', due: { date: '2030-01-03T09:00' } }, 'ok'],
+      ['reminder_add', { id: 'check-remi-0003', task_id: T3, type: 'absolute', due: { date: '2030-01-03' } }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0004', task_id: T3, type: 'relative' }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0005', task_id: T3, type: 'relative', minute_offset: 30, due: { date: '2030-01-03T09:00' } }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0006', task_id: T3, type: 'relative', minute_offset: -5 }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0007', task_id: 'check-task-geen', type: 'relative', minute_offset: 5 }, 'NOT_FOUND'],
+      ['reminder_add', { id: 'check-remi-0008', task_id: T3, type: 'relative', minute_offset: 5, owner_id: x.bram }, 'READONLY'],
+      ['reminder_delete', { id: R2 }, 'ok'],
+      ['reminder_delete', { id: R2 }, 'NOT_FOUND'],
+      // instellingen: alleen wijzigen, en alleen met geldige waarden
+      ['settings_update', { id: x.settings, auto_reminder: 10 }, 'ok'],
+      ['settings_update', { id: x.settings, auto_reminder: -1, timezone: 'Europe/Amsterdam' }, 'ok'],
+      ['settings_update', { id: x.settings, auto_reminder: -2 }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, timezone: 'Mars/Olympus' }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, owner_id: x.bram }, 'READONLY'],
+      ['settings_update', { id: 'settings-niemand', auto_reminder: 5 }, 'NOT_FOUND'],
+      ['settings_add', { id: 'settings-check-0001', auto_reminder: 5 }, 'UNKNOWN_COMMAND'],
+      ['settings_delete', { id: x.settings }, 'UNKNOWN_COMMAND'],
       ['project_unshare', { project_id: P, user_id: x.kees }, 'NOT_FOUND'],
       ['project_leave', { project_id: P }, 'CONFLICT'],
       ['project_delete', { id: x.inbox }, 'CONFLICT'],
@@ -522,6 +546,7 @@ if (wants('demo')) {
           if (k === 'created_at' || k === 'updated_at') continue;
           if (k === 'completed_at') out[k] = v === null ? null : 'TIJD';
           else if (k === 'id' && resource === 'members') continue;
+          else if (k === 'id' && resource === 'settings') out[k] = 'SETTINGS';
           else out[k] = swap(v);
         }
         return out;
@@ -542,7 +567,7 @@ if (wants('demo')) {
     const demoStatus = outcome(sides.demo);
     assert.deepEqual(demoStatus, realStatus, 'de demo geeft per commando dezelfde status en dezelfde foutmelding als de echte server');
 
-    const own = new Set([P, S, L, T1, T2, T3, T4]);
+    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2]);
     const state = (x: typeof sides.real) => {
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
       const projects = new Set([P, x.feest]);
@@ -552,6 +577,8 @@ if (wants('demo')) {
         tasks: normalize(x, full.tasks as any[], (r) => own.has(r.id), 'tasks'),
         labels: normalize(x, full.labels as any[], (r) => own.has(r.id), 'labels'),
         members: normalize(x, full.members as any[], (r) => r.project_id === P, 'members'),
+        reminders: normalize(x, full.reminders as any[], (r) => own.has(r.id), 'reminders'),
+        settings: normalize(x, full.settings as any[], () => true, 'settings'),
       };
     };
     const a = state(sides.real), b = state(sides.demo);
@@ -585,12 +612,13 @@ if (wants('demo')) {
         return s;
       });
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
-      return { status, feestGone: !(full.projects as any[]).some((p) => p.id === x.feest), left: (full.tasks as any[]).filter((t) => own.has(t.id)).map((t) => t.id).sort(), users: (full.users as any[]).map((u) => u.username) };
+      return { status, feestGone: !(full.projects as any[]).some((p) => p.id === x.feest), left: (full.tasks as any[]).filter((t) => own.has(t.id)).map((t) => t.id).sort(), remindersLeft: (full.reminders as any[]).filter((r) => own.has(r.id)).length, users: (full.users as any[]).map((u) => u.username) };
     };
     const r2 = run2(sides.real), d2 = run2(sides.demo);
     assert.deepEqual(d2.status, r2.status);
     assert.ok(r2.feestGone && d2.feestGone, 'na verlaten zie je het project niet meer');
     assert.deepEqual(d2.left, r2.left, 'dezelfde taken blijven over');
+    assert.deepEqual([d2.remindersLeft, r2.remindersLeft], [0, 0], 'met de taak verdwijnen ook haar herinneringen');
     assert.deepEqual(d2.left, [T4], 'alleen de taak die naar de Inbox verhuisde bestaat nog');
     assert.deepEqual(r2.users, ['anna'], 'op de echte server deelt Anna nu met niemand meer');
     assert.ok(!d2.users.includes('joost'), 'in de demo verdwijnt Joost uit de lijst (Bram en Sanne delen nog Huishouden)');
@@ -745,7 +773,7 @@ if (wants('browser')) {
         assert.deepEqual(bad.map((r) => `${r.status ?? r.failed} ${r.url}`), [], `${what}: mislukte verzoeken`);
         assert.deepEqual(b.errors, [], `${what}: fouten in de console`);
       };
-      const SYNCED = `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(document.getElementById('sync-status').textContent === 'Bijgewerkt'))))`;
+      const SYNCED = `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(['Bijgewerkt', 'Up to date'].includes(document.getElementById('sync-status').textContent)))))`;
       const nav = (label: string) => evaluate(`(() => { const el = [...document.querySelectorAll('.nav-item')].find((x) => x.querySelector('.nav-label')?.textContent === ${js(label)}); if (!el) throw new Error('geen menu-item: ' + ${js(label)}); el.click(); })()`);
       const clickText = (text: string, root = 'document') => evaluate(`(() => { const el = [...${root}.querySelectorAll('button')].find((x) => x.textContent.trim() === ${js(text)}); if (!el) throw new Error('geen knop: ' + ${js(text)}); el.click(); })()`);
       const typeInto = (selector: string, text: string) => evaluate(`(() => { const el = document.querySelector(${js(selector)}); if (!el) throw new Error('niet gevonden: ' + ${js(selector)}); el.focus(); el.value = ${js(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -770,7 +798,7 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
-        assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '@boodschappen', 'voor jou', 'Huishouden / Boodschappen']);
+        assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '@boodschappen', '🔔', 'voor jou', 'Huishouden / Boodschappen']);
         const bar = await evaluate<{ text: string; href: string; top: number; height: number }>(`(() => { const el = document.getElementById('demo-bar'); const r = el.getBoundingClientRect(); return { text: el.querySelector('.demo-bar-long').textContent, href: el.querySelector('.demo-bar-link').href, top: r.top, height: r.height }; })()`);
         assert.equal(bar.text, 'Dit is een demo: wijzigingen worden niet bewaard.');
         assert.equal(bar.href, site.url, 'de link in de balk gaat terug naar de website');
@@ -920,6 +948,120 @@ if (wants('browser')) {
         assertClean('account en project');
       });
 
+      await check('demo: herinneringen in het taakvenster (kiezen, eigen tijdstip, verwijderen, taak zonder tijd) en met !-snelschrift', async () => {
+        b.reset();
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        const lines = () => evaluate<string[]>(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info')].map((e) => e.textContent)`);
+        const pick = (value: string) => evaluate(`(() => { const s = document.querySelector('#task-dialog section[aria-label="Herinneringen"] select'); s.value = ${js(value)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        const addReminder = () => clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+        const closeTask = async () => { await submit('#task-dialog form'); await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten'); };
+
+        assert.ok((await chips('Tandarts bellen voor controle'))!.includes('🔔'), 'een taak met een herinnering toont de bel');
+        assert.ok(!(await chips('Fietsband plakken'))!.includes('🔔'), 'een taak zonder tijd en zonder herinnering toont geen bel');
+        await taskDo('Tandarts bellen voor controle', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        assert.deepEqual(await lines(), ['1 dag vooraf · vandaag 09:00', 'Op een vast tijdstip · vandaag 20:00', '30 minuten vooraf · morgen 08:30'], 'de voorbeeldherinneringen, op volgorde van moment');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] select option')].map((o) => o.textContent)`), ['Op het tijdstip van de taak', '10 minuten vooraf', '30 minuten vooraf', '45 minuten vooraf', '1 uur vooraf', '2 uur vooraf', '3 uur vooraf', '1 dag vooraf', '2 dagen vooraf', '3 dagen vooraf', 'Datum en tijd kiezen…']);
+        await evaluate(`document.querySelector('#task-dialog button[aria-label^="Herinnering verwijderen: Op een vast tijdstip"]').click()`);
+        await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info').length === 2`, 'herinnering verwijderd');
+        await pick('120');
+        await addReminder();
+        await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info').length === 3`, 'herinnering toegevoegd');
+        assert.ok((await lines()).includes('2 uur vooraf · morgen 07:00'), `2 uur voor 9 uur morgen: ${JSON.stringify(await lines())}`);
+        await pick('custom');
+        assert.match(await evaluate(`document.querySelector('#task-dialog input[type="datetime-local"]').value`), /^\d{4}-\d\d-\d\dT\d\d:\d\d$/, 'het veld voor een eigen tijdstip is zichtbaar en al ingevuld');
+        await evaluate(`document.querySelector('#task-dialog input[type="datetime-local"]').value = ''`);
+        await addReminder();
+        await waitFor(`document.querySelector('#task-dialog [data-role="reminder-error"]').textContent === 'Kies een datum en een tijd.'`, 'melding zonder gekozen tijdstip');
+        await evaluate(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); const p = (n) => String(n).padStart(2, '0'); const i = document.querySelector('#task-dialog input[type="datetime-local"]'); i.value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T07:30'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await addReminder();
+        await waitFor(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info')].some((e) => e.textContent === 'Op een vast tijdstip · morgen 07:30')`, 'eigen tijdstip toegevoegd');
+        await closeTask();
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        assert.ok((await chips('Tandarts bellen voor controle'))!.includes('🔔'));
+
+        // een taak zonder tijd: de herinnering wacht tot er een tijd is
+        await taskDo('Fietsband plakken', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        assert.deepEqual(await lines(), []);
+        assert.match(await evaluate(`document.querySelector('#task-dialog section[aria-label="Herinneringen"]').textContent`), /Nog geen herinneringen\./);
+        assert.match(await evaluate(`document.querySelector('#task-dialog section[aria-label="Herinneringen"]').textContent`), /alleen als de taak een datum mét tijd heeft/);
+        await pick('10');
+        await addReminder();
+        await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info').length === 1`, 'herinnering toegevoegd');
+        assert.deepEqual(await lines(), ['10 minuten vooraf · gaat af zodra de taak een tijd heeft']);
+        await closeTask();
+
+        // snel toevoegen met !
+        await typeInto('#quick-input', 'Bloemen kopen morgen om 10 uur !1u !0 !(vandaag om 20:00)');
+        await waitFor(`document.querySelectorAll('#quick-preview .chip').length >= 5`, 'voorbeeld onder het invoerveld');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#quick-preview .chip')].map((c) => c.textContent)`), ['Bloemen kopen', 'morgen 10:00', '🔔 1 uur vooraf', '🔔 Op het tijdstip van de taak', '🔔 vandaag 20:00']);
+        await submit('#quick-add');
+        await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        assert.deepEqual(await chips('Bloemen kopen'), ['morgen 10:00', '🔔']);
+        await taskDo('Bloemen kopen', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        assert.deepEqual((await lines()).sort(), ['1 uur vooraf · morgen 09:00', 'Op een vast tijdstip · vandaag 20:00', 'Op het tijdstip van de taak · morgen 10:00']);
+        await closeTask();
+        assertClean('herinneringen');
+      });
+
+      await check('demo: Herinneringen en meldingen: automatische herinnering, tijdzone, en meldingen kunnen in de demo niet', async () => {
+        b.reset();
+        const openSettings = async () => {
+          await nav('Anna');
+          await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+          await clickText('Herinneringen en meldingen');
+          await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm Herinneringen en meldingen');
+        };
+        const closeAll = async () => {
+          for (let i = 0; i < 3 && (await evaluate(`Boolean(document.querySelector('dialog[open]'))`)); i++) {
+            await evaluate(`[...document.querySelectorAll('dialog[open] button')].find((x) => x.textContent.trim() === 'Sluiten')?.click()`);
+            await sleep(150);
+          }
+          await waitFor(`!document.querySelector('dialog[open]')`, 'alles gesloten');
+        };
+        const setAuto = (value: string) => evaluate(`(() => { const s = document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]'); s.value = ${js(value)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await openSettings();
+        assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]').selectedOptions[0].textContent`), '30 minuten vooraf', 'standaard 30 minuten vooraf');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] select[aria-label="Automatische herinnering"] option')].map((o) => o.textContent)`), ['Geen automatische herinnering', 'Op het tijdstip van de taak', '10 minuten vooraf', '30 minuten vooraf', '45 minuten vooraf', '1 uur vooraf', '2 uur vooraf', '3 uur vooraf', '1 dag vooraf', '2 dagen vooraf', '3 dagen vooraf']);
+        assert.match(await evaluate(`document.querySelector('dialog[open]').textContent`), /Herinneringen gaan af op de tijd van deze tijdzone: Europe\/Amsterdam\./);
+        // de uitleg over meldingen komt uit de stijl van de demo; er is geen knop om meldingen aan te zetten
+        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.section:nth-of-type(3) > .section-form'), '::before').content`), /In de demo kun je geen meldingen aanzetten: die komen van je eigen server\./);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] details.section:nth-of-type(3) button')].filter((x) => getComputedStyle(x).display !== 'none').map((x) => x.textContent)`), [], 'geen knop om meldingen aan te zetten');
+        assert.equal(await evaluate(`typeof PushManager + ' ' + Notification.permission`), 'undefined default', 'de demo vraagt de browser nergens om toestemming');
+        assertClean('herinneringen en meldingen (scherm)');
+
+        // zonder automatische herinnering krijgt een nieuwe taak met een tijd geen bel; met wel
+        await setAuto('-1');
+        await sleep(300);
+        await closeAll();
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        await typeInto('#quick-input', 'Zonder bel morgen om 11 uur');
+        await submit('#quick-add');
+        await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        assert.deepEqual(await chips('Zonder bel'), ['morgen 11:00'], 'zonder automatische herinnering geen bel');
+        await openSettings();
+        await setAuto('60');
+        await sleep(300);
+        await closeAll();
+        await typeInto('#quick-input', 'Met bel morgen om 11 uur');
+        await submit('#quick-add');
+        await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        assert.deepEqual(await chips('Met bel'), ['morgen 11:00', '🔔']);
+        await taskDo('Met bel', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info')].map((e) => e.textContent)`), ['1 uur vooraf · morgen 10:00'], 'de automatische herinnering staat als gewone herinnering bij de taak');
+        await submit('#task-dialog form');
+        await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+        assertClean('automatische herinnering');
+      });
+
       await check('demo: bewaart niets: na herladen zijn de voorbeeldgegevens terug; geen service worker, geen opslag, geen aanmelding', async () => {
         b.reset();
         await b.send('Page.reload');
@@ -971,6 +1113,40 @@ if (wants('browser')) {
         assert.notEqual(colors.bar, 'rgba(0, 0, 0, 0)');
         await b.colorScheme('light');
         assertClean('telefoon');
+      });
+
+      await check('demo in het Engels (?lang=en): Engelse app en balk, herinneringen en meldingen in het Engels, niets bewaard, geen verkeer naar /api/', async () => {
+        b.reset();
+        await b.viewport(1280, 860);
+        await openDemo('?lang=en');
+        assert.equal(await evaluate(`document.documentElement.lang`), 'en');
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Today', 'Upcoming', 'Inbox', 'Huishouden', 'Vakantie Texel', 'Buurtfeest', 'Anna']);
+        assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Today');
+        assert.equal(await evaluate(`document.querySelector('.demo-bar-long').textContent`), 'This is a demo: changes are not saved.');
+        assert.equal(await evaluate(`document.querySelector('.demo-bar-link').href`), `${site.url}en/`, 'de link in de balk gaat naar de Engelse website');
+        assert.ok((await chips('Boodschappen doen'))!.includes('🔔'), 'de bel staat ook in het Engels bij de taak');
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        await taskDo('Tandarts bellen voor controle', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        const lines = await evaluate<string[]>(`[...document.querySelectorAll('#task-dialog section[aria-label="Reminders"] .device-info')].map((e) => e.textContent)`);
+        assert.equal(lines.length, 3);
+        assert.match(lines[0], /^1 day before · /);
+        assert.match(lines[1], /^At a set time · /);
+        assert.match(lines[2], /^30 minutes before · /);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Reminders"] select option')].map((o) => o.textContent).slice(0, 3)`), ['At the time of the task', '10 minutes before', '30 minutes before']);
+        await submit('#task-dialog form');
+        await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+        await nav('Anna');
+        await waitFor(`document.querySelector('dialog[open] .menu')`, 'settings');
+        await clickText('Reminders and notifications');
+        await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Reminders and notifications'`, 'scherm Reminders and notifications');
+        assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatic reminder"]').selectedOptions[0].textContent`), '30 minutes before');
+        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.section:nth-of-type(3) > .section-form'), '::before').content`), /You can't turn on notifications in the demo: they come from your own server\./);
+        assertClean('Engelse demo');
+        await b.goto('about:blank');
+        await b.goto(`${site.url}en/`);
+        assert.deepEqual(await evaluate(`Object.keys(localStorage)`), [], 'na het verlaten van de demo staat er niets meer in de browser');
       });
 
       await check('beeldmerk: het SVG-bestand en de PNG uit scripts/make-icons.js tonen hetzelfde beeld', async () => {
