@@ -88,7 +88,12 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS command_log_at ON command_log (at)');
   // Een taak die naar een ander project verhuist, verdwijnt voor wie dat project niet ziet. Dit logboek laat de sync
   // vertellen wie de taak kende maar hem nu niet meer ziet (zie collectResources in sync.ts).
-  db.exec('CREATE TABLE IF NOT EXISTS task_moves (task_id TEXT NOT NULL, from_project_id TEXT NOT NULL, rev INTEGER NOT NULL)');
+  // `at` (tijdstip van verhuizen) laat het logboek na verloop van tijd opruimen; zie pruneTaskMoves in sync.ts.
+  db.exec('CREATE TABLE IF NOT EXISTS task_moves (task_id TEXT NOT NULL, from_project_id TEXT NOT NULL, rev INTEGER NOT NULL, at TEXT)');
+  if (!(db.prepare('PRAGMA table_info(task_moves)').all() as { name: string }[]).some((c) => c.name === 'at')) {
+    db.exec('ALTER TABLE task_moves ADD COLUMN at TEXT'); // database van vóór het opruimen: de bestaande regels tellen vanaf nu
+    db.prepare('UPDATE task_moves SET at = ? WHERE at IS NULL').run(new Date().toISOString());
+  }
   db.exec('CREATE INDEX IF NOT EXISTS task_moves_rev ON task_moves (rev)');
   db.exec('DROP TABLE IF EXISTS commands'); // versie 0.1: zonder gebruiker; alle apparaten moeten toch opnieuw inloggen
 

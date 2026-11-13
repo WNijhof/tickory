@@ -604,11 +604,17 @@ if (import.meta.main) {
     if (process.env.VAPID_SUBJECT && !/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(process.env.VAPID_SUBJECT)) {
       console.warn('VAPID_SUBJECT is geen "mailto:…" of https-adres en wordt genegeerd.');
     }
-    const push = createPush({
-      db, subject: process.env.VAPID_SUBJECT, defaultTimeZone: process.env.DEFAULT_TIMEZONE,
-      // extra pushdiensten die mogen (bijvoorbeeld een eigen dienst), als komma-gescheiden domeinen
-      extraAllowedHosts: (process.env.PUSH_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
-    });
+    let push: ReturnType<typeof createPush>;
+    try {
+      push = createPush({
+        db, subject: process.env.VAPID_SUBJECT, defaultTimeZone: process.env.DEFAULT_TIMEZONE,
+        // extra pushdiensten die mogen (bijvoorbeeld een eigen dienst), als komma-gescheiden domeinen
+        extraAllowedHosts: (process.env.PUSH_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
+      });
+    } catch (err) {
+      console.error(`Fout: ${(err as Error).message}`);
+      process.exit(1);
+    }
     const app = createApp({ db, push, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
     app.server.listen(port, host, () => console.log(`Tickory luistert op http://${host}:${port} (database: ${process.env.DB_PATH ?? './data/todo.db'})`));
     const stop = () => app.close().then(() => { db.close(); process.exit(0); });

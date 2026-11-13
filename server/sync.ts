@@ -20,7 +20,7 @@ import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { nextOccurrence } from '../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
-import { bumpRev, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
+import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 
@@ -147,11 +147,20 @@ function nextKey(ctx: Ctx, e: Entity, v: Row): string {
 
 function descendantIds(db: DatabaseSync, rootIds: string[]): string[] {
   const all = new Set<string>();
+  const roots = new Set(rootIds);
   let frontier = rootIds;
   while (frontier.length > 0) {
-    const kids = db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND parent_id IN (${placeholders(frontier.length)})`).all(...frontier) as Row[];
-    frontier = kids.map((k) => k.id as string).filter((i) => !all.has(i) && !rootIds.includes(i));
-    frontier.forEach((i) => all.add(i));
+    const next: string[] = [];
+    for (const part of chunked(frontier)) {
+      const kids = db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND parent_id IN (${placeholders(part.length)})`).all(...part) as Row[];
+      for (const k of kids) {
+        const id = k.id as string;
+        if (all.has(id) || roots.has(id)) continue;
+        all.add(id);
+        next.push(id);
+      }
+    }
+    frontier = next;
   }
   return [...all];
 }
@@ -275,10 +284,12 @@ function onlyId(args: Args): string {
 function deleteTaskTree(ctx: Ctx, rootIds: string[]): void {
   if (rootIds.length === 0) return;
   const ids = [...rootIds, ...descendantIds(ctx.db, rootIds)];
-  const ph = placeholders(ids.length);
-  mark(ctx, 'tasks', `id IN (${ph})`, ids);
-  mark(ctx, 'comments', `task_id IN (${ph})`, ids);
-  mark(ctx, 'reminders', `task_id IN (${ph})`, ids);
+  for (const part of chunked(ids)) {
+    const ph = placeholders(part.length);
+    mark(ctx, 'tasks', `id IN (${ph})`, part);
+    mark(ctx, 'comments', `task_id IN (${ph})`, part);
+    mark(ctx, 'reminders', `task_id IN (${ph})`, part);
+  }
 }
 
 /**
@@ -378,23 +389,25 @@ function taskMove(ctx: Ctx, args: Args): void {
   const kids = descendantIds(ctx.db, [id]);
   if (projectChanges) {
     // Leden van het oude project die het nieuwe niet zien, krijgen via deze lijst te horen dat de taak (en subtaken) weg is.
-    const log = ctx.db.prepare('INSERT INTO task_moves (task_id, from_project_id, rev) VALUES (?, ?, ?)');
-    for (const t of [id, ...kids]) log.run(t, row.project_id as string, ctx.rev);
+    // Leden van het nieuwe project krijgen via dezelfde lijst ook de opmerkingen en herinneringen die bij de taak horen.
+    const log = ctx.db.prepare('INSERT INTO task_moves (task_id, from_project_id, rev, at) VALUES (?, ?, ?, ?)');
+    for (const t of [id, ...kids]) log.run(t, row.project_id as string, ctx.rev, ctx.now);
   }
   updateRow(ctx, ENTITIES.task, id, { project_id: projectId, section_id: sectionId, parent_id: parentId, order_key: orderKey });
 
   // subtaken gaan mee naar hetzelfde project en dezelfde sectie
-  if (kids.length > 0) {
+  for (const part of chunked(kids)) {
     ctx.db
-      .prepare(`UPDATE tasks SET project_id = ?, section_id = ?, rev = ?, updated_at = ? WHERE id IN (${placeholders(kids.length)})`)
-      .run(projectId, sectionId, ctx.rev, ctx.now, ...kids);
+      .prepare(`UPDATE tasks SET project_id = ?, section_id = ?, rev = ?, updated_at = ? WHERE id IN (${placeholders(part.length)})`)
+      .run(projectId, sectionId, ctx.rev, ctx.now, ...part);
   }
   if (projectChanges) {
     // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
-    const moved = [id, ...kids];
-    const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(moved.length)})`).all(...moved) as Row[])
-      .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
-    for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+    for (const part of chunked([id, ...kids])) {
+      const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(part.length)})`).all(...part) as Row[])
+        .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
+      for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+    }
   }
 }
 
@@ -404,17 +417,18 @@ function taskComplete(ctx: Ctx, args: Args): void {
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   const count = (row.completed_count as number) + 1;
-  if (due?.recurrence) {
+  const next = due?.recurrence ? nextOccurrence(due.date, due.recurrence) : null;
+  if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
-    updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: nextOccurrence(due.date, due.recurrence) }, completed_count: count });
+    updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
     return;
   }
+  // Niet terugkerend, of er is geen volgende keer meer (de volgende datum valt na 9999-12-31): gewoon afvinken.
   updateRow(ctx, ENTITIES.task, id, { checked: true, completed_at: ctx.now, completed_count: count });
-  const kids = descendantIds(ctx.db, [id]);
-  if (kids.length > 0) {
+  for (const part of chunked(descendantIds(ctx.db, [id]))) {
     ctx.db
-      .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(kids.length)})`)
-      .run(ctx.now, ctx.rev, ctx.now, ...kids);
+      .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(part.length)})`)
+      .run(ctx.now, ctx.rev, ctx.now, ...part);
   }
 }
 
@@ -435,11 +449,12 @@ function exactArgs(args: Args, allowed: string[]): void {
 function removeMember(ctx: Ctx, projectId: string, userId: string): void {
   mark(ctx, 'project_members', 'project_id = ? AND user_id = ?', [projectId, userId]);
   const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = 0').all(projectId) as Row[]).map((r) => r.id as string);
-  if (tasks.length === 0) return;
-  const ph = placeholders(tasks.length);
-  mark(ctx, 'reminders', `owner_id = ? AND task_id IN (${ph})`, [userId, ...tasks]);
-  const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...tasks) as Row[];
-  for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+  for (const part of chunked(tasks)) {
+    const ph = placeholders(part.length);
+    mark(ctx, 'reminders', `owner_id = ? AND task_id IN (${ph})`, [userId, ...part]);
+    const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...part) as Row[];
+    for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+  }
 }
 
 function projectShare(ctx: Ctx, args: Args): void {
@@ -524,6 +539,23 @@ export interface SyncResponse {
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const MAX_COMMANDS = 100;
 const COMMAND_RETENTION_DAYS = 30;
+/** Hoe lang de sync onthoudt welke taken naar een ander project zijn verhuisd (voor wie die taak kende en het nieuwe project niet ziet). */
+export const TASK_MOVES_RETENTION_DAYS = 90;
+
+/** Het hoogste versienummer waarvan het verhuis-logboek is opgeruimd; wie een ouder token heeft, moet opnieuw beginnen. */
+function taskMovesFloor(db: DatabaseSync): number {
+  return Number((db.prepare("SELECT value FROM meta WHERE key = 'task_moves_floor'").get() as Row | undefined)?.value ?? 0);
+}
+
+/** Ruimt verhuis-regels op die ouder zijn dan de bewaartermijn, en onthoudt tot welk versienummer dat is gebeurd. */
+export function pruneTaskMoves(db: DatabaseSync, nowMs: number = Date.now()): number {
+  const cutoff = new Date(nowMs - TASK_MOVES_RETENTION_DAYS * 86_400_000).toISOString();
+  const oldest = (db.prepare('SELECT MAX(rev) AS r FROM task_moves WHERE at < ?').get(cutoff) as Row).r;
+  if (oldest === null || oldest === undefined) return 0;
+  const floor = Math.max(taskMovesFloor(db), Number(oldest));
+  db.prepare("INSERT INTO meta (key, value) VALUES ('task_moves_floor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(floor));
+  return Number(db.prepare('DELETE FROM task_moves WHERE at < ?').run(cutoff).changes);
+}
 
 function resolveResources(requested: unknown): { include: Set<string>; partial: boolean } {
   const list = requested === undefined ? ['all'] : requested;
@@ -560,23 +592,28 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
   }
 }
 
-/** Alles van een nieuw project dat de gebruiker nog niet kent, ook als het oud is (rev ≤ token). */
-function inProjects(name: EntityName, uid: string, projects: string[]): { sql: string; params: string[] } | null {
-  if (projects.length === 0) return null;
-  const ph = placeholders(projects.length);
-  const tasksIn = `SELECT id FROM tasks WHERE project_id IN (${ph})`;
+// Projecten die de gebruiker sinds het token erbij kreeg (en dus nog helemaal niet kent), als subquery. Een subquery in plaats
+// van een lijst met waarden: een lijst groeit met de gegevens mee en SQLite staat er hooguit 32766 in één query toe.
+const GAINED = 'SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0 AND rev > ?';
+// Het deel daarvan dat de gebruiker nooit eerder had: wie al eens lid was en tussendoor is verwijderd, kan er nog gegevens van
+// hebben, en moet dus ook horen wat er in de tussentijd is verwijderd (alleen als {id, is_deleted}, zonder inhoud).
+const GAINED_NEW = `${GAINED} AND project_id NOT IN (SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 1)`;
+const MOVED_SINCE = 'SELECT task_id FROM task_moves WHERE rev > ?';
+
+/** Alles van de projecten in `projects` (een subquery met zijn waarden), ook als het oud is (rev ≤ token). */
+function inProjects(name: EntityName, uid: string, projects: string, params: (string | number)[]): { sql: string; params: (string | number)[] } | null {
+  const tasksIn = `SELECT id FROM tasks WHERE project_id IN (${projects})`;
   switch (name) {
-    case 'project': return { sql: `id IN (${ph})`, params: projects };
-    case 'section': case 'task': case 'member': return { sql: `project_id IN (${ph})`, params: projects };
-    case 'comment': return { sql: `(project_id IN (${ph}) OR task_id IN (${tasksIn}))`, params: [...projects, ...projects] };
-    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...projects] };
+    case 'project': return { sql: `id IN (${projects})`, params: [...params] };
+    case 'section': case 'task': case 'member': return { sql: `project_id IN (${projects})`, params: [...params] };
+    case 'comment': return { sql: `(project_id IN (${projects}) OR task_id IN (${tasksIn}))`, params: [...params, ...params] };
+    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...params] };
     default: return null;
   }
 }
 
 function collectResources(db: DatabaseSync, uid: string, include: Set<string>, since: number, full: boolean, response: SyncResponse): void {
-  // Projecten die de gebruiker sinds het token erbij kreeg (en dus nog helemaal niet kent), of waar die uit is gehaald.
-  const gained = full ? [] : (db.prepare('SELECT DISTINCT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0 AND rev > ?').all(uid, since) as Row[]).map((r) => r.project_id as string);
+  // Projecten waar de gebruiker uit is gehaald.
   const lost = full
     ? []
     : (db
@@ -591,15 +628,6 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
            WHERE m.rev > ? AND m.from_project_id IN (${MY_PROJECTS}) AND t.project_id NOT IN (${MY_PROJECTS})`,
         )
         .all(since, uid, uid) as Row[]).map((r) => r.task_id as string);
-  // Labels van anderen worden zichtbaar doordat ze op een taak in een gedeeld project komen te staan; ook als het label zelf oud is.
-  let extraLabels: string[] = [];
-  if (!full && include.has('labels')) {
-    const taskLabels = db
-      .prepare(`SELECT labels FROM tasks WHERE is_deleted = 0 AND project_id IN (${MY_PROJECTS}) AND (rev > ?${gained.length ? ` OR project_id IN (${placeholders(gained.length)})` : ''})`)
-      .all(uid, since, ...gained) as Row[];
-    extraLabels = [...new Set(taskLabels.flatMap((t) => (t.labels ? (JSON.parse(t.labels as string) as string[]) : [])))];
-  }
-
   for (const e of ENTITY_LIST) {
     if (!include.has(e.resource)) continue;
     const vis = visibility(e.name, uid);
@@ -608,15 +636,30 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
     if (full) {
       where += ' AND is_deleted = 0';
     } else {
+      // Wat de gebruiker sinds het token wel mag zien maar niet kent, ook als het zelf oud is (rev ≤ token):
+      //  - alles van een project waar hij net lid van werd;
+      //  - de opmerkingen en herinneringen van een taak die naar een project van hem is verhuisd;
+      //  - labels van anderen die op een taak in zijn projecten zijn gekomen.
       const extra: string[] = [];
       const extraParams: (string | number)[] = [];
-      const np = inProjects(e.name, uid, gained);
+      const np = inProjects(e.name, uid, GAINED, [uid, since]);
       if (np) { extra.push(np.sql); extraParams.push(...np.params); }
-      if (e.name === 'label' && extraLabels.length > 0) { extra.push(`id IN (${placeholders(extraLabels.length)})`); extraParams.push(...extraLabels); }
+      if (e.name === 'comment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
+      if (e.name === 'reminder') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
+      if (e.name === 'label') {
+        extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);
+        extraParams.push(uid, since, uid, since);
+      }
       where += ` AND (rev > ?${extra.length ? ` OR (is_deleted = 0 AND (${extra.join(' OR ')}))` : ''})`;
       params.push(since, ...extraParams);
+      // Verwijderde rijen van een project dat de gebruiker nooit eerder had, zijn voor hem niet bestaand: niets sturen.
+      const fresh = inProjects(e.name, uid, GAINED_NEW, [uid, since, uid]);
+      if (fresh) { where += ` AND NOT (is_deleted = 1 AND (${fresh.sql}))`; params.push(...fresh.params); }
     }
-    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[]).map((row) => toApi(e, row));
+    // Een verwijderde rij gaat nooit met zijn inhoud mee, alleen als {id, is_deleted}: dat is wat een client nodig heeft om
+    // hem op te ruimen. De inhoud van wat is verwijderd, hoort niet bij iemand te komen die er nooit bij was.
+    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[])
+      .map((row) => (row.is_deleted === 1 ? { id: row.id, is_deleted: true } : toApi(e, row)));
     // verdwenen toegang: de client verwijdert het project met alles erin
     if (e.name === 'project') for (const p of lost) out.push({ id: p, is_deleted: true });
     if (e.name === 'task') for (const t of moved) out.push({ id: t, is_deleted: true });
@@ -650,6 +693,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
     if (commands.length > 0) {
       const cutoff = new Date(Date.now() - COMMAND_RETENTION_DAYS * 86_400_000).toISOString();
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
+      pruneTaskMoves(db);
     }
     for (const cmd of commands) {
       const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
@@ -685,6 +729,9 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
     let since = token === '*' ? 0 : Number(token);
     let full = token === '*';
     if (since > cur) { since = 0; full = true; } // de server is teruggezet: de client moet opnieuw beginnen
+    // Een token van vóór het opgeruimde deel van het verhuis-logboek: de server weet niet meer welke taken er sindsdien
+    // uit zijn projecten zijn verhuisd, dus de client moet opnieuw beginnen.
+    if (!full && since < taskMovesFloor(db)) { since = 0; full = true; }
     const response: SyncResponse = { sync_token: String(cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
     collectResources(db, userId, include, since, full, response);
     db.exec('COMMIT');

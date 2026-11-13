@@ -58,6 +58,13 @@ export function createPush(cfg: PushConfig) {
   const now = cfg.now ?? Date.now;
   const subject = cfg.subject && /^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(cfg.subject) ? cfg.subject : null;
   const defaultZone = cfg.defaultTimeZone || 'Europe/Amsterdam';
+  // Een tikfout in DEFAULT_TIMEZONE (bijvoorbeeld "Europa/Amsterdam") liet elke ronde van de herinneringen voor gebruikers zonder
+  // eigen tijdzone mislukken. Daarom bij het opstarten een duidelijke fout in plaats van stilte later.
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: defaultZone });
+  } catch {
+    throw new Error(`DEFAULT_TIMEZONE "${defaultZone}" is geen bekende tijdzone; gebruik een IANA-naam zoals Europe/Amsterdam`);
+  }
 
   // De sleutels van deze server: één keer aangemaakt, daarna uit de database (ze horen bij de aanmeldingen van de apparaten).
   let vapid: VapidKeys = { publicKey: meta(db, 'vapid_public', () => ''), privateKey: meta(db, 'vapid_private', () => '') };

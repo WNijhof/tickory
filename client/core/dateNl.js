@@ -231,7 +231,7 @@ function firstOccurrence(rule, now, time) {
   if (!time) return localDate(d);
   const date = `${localDate(d)}T${pad(time.hour)}:${pad(time.minute)}`;
   const passed = localDate(d) === localDate(now) && time.hour * 60 + time.minute <= now.getHours() * 60 + now.getMinutes();
-  return passed ? nextOccurrence(date, rule) : date; // dat tijdstip is vandaag al geweest
+  return passed ? (nextOccurrence(date, rule) ?? date) : date; // dat tijdstip is vandaag al geweest
 }
 
 /** Haalt een stuk uit de tekst en laat een nette titel over: een hoofdletter vooraan blijft, leestekens kleven aan het woord ervoor. */
