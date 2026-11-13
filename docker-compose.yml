@@ -1,0 +1,33 @@
+# Starten:   docker compose up -d
+# Zet eerst een token in het bestand .env (zie .env.example).
+#
+# Kies één van de twee manieren om aan de image te komen:
+#   1. Uit het GitHub-register (snel, geen bouwtijd op je server). Vul hieronder je GitHub-naam in.
+#      Is de repo privé, log dan eenmalig in:  docker login ghcr.io
+#   2. Zelf bouwen uit deze map: haal de regel "image:" weg en zet "build: ." terug.
+services:
+  eigen-tool:
+    image: ghcr.io/JOUW-GITHUB-NAAM/eigen-tool:latest
+    # build: .
+    container_name: eigen-tool
+    restart: unless-stopped
+    init: true
+    environment:
+      TODO_TOKEN: ${TODO_TOKEN:?Zet TODO_TOKEN in het bestand .env (zie .env.example)}
+    ports:
+      # Alleen bereikbaar vanaf de server zelf: zet er een reverse proxy met HTTPS voor (zie README).
+      # Wil je het zonder proxy op je thuisnetwerk gebruiken, maak er dan "8787:8787" van.
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - eigen-tool-data:/data
+    # Extra beveiliging: de container kan alleen in /data schrijven en heeft geen bijzondere rechten.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  eigen-tool-data:

@@ -1,0 +1,16 @@
+# Alleen wat de app nodig heeft om te draaien komt in de image.
+.git
+.github
+.e2e
+.mut
+.env
+.env.*
+data
+node_modules
+scripts
+**/*.test.*
+*.md
+Dockerfile
+.dockerignore
+docker-compose*.yml
+start.cmd

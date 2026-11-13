@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+      - run: node --version
+      - run: npm test
+
+  image:
+    name: image bouwen en testen
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+      - name: Image bouwen
+        run: docker build -t eigen-tool:ci .
+      - name: Image testen zoals hij op een server draait
+        run: node scripts/docker-smoke.ts eigen-tool:ci

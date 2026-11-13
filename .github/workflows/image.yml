@@ -1,0 +1,75 @@
+name: Image publiceren
+
+# Publiceert de Docker-image in het GitHub-register (ghcr.io) zodra je een versie-tag zet:
+#   git tag v0.1.0 && git push origin v0.1.0
+# Eerst draaien de tests en de test van de image zelf; pas daarna wordt er gepubliceerd.
+# Handmatig starten (Actions > Image publiceren > Run workflow) publiceert alleen een "sha-…"-tag, geen "latest".
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+      - name: Tests
+        run: npm test
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Image bouwen voor de test (amd64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: eigen-tool:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image testen zoals hij op een server draait
+        run: node scripts/docker-smoke.ts eigen-tool:ci
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags en labels bepalen
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=sha,format=short,enable=${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Publiceren (amd64 en arm64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false

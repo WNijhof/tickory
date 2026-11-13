@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f766e">
+  <meta name="color-scheme" content="light dark">
+  <title>Taken</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="sidebar" class="sidebar" aria-label="Navigatie"></aside>
+    <div id="scrim" class="scrim"></div>
+    <main class="main">
+      <header class="topbar">
+        <button id="menu-button" class="icon-button menu-button" type="button" aria-label="Menu">☰</button>
+        <h1 id="view-title">Taken</h1>
+        <button id="sync-status" class="sync-status" type="button" title="Klik om nu bij te werken" aria-live="polite"></button>
+      </header>
+      <form id="quick-add" class="quick-add" autocomplete="off">
+        <input id="quick-input" class="field quick-input" type="text" maxlength="4000" enterkeyhint="done"
+          placeholder="Nieuwe taak, bv. Bellen morgen p1" aria-label="Taak toevoegen">
+        <button class="button button-primary" type="submit">Toevoegen</button>
+      </form>
+      <div id="quick-preview" class="chips preview" aria-live="polite"></div>
+      <div id="content" class="content"></div>
+    </main>
+  </div>
+  <div id="toasts" class="toasts"></div>
+  <noscript><p class="fatal">Deze app heeft JavaScript nodig.</p></noscript>
+  <script type="module" src="/ui/app.js"></script>
+</body>
+</html>
