@@ -58,7 +58,7 @@ export function filterView(ctx, api) {
 // ---------- één label ----------
 
 export function labelView(ctx, api) {
-  const { view, route, rows, group, emptyState, me } = ctx;
+  const { view, route, rows, group, emptyState, me, handlers } = ctx;
   const label = view.labels.get(route.id);
   if (!label) return gone(ctx, t('label.gone'));
   const showCompleted = api.showCompleted(label.id);
@@ -74,6 +74,7 @@ export function labelView(ctx, api) {
     nodes: [
       foreign && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('label.foreignBanner'))),
       group({ title: null, rows: rows(tasks.map((task) => ({ task })), true), total: tasks.length }),
+      !foreign && h('button', { class: 'add-inline', type: 'button', onclick: () => handlers.quickAdd({ text: `@${label.name} ` }) }, icon('plus'), t('quick.addTask')),
       tasks.length === 0 && emptyState({ title: t('label.emptyTitle'), text: t('label.empty') }),
       completedCount > 0 && h('button', { class: 'link-button', type: 'button', onclick: () => api.toggleCompleted(label.id) },
         showCompleted ? t('view.hideCompleted') : t('view.showCompleted', { count: completedCount })),

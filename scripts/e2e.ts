@@ -1840,6 +1840,18 @@ try {
   assert.equal(await evaluate(`document.querySelectorAll('.task').length`), countOf('bellen'));
   assert.ok((await taskTitles()).includes('Tandarts bellen'));
   await shot('label');
+  // "Taak toevoegen" onder een label begint met dat label
+  await click('.add-inline');
+  await waitFor(`document.querySelector('.dialog-quick[open]')`, 'Taak toevoegen vanuit het label');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] input[type=text]').value`), '@bellen ');
+  assert.deepEqual(await texts('.dialog-quick[open] .chip'), ['(nog geen naam)', '@bellen']);
+  await typeInto('.dialog-quick[open] input[type=text]', '@bellen Notaris bellen');
+  await submit('.dialog-quick[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual(serverTask('Notaris bellen').labels, [bellenId]);
+  await waitFor(`document.querySelectorAll('.task').length === ${countOf('bellen')}`, 'de nieuwe taak staat bij het label');
+  await syncAs(aliceToken, 'zoek-test', [{ type: 'task_delete', uuid: 'e2e-zoek-opruimen-3', args: { id: serverTask('Notaris bellen').id } }]);
   // het label in een taakregel is een knop die het label opent
   await nav('Binnenkort');
   await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
@@ -1864,6 +1876,11 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.deepEqual([serverLabel('Uitgaan met Zoë')?.color, serverLabel('Uitgaan met Zoë')?.is_favorite], ['green', false]);
   assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Labels', 'vanuit het overzicht blijf je in het overzicht');
+  // een label met spaties is ook in snel toevoegen te typen (de langste passende naam wint)
+  await typeInto('#quick-input', 'Taxi regelen @Uitgaan met Zoë');
+  await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 2`, 'voorbeeld met het label');
+  assert.deepEqual(await texts('#quick-preview .chip'), ['Taxi regelen', '@Uitgaan met Zoë'], 'het bestaande label, niet een nieuw label "Uitgaan"');
+  await typeInto('#quick-input', '');
   // het nieuwe label is te kiezen in het taakvenster
   await nav('Thuis');
   await openTask('Planten water geven');
@@ -1911,11 +1928,227 @@ try {
   await waitFor(`document.querySelector('dialog[open] .button-danger')`, 'bevestiging');
   await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
   await waitFor(SYNCED, 'gesynchroniseerd');
-  await syncAs(aliceToken, 'zoek-test', [
-    { type: 'task_delete', uuid: 'e2e-zoek-opruimen-1', args: { id: 'e2ezoektaak0001' } },
-    { type: 'comment_delete', uuid: 'e2e-zoek-opruimen-2', args: { id: 'e2ezoekopm0001' } },
-  ]);
   step('labels: aantal open taken in de zijbalk, openen (ook via het label in een taakregel), overzicht, toevoegen met controle (leeg, dubbel in hoofdletters en accenten, komma), kleur, in het taakvenster te kiezen, hernoemen (taken houden het label; bestaande naam geweigerd), kleur wisselen, verwijderen met bevestiging');
+
+  // ---- 9d. zoeken, filters en labels: donker, Engels, telefoon en toegankelijkheid ----
+  assert.equal((await aliceSync('e2e-zoek-data2', [
+    { type: 'label_add', args: { id: 'e2elabel0000001', name: 'bellen', color: 'blue', is_favorite: true } },
+    { type: 'task_update', args: { id: serverTask('Tandarts bellen').id, labels: ['e2elabel0000001'] } },
+    { type: 'filter_add', args: { id: 'e2efilter0000001', name: 'Dringend bellen', query: '(vandaag | morgen) & @bellen', color: 'red', is_favorite: true } },
+    { type: 'filter_add', args: { id: 'e2efilter0000002', name: 'Kapot', query: '#Verdwenen project & vandaag' } },
+  ])).status, 200);
+  await waitFor(findItem('Kapot'), 'de nieuwe filters en labels zijn binnen');
+  await waitFor(findItem('bellen'), 'het label is binnen');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const userTexts = ['Dringend bellen', 'Kapot', 'bellen', 'Dessert kiezen', 'Tandarts bellen', 'Vergeet de Crème brûlée niet, en het bestek.', 'Het wachtwoord van de wifi staat op de koelkast', '#Verdwenen project & vandaag', '(vandaag | morgen) & @bellen', ...mine, ...dutchForms];
+  const scheme = (value: 'light' | 'dark' | null) => send('Emulation.setEmulatedMedia', { features: value ? [{ name: 'prefers-color-scheme', value }] : [] });
+  const showFilter = async (name: string) => { await evaluate(`${findItem(name)}.click()`); await waitFor(`document.getElementById('view-title').textContent === ${js(name)}`, `filter ${name}`); };
+
+  // licht en donker: dezelfde schermen, de tekst blijft leesbaar (het contrast zelf wordt in findStyle.test.js gemeten)
+  for (const mode of ['light', 'dark'] as const) {
+    await scheme(mode);
+    await sleep(150);
+    await showFilter('Dringend bellen');
+    await shot(`filter-${mode}`);
+    await showFilter('Kapot');
+    await shot(`filter-fout-${mode}`);
+    await openSearchWithSlash();
+    await searchFor('bellen');
+    await shot(`zoeken-${mode}`);
+    await press('Escape');
+    await noDialog();
+    await evaluate(`document.querySelector('[data-fk="find-head:filters"]').click()`);
+    await waitFor(`document.getElementById('view-title').textContent === 'Filters'`, 'filters');
+    await shot(`filters-${mode}`);
+    await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+    await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'labels');
+    await shot(`labels-${mode}`);
+  }
+  await scheme(null);
+
+  // toegankelijkheid van het zoekvenster: combobox met lijst, opties, actieve optie, melding van het aantal; focus terug na sluiten
+  await evaluate(`document.querySelector('.search-field').focus()`);
+  await press('Enter');
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster met Enter op de zoekknop');
+  await searchFor('bellen');
+  const aria = await evaluate<Record<string, any>>(`(() => { const input = document.querySelector(${js(searchInput)}); const list = document.getElementById(input.getAttribute('aria-controls')); return { role: input.getAttribute('role'), expanded: input.getAttribute('aria-expanded'), listRole: list.getAttribute('role'), listLabel: list.getAttribute('aria-label'), options: [...list.children].every((li) => li.getAttribute('role') === 'option' && li.id), selected: list.querySelectorAll('[aria-selected=true]').length, live: document.querySelector('#search-dialog .search-status').getAttribute('role'), dialogLabel: document.getElementById('search-dialog').getAttribute('aria-label'), inputLabel: input.getAttribute('aria-label'), shortcuts: document.querySelector('.search-field')?.getAttribute('aria-keyshortcuts') }; })()`);
+  assert.deepEqual(aria, { role: 'combobox', expanded: 'true', listRole: 'listbox', listLabel: 'Zoekresultaten', options: true, selected: 1, live: 'status', dialogLabel: 'Zoeken', inputLabel: 'Zoeken in taken, opmerkingen, projecten, labels en filters', shortcuts: '/ Control+K' });
+  assert.match(await evaluate(`document.querySelector('#search-dialog .search-status').textContent`), /^\d+ resultaten?$/);
+  await searchFor('nietsdergelijks');
+  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).getAttribute('aria-expanded')`), 'false');
+  await press('Escape');
+  await noDialog();
+  await waitFor(`!document.querySelector('dialog')`, 'opgeruimd');
+  assert.equal(await evaluate(`document.activeElement?.classList.contains('search-field')`), true, 'na sluiten staat de focus weer op de zoekknop waar je vandaan kwam');
+  // Tab door de zijbalk: overal een zichtbare focusring (zoekknop, kopjes, filters, labels)
+  const ringed2: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    await press('Tab');
+    ringed2.push(await evaluate<string>(`(() => { const e = document.activeElement; const s = getComputedStyle(e); return (e.className || e.tagName) + '|' + s.outlineStyle + '|' + s.outlineWidth; })()`));
+  }
+  assert.ok(ringed2.some((r) => r.startsWith('find-item')) && ringed2.some((r) => r.startsWith('nav-section-link')), `Tab bereikt de lijsten Filters en Labels: ${JSON.stringify(ringed2)}`);
+  assert.ok(ringed2.every((r) => !r.includes('|none|')), `elke knop met focus heeft een zichtbare ring: ${JSON.stringify(ringed2)}`);
+
+  // Engels
+  await evaluate(`localStorage.setItem('tickory.lang', 'en')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.getElementById('sync-status').textContent === 'Up to date'`, 'Engels na herladen', 15_000);
+  assert.deepEqual(await texts('.nav-section-link'), ['Filters', 'Labels']);
+  await openSearchWithSlash();
+  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).placeholder`), 'Search tasks, comments, projects, labels…');
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-empty-title').textContent`), 'Search everything you have');
+  await noDutch('zoekvenster', userTexts);
+  await searchFor('wachtwoord wifi');
+  assert.deepEqual((await searchHits()).map((x) => x.kind), ['Comment']);
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-status').textContent`), '1 result');
+  await searchFor('bellen');
+  hits = await searchHits();
+  assert.equal(hits[0].kind, 'Label');
+  assert.ok(hits.slice(1).every((x) => ['Task', 'Filter'].includes(x.kind)), JSON.stringify(hits.map((x) => x.kind)));
+  await fits('zoekresultaten (Engels)');
+  await noDutch('zoekresultaten', userTexts);
+  await shot('engels-zoeken');
+  await searchFor('nietsdergelijks');
+  assert.match(await evaluate(`document.querySelector('#search-dialog .search-empty').textContent`), /Nothing found for "nietsdergelijks"/);
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-status').textContent`), 'No results');
+  await noDutch('zoeken zonder resultaat', userTexts);
+  await press('Escape');
+  await noDialog();
+  await showFilter('Kapot');
+  assert.equal(await evaluate(`document.querySelector('.filter-broken-title').textContent`), 'This filter cannot be read');
+  assert.equal(await evaluate(`document.querySelector('.filter-error-text').textContent`), 'Unknown project: "Verdwenen project".');
+  await noDutch('kapot filter', userTexts);
+  await fits('kapot filter (Engels)');
+  await shot('engels-filter-fout');
+  await showFilter('Dringend bellen');
+  await noDutch('filter', userTexts);
+  await evaluate(`document.querySelector('[data-fk="find-head:filters"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Filters'`, 'filters (Engels)');
+  assert.equal(await evaluate(`document.querySelector('.manage-bad').textContent`), 'Filter is not valid: Unknown project: "Verdwenen project".');
+  assert.deepEqual(await buttons('.view-actions'), ['Filter help', 'Add filter']);
+  await noDutch('filters-overzicht', userTexts);
+  await fits('filters-overzicht (Engels)');
+  await shot('engels-filters');
+  await click('button[aria-label="Add filter"]');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'New filter'`, 'filtervenster (Engels)');
+  await typeInto('dialog[open] .filter-input', 'today & #Nowhere');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'Unknown project: "Nowhere".');
+  await typeInto('dialog[open] .filter-input', 'today &');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'A term is missing here.');
+  await typeInto('dialog[open] .filter-input', '(today | tomorrow) & @bellen');
+  assert.match(await evaluate(`document.querySelector('dialog[open] .filter-ok').textContent`), /^This works: \d+ tasks? match(es)? now\.$/);
+  await click('dialog[open] .filter-help > summary');
+  await waitFor(`document.querySelector('dialog[open] .filter-help[open] .filter-code-button')`, 'uitleg (Engels)');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-help-example dt .filter-code').textContent`), 'today | overdue');
+  assert.match(await evaluate(`document.querySelector('dialog[open] .filter-help-example dt .filter-help-other').textContent`), /^also: vandaag \| te laat$/);
+  await noDutch('filtervenster met uitleg', userTexts);
+  await fits('filtervenster (Engels)');
+  await shot('engels-filter-venster');
+  await clickText('Cancel', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await click('.btn-help');
+  await waitFor(`document.querySelector('dialog[open] .filter-help-body')`, 'hulp (Engels)');
+  await noDutch('hulp bij filters', userTexts);
+  await fits('hulp bij filters (Engels)');
+  await clickText('Close', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'labels (Engels)');
+  await click('.btn-add');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'New label'`, 'labelvenster (Engels)');
+  await typeInto('dialog[open] input[aria-label="Name"]', 'BELLEN');
+  await submit('dialog[open] form');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .error').textContent`), 'A label with this name already exists.');
+  await typeInto('dialog[open] input[aria-label="Name"]', '');
+  await submit('dialog[open] form');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .error').textContent`), 'Give the label a name.');
+  await noDutch('labelvenster', userTexts);
+  await clickText('Cancel', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await noDutch('labels-overzicht', userTexts);
+  await fits('labels-overzicht (Engels)');
+  await shot('engels-labels');
+  await evaluate(`${findItem('bellen')}.click()`);
+  await waitFor(`document.getElementById('view-title').textContent === '@bellen'`, 'label (Engels)');
+  assert.deepEqual(await buttons('.view-actions'), ['Edit', 'More']);
+  await noDutch('label', userTexts);
+
+  // telefoon (Engels): zoekknop in de kop, zoekvenster over het hele scherm, zijbalk met lijsten
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  for (const selector of ['.topbar-search', '#menu-button']) {
+    const size = await smallest(selector);
+    assert.ok(size.n === 1 && size.h >= 44 && size.w >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
+  }
+  await click('.topbar-search');
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster op een telefoon');
+  await searchFor('bellen');
+  const full2 = await evaluate<{ w: number; h: number }>(`(() => { const r = document.getElementById('search-dialog').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })()`);
+  assert.deepEqual(full2, { w: 390, h: 844 }, 'het zoekvenster vult op een telefoon het hele scherm');
+  for (const selector of ['#search-dialog .search-hit', '#search-dialog .search-close', '#search-dialog .search-input']) {
+    const size = await smallest(selector);
+    assert.ok(size.n > 0 && size.h >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
+  }
+  await fits('zoekvenster op een telefoon');
+  assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390);
+  await shot('engels-telefoon-zoeken');
+  await scheme('dark');
+  await sleep(150);
+  await shot('telefoon-zoeken-donker');
+  await scheme(null);
+  await click('#search-dialog .search-close');
+  await noDialog();
+  await click('#menu-button');
+  await sleep(350);
+  const drawer2 = await smallest('.sidebar .find-item, .sidebar .nav-section-link, .sidebar .find-toggle, .sidebar .nav-section-head .icon-button, .sidebar .search-field');
+  assert.ok(drawer2.h >= 44, `een regel in het uitschuifmenu is te laag: ${drawer2.h}`);
+  await shot('engels-telefoon-menu');
+  await click('button[aria-label="Add filter"]');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'New filter'`, 'filtervenster op een telefoon');
+  await click('dialog[open] .filter-help > summary');
+  await waitFor(`document.querySelector('dialog[open] .filter-help[open] .filter-code-button')`, 'uitleg op een telefoon');
+  await fits('filtervenster op een telefoon');
+  assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390);
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('dialog[open] .filter-help-row')).gridTemplateColumns.split(' ').length`), 1, 'de uitleg staat op een telefoon in één kolom');
+  for (const selector of ['dialog[open] .filter-code-button', 'dialog[open] .swatch', 'dialog[open] .field', 'dialog[open] .button']) {
+    const size = await smallest(selector);
+    assert.ok(size.n > 0 && size.h >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
+  }
+  await shot('engels-telefoon-filter-venster');
+  await clickText('Cancel', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'labels op een telefoon');
+  await fits('labels op een telefoon');
+  for (const selector of ['.manage-open', '.manage-buttons .icon-button']) {
+    const size = await smallest(selector);
+    assert.ok(size.n > 0 && size.h >= 44 && size.w >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
+  }
+  await shot('engels-telefoon-labels');
+  await showFilter('Kapot');
+  await fits('kapot filter op een telefoon');
+  await shot('engels-telefoon-filter-fout');
+  await showFilter('Dringend bellen');
+  await fits('filter op een telefoon');
+  await shot('engels-telefoon-filter');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  await evaluate(`localStorage.setItem('tickory.lang', 'nl')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'weer Nederlands', 15_000);
+
+  // opruimen: wat deze stap aanmaakte
+  await syncAs(aliceToken, 'zoek-test', [
+    { type: 'filter_delete', uuid: 'e2e-zoek-opruimen-4', args: { id: 'e2efilter0000001' } },
+    { type: 'filter_delete', uuid: 'e2e-zoek-opruimen-5', args: { id: 'e2efilter0000002' } },
+    { type: 'label_delete', uuid: 'e2e-zoek-opruimen-6', args: { id: 'e2elabel0000001' } },
+    { type: 'task_delete', uuid: 'e2e-zoek-opruimen-7', args: { id: 'e2ezoektaak0001' } },
+    { type: 'comment_delete', uuid: 'e2e-zoek-opruimen-8', args: { id: 'e2ezoekopm0001' } },
+  ]);
+  await waitFor(`!(${findItem('Kapot')})`, 'opgeruimd');
+  await nav('Thuis');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  step('zoeken, filters en labels: licht en donker, toegankelijkheid van het zoekvenster (combobox, lijst, actieve optie, aantal, focus terug), focusring in de zijbalk, Engels zonder Nederlandse tekst (zoeken, filterfouten, uitleg, labelmeldingen) en zonder afgekapte tekst, telefoon: zoekknop in de kop, zoekvenster over het hele scherm, zijbalk en vensters met tikvlakken van minstens 44 px');
 
   // ---- 10. installeerbaar als app ----
   try {

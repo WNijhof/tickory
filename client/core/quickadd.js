@@ -4,7 +4,8 @@
 //
 //   #project   een bestaand project (namen met spaties mogen: de langste passende naam wint)
 //   /sectie    een bestaande sectie in dat project
-//   @label     een label; een onbekend label wordt aangemaakt
+//   @label     een label; een onbekend label wordt aangemaakt. Een bestaand label met spaties of leestekens in de naam
+//              ("@Uitgaan met Zoë") wordt op naam gevonden; de langste passende naam wint
 //   p1 … p4    prioriteit (ook !!1 … !!4); 1 is de hoogste
 //   {vrijdag}  een deadline (los van de datum waarop je eraan wilt werken)
 //   !30m       een herinnering: !30m, !1u, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
@@ -80,6 +81,13 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }
 
   // labels
+  // Een label met een spatie of een ander teken dat in een gewoon woord niet voorkomt ("Uitgaan met Zoë", "a.b") wordt op naam gevonden,
+  // zoals bij projecten: de langste passende naam wint. Alle andere labels volgen hieronder, op het woord na de @.
+  const odd = [...view.labels.values()].filter((l) => !/^[\p{L}\p{N}_-]+$/u.test(normalizeText(l.name).trim()));
+  for (let m = matchNamed(rest, '@', odd); m; m = matchNamed(rest, '@', odd)) {
+    if (!out.labels.includes(m.item.id)) out.labels.push(m.item.id);
+    rest = cut(rest, m.start, m.end);
+  }
   // via nameKey: "@ÉÉN" is het label "één", en "@Zoë" ook als de ë ontleed is getypt
   const known = new Map([...view.labels.values()].map((l) => [nameKey(l.name), l.id]));
   const labelRe = new RegExp(`${START}@([\\p{L}\\p{N}_-]+)`, 'gu');
