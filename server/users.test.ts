@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { currentRev } from './sync.ts';
 import { freshDb } from './testutil.ts';
 import {
-  LoginLimiter, createSession, createUser, findSession, hashPassword, listSessions, peersOf, revokeSession, revokeSessions, setPasswordCostForTests,
+  LoginLimiter, createSession, createUser, findSession, hashPassword, ipBucket, listSessions, peersOf, revokeSession, revokeSessions, setPasswordCostForTests,
   updateUser, validateDisplayName, validatePassword, validateUsername, verifyPassword,
 } from './users.ts';
 import { handleSync } from './sync.ts';
@@ -135,37 +135,89 @@ test('last_used_at wordt hooguit eens per tien minuten bijgewerkt', () => {
   assert.notEqual(at(), created);
 });
 
-test('inlogpogingen: te veel mislukkingen blokkeren per gebruikersnaam en per adres, en lopen af', () => {
-  let t = 1_000_000;
-  const l = new LoginLimiter({ user: 3, ip: 5 }, 60_000, () => t);
-  assert.equal(l.retryAfter('anna', '1.1.1.1'), 0);
-  for (let i = 0; i < 3; i++) l.fail('anna', '1.1.1.1');
-  assert.ok(l.retryAfter('anna', '2.2.2.2') > 0, 'de gebruikersnaam is vergrendeld, van welk adres ook');
-  assert.ok(l.retryAfter('ANNA', '3.3.3.3') > 0, 'hoofdletters omzeilen het niet');
-  assert.equal(l.retryAfter('bob', '9.9.9.9'), 0, 'een ander account is niet geraakt');
-  t += 59_000;
-  assert.ok(l.retryAfter('anna', '2.2.2.2') > 0);
-  t += 2_000;
-  assert.equal(l.retryAfter('anna', '2.2.2.2'), 0, 'na het venster mag het weer');
-  const sweep = new LoginLimiter({ user: 3, ip: 3 }, 60_000, () => t);
-  for (let i = 0; i < 1500; i++) sweep.fail(`naam${i}`, `adres${i}`); // veel verschillende afzenders, niemand komt terug
-  assert.equal(sweep.hits.size, 3000);
-  t += 61_000;
-  sweep.fail('nieuw', 'adres-nieuw');
-  assert.equal(sweep.hits.size, 2, 'verlopen pogingen worden opgeruimd; alleen de nieuwe staat er nog');
+/** Een poging die meteen als mislukt telt (zoals bij een fout wachtwoord): `begin` telt hem, `succeed` komt niet. */
+const tryLogin = (l: LoginLimiter, name: string, ip: string): number => l.begin(name, ip).wait;
 
-  const m = new LoginLimiter({ user: 100, ip: 5 }, 60_000, () => t);
-  for (let i = 0; i < 5; i++) m.fail(`gebruiker${i}`, '4.4.4.4');
-  assert.ok(m.retryAfter('nieuw', '4.4.4.4') > 0, 'veel verschillende namen vanaf één adres');
-  assert.equal(m.retryAfter('nieuw', '5.5.5.5'), 0);
-  const s = new LoginLimiter({ user: 3, ip: 100 }, 60_000, () => t);
-  s.fail('anna', 'x'); s.fail('anna', 'x');
-  s.success('anna');
-  s.fail('anna', 'x'); s.fail('anna', 'x');
-  assert.equal(s.retryAfter('anna', 'x'), 0, 'een geslaagde poging begint de telling opnieuw');
-  const big = new LoginLimiter({ user: 3, ip: 3 }, 60_000, () => t);
-  for (let i = 0; i < 12_000; i++) big.fail(`naam${i}`, `ip${i}`);
-  assert.ok(big.hits.size <= 20_000, 'geheugen blijft begrensd');
+test('inlogpogingen: per naam en adres, per adres en per naam over alle adressen; de limieten lopen af', () => {
+  let t = 1_000_000;
+  const l = new LoginLimiter({ pair: 3, ip: 20, user: 5 }, 60_000, () => t);
+  for (let i = 0; i < 3; i++) assert.equal(tryLogin(l, 'anna', '1.1.1.1'), 0);
+  assert.ok(tryLogin(l, 'anna', '1.1.1.1') > 0, 'de vierde poging van dit adres op deze naam wordt geweigerd');
+  assert.ok(tryLogin(l, 'ANNA', '1.1.1.1') > 0, 'hoofdletters omzeilen het niet');
+  assert.ok(tryLogin(l, ' anna ', '1.1.1.1') > 0, 'omringende spaties ook niet');
+  assert.equal(tryLogin(l, 'anna', '2.2.2.2'), 0, 'een ander adres is niet geraakt: een aanvaller kan het account van een ander niet vergrendelen');
+  assert.equal(tryLogin(l, 'bob', '1.1.1.1'), 0, 'een andere naam vanaf hetzelfde adres kan nog');
+  assert.equal(tryLogin(l, 'anna', '3.3.3.3'), 0);
+  assert.ok(tryLogin(l, 'anna', '4.4.4.4') > 0, 'de algemene limiet voor de naam (5) geldt over alle adressen samen');
+  t += 59_000;
+  assert.ok(tryLogin(l, 'anna', '1.1.1.1') > 0);
+  t += 2_000;
+  assert.equal(tryLogin(l, 'anna', '1.1.1.1'), 0, 'na het venster mag het weer');
+
+  // geweigerde pogingen tellen niet mee: wie blijft proberen, houdt zichzelf niet eindeloos buiten
+  const w = new LoginLimiter({ pair: 2, ip: 100, user: 100 }, 60_000, () => t);
+  tryLogin(w, 'anna', 'x'); tryLogin(w, 'anna', 'x');
+  const first = w.begin('anna', 'x').wait;
+  for (let i = 0; i < 50; i++) w.begin('anna', 'x');
+  assert.equal(w.begin('anna', 'x').wait, first, 'de wachttijd groeit niet door geweigerde pogingen');
+
+  const m = new LoginLimiter({ pair: 100, ip: 5, user: 100 }, 60_000, () => t);
+  for (let i = 0; i < 5; i++) assert.equal(tryLogin(m, `gebruiker${i}`, '4.4.4.4'), 0);
+  assert.ok(tryLogin(m, 'nieuw', '4.4.4.4') > 0, 'veel verschillende namen vanaf één adres');
+  assert.equal(tryLogin(m, 'nieuw', '5.5.5.5'), 0);
+
+  const s = new LoginLimiter({ pair: 3, ip: 100, user: 100 }, 60_000, () => t);
+  tryLogin(s, 'anna', 'x'); tryLogin(s, 'anna', 'x');
+  const ok = s.begin('anna', 'x');
+  s.succeed(ok.attempt!);
+  tryLogin(s, 'anna', 'x'); tryLogin(s, 'anna', 'x');
+  assert.equal(tryLogin(s, 'anna', 'x'), 0, 'een geslaagde poging begint de telling voor deze naam en dit adres opnieuw');
+
+  const c = new LoginLimiter({ pair: 1, ip: 100, user: 100 }, 60_000, () => t);
+  const busy = c.begin('anna', 'x');
+  c.cancel(busy.attempt!);
+  assert.equal(tryLogin(c, 'anna', 'x'), 0, 'een geannuleerde poging (server druk) telt niet');
+});
+
+test('inlogpogingen: gelijktijdige pogingen worden geteld voordat het wachtwoord is gecontroleerd', () => {
+  const l = new LoginLimiter({ pair: 8, ip: 1000, user: 1000 }, 60_000, () => 1_000_000);
+  const results = Array.from({ length: 200 }, () => l.begin('victim', '1.1.1.1')); // allemaal "tegelijk": geen enkele is al afgehandeld
+  assert.equal(results.filter((r) => r.attempt).length, 8, 'hoogstens 8 komen er door, ook al is er nog geen enkele afgehandeld');
+});
+
+test('inlogpogingen: IPv6 telt per /64, IPv4 in IPv6-vorm als IPv4', () => {
+  assert.equal(ipBucket('2001:db8:1:2:aaaa:bbbb:cccc:dddd'), ipBucket('2001:0db8:0001:0002::1'));
+  assert.equal(ipBucket('2001:db8:1:2::1'), '2001:0db8:0001:0002::/64');
+  assert.notEqual(ipBucket('2001:db8:1:2::1'), ipBucket('2001:db8:1:3::1'));
+  assert.equal(ipBucket('::ffff:203.0.113.9'), '203.0.113.9');
+  assert.equal(ipBucket('203.0.113.9'), '203.0.113.9');
+  assert.equal(ipBucket('fe80::1%eth0'), ipBucket('fe80::2'));
+  assert.equal(ipBucket('::1'), '0000:0000:0000:0000::/64');
+  const l = new LoginLimiter({ pair: 100, ip: 3, user: 100 }, 60_000, () => 1_000_000);
+  for (let i = 0; i < 3; i++) assert.equal(tryLogin(l, `n${i}`, `2001:db8:1:2::${i + 1}`), 0);
+  assert.ok(tryLogin(l, 'n9', '2001:db8:1:2:ffff:ffff:ffff:ffff') > 0, 'een ander adres in hetzelfde /64 omzeilt de adreslimiet niet');
+  assert.equal(tryLogin(l, 'n9', '2001:db8:1:3::1'), 0, 'een ander /64 is een andere bron');
+});
+
+test('inlogpogingen: het geheugen is begrensd en loopt niet in één keer leeg', () => {
+  let t = 1_000_000;
+  const sweep = new LoginLimiter({ pair: 3, ip: 3, user: 3 }, 60_000, () => t);
+  for (let i = 0; i < 1500; i++) sweep.begin(`naam${i}`, `adres${i}`); // veel verschillende afzenders, niemand komt terug
+  assert.equal(sweep.hits.size, 4500);
+  t += 61_000;
+  sweep.begin('nieuw', 'adres-nieuw');
+  sweep.maxKeys = 10;
+  for (let i = 0; i < 20; i++) sweep.begin(`x${i}`, `y${i}`); // forceert het opruimen: eerst het verlopene, dan de oudste
+  assert.ok(sweep.hits.size <= 10 && sweep.hits.size > 0, 'verlopen tellers zijn opgeruimd en er blijft wat over');
+
+  const big = new LoginLimiter({ pair: 3, ip: 3, user: 3 }, 60_000, () => t);
+  big.maxKeys = 1000;
+  const recent = big.begin('lopende-aanval', '9.9.9.9');
+  for (let i = 0; i < 3; i++) big.begin('lopende-aanval', '9.9.9.9');
+  for (let i = 0; i < 2000; i++) big.begin(`naam${i}`, `ip${i}`);
+  assert.ok(big.hits.size <= 1000, 'geheugen blijft begrensd');
+  assert.ok(big.hits.size > 300, 'er wordt niet alles in één keer gewist');
+  void recent;
 });
 
 test('je ziet alleen jezelf en wie een project met je deelt', () => {

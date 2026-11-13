@@ -142,7 +142,7 @@ export async function staticResponse(
 }
 
 const STATUS_FOR: Record<string, number> = {
-  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, DUPLICATE: 409, CONFLICT: 409,
+  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
 };
 
 interface Caller { user: UserRow; sessionId: string }
@@ -257,19 +257,26 @@ export function createApp(opts: AppOptions): App {
     const username = typeof body.username === 'string' ? body.username.slice(0, 200) : '';
     const password = typeof body.password === 'string' ? body.password.slice(0, 1000) : '';
     const device = typeof body.device_name === 'string' ? body.device_name : '';
-    const ip = clientIp(req);
-    const wait = limiter.retryAfter(username, ip);
-    if (wait > 0) {
+    // De poging wordt geteld vóórdat het wachtwoord wordt gecontroleerd. Dat controleren is asynchroon en duurt even; tellen
+    // erna liet honderden gelijktijdige pogingen door de beperking voordat de eerste was geteld.
+    const { wait, attempt } = limiter.begin(username, clientIp(req));
+    if (!attempt) {
       return send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
     }
-    const user = username ? getUserByName(db, username) : undefined;
-    const valid = user ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
+    let user: ReturnType<typeof getUserByName> = undefined;
+    let valid = false;
+    try {
+      user = username ? getUserByName(db, username) : undefined;
+      valid = user ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
+    } catch (err) {
+      limiter.cancel(attempt); // de server was druk (BUSY) of er ging iets mis: dat is niet de schuld van de bezoeker
+      throw err;
+    }
     if (!user || !valid || user.is_disabled) {
-      limiter.fail(username, ip);
-      // Dezelfde melding voor onbekende gebruiker, fout wachtwoord en geblokkeerd account.
+      // Dezelfde melding voor onbekende gebruiker, fout wachtwoord en geblokkeerd account. De poging blijft geteld.
       return send(res, 401, { error_code: 'INVALID_CREDENTIALS', error: 'gebruikersnaam of wachtwoord klopt niet' });
     }
-    limiter.success(username);
+    limiter.succeed(attempt);
     const { token, id } = createSession(db, user.id, device);
     send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
@@ -450,7 +457,7 @@ export function createApp(opts: AppOptions): App {
     } catch (err) {
       if (err instanceof SyncError) {
         // De body is op dit punt volledig weggelezen, dus de verbinding kan gewoon open blijven.
-        if (!res.headersSent && !res.destroyed) send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
+        if (!res.headersSent && !res.destroyed) send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message }, err.code === 'BUSY' ? { 'Retry-After': '5' } : {});
         return;
       }
       console.error('onverwachte fout', err);

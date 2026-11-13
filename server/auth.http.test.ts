@@ -21,7 +21,7 @@ before(async () => {
   createSchema(db);
   createUser(db, { username: 'alice', name: 'Alice', passwordHash: await hashPassword(PW) });
   createUser(db, { username: 'bob', name: 'Bob', passwordHash: await hashPassword(PW) });
-  app = createApp({ db, limiter: new LoginLimiter({ user: 4, ip: 100 }, 60_000, () => clock) });
+  app = createApp({ db, limiter: new LoginLimiter({ pair: 4, user: 20, ip: 100 }, 60_000, () => clock) });
   await new Promise<void>((r) => app.server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
 });
