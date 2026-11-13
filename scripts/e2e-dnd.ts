@@ -8,6 +8,15 @@ import { handleSync } from '../server/sync.ts';
 type Rect = { x: number; y: number; w: number; h: number };
 
 export async function dragAndDropScenario(c: any): Promise<void> {
+  try {
+    await scenario(c);
+  } catch (err) {
+    await c.shot('MISLUKT-slepen').catch(() => {}); // wat stond er op het scherm?
+    throw err;
+  }
+}
+
+async function scenario(c: any): Promise<void> {
   const { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer } = c;
   let uuid = 0;
   const cmd = (type: string, args: object) => ({ type, uuid: `e2e-dnd-${String(++uuid).padStart(4, '0')}-${Date.now()}`, args });
@@ -75,6 +84,8 @@ export async function dragAndDropScenario(c: any): Promise<void> {
   const lineY = () => evaluate<number>(`document.querySelector('.dnd-line')?.getBoundingClientRect().top ?? -1`);
 
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await waitFor(`innerWidth === 1280`, 'het venster is weer breed (na een telefoonformaat eerder in de test)');
+  await sleep(300); // en de indeling is bijgewerkt voordat we gaan meten
   await nav('Sleepproef');
   await waitFor(`document.getElementById('view-title').textContent === 'Sleepproef' && document.querySelectorAll('.task').length === 5`, 'Sleepproef geopend');
   assert.deepEqual(await titles(), ['Alfa', 'Bravo', 'Charlie', 'Delta', 'Echo']);
@@ -115,7 +126,14 @@ export async function dragAndDropScenario(c: any): Promise<void> {
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     assert.deepEqual(serverOrder(P), ['Charlie', 'Alfa', 'Bravo']);
-    step('een klik (met 2 px beven) opent nog gewoon het taakvenster en verplaatst niets');
+    // een sleep die op dezelfde regel eindigt (de "klik" na het loslaten valt op dezelfde knop) opent het venster niet
+    const again = await rowRect('Alfa');
+    const q = grab(again);
+    await drag(q, { x: q.x + 10, y: q.y + 12 }, async () => { assert.equal((await dragState()).ghost, true, 'na 5 px bewegen is het een sleep'); });
+    await sleep(300);
+    assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false, 'losgelaten op dezelfde regel: het taakvenster blijft dicht');
+    assert.deepEqual(serverOrder(P), ['Charlie', 'Alfa', 'Bravo']);
+    step('een klik (met 2 px beven) opent nog gewoon het taakvenster en verplaatst niets; een sleep die op dezelfde regel eindigt opent het niet');
   }
 
   // ---------- 3. op een taak laten vallen maakt een subtaak, en eruit slepen haalt hem weer terug ----------
@@ -483,6 +501,7 @@ export async function dragAndDropScenario(c: any): Promise<void> {
     for (const scheme of ['light', 'dark']) {
       await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }, { name: 'prefers-reduced-motion', value: 'reduce' }] });
       await sleep(150);
+      await shot(`slepen-${scheme === 'light' ? 'licht' : 'donker'}`);
       const colors = await evaluate<{ line: string; bg: string; soft: string; text: string }>(`(() => { const s = getComputedStyle(document.documentElement); const line = document.querySelector('.dnd-line'); return { line: line ? getComputedStyle(line).backgroundColor : '', bg: getComputedStyle(document.body).backgroundColor, soft: s.getPropertyValue('--accent-soft').trim(), text: s.getPropertyValue('--text-soft').trim() }; })()`);
       const rgb = (css: string) => (css.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
       const lum = ([r, g, b]: number[]) => { const f = (v: number) => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };

@@ -140,6 +140,8 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     cancelPending();
     const entity = from.kind === 'task' ? view.tasks.get(from.id) : view.projects.get(from.id);
     if (!entity) return;
+    // het scherm kan tussen indrukken en slepen opnieuw getekend zijn (een sync): dan staat de regel er als nieuw element
+    if (!from.el.isConnected) from.el = (from.kind === 'task' ? content.querySelector(`li.task[data-id="${CSS.escape(from.id)}"]`) : sidebar.querySelector(`[data-project-id="${CSS.escape(from.id)}"]`)) ?? from.el;
     const rect = from.el.getBoundingClientRect();
     const ids = from.kind === 'task' ? [from.id, ...descendantIds(view, [from.id])] : [from.id, ...projectDescendantIds(view, from.id)];
     const ghost = from.el.cloneNode(true);
@@ -149,7 +151,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     ghost.setAttribute('aria-hidden', 'true');
     for (const n of ghost.querySelectorAll('[data-fk]')) n.removeAttribute('data-fk');
     for (const n of ghost.querySelectorAll('.task-actions, .drag-handle')) n.remove();
-    ghost.style.width = `${rect.width}px`;
+    ghost.style.width = `${Math.min(rect.width, 520)}px`;
     if (from.kind === 'project') ghost.classList.add('dnd-ghost-project');
     document.body.append(ghost);
     drag = {
@@ -344,7 +346,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
       announce(t('dnd.cancelled'));
       return;
     }
-    if (d.plan) await commit(d);
+    if (d.plan) await commit(d).catch((err) => { console.error(err); toast(t('common.somethingWrong'), { kind: 'error' }); });
   }
 
   /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en bij een ander project een melding met "Ongedaan maken". */
