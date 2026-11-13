@@ -4,3 +4,6 @@ node_modules/
 .smoke-token
 .mut/
 .e2e/
+# De gebouwde website (node scripts/build-site.ts) en tijdelijke bestanden van de site-scripts
+_site/
+.site-work/

@@ -1,0 +1,63 @@
+<!--
+title: Troubleshooting
+description: Common problems with Tickory and how to solve them: not being able to sign in, staying offline, not being able to install on a phone, a container that will not start.
+-->
+<h1>Troubleshooting</h1>
+<p class="intro">The most common messages and what to do about them. On the server, always start with the log. The messages of the app and the server are in Dutch; they are quoted here with a translation.</p>
+
+<h2>Look first</h2>
+<pre><code>docker compose ps          # is the container running, and does it say (healthy)?
+docker compose logs --tail 100</code></pre>
+<p>On start-up the server writes which address it listens on and which database it uses, and reports it when there are no accounts yet.</p>
+
+<h2>Signing in</h2>
+<dl>
+  <dt>“Gebruikersnaam of wachtwoord klopt niet” (username or password is incorrect), although you are sure of the password</dt>
+  <dd>The account may be blocked: that deliberately gives the same message. Check with <code>docker compose exec tickory node server/main.ts user list</code> whether it says “(geblokkeerd)” after it, and activate it with <code>user enable</code>. See <a href="managing-users.html">Managing users</a>.</dd>
+  <dt>“Te veel mislukte pogingen” (too many failed attempts)</dt>
+  <dd>Wait until the fifteen minutes have passed. If it happens to everyone at once and there is a reverse proxy in front, set <code>TRUST_PROXY=1</code>; see <a href="https.html#trust-proxy">HTTPS</a>.</dd>
+  <dt>The password of the only administrator is lost</dt>
+  <dd>Set a new password from the server: <code>docker compose exec -it tickory node server/main.ts user passwd &lt;name&gt;</code>.</dd>
+  <dt>There is not a single account yet</dt>
+  <dd>The log then says “Er zijn nog geen accounts” (there are no accounts yet). Put <code>TODO_ADMIN_USER</code> and <code>TODO_ADMIN_PASSWORD</code> in <code>.env</code> and run <code>docker compose up -d</code>, or create the account with <code>user add &lt;name&gt; --admin</code>.</dd>
+  <dt>The sign-in window keeps coming back</dt>
+  <dd>The session of that device has been revoked: the password was changed elsewhere, the device was signed out or the account was blocked. Sign in again.</dd>
+</dl>
+
+<h2>The container does not start</h2>
+<dl>
+  <dt>“Het eerste account kon niet worden aangemaakt” (the first account could not be created)</dt>
+  <dd>The password in <code>.env</code> is shorter than 10 characters or the same as the username, or the username contains characters that are not allowed. The reason follows it in the log. Change <code>.env</code> and start again.</dd>
+  <dt>The port is already in use</dt>
+  <dd>Something else on the server uses port 8787. In <code>docker-compose.yml</code>, change the first number of the ports line, for example <code>"127.0.0.1:8790:8787"</code>, and use that number in the address and in your proxy.</dd>
+  <dt><code>docker compose pull</code> says “denied” or “unauthorized”</dt>
+  <dd>The image is private and your server is not signed in to the registry. See <a href="installing.html#the-image-is-still-private">Installing</a>, or build the image yourself with <code>build: .</code>.</dd>
+  <dt>The container stays “unhealthy”</dt>
+  <dd>Look at the log. A damaged or unreadable database file is one possible cause; restore a <a href="backup.html">backup</a> in that case.</dd>
+</dl>
+
+<h2>In the app</h2>
+<dl>
+  <dt>The top right keeps saying “Offline”</dt>
+  <dd>The app cannot reach the server. Check whether the server is running and whether the address can be reached from this device (with Tailscale: is Tailscale switched on on this device?). Click the status to try again. Your changes are kept in the meantime.</dd>
+  <dt>“Bijwerken mislukt” (sync failed)</dt>
+  <dd>The server or a proxy in between returned an error. Look at the log of Tickory and of your proxy.</dd>
+  <dt>A message “Niet gelukt (…)” (failed)</dt>
+  <dd>The server refused one change, usually because something was deleted or changed on another device in the meantime. The reason is in the message; the rest of your changes went through as usual.</dd>
+  <dt>On the phone it does not work offline, or installing is not offered</dt>
+  <dd>The address does not start with <code>https://</code>. See <a href="https.html">HTTPS</a>.</dd>
+  <dt>After updating the server I do not see the new version</dt>
+  <dd>The app fetches a new version in the background. Close the app and open it again.</dd>
+  <dt>The app sometimes does not open without a connection, although it could before</dt>
+  <dd>The browser, or a network filter such as AdGuard, can erase the stored files of the app. The app fills them up again by itself as soon as you open it with a connection.</dd>
+  <dt>A date is not recognised, or is recognised where it should not be</dt>
+  <dd>See <a href="dates-and-recurrence.html">Dates and recurrences</a>. A <code>~</code> switches recognition off.</dd>
+  <dt>“Lokale opslag is niet beschikbaar” (local storage is not available)</dt>
+  <dd>The browser does not allow data to be stored, for example in a private window with strict settings. The app works, but keeps nothing when you close the window.</dd>
+</dl>
+
+<h2>After restoring a backup</h2>
+<p>Do devices show tasks that should no longer be there, or is something missing? Sign out and in again on every device. See <a href="backup.html#after-that-sign-in-again-on-every-device">Backup and restore</a>.</p>
+
+<h2>If you cannot work it out</h2>
+<p>Search the <a href="{{repo}}/issues">issues on GitHub</a> or open a new one. Mention the version, how you run Tickory (Docker or bare, with which proxy), what you did, what you expected and what happened, and the relevant lines from the log. Do not include passwords or other secrets. If you think you have found a security vulnerability, do not report it publicly but through “Report a vulnerability” on GitHub.</p>

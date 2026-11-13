@@ -1,0 +1,274 @@
+<!--
+title: Dates and recurrences
+description: All dates and recurrences Tickory understands in plain Dutch, with examples and translations: morgen, over twee weken, elke tweede dinsdag, voor Sinterklaas, and more.
+-->
+<h1>Dates and recurrences</h1>
+<p class="intro">You type a date the way you would say it, in Dutch. The app recognises it in the line you add a task with, and in the Datum (date) field when you edit a task.</p>
+
+<p>Every example on this page was checked against the app's own date parser. They assume <strong>Tuesday 17 November 2026, 10 in the morning</strong>; on another day the resulting dates are of course different.</p>
+
+<div class="note">
+  <span class="note-label">Good to know</span>
+  <p>The date language is Dutch. English input such as <em>tomorrow</em> is not recognised; an English interface and English date language are in development. Until then, this page gives the Dutch phrases with their meaning.</p>
+</div>
+
+<h2>A day</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-17">vandaag</code></td><td class="wrap-ok">today, Tuesday 17 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18">morgen</code></td><td class="wrap-ok">tomorrow, Wednesday 18 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-19">overmorgen</code></td><td class="wrap-ok">the day after tomorrow, Thursday 19 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20">vrijdag</code></td><td class="wrap-ok">the next Friday, 20 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-23">aanstaande maandag</code></td><td class="wrap-ok">this coming Monday, 23 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-27">volgende vrijdag</code></td><td class="wrap-ok">Friday of next week, 27 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-26">volgende week donderdag</code></td><td class="wrap-ok">Thursday next week, 26 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-21">dit weekend</code></td><td class="wrap-ok">this weekend: Saturday 21 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20">eind van de week</code></td><td class="wrap-ok">end of the week: Friday 20 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20">deze week</code></td><td class="wrap-ok">also Friday 20 November: “this week” means “before the weekend”</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-24">volgende week</code></td><td class="wrap-ok">next week: seven days from now, Tuesday 24 November</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Some time from now</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-20">over 3 dagen</code></td><td class="wrap-ok">in 3 days: Friday 20 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-01">over twee weken</code></td><td class="wrap-ok">in two weeks: Tuesday 1 December</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-17">over een maand</code></td><td class="wrap-ok">in a month: Thursday 17 December</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-17">volgende maand</code></td><td class="wrap-ok">next month: also 17 December, the same day a month later</td></tr>
+      <tr><td><code class="ex" data-date="2027-11-17">volgend jaar</code></td><td class="wrap-ok">next year: 17 November 2027</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T10:15">over een kwartier</code></td><td class="wrap-ok">in a quarter of an hour: today at 10:15</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T12:00">over 2 uur</code></td><td class="wrap-ok">in 2 hours: today at 12:00</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>A date</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-12-25">25 december</code></td><td class="wrap-ok">the next 25 December</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-05">5 dec</code></td><td class="wrap-ok">5 December; the month can be abbreviated</td></tr>
+      <tr><td><code class="ex" data-date="2027-03-03">3 maart 2027</code></td><td class="wrap-ok">3 March 2027</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-31">31-12</code></td><td class="wrap-ok">31 December (day first, then month)</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-31">31-12-2026</code></td><td class="wrap-ok">31 December 2026</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-01">2026-12-01</code></td><td class="wrap-ok">1 December 2026 (only in the Datum field)</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-01">begin december</code></td><td class="wrap-ok">early December: 1 December</td></tr>
+      <tr><td><code class="ex" data-date="2027-05-15">midden mei</code></td><td class="wrap-ok">mid-May: 15 May</td></tr>
+      <tr><td><code class="ex" data-date="2027-01-31">eind januari</code></td><td class="wrap-ok">end of January: 31 January, the last day of the month</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-30">eind van de maand</code></td><td class="wrap-ok">end of the month: Monday 30 November</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-31">eind van het jaar</code></td><td class="wrap-ok">end of the year: 31 December</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>A date without a year is always the next occurrence: on 17 November 2026, <code>16 november</code> therefore means 16 November 2027. A date in the past, such as <code>gisteren</code> (yesterday), is not recognised.</p>
+
+<h2>A time</h2>
+<p>Put a time after the day, or type only a time. A time without a day means today, or tomorrow if that time has already passed today.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-18T09:00">morgen om 9 uur</code></td><td class="wrap-ok">tomorrow at 9: Wednesday 18 November, 9:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20T14:00">vrijdag om 14:00</code></td><td class="wrap-ok">Friday 20 November, 14:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T14:30">om half 3</code></td><td class="wrap-ok">at half past two: today 14:30 (Dutch counts towards the next hour)</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T14:15">kwart over 2</code></td><td class="wrap-ok">a quarter past 2: today 14:15</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T16:45">kwart voor 5</code></td><td class="wrap-ok">a quarter to 5: today 16:45</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T14:30">14u30</code></td><td class="wrap-ok">today 14:30</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T14:00">2 uur 's middags</code></td><td class="wrap-ok">2 in the afternoon: today 14:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18T07:00">7 uur 's ochtends</code></td><td class="wrap-ok">7 in the morning: tomorrow 7:00 (today it is already past 10)</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T20:00">vanavond</code></td><td class="wrap-ok">tonight: today 20:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18T09:00">morgenochtend</code></td><td class="wrap-ok">tomorrow morning: Wednesday 18 November, 9:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20T15:00">vrijdagmiddag</code></td><td class="wrap-ok">Friday afternoon: Friday 20 November, 15:00</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="note warn">
+  <span class="note-label">Mind the hours 1 to 7</span>
+  <p>A whole hour from 1 to 7 without anything else is read as afternoon or evening, the way it is usually meant in Dutch: <code class="ex" data-date="2026-11-18T19:00">morgen om 7 uur</code> is 19:00. If you mean the early morning, type <code class="ex" data-date="2026-11-18T07:00">morgen om 07:00</code> or “7 uur 's ochtends”. This does not happen for 8 to 12 o'clock: <code class="ex" data-date="2026-11-18T08:00">morgen om 8 uur</code> is 8:00.</p>
+</div>
+
+<h2>Holidays</h2>
+<p>A (Dutch) holiday becomes a date when there is a preposition in front of it: <strong>voor</strong> (before), <strong>tegen</strong> (towards), <strong>op</strong> (on), <strong>uiterlijk</strong> (at the latest) or <strong>per</strong> (as of). Without a preposition it stays plain text, so that “Kerst inkopen doen” (do the Christmas shopping) remains a task and gets no date. The date is always the next occurrence; Easter and the days that depend on it are calculated for each year.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-12-05">voor Sinterklaas</code></td><td class="wrap-ok">St Nicholas' Eve, 5 December; also <code>pakjesavond</code></td></tr>
+      <tr><td><code class="ex" data-date="2026-12-25">voor Kerst</code></td><td class="wrap-ok">Christmas Day, 25 December; also <code>eerste kerstdag</code></td></tr>
+      <tr><td><code class="ex" data-date="2026-12-26">op tweede kerstdag</code></td><td class="wrap-ok">Boxing Day, 26 December</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-31">voor oud en nieuw</code></td><td class="wrap-ok">New Year's Eve, 31 December; also <code>oudejaarsdag</code></td></tr>
+      <tr><td><code class="ex" data-date="2027-01-01">per Nieuwjaar</code></td><td class="wrap-ok">New Year's Day, 1 January 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-03-26">op Goede Vrijdag</code></td><td class="wrap-ok">Good Friday, 26 March 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-03-28">tegen Pasen</code></td><td class="wrap-ok">Easter, 28 March 2027; <code>tweede paasdag</code> (Easter Monday) is 29 March</td></tr>
+      <tr><td><code class="ex" data-date="2027-04-27">op Koningsdag</code></td><td class="wrap-ok">King's Day, 27 April 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-05-04">op Dodenherdenking</code></td><td class="wrap-ok">Remembrance Day, 4 May 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-05-05">op Bevrijdingsdag</code></td><td class="wrap-ok">Liberation Day, 5 May 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-05-06">uiterlijk Hemelvaart</code></td><td class="wrap-ok">Ascension Day, 6 May 2027</td></tr>
+      <tr><td><code class="ex" data-date="2027-05-16">voor Pinksteren</code></td><td class="wrap-ok">Whit Sunday, 16 May 2027; <code>tweede pinksterdag</code> (Whit Monday) is 17 May</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Recurrences</h2>
+<p>A task that comes back starts with <strong>elke</strong> (every; also elk, iedere, ieder), with <strong>om de</strong> (every other), or is a single word such as <strong>dagelijks</strong> (daily). In the list you recognise a recurrence by the ↻ sign in front of the date. The tables show the first time the task is due.</p>
+
+<h3>Every day or every so many days</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"daily"}'>elke dag</code></td><td class="wrap-ok">every day; also <code>dagelijks</code></td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"daily","interval":2}'>om de dag</code></td><td class="wrap-ok">every other day</td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"daily","interval":3}'>elke 3 dagen</code></td><td class="wrap-ok">every three days</td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"weekly","byweekday":[1,2,3,4,5]}'>elke werkdag</code></td><td class="wrap-ok">Monday to Friday; also <code>doordeweeks</code></td><td>today</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>Fixed days of the week</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-23" data-rule='{"freq":"weekly","byweekday":[1]}'>elke maandag</code></td><td class="wrap-ok">every Monday</td><td>Mon 23 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-19" data-rule='{"freq":"weekly","byweekday":[1,4]}'>elke ma en do</code></td><td class="wrap-ok">every Monday and Thursday; days can be abbreviated (ma, di, wo, do, vr, za, zo)</td><td>Thu 19 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18" data-rule='{"freq":"weekly","byweekday":[1,3,5]}'>elke maandag, woensdag en vrijdag</code></td><td class="wrap-ok">Monday, Wednesday and Friday: three days a week</td><td>Wed 18 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-21" data-rule='{"freq":"weekly","byweekday":[6]}'>elk weekend</code></td><td class="wrap-ok">every weekend: every Saturday</td><td>Sat 21 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"weekly"}'>elke week</code></td><td class="wrap-ok">every week on today's weekday; also <code>wekelijks</code></td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"weekly","interval":2}'>om de week</code></td><td class="wrap-ok">every two weeks; also <code>elke 2 weken</code> and <code>tweewekelijks</code></td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-20" data-rule='{"freq":"weekly","interval":2,"byweekday":[5]}'>elke andere vrijdag</code></td><td class="wrap-ok">every other Friday</td><td>Fri 20 Nov</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>With a time or a part of the day</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-23T09:00" data-rule='{"freq":"weekly","byweekday":[1]}'>elke maandag om 9 uur</code></td><td class="wrap-ok">every Monday at 9:00</td><td>Mon 23 Nov 9:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18T08:30" data-rule='{"freq":"weekly","byweekday":[1,2,3,4,5]}'>elke werkdag om 8:30</code></td><td class="wrap-ok">every weekday at 8:30</td><td>tomorrow 8:30</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18T09:00" data-rule='{"freq":"daily"}'>elke ochtend</code></td><td class="wrap-ok">every morning: every day at 9:00</td><td>tomorrow 9:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T15:00" data-rule='{"freq":"daily"}'>elke middag</code></td><td class="wrap-ok">every afternoon: every day at 15:00</td><td>today 15:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T20:00" data-rule='{"freq":"daily"}'>elke avond</code></td><td class="wrap-ok">every evening: every day at 20:00</td><td>today 20:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18T07:00" data-rule='{"freq":"daily"}'>elke ochtend om 7 uur</code></td><td class="wrap-ok">every day at 7:00: the part of the day decides what “7 uur” means</td><td>tomorrow 7:00</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17T21:30" data-rule='{"freq":"daily"}'>elke avond om half 10</code></td><td class="wrap-ok">every day at 21:30</td><td>today 21:30</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3>Every month and every year</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-12-15" data-rule='{"freq":"monthly","bymonthday":15}'>elke maand op de 15e</code></td><td class="wrap-ok">the 15th of every month; also <code>elke 15e</code></td><td>Tue 15 Dec</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-01" data-rule='{"freq":"monthly","bymonthday":1}'>elke eerste van de maand</code></td><td class="wrap-ok">the 1st of every month</td><td>Tue 1 Dec</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-30" data-rule='{"freq":"monthly","bymonthday":31}'>elke laatste dag van de maand</code></td><td class="wrap-ok">the last day of every month, also in a short month</td><td>Mon 30 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"monthly","bymonthday":17}'>elke maand</code></td><td class="wrap-ok">every month on today's day (here the 17th); also <code>maandelijks</code></td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"monthly","interval":3,"bymonthday":17}'>elk kwartaal</code></td><td class="wrap-ok">every quarter (three months); also <code>elke 3 maanden</code></td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-05" data-rule='{"freq":"yearly","bymonthday":5}'>elk jaar op 5 december</code></td><td class="wrap-ok">every year on that date; also <code>jaarlijks 5 december</code></td><td>Sat 5 Dec</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"yearly","bymonthday":17}'>elk jaar</code></td><td class="wrap-ok">every year on today's date; also <code>jaarlijks</code></td><td>today</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>For a day that does not exist in every month, the app moves to the last day of that month and back again afterwards: “elke maand op de 31e” (every month on the 31st) gives 31 January, 28 February, 31 March.</p>
+
+<h3>The nth weekday of the month</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-12-07" data-rule='{"freq":"monthly","byweekday":[1],"nth":1}'>elke eerste maandag</code></td><td class="wrap-ok">the first Monday of every month</td><td>Mon 7 Dec</td></tr>
+      <tr><td><code class="ex" data-date="2026-12-08" data-rule='{"freq":"monthly","byweekday":[2],"nth":2}'>elke tweede dinsdag</code></td><td class="wrap-ok">the second Tuesday of every month</td><td>Tue 8 Dec</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-18" data-rule='{"freq":"monthly","byweekday":[3],"nth":3}'>elke derde woensdag van de maand</code></td><td class="wrap-ok">the third Wednesday; “van de maand” (of the month) may be added</td><td>Wed 18 Nov</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-27" data-rule='{"freq":"monthly","byweekday":[5],"nth":-1}'>elke laatste vrijdag</code></td><td class="wrap-ok">the last Friday of every month</td><td>Fri 27 Nov</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>This works for the first (eerste) to the fourth (vierde), and for the last (laatste). Mind the difference: <code>elke tweede dinsdag</code> is once a month, <code>elke andere dinsdag</code> or <code>om de week</code> is every fourteen days.</p>
+
+<h3>What happens when you tick off a recurrence</h3>
+<p>A recurring task does not disappear when you tick it off: the date moves on to the next occurrence and the task stays open. A message at the bottom tells you when that is (“Volgende keer: …”, next time). The next occurrence is counted from the date the task had, not from the day you tick it off. If you left a daily task for three days, ticking it off moves it one day and it is still listed as overdue; tick it off again until the date is right, or type a new date in the edit window.</p>
+
+<h2>In a line with a task</h2>
+<p>When <a href="adding-tasks.html">adding</a> a task, the app takes the date out of the line; what remains is the name of the task. The date can be at the start, at the end or in the middle.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Name of the task</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="Tandarts bellen" data-date="2026-11-18T09:00">Tandarts bellen morgen om 9 uur</code></td><td class="wrap-ok">Tandarts bellen</td><td>Wed 18 Nov 9:00</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="Cadeau kopen" data-date="2026-12-05">Cadeau kopen voor Sinterklaas</code></td><td class="wrap-ok">Cadeau kopen</td><td>Sat 5 Dec</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="Belasting regelen" data-date="2027-01-31">Belasting regelen eind januari</code></td><td class="wrap-ok">Belasting regelen</td><td>31 Jan 2027</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="Hardlopen" data-date="2026-11-18T07:00" data-rule='{"freq":"daily"}'>Hardlopen elke ochtend om 7 uur</code></td><td class="wrap-ok">Hardlopen</td><td>↻ tomorrow 7:00</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="Verjaardag Jan" data-date="2026-12-05" data-rule='{"freq":"yearly","bymonthday":5}'>Verjaardag Jan elk jaar op 5 december</code></td><td class="wrap-ok">Verjaardag Jan</td><td>↻ Sat 5 Dec</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-title="IJs kopen" data-date="2026-11-18">Morgen ijs kopen</code></td><td class="wrap-ok">IJs kopen (with the Dutch capital IJ)</td><td>Wed 18 Nov</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="what-deliberately-does-not-become-a-date">What deliberately does not become a date</h2>
+<p>Better no date than a wrong one. That is why the app leaves these lines alone:</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Why no date is set</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex-none">Kerst inkopen doen</code></td><td class="wrap-ok">A holiday without a preposition is just a word.</td></tr>
+      <tr><td><code class="ex-none">Mei bellen</code></td><td class="wrap-ok">A bare month name (mei, May) can also be someone's name.</td></tr>
+      <tr><td><code class="ex-none">Van 1 mei tot 5 mei weg</code></td><td class="wrap-ok">Two dates in one line: the app does not guess which one you mean.</td></tr>
+      <tr><td><code class="ex-none">Hoofdstuk 3</code></td><td class="wrap-ok">A number after a word such as hoofdstuk (chapter), pagina (page) or versie (version) is not a day.</td></tr>
+      <tr><td><code class="ex-none">Zo snel mogelijk</code></td><td class="wrap-ok">“As soon as possible”: no day can be determined.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>If a date is recognised where you do not want one, put a <code>~</code> in front of it; see <a href="adding-tasks.html#switching-date-recognition-off">switching date recognition off</a>.</p>
+
+<h3>What is not possible</h3>
+<ul>
+  <li><code>elke vijfde dinsdag</code> (every fifth Tuesday): a fifth Tuesday does not exist in every month. Use <code>elke laatste dinsdag</code> (every last Tuesday).</li>
+  <li><code>elke tweede week van de maand</code> (every second week of the month), and recurrences with an end date or a maximum number of times.</li>
+  <li>A recurrence “so many days after I ticked the task off”: the next occurrence always depends on the previous date.</li>
+  <li>Dates in the past, and English or other languages.</li>
+</ul>
+
+<h2>The Datum field in the edit window</h2>
+<p>Click a task and you find the field <strong>Datum</strong> (date). There you type the same language as above. Right below the field the app shows what it makes of it (“Wordt: do 26 nov”, becomes Thu 26 Nov), so that with a phrase like “volgende week donderdag” you can see which day it will be. If the app does not recognise the text, it says so and the task is not saved until you correct it. Empty the field to remove the date.</p>
+<p>The <strong>deadline</strong> is chosen there with your browser's date picker.</p>
+
+<h2>How dates are shown in the list</h2>
+<ul>
+  <li><strong>vandaag</strong> (today), <strong>morgen</strong> (tomorrow) and <strong>gisteren</strong> (yesterday) are shown as words; a day within a week as a weekday (“vrijdag”); further away as “do 26 nov”, and with the year added in another year.</li>
+  <li>A time follows it: “morgen 09:00”.</li>
+  <li>A date that has passed turns red, and from the day after the task is listed in Vandaag under <strong>Te laat</strong> (overdue). A task with a time already turns red as soon as that time has passed, but stays among today's tasks for the rest of that day.</li>
+</ul>

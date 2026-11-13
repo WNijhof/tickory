@@ -1,0 +1,107 @@
+<!--
+title: Adding tasks
+description: Adding tasks quickly in Tickory: type one line with #project, /section, @label, p1 to p4, a {deadline} and a date in plain Dutch.
+-->
+<h1>Adding tasks</h1>
+<p class="intro">At the top of every screen there is a single input field. Type a line, press Enter, and the task is in: with a date, project, section, labels and priority if you type them along.</p>
+
+<x-shot name="snel-toevoegen" alt="The input field with the line 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1'. Below it, what was recognised: the name Loodgieter bellen, tomorrow 09:00, the section Klusjes, the label bellen and priority P1.">While you type, the app shows below the field what it recognised. Whatever is not shown there simply stays in the name of the task.</x-shot>
+
+<h2>The symbols at a glance</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>#Thuis</code></td><td class="wrap-ok">Puts the task in the project Thuis.</td></tr>
+      <tr><td><code>/Keuken</code></td><td class="wrap-ok">Puts the task in the section Keuken of that project.</td></tr>
+      <tr><td><code>@bellen</code></td><td class="wrap-ok">Gives the task the label bellen. A label that does not exist yet is created.</td></tr>
+      <tr><td><code>p1</code> to <code>p4</code></td><td class="wrap-ok">The priority; 1 is the highest. You can also type <code>!!1</code> to <code>!!4</code>.</td></tr>
+      <tr><td><code>{vrijdag}</code></td><td class="wrap-ok">A deadline: the final day, separate from the date on which you want to work on it.</td></tr>
+      <tr><td><code>morgen om 9 uur</code></td><td class="wrap-ok">A date or recurrence in plain Dutch (here: tomorrow at 9). See <a href="dates-and-recurrence.html">Dates and recurrences</a>.</td></tr>
+      <tr><td><code>~</code></td><td class="wrap-ok">Switches date recognition off, for when a word just happens to look like a date.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>The order does not matter, and you do not have to use any of this: <code>Melk kopen</code> (buy milk) is a task too.</p>
+
+<h2>Examples</h2>
+<p>The examples assume Tuesday 17 November 2026, a project Thuis (home) with a section Keuken (kitchen), and an existing label bellen (calling).</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-project="Thuis" data-section="Keuken" data-labels="bellen" data-prio="1">Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1</code></td>
+        <td class="wrap-ok">“Tandarts bellen” (call the dentist), Wednesday 18 November at 9:00, in Thuis / Keuken, label bellen, priority 1</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Aangifte doen" data-date="" data-deadline="2026-12-31" data-prio="2" data-project="Inbox">Aangifte doen {31-12} !!2</code></td>
+        <td class="wrap-ok">“Aangifte doen” (file the tax return), no date, with deadline 31 December and priority 2</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Offerte nakijken" data-date="2026-11-19" data-deadline="2026-11-20" data-prio="2">Offerte nakijken donderdag {vrijdag} p2</code></td>
+        <td class="wrap-ok">“Offerte nakijken” (check the quote), to do on Thursday, to be finished by Friday</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Melk kopen" data-labels="boodschappen*" data-prio="4">Melk kopen @boodschappen</code></td>
+        <td class="wrap-ok">“Melk kopen” with the new label boodschappen (the preview below the field adds “nieuw”, new)</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Oud papier" data-date="2026-12-08" data-project="Thuis">Oud papier elke tweede dinsdag #thuis</code></td>
+        <td class="wrap-ok">“Oud papier” (waste paper) in Thuis, every second Tuesday of the month; the first time on 8 December</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Mail naar jan@voorbeeld.nl sturen" data-labels="" data-date="">Mail naar jan@voorbeeld.nl sturen</code></td>
+        <td class="wrap-ok">Stays exactly like that: a symbol only counts at the start of a word, so an e-mail address is not a label</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Where the task ends up</h2>
+<ul>
+  <li>If you are in a <strong>project</strong>, the task goes into that project.</li>
+  <li>If you are in <strong>Vandaag</strong> (today), the task goes into your Inbox and gets today's date, unless you type a different date yourself.</li>
+  <li>If you are in <strong>Binnenkort</strong> (upcoming), the task goes into your Inbox, without a date if you do not type one.</li>
+  <li>With <code>#project</code> you can always pick another project yourself.</li>
+</ul>
+<p>A new task goes to the bottom of the list. Changing the order of tasks is not possible yet.</p>
+
+<h2>The parts one by one</h2>
+
+<h3>Project: #</h3>
+<p>Type <code>#</code> followed by the name of an existing project. Capitals do not matter, and a name with spaces works too: with <code>#Vakantie Texel</code> the longest name that fits wins. A project that does not exist is not created; the text then stays in the name of the task. You create a new project with the <strong>+</strong> in the sidebar.</p>
+
+<h3>Section: /</h3>
+<p>Type <code>/</code> followed by the name of a section in the chosen project. If the section does not exist in that project, the text stays where it is. A word like <code>en/of</code> (and/or) is left alone.</p>
+
+<h3>Label: @</h3>
+<p>Type <code>@</code> followed by the name of the label. A label name here consists of letters, digits, <code>-</code> and <code>_</code>, without spaces. Capitals and accents do not matter: <code>@ÉÉN</code> is the same label as <code>@één</code>. You can put several labels on one line. Labels are personal; see <a href="sharing.html#what-stays-personal">what stays personal</a>.</p>
+
+<h3>Priority: p1 to p4</h3>
+<p><code>p1</code> is the highest priority, <code>p4</code> means “none” and is also what a task gets when you type nothing. You can tell the priority from the colour of the circle in front of the task: red for P1, orange for P2, blue for P3.</p>
+
+<h3>Deadline: { }</h3>
+<p>A task has a <strong>date</strong> (when do you want to work on it) and can also have a <strong>deadline</strong> (when must it be finished at the latest). You put the deadline between braces: <code>{31-12}</code>, <code>{vrijdag}</code>, <code>{voor Sinterklaas}</code>. Between the braces you put a single day: a recurrence is not possible there, and a time is ignored.</p>
+
+<h3>Switching date recognition off: ~</h3>
+<p>Sometimes a word looks like a date when it is not one. Type a <code>~</code> in that case:</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>That becomes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex-none" data-title="Bellen morgen">~Bellen morgen</code></td><td class="wrap-ok">“Bellen morgen”, without a date: a <code>~</code> at the start applies to the whole line</td></tr>
+      <tr><td><code class="ex-none" data-title="Vergadering elke maandag voorbereiden">Vergadering ~elke maandag voorbereiden</code></td><td class="wrap-ok">“Vergadering elke maandag voorbereiden”, without a recurrence: a <code>~</code> before a word applies to the date that starts there</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Often you will not need it: the app deliberately leaves alone whatever is not clearly a date. See <a href="dates-and-recurrence.html#what-deliberately-does-not-become-a-date">what deliberately does not become a date</a>.</p>
+
+<h2>After that: completing the task</h2>
+<p>Click a task to edit it. There you add a description and subtasks, move the task to another project or section, and assign it to someone. See <a href="projects.html#editing-a-task">editing a task</a>.</p>

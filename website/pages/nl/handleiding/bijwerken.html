@@ -1,0 +1,37 @@
+<!--
+title: Bijwerken
+description: Tickory bijwerken naar een nieuwe versie met docker compose pull, zelf bouwen, en upgraden vanaf versie 0.1 naar accounts met een wachtwoord.
+-->
+<h1>Bijwerken</h1>
+<p class="intro">Een nieuwe versie haal je op met twee opdrachten. Je gegevens staan in een Docker-volume en blijven daarbij bewaard.</p>
+
+<h2>Een nieuwe versie installeren</h2>
+<p>Maak eerst een <a href="back-up.html">back-up</a>. Daarna, in de map met <code>docker-compose.yml</code>:</p>
+<pre><code>docker compose pull &amp;&amp; docker compose up -d</code></pre>
+<p>Docker haalt de nieuwste image op en vervangt de container. Dat duurt enkele seconden; in die tijd werken de apps op je apparaten offline door en daarna werken ze zichzelf bij.</p>
+<ul>
+  <li>Controleer met <code>docker compose ps</code> dat de container weer <code>(healthy)</code> is.</li>
+  <li>De web-app op je apparaten haalt de nieuwe versie op de achtergrond op. Die is actief nadat je de app daarna nog een keer hebt geopend.</li>
+  <li>Verandert er iets aan <code>docker-compose.yml</code> of <code>.env.example</code> in de repo, haal die wijzigingen dan op met <code>git pull</code> en vergelijk ze met je eigen <code>.env</code>.</li>
+</ul>
+
+<h2>Welke versie</h2>
+<p>De regel <code>image: {{image}}:latest</code> volgt steeds de nieuwste uitgebrachte versie. Wil je zelf bepalen wanneer je overstapt, zet er dan een versienummer achter, bijvoorbeeld <code>{{image}}:{{version}}</code>, en pas dat aan als je wilt bijwerken. Uitgebrachte versies krijgen drie tags: het volledige nummer (<code>0.2.0</code>), het hoofd- en subnummer (<code>0.2</code>) en <code>latest</code>.</p>
+
+<h2>Zelf bouwen</h2>
+<p>Gebruik je <code>build: .</code> in plaats van de kant-en-klare image, dan werk je zo bij:</p>
+<pre><code>git pull &amp;&amp; docker compose up -d --build --pull always</code></pre>
+<p>Let op: beveiligingsupdates van de onderliggende Node-image komen pas binnen als de image opnieuw wordt gebouwd. Bouw dus af en toe opnieuw, ook als Tickory zelf niet is veranderd.</p>
+
+<h2 id="upgraden-vanaf-0-1">Upgraden vanaf versie 0.1</h2>
+<p>Versie 0.1 was voor één persoon en werkte met één vast token (<code>TODO_TOKEN</code>). Vanaf 0.2 heeft iedereen een account met een wachtwoord.</p>
+<ol>
+  <li>Maak een <a href="back-up.html">back-up</a> van de database.</li>
+  <li>Zet in <code>.env</code> de regels <code>TODO_ADMIN_USER</code> en <code>TODO_ADMIN_PASSWORD</code> (zie <a href="installeren.html">Installeren</a>). <code>TODO_TOKEN</code> mag je weghalen; het wordt niet meer gebruikt.</li>
+  <li>Start de nieuwe versie: <code>docker compose pull &amp;&amp; docker compose up -d</code>.</li>
+  <li>Log op elk apparaat opnieuw in, nu met de gebruikersnaam en het wachtwoord.</li>
+</ol>
+<p>Bij de eerste start wordt dat account aangemaakt en <strong>neemt het alle bestaande gegevens over</strong>: projecten, taken, labels, filters en herinneringen, inclusief je Inbox. Daarna maak je in de app accounts aan voor de anderen.</p>
+
+<h2>Terug naar een vorige versie</h2>
+<p>Zet het vorige versienummer achter <code>image:</code> en draai <code>docker compose up -d</code>. Had de nieuwe versie de database al aangepast, zet dan ook de back-up terug die je vooraf maakte; een oudere versie kan een nieuwere database niet altijd lezen.</p>

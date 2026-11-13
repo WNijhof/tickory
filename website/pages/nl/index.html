@@ -1,0 +1,197 @@
+<!--
+title: De takenlijst die je zelf host
+description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of een klein team. Je gegevens blijven thuis, het werkt zonder verbinding en datums typ je in gewoon Nederlands.
+-->
+<section class="wrap hero">
+  <div>
+    <h1>De takenlijst die je zelf host</h1>
+    <p class="lead">Tickory is een takenapp voor jezelf, je gezin of een klein team, op je eigen server. Je gegevens blijven thuis, de app werkt ook zonder verbinding, en een datum typ je zoals je hem zegt.</p>
+    <div class="buttons">
+      <a class="button button-primary" href="{{root}}demo/?lang=nl">Probeer de demo</a>
+      <a class="button" href="#installeren">Zelf installeren</a>
+    </div>
+    <p class="small">Vrije software (AGPL-3.0) · één Docker-container · geen account bij een ander nodig</p>
+  </div>
+  <div class="hero-art">
+    <x-shot name="project" class="first" alt="Tickory op een computer: het gedeelde project Huishouden met de secties Boodschappen, Klusjes en Vaste prik, subtaken, en taken die aan Bram en Sanne zijn toegewezen."></x-shot>
+    <x-shot name="telefoon-vandaag" class="first" alt="Tickory op een telefoon: het overzicht Vandaag met twee taken die te laat zijn en drie taken voor vandaag."></x-shot>
+  </div>
+</section>
+
+<section class="wrap" aria-labelledby="waarom">
+  <h2 id="waarom">Waarom Tickory</h2>
+  <ul class="reasons">
+    <li>
+      <h3>Zelf hosten</h3>
+      <p>Eén kleine Docker-container op een mini-pc, NAS of Raspberry Pi. Geen npm-pakketten en geen build-stap: er is weinig dat stuk kan gaan.</p>
+    </li>
+    <li>
+      <h3>Je gegevens thuis</h3>
+      <p>Alles staat in één bestand op je eigen server. Niemand leest mee, en een back-up is één commando.</p>
+    </li>
+    <li>
+      <h3>Geen abonnement</h3>
+      <p>Tickory is vrije software. Geen maandbedrag en geen functies achter een betaalmuur.</p>
+    </li>
+    <li>
+      <h3>Werkt offline</h3>
+      <p>De app bewaart je taken op je apparaat. Zonder verbinding werk je gewoon door; daarna wordt alles vanzelf bijgewerkt.</p>
+    </li>
+    <li>
+      <h3>Samen</h3>
+      <p>Iedereen een eigen account en een eigen Inbox. Deel een project met je huisgenoten of collega's en wijs taken aan elkaar toe.</p>
+    </li>
+  </ul>
+</section>
+
+<section class="wrap" aria-labelledby="functies">
+  <h2 id="functies">Wat je ermee doet</h2>
+  <p class="section-lead">Alle schermafbeeldingen hieronder komen uit de app zelf, met de voorbeeldgegevens van de <a href="{{root}}demo/?lang=nl">demo</a>.</p>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Typ het zoals je het zegt</h3>
+      <p>Eén regel is genoeg. <code>Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1</code> wordt een taak voor morgen 9:00, in de sectie Klusjes, met het label bellen en de hoogste prioriteit. Onder het veld zie je meteen wat er herkend is.</p>
+      <p>Datums en herhalingen schrijf je in gewoon Nederlands: <code>over twee weken</code>, <code>voor Sinterklaas</code>, <code>elke tweede dinsdag</code>, <code>elke werkdag om 8:30</code>.</p>
+      <a class="more" href="handleiding/datums-en-herhalingen.html">Alle datums en herhalingen</a>
+    </div>
+    <x-shot name="snel-toevoegen" alt="Het invoerveld met de regel 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1'. Eronder staat wat er herkend is: de naam Loodgieter bellen, morgen 09:00, de sectie Klusjes, het label bellen en prioriteit P1."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Vandaag en Binnenkort</h3>
+      <p><strong>Vandaag</strong> laat zien wat vandaag moet en wat te laat is, uit al je projecten bij elkaar. <strong>Binnenkort</strong> toont de komende twee weken, dag voor dag.</p>
+      <p>Een terugkerende taak die je afvinkt, schuift door naar de volgende keer. Afvinken maak je met één klik ongedaan.</p>
+      <a class="more" href="handleiding/projecten.html#vandaag-en-binnenkort">Meer over de overzichten</a>
+    </div>
+    <x-shot name="binnenkort" alt="Het overzicht Binnenkort: taken van morgen tot en met volgende week, per dag gegroepeerd, met bij elke taak het project en wie hem doet."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Samen in één project</h3>
+      <p>Deel een project door de gebruikersnaam van een huisgenoot of collega te typen. Iedereen ziet en bewerkt dezelfde taken en secties, en wijzigingen van een ander verschijnen binnen een paar seconden.</p>
+      <p>Wijs een taak toe aan wie hem gaat doen. Je Inbox en je labels blijven van jou alleen.</p>
+      <a class="more" href="handleiding/delen.html">Delen en samenwerken</a>
+    </div>
+    <x-shot name="delen" alt="Het venster Delen van het project Huishouden: Anna is eigenaar, Bram en Sanne zijn lid, en er is een veld om met een gebruikersnaam iemand toe te voegen."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Alles van een taak op één plek</h3>
+      <p>Klik op een taak voor de details: beschrijving, datum, deadline, prioriteit, labels, project en sectie, en subtaken. In het datumveld typ je dezelfde gewone taal als bij het toevoegen.</p>
+      <a class="more" href="handleiding/projecten.html">Projecten, secties en subtaken</a>
+    </div>
+    <x-shot name="taak-bewerken" alt="Het venster Taak bewerken voor de taak Boodschappen doen, met velden voor beschrijving, datum, deadline, prioriteit, toegewezen aan, labels, project en sectie, en een veld om een subtaak toe te voegen."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Op je telefoon, ook zonder bereik</h3>
+      <p>Tickory is een web-app die je op je telefoon en computer als app installeert. Zonder verbinding opent hij gewoon en kun je taken toevoegen en afvinken; zodra er weer verbinding is, gaat alles naar de server.</p>
+      <p>Daarvoor moet je server via HTTPS bereikbaar zijn. Een Android-app (APK) is in ontwikkeling.</p>
+      <a class="more" href="handleiding/installeren-als-app.html">Installeren als app</a>
+    </div>
+    <div class="feature-pair">
+      <x-shot name="telefoon-project" alt="Het project Huishouden op een telefoon, met secties en subtaken onder elkaar."></x-shot>
+      <x-shot name="telefoon-menu" alt="Het uitgeschoven menu op een telefoon met Vandaag, Binnenkort en de projecten Inbox, Huishouden, Vakantie Texel en Buurtfeest."></x-shot>
+    </div>
+  </div>
+
+  <div class="band">
+    <div>
+      <h3>Probeer het eerst in je browser</h3>
+      <p>De demo is de echte app met voorbeeldgegevens van een huishouden. Er is geen server en geen account: alles gebeurt in je browser en na herladen begint het opnieuw.</p>
+    </div>
+    <a class="button button-primary" href="{{root}}demo/?lang=nl">Probeer de demo</a>
+  </div>
+</section>
+
+<section class="wrap" aria-labelledby="installeren">
+  <h2 id="installeren">Installeren in drie stappen</h2>
+  <p class="section-lead">Je hebt een computer nodig die aan blijft staan, met Docker en <code>docker compose</code>. De image is er voor gewone pc's en NAS-systemen (amd64) en voor een Raspberry Pi met een 64-bit systeem (arm64).</p>
+  <ol class="steps">
+    <li>
+      <div>
+        <h3>Haal de bestanden op</h3>
+        <pre><code>git clone {{repo}}.git
+cd tickory
+cp .env.example .env</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h3>Kies het eerste account</h3>
+        <p>Zet in <code>.env</code> een gebruikersnaam en een wachtwoord van minimaal 10 tekens. Dit account wordt bij de eerste start aangemaakt en is beheerder: daarmee maak je in de app de andere accounts aan.</p>
+        <pre><code>TODO_ADMIN_USER=anna
+TODO_ADMIN_PASSWORD=kies-hier-een-lang-wachtwoord</code></pre>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h3>Start</h3>
+        <pre><code>docker compose up -d
+docker compose ps          # na enkele seconden: (healthy)</code></pre>
+        <p>Open daarna <code>http://127.0.0.1:8787</code> op de server zelf en log in.</p>
+      </div>
+    </li>
+  </ol>
+  <p class="after-steps">Dit is wat je daarmee start: het <code>docker-compose.yml</code> uit de repo, hier zonder de toelichting.</p>
+  <x-compose></x-compose>
+  <p class="after-steps">De container is zo alleen bereikbaar vanaf de server zelf. Voor je telefoon en andere apparaten zet je er HTTPS voor; dat kan zonder iets openbaar te maken. In de handleiding staat hoe: <a href="handleiding/installeren.html">installeren</a>, <a href="handleiding/https.html">HTTPS</a>, <a href="handleiding/back-up.html">back-up</a> en <a href="handleiding/bijwerken.html">bijwerken</a>.</p>
+</section>
+
+<section class="wrap" aria-labelledby="niet">
+  <h2 id="niet">Wat het (nog) niet kan</h2>
+  <p class="section-lead">Tickory is jong (versie {{version}}). De kern werkt en is getest, maar veel van wat je van grote takenapps kent, ontbreekt nog. Liever eerlijk vooraf dan een teleurstelling achteraf.</p>
+  <div class="limits">
+    <div>
+      <h3>In ontwikkeling</h3>
+      <ul>
+        <li><strong>Herinneringen met een melding.</strong> De server kan ze al opslaan, maar de app heeft er nog geen scherm voor en er wordt nergens een melding verstuurd. <a href="handleiding/herinneringen.html">Stand van zaken</a></li>
+        <li><strong>Een Android-app (APK).</strong> Tot die er is, gebruik je de web-app in de browser van je telefoon. <a href="handleiding/android-app.html">Stand van zaken</a></li>
+        <li><strong>Een Engelse interface.</strong> De app is nu alleen Nederlands, ook de datumtaal.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Staat op de server, nog niet in de app</h3>
+      <ul>
+        <li>Opmerkingen bij taken en projecten</li>
+        <li>Filters (opgeslagen zoekopdrachten)</li>
+        <li>Subprojecten, favorieten, archiveren van projecten en secties</li>
+        <li>De duur van een taak, en een bord- of kalenderweergave</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ontbreekt helemaal</h3>
+      <ul>
+        <li>De volgorde van taken wijzigen (slepen): een nieuwe taak komt altijd achteraan</li>
+        <li>Zoeken</li>
+        <li>Labels beheren: hernoemen, verwijderen, op een label filteren</li>
+        <li>Bijlagen, import en export, een iCal-feed, sneltoetsen, widgets, statistieken, sjablonen</li>
+        <li>Uitnodigen via een link of e-mail, en een project overdragen aan een andere eigenaar</li>
+        <li>Zelf een account aanmaken of je wachtwoord per e-mail herstellen: dat doet een beheerder</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="wrap open" aria-labelledby="open">
+  <div>
+    <h2 id="open">Vrije software</h2>
+    <p>Tickory valt onder de <a href="{{root}}LICENSE.txt">GNU Affero General Public License, versie 3</a> (AGPL-3.0). Je mag het gebruiken, aanpassen en verspreiden; wie een aangepaste versie als dienst aan anderen aanbiedt, stelt de broncode daarvan beschikbaar.</p>
+    <p>Server en app gebruiken geen pakketten van derden, op één meegebundelde datumherkenner na (<a href="{{root}}THIRD_PARTY_NOTICES.txt">kennisgeving</a>).</p>
+    <div class="buttons">
+      <a class="button" href="{{repo}}">Broncode op GitHub</a>
+      <a class="button" href="handleiding/index.html">Lees de handleiding</a>
+    </div>
+  </div>
+  <div>
+    <h3>De naam</h3>
+    <p>Een <em>tick</em> is een vinkje, en ook de tik van de klok. Met een knipoog naar het Engelse rijmpje “Hickory, dickory, dock”.</p>
+    <h3>Hoe het gebouwd is</h3>
+    <p>Een sync-server en een installeerbare web-app in één container, op Node 26 met SQLite. Het protocol is beschreven in <a href="{{repo}}/blob/main/SPEC.md">SPEC.md</a>; de tests draaien bij elke wijziging.</p>
+  </div>
+</section>

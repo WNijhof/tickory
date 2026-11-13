@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tickory">
+  <mask id="as">
+    <rect width="512" height="512" fill="#fff"/>
+    <circle cx="222" cy="326" r="9"/>
+  </mask>
+  <g fill="none" stroke="#0f766e" stroke-linecap="round" stroke-linejoin="round" mask="url(#as)">
+    <path d="M256 54v28M458 256h-28M256 458v-28M54 256h28" stroke-width="18"/>
+    <path d="M146 250l76 76 148-176" stroke-width="46"/>
+  </g>
+</svg>

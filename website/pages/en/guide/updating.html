@@ -1,0 +1,37 @@
+<!--
+title: Updating
+description: Updating Tickory to a new version with docker compose pull, building it yourself, and upgrading from version 0.1 to accounts with a password.
+-->
+<h1>Updating</h1>
+<p class="intro">You get a new version with two commands. Your data is in a Docker volume and is kept.</p>
+
+<h2>Installing a new version</h2>
+<p>Make a <a href="backup.html">backup</a> first. Then, in the directory with <code>docker-compose.yml</code>:</p>
+<pre><code>docker compose pull &amp;&amp; docker compose up -d</code></pre>
+<p>Docker fetches the newest image and replaces the container. That takes a few seconds; during that time the apps on your devices carry on offline, and afterwards they sync by themselves.</p>
+<ul>
+  <li>Check with <code>docker compose ps</code> that the container is <code>(healthy)</code> again.</li>
+  <li>The web app on your devices fetches the new version in the background. It is active after you have opened the app once more after that.</li>
+  <li>If something changes in <code>docker-compose.yml</code> or <code>.env.example</code> in the repository, get those changes with <code>git pull</code> and compare them with your own <code>.env</code>.</li>
+</ul>
+
+<h2>Which version</h2>
+<p>The line <code>image: {{image}}:latest</code> always follows the newest released version. If you want to decide yourself when to switch, put a version number after it, for example <code>{{image}}:{{version}}</code>, and change that when you want to update. Released versions get three tags: the full number (<code>0.2.0</code>), the major and minor number (<code>0.2</code>) and <code>latest</code>.</p>
+
+<h2>Building it yourself</h2>
+<p>If you use <code>build: .</code> instead of the ready-made image, this is how you update:</p>
+<pre><code>git pull &amp;&amp; docker compose up -d --build --pull always</code></pre>
+<p>Note: security updates of the underlying Node image only come in when the image is built again. So rebuild now and then, even when Tickory itself has not changed.</p>
+
+<h2 id="upgrading-from-0-1">Upgrading from version 0.1</h2>
+<p>Version 0.1 was for one person and worked with a single fixed token (<code>TODO_TOKEN</code>). From 0.2 on, everyone has an account with a password.</p>
+<ol>
+  <li>Make a <a href="backup.html">backup</a> of the database.</li>
+  <li>Put the lines <code>TODO_ADMIN_USER</code> and <code>TODO_ADMIN_PASSWORD</code> in <code>.env</code> (see <a href="installing.html">Installing</a>). You can remove <code>TODO_TOKEN</code>; it is no longer used.</li>
+  <li>Start the new version: <code>docker compose pull &amp;&amp; docker compose up -d</code>.</li>
+  <li>Sign in again on every device, now with the username and the password.</li>
+</ol>
+<p>On the first start that account is created and <strong>takes over all existing data</strong>: projects, tasks, labels, filters and reminders, including your Inbox. After that you create accounts for the others in the app.</p>
+
+<h2>Back to a previous version</h2>
+<p>Put the previous version number after <code>image:</code> and run <code>docker compose up -d</code>. If the new version had already changed the database, also restore the backup you made beforehand; an older version cannot always read a newer database.</p>
