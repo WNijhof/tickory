@@ -62,6 +62,8 @@ export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 8
     '--disable-features=Translate,msEdgeTranslate,OptimizationHints,MediaRouter', `--window-size=${width},${height}`,
     // In een container (GitHub Actions) werkt de zandbak van de browser niet altijd; het gaat hier om eigen, lokale pagina's.
     ...(process.env.CI ? ['--no-sandbox'] : []),
+    // SITE_BROWSER_LANG=en-US bootst een Engelse browser na (zoals op GitHub), om te zien dat de controles niet op de taal van de pc leunen
+    ...(process.env.SITE_BROWSER_LANG ? [`--lang=${process.env.SITE_BROWSER_LANG}`] : []),
     'about:blank',
   ];
   const child: ChildProcess = spawn(path, args, { stdio: 'ignore' });
@@ -146,6 +148,10 @@ export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 8
   await send('Log.enable');
   await send('Network.enable');
   await send('Network.setCacheDisabled', { cacheDisabled: true });
+  // De app volgt de talen van de browser. De controles zoeken Nederlandse knoppen, dus de taal staat vast op Nederlands, wat de
+  // browser zelf ook meldt (een tekst als de taalkeuze van de startpagina zet zijn eigen taal daarna weer).
+  const { userAgent } = await send('Browser.getVersion');
+  await send('Emulation.setUserAgentOverride', { userAgent, acceptLanguage: 'nl-NL,nl' });
 
   return {
     send, evaluate, waitFor, errors, requests, filtered,
