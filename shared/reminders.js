@@ -46,11 +46,23 @@ export function reminderMoment(reminder, task) {
   return null;
 }
 
+// Een Intl.DateTimeFormat aanmaken is duidelijk duurder dan er een tijdstip mee opmaken; per tijdzone hergebruiken.
+const formatters = new Map();
+function offsetFormatter(timeZone) {
+  let f = formatters.get(timeZone);
+  if (!f) {
+    f = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    if (formatters.size > 200) formatters.clear(); // begrensd, voor het geval er veel verschillende namen langskomen
+    formatters.set(timeZone, f);
+  }
+  return f;
+}
+
 /** Het verschil in ms tussen de wandklok in een tijdzone en UTC, op een gegeven moment. */
 function zoneOffset(epochMs, timeZone) {
-  const f = new Intl.DateTimeFormat('en-US', {
-    timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  const f = offsetFormatter(timeZone);
   const get = Object.fromEntries(f.formatToParts(new Date(epochMs)).map((x) => [x.type, Number(x.value)]));
   return Date.UTC(get.year, get.month - 1, get.day, get.hour, get.minute, get.second) - Math.floor(epochMs / 1000) * 1000;
 }

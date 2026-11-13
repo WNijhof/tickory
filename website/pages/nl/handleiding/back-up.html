@@ -20,7 +20,7 @@ description: Een back-up maken van Tickory terwijl de app draait, de kopie van d
 <p>en zet de map <code>backups</code> ergens anders neer: op een andere computer, een externe schijf of versleuteld bij een opslagdienst. Oude kopieën ruim je zelf op; ze worden niet automatisch verwijderd.</p>
 <div class="note warn">
   <span class="note-label">Bewaar een back-up zoals de database zelf</span>
-  <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) aanmeldingen en de sleutels van de server voor meldingen. Leg haar niet neer waar anderen bij kunnen.</p>
+  <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) aanmeldingen en de sleutels van de server voor meldingen: de privésleutel (VAPID) en het geheim waarmee de knoppen in een melding worden ondertekend. Wie haar heeft, kan met die knoppen elke taak van elke gebruiker afvinken of uitstellen. Leg haar niet neer waar anderen bij kunnen, ook niet in een map die voor andere gebruikers van de server leesbaar is.</p>
 </div>
 
 <h2>Automatisch, elke nacht</h2>

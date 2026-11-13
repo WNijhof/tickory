@@ -47,10 +47,14 @@ De app vraagt geen toegang tot locatie, contacten, bestanden, camera of microfoo
 
 - De app praat alleen met de server die jij invult. Er zit geen dienst van Google of een ander bedrijf tussen.
 - De ingebouwde browser (Android System WebView) stuurt geen statistieken naar Google en gebruikt geen *Safe Browsing*.
-- Je aanmelding staat versleuteld op het toestel (sleutel in de Android Keystore). Niets van de app gaat mee in
-  back-ups naar de cloud of bij het overzetten naar een ander toestel.
-- `http://` is toegestaan omdat een server thuis soms geen https heeft. De verbinding is dan niet versleuteld; gebruik
-  dat alleen op je eigen netwerk. De app waarschuwt als je zo'n adres invult.
+- De aanmelding die de app zelf op de achtergrond gebruikt, staat versleuteld op het toestel (sleutel in de Android
+  Keystore). De web-app in de WebView bewaart zoals elke browser haar eigen kopie van het token in `localStorage`, in de
+  privé-opslag van de app en niet versleuteld; wie het toestel rootet of de gegevens van de app kan lezen, kan die dus ook
+  lezen. Niets van de app gaat mee in back-ups naar de cloud of bij het overzetten naar een ander toestel.
+- `http://` is alleen toegestaan voor een adres op het eigen netwerk (een privé-IP-adres, een naam als `nas.local` of een naam
+  zonder punt) en voor het toestel zelf; daar is de verbinding niet versleuteld maar leest niemand van buiten mee. De app
+  waarschuwt als je zo'n adres invult. Een `http://`-adres naar een server op internet weigert de app, ook als dat in een
+  oudere versie is ingesteld (dan toont hij het foutscherm met "Serveradres wijzigen"); gebruik daar https.
 
 ## Talen
 
@@ -113,7 +117,9 @@ sleutelbestand en de wachtwoorden dus goed, en buiten de repo.
   Zonder die variabelen komt er `tickory-release-unsigned.apk`; die is zo niet te installeren.
 - GitHub Actions (`.github/workflows/android.yml`) bouwt bij een tag `v…` en hangt `tickory-<versie>.apk` aan de
   release. Zet daarvoor de secrets `ANDROID_KEYSTORE_BASE64` (het sleutelbestand als base64), `ANDROID_KEYSTORE_PASSWORD`,
-  `ANDROID_KEY_ALIAS` en `ANDROID_KEY_PASSWORD`. Zonder secrets komt er een debug-APK.
+  `ANDROID_KEY_ALIAS` en `ANDROID_KEY_PASSWORD`. **Zonder (alle vier) die secrets mislukt de bouw bij een tag**: er komt nooit
+  een debug-APK in een openbare Release. Bij handmatig starten (Run workflow) zonder secrets komt er wel een debug-APK bij de
+  run, alleen om te proberen. De bouw leest alleen (`contents: read`); een aparte job hangt de APK aan de release.
 
 ## Pictogram vervangen
 

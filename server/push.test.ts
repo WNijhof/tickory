@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { LATE_WINDOW_MS, createPush } from './push.ts';
+import { LATE_WINDOW_MS, MAX_DUE_PER_OWNER_PER_ROUND, createPush } from './push.ts';
 import { handleSync } from './sync.ts';
 import type { Command } from './sync.ts';
 import { addUser, freshDb, pushDevice } from './testutil.ts';
@@ -353,6 +353,92 @@ test('een knop werkt alleen met een echt, niet verlopen bewijsje, en alleen voor
   addUser(w.db, 'reserve');
   w.db.prepare('UPDATE users SET is_disabled = 1 WHERE id = ?').run(w.alice.id);
   assert.equal(w.push.handleAction(token).ok, false);
+});
+
+/** Zet in één keer veel herinneringen bij één taak (rechtstreeks in de database; via de API mag dat niet vanwege de grenzen). */
+function bulkReminders(w: ReturnType<typeof world>, user: UserRow, taskId: string, count: number, offsetOf: (i: number) => number): void {
+  const ins = w.db.prepare(
+    `INSERT INTO reminders (id, task_id, type, minute_offset, due, owner_id, rev, is_deleted, created_at, updated_at)
+     VALUES (?, ?, 'relative', ?, NULL, ?, 1, 0, 't', 't')`,
+  );
+  w.db.exec('BEGIN');
+  for (let i = 0; i < count; i++) ins.run(`bulk${String(i).padStart(8, '0')}`, taskId, offsetOf(i), user.id);
+  w.db.exec('COMMIT');
+}
+
+test('veel herinneringen die nog niet aan de beurt zijn, houden een ronde niet op en vertragen geen ander', async () => {
+  const w = world();
+  const a = w.device(w.alice, 'telefoon');
+  const b = w.device(w.bob, 'bob-telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-ver', project_id: w.alice.inbox_project_id, content: 'ver weg', due: { date: '2026-12-25T09:00' } })]);
+  bulkReminders(w, w.alice, 'task-ver', 40_000, (i) => i % 5_000); // allemaal ruim twee weken vooruit
+  w.taskWithReminder(w.bob, 'bbb1', '2026-12-01T09:00', 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  const t0 = performance.now();
+  const r = await w.push.tick();
+  const ms = performance.now() - t0;
+  assert.equal(r.due, 1, 'alleen de herinnering van bob is aan de beurt');
+  assert.equal(b.received().length, 1);
+  assert.equal(a.received().length, 0);
+  assert.ok(ms < 1500, `een ronde met 40000 herinneringen die niet aan de beurt zijn kostte ${ms.toFixed(0)} ms`);
+});
+
+test('een gebruiker met meer herinneringen tegelijk dan één ronde aankan, krijgt de rest in de volgende ronde', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-druk', project_id: w.alice.inbox_project_id, content: 'druk', due: { date: '2026-12-01T09:00' } })]);
+  const total = MAX_DUE_PER_OWNER_PER_ROUND + 50;
+  bulkReminders(w, w.alice, 'task-druk', total, () => 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  const first = await w.push.tick();
+  assert.equal(first.due, MAX_DUE_PER_OWNER_PER_ROUND, 'een ronde pakt hooguit zoveel op');
+  const second = await w.push.tick();
+  assert.equal(second.due, 50, 'de rest volgt de volgende ronde');
+  const third = await w.push.tick();
+  assert.equal(third.due, 0, 'en niets wordt dubbel verstuurd');
+  assert.equal(d.received().length, total);
+});
+
+test('een knop is een handeling: een vervormde maar gelijkwaardige tekst van hetzelfde bewijsje telt niet als een nieuwe', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-herhaal1', project_id: w.alice.inbox_project_id, content: 'Dagelijks', due: { date: '2026-12-01T09:00', recurrence: { freq: 'daily' } } }),
+    cmd('reminder_add', { id: 'remind-herhaal1', task_id: 'task-herhaal1', type: 'relative', minute_offset: 0 })]);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  await w.push.tick();
+  const [message] = d.received();
+  const due = () => ((handleSync(w.db, {}, w.alice.id).tasks as Row[]).find((t) => t.id === 'task-herhaal1')!.due as Row).date;
+  const token: string = message.complete;
+  assert.equal(w.push.handleAction(token).ok, true);
+  assert.equal(due(), '2026-12-02T09:00');
+  const [body, mac] = token.split('.');
+  // alles wat een tolerante base64-lezer zou negeren of toestaan: spaties, regeleinden, '=', een ander laatste teken (staartbits)
+  const lastIndex = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.indexOf(mac.slice(-1));
+  const tailVariants = Array.from({ length: 4 }, (_, i) => `${mac.slice(0, -1)}${'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[(lastIndex & ~3) | i]}`).filter((m) => m !== mac);
+  const variants = [`${token} `, ` ${token}`, `${token}\n`, `${body}.${mac}=`, `${body}=.${mac}`, `${body}.${mac.slice(0, 10)}\n${mac.slice(10)}`, `${body}\n.${mac}`, ...tailVariants.map((m) => `${body}.${m}`)];
+  for (const v of variants) {
+    assert.equal(w.push.handleAction(v).ok, false, JSON.stringify(v).slice(0, 60));
+  }
+  assert.equal(due(), '2026-12-02T09:00', 'geen enkele variant heeft de taak verder geschoven');
+  assert.equal(w.push.handleAction(token).ok, true, 'het echte bewijsje blijft gewoon werken (en doet niets nieuws)');
+  assert.equal(due(), '2026-12-02T09:00');
+  // het uitstellen: één bewijsje maakt één herinnering, ook als het vaak (en vervormd) wordt aangeboden
+  const snooze: string = message.snooze;
+  for (const v of [snooze, snooze, `${snooze} `, `${snooze}\n`, `${snooze}=`]) w.push.handleAction(v);
+  const extra = (handleSync(w.db, {}, w.alice.id).reminders as Row[]).filter((r) => r.task_id === 'task-herhaal1' && r.type === 'absolute');
+  assert.equal(extra.length, 1);
+});
+
+test('een knop werkt niet meer zodra het apparaat is afgemeld of de sessie is ingetrokken', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.taskWithReminder(w.alice, 'aaa1', '2026-12-01T09:00', 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  await w.push.tick();
+  const token: string = d.received()[0].complete;
+  revokeSession(w.db, w.alice.id, d.session.id); // uitgelogd, of het wachtwoord is gewijzigd
+  assert.equal(w.push.handleAction(token).ok, false);
+  assert.equal((handleSync(w.db, {}, w.alice.id).tasks as Row[])[0].checked, false, 'er is niets afgevinkt');
 });
 
 test('een proefmelding gaat naar alle eigen apparaten en meldt wat niet lukte', async () => {

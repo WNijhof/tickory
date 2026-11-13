@@ -15,7 +15,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
   <li>An app of its own, written in Kotlin, that shows your Tickory server in Android's built-in browser (<em>Android System WebView</em>). It is the same app as in your browser, with the same screens.</li>
   <li>On top of that the app fetches your tasks and reminders and sets them as <strong>alarms on the device</strong>. A reminder goes off without the server or a push service being involved.</li>
   <li><strong>No Google services</strong>: no Google Play, no Firebase, no trackers or statistics. The app only talks to the server you enter. The built-in browser sends no usage statistics to Google and does not use <em>Safe Browsing</em>.</li>
-  <li>Your sign-in is stored encrypted on the device (key in the Android Keystore). Nothing from the app goes into cloud backups or when transferring to another device.</li>
+  <li>The sign-in the app itself uses in the background is stored encrypted on the device (key in the Android Keystore). The web app inside the app keeps its own copy of the sign-in, like any browser does, in the app's private storage and not encrypted; whoever roots the device or can read the app's data can read that one too. Nothing from the app goes into cloud backups or when transferring to another device.</li>
 </ul>
 <p>You need Android 8 or newer. The app follows the language of the device (Dutch or English; any other language gets Dutch), and the web app inside it follows its own language choice.</p>
 
@@ -40,7 +40,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
   <li>If you do not type <code>http://</code> or <code>https://</code>, the app assumes <code>https</code>. It drops a path after the address and the port 443 or 80.</li>
   <li>Do not put a username or password in the address; you sign in afterwards, in the app.</li>
   <li>The app only saves the address once the server answers like a Tickory server should (the address <code>/health</code>). If it is something else or nothing, it says so, with a tip: the address does not exist, the server is not running, the certificate is not trusted, or the address redirects to another address (the app only opens the address you enter).</li>
-  <li><strong>https</strong> is the recommended choice. With <code>http://</code> the connection is not encrypted; the app warns you when you enter such an address. Only use that on your own home network.</li>
+  <li><strong>https</strong> is the recommended choice and required for a server on the internet. With <code>http://</code> the connection is not encrypted; the app only allows that for an address on your own network (such as <code>192.168.1.10</code> or <code>nas.local</code>) and warns you when you enter such an address. It refuses an <code>http://</code> address for a server on the internet, even if it was set in an earlier version; change the server address then and use <code>https://</code>.</li>
   <li>You can change the address later: the app asks for confirmation, because you are signed out, the scheduled alarms disappear and changes that have not been sent to the server yet are lost.</li>
 </ul>
 

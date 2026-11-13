@@ -230,6 +230,12 @@ export default {
   'account.passwordTooShort': 'The password needs at least {min} characters.',
   'account.passwordTooLong': 'The password can have at most {max} characters.',
   'account.passwordIsUsername': "The password can't be the same as the username.",
+  'account.passwordTooWeak': 'This password is too easy to guess ({reason}). Choose a longer phrase or more different characters.',
+  'account.passwordWeak.fewCharacters': 'too few different characters',
+  'account.passwordWeak.common': 'a commonly used password',
+  'account.passwordWeak.digitsOnly': 'only digits and punctuation',
+  'account.passwordWeak.likeUsername': 'it resembles the username',
+  'account.passwordWeak.repetition': 'a short piece repeated',
   'admin.title': 'User management',
   'admin.accounts': 'Accounts',
   'admin.manage': 'Manage',
@@ -271,6 +277,7 @@ export default {
   // De eigen vertaling per foutcode: de server stuurt alleen een Nederlandse tekst mee.
   'api.invalidCredentials': 'Incorrect username or password.',
   'api.tooManyAttempts': 'Too many failed attempts. Try again later.',
+  'api.busy': 'The server is busy. Try again in a few seconds.',
   'api.wrongCurrentPassword': 'The current password is incorrect.',
   'api.adminOnly': 'Only an admin can do this.',
   'api.sessionGone': 'This device was already signed out.',
@@ -312,6 +319,7 @@ export default {
   // De eigen vertaling per foutcode en soort handeling: de server stuurt alleen een Nederlandse tekst mee.
   'error.forbidden': "You don't have permission to do this.",
   'error.unknown': 'Unknown error.',
+  'error.limitReached': 'The limit has been reached: remove something else first.',
   'error.shareUserNotFound': "There's no user with that username.",
   'error.shareOwnerOnly': 'Only the owner can share a project.',
   'error.shareInbox': "The Inbox can't be shared.",

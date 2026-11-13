@@ -27,7 +27,9 @@ docker compose logs --tail 100</code></pre>
 <h2>De container start niet</h2>
 <dl>
   <dt>“Het eerste account kon niet worden aangemaakt”</dt>
-  <dd>Het wachtwoord in <code>.env</code> is korter dan 10 tekens of gelijk aan de gebruikersnaam, of de gebruikersnaam bevat tekens die niet mogen. De reden staat erachter in het logboek. Pas <code>.env</code> aan en start opnieuw.</dd>
+  <dd>Het wachtwoord in <code>.env</code> is korter dan 10 tekens, gelijk aan de gebruikersnaam of te makkelijk te raden (een veelgebruikt wachtwoord, te weinig verschillende tekens), of de gebruikersnaam bevat tekens die niet mogen. De reden staat erachter in het logboek. Pas <code>.env</code> aan en start opnieuw.</dd>
+  <dt>“DEFAULT_TIMEZONE … is geen bekende tijdzone”</dt>
+  <dd>De tijdzone in <code>.env</code> bestaat niet, bijvoorbeeld door een tikfout (<code>Europa/Amsterdam</code> in plaats van <code>Europe/Amsterdam</code>). Gebruik een naam uit de lijst van tijdzones (IANA) en start opnieuw; zonder die instelling geldt <code>Europe/Amsterdam</code>.</dd>
   <dt>De poort is al in gebruik</dt>
   <dd>Iets anders op de server gebruikt poort 8787. Verander in <code>docker-compose.yml</code> het eerste getal van de poortregel, bijvoorbeeld <code>"127.0.0.1:8790:8787"</code>, en gebruik dat getal in het adres en in je proxy.</dd>
   <dt><code>docker compose pull</code> geeft “denied” of “unauthorized”</dt>

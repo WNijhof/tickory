@@ -25,7 +25,9 @@
     <string name="error_connect">Geen verbinding met de server. Controleer het adres en of de server aanstaat. Staat de server thuis? Controleer dan of je met je eigen wifi verbonden bent.</string>
     <string name="error_timeout">De server reageert niet. Controleer het adres en je verbinding en probeer het opnieuw.</string>
     <string name="error_tls">De beveiligde verbinding is mislukt: het certificaat van de server wordt niet vertrouwd.</string>
-    <string name="error_try_http">Draait je server zonder https? Zet dan http:// voor het adres.</string>
+    <string name="error_try_http">Draait je server thuis zonder https? Zet dan http:// voor het adres; dat mag alleen voor een adres op je eigen netwerk.</string>
+    <string name="error_http_not_local">Een adres met http:// is alleen toegestaan op je eigen netwerk (bijvoorbeeld 192.168.1.10 of nas.local). Een server op internet heeft https:// nodig, anders gaan je wachtwoord en je aanmelding onversleuteld over de lijn.</string>
+    <string name="error_http_not_local_saved">Het ingestelde adres gebruikt http:// voor een server buiten je eigen netwerk. Daar maakt Tickory geen verbinding meer mee, omdat je wachtwoord en je aanmelding dan onversleuteld over de lijn gaan. Wijzig het serveradres en gebruik https://.</string>
     <string name="error_not_tickory">Op dit adres draait geen Tickory-server (antwoord %1$d).</string>
     <string name="error_redirect">Dit adres verwijst door naar %1$s. Vul dat adres in als dat je server is.</string>
     <string name="error_redirect_unknown">Dit adres verwijst door naar een ander adres. Vul het adres in waar je server echt op draait.</string>

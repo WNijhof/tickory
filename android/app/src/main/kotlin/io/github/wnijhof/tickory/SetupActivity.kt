@@ -144,6 +144,11 @@ class SetupActivity : ComponentActivity() {
         val permissionMissing = localNetworkPermissionMissing()
         Background.executor.execute {
             val local = LocalNetwork.hostLooksLocal(target.host) || LocalNetwork.resolvesToLocal(target.host)
+            if (!ServerAddress.cleartextAllowed(target, local)) {
+                // http:// naar een server buiten het eigen netwerk: wachtwoord en aanmelding zouden onversleuteld over de lijn gaan
+                runOnUiThread { if (current == attempt && !isFinishing) fail(getString(R.string.error_http_not_local)) }
+                return@execute
+            }
             if (local && permissionMissing && !permissionHandled) {
                 // Android 17 en nieuwer: eerst toestemming vragen, anders loopt het verzoek dood zonder duidelijke fout.
                 runOnUiThread { if (current == attempt && !isFinishing) askLocalNetwork(target) }

@@ -39,7 +39,7 @@ cd tickory
 cp .env.example .env
 ```
 
-1. **Eerste account.** Zet in `.env` de gebruikersnaam en het wachtwoord (minimaal 10 tekens) van het eerste account, `TODO_ADMIN_USER` en `TODO_ADMIN_PASSWORD`. Dat account wordt bij de allereerste start aangemaakt en is **beheerder**: daarmee maak je daarna in de app de andere accounts aan. Zet `.env` nooit in git (het staat al in `.gitignore`). Na de eerste start kun je het wachtwoord uit `.env` halen; het wordt dan niet meer gebruikt.
+1. **Eerste account.** Zet in `.env` de gebruikersnaam en het wachtwoord (minimaal 10 tekens) van het eerste account, `TODO_ADMIN_USER` en `TODO_ADMIN_PASSWORD`. Dat account wordt bij de allereerste start aangemaakt en is **beheerder**: daarmee maak je daarna in de app de andere accounts aan. Zet `.env` nooit in git (het staat al in `.gitignore`). Haal het wachtwoord na de eerste start uit `.env` **en maak de container opnieuw aan** (`docker compose up -d --force-recreate`): anders blijft het in de configuratie van de container staan, waar `docker inspect` het toont. Wil je het helemaal niet in de omgeving hebben, gebruik dan `TODO_ADMIN_PASSWORD_FILE` (het pad van een bestand met het wachtwoord, bijvoorbeeld een Docker-secret onder `/run/secrets/`). Het wachtwoord mag niet makkelijk te raden zijn (een veelgebruikt woord of wachtwoord, te weinig verschillende tekens).
 2. **Image.** `docker-compose.yml` haalt `ghcr.io/wnijhof/tickory:latest` op. Liever zelf bouwen op de server? Haal dan de regel `image:` weg en zet `build: .` terug.
 3. **Starten.**
 
@@ -67,7 +67,7 @@ Open de app en log in met het eerste account.
 
   Met `--admin` achter `user add` maak je een beheerder. Zonder `TODO_PASSWORD` en zonder terminal (`-it`) kan er geen wachtwoord worden gevraagd.
 - Er is geen open registratie en geen wachtwoordherstel per e-mail: een beheerder maakt accounts aan en herstelt wachtwoorden. Er blijft altijd minstens één actieve beheerder.
-- Elk apparaat krijgt bij het inloggen een eigen sessie die je kunt intrekken. Na acht mislukte pogingen binnen een kwartier op één account (of veertig vanaf één adres) wordt inloggen geweigerd tot dat kwartier voorbij is.
+- Elk apparaat krijgt bij het inloggen een eigen sessie die je kunt intrekken. Inloggen is per kwartier begrensd: na acht mislukte pogingen op één account vanaf één adres, na veertig vanaf één adres (een IPv6-netwerk telt als één adres) of na zestig op één account in totaal, wordt inloggen geweigerd tot dat kwartier voorbij is. Pogingen worden geteld vóórdat het wachtwoord wordt gecontroleerd, dus een stroom gelijktijdige pogingen komt er niet doorheen. Omdat de teller van het account per adres is, kan een ander je vanaf zijn adres niet buitensluiten van je eigen account. De grenzen staan in `server/limits.ts` en in de SPEC; ook kan elke gebruiker maar een redelijke hoeveelheid opslaan (taken, labels, herinneringen, apparaten).
 - Een beheerder beheert accounts, niet andermans taken: ook een beheerder ziet alleen projecten waar die zelf lid van is.
 
 ### Delen en samenwerken
@@ -141,7 +141,7 @@ De database is één SQLite-bestand in het volume. Maak een consistente kopie te
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
 ```
 
-Dit overschrijft nooit een bestaande kopie. De kopieën staan in het volume zelf; haal ze regelmatig ook van de server af, bijvoorbeeld met `docker cp tickory:/data/backups ./backups`, en plan het commando in met `cron`. Oude kopieën ruim je zelf op. **Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen**: bewaar hem zoals je de database zelf bewaart.
+Dit overschrijft nooit een bestaande kopie. De kopieën staan in het volume zelf; haal ze regelmatig ook van de server af, bijvoorbeeld met `docker cp tickory:/data/backups ./backups`, en plan het commando in met `cron`. Oude kopieën ruim je zelf op. **Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen (de VAPID-privésleutel en het geheim dat de knoppen in een melding ondertekent)**: wie hem heeft, kan bewijzen voor die knoppen maken voor elke taak van elke gebruiker. Bewaar hem zoals je de database zelf bewaart, en houd ook de map met kopieën dicht voor anderen.
 
 Terugzetten van een kopie (de app moet stilstaan; vervang `backup.db` door je bestand):
 
@@ -214,7 +214,7 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.
 
 Op Windows: dubbelklik op `start.cmd`, of draai `.\start.cmd` in PowerShell. Bij de eerste keer vraagt dat om een gebruikersnaam en een wachtwoord (ongezien getypt) voor het eerste account, en daarna start de server; het scriptbeleid van Windows blijft ongewijzigd (zie `start.cmd`).
 
-Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel) en `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). Zie `.env.example`.
+Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PASSWORD_FILE`, het pad van een bestand met het wachtwoord) en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel) en `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). Zie `.env.example`.
 
 ## Testen
 

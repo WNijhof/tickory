@@ -17,9 +17,13 @@ services:
     init: true
     environment:
       # Alleen bij de allereerste start gebruikt: hiermee wordt het eerste account (de beheerder) aangemaakt.
-      # Bestaat er al een account, dan doen deze niets meer en kun je het wachtwoord uit .env halen.
+      # Bestaat er al een account, dan doen deze niets meer. Haal het wachtwoord dan uit .env en maak de container opnieuw aan
+      # (docker compose up -d --force-recreate); anders blijft het in de configuratie van de container staan (docker inspect).
+      # Liever helemaal niet in de omgeving? Zet TODO_ADMIN_PASSWORD_FILE op het pad van een bestand met het wachtwoord, bijvoorbeeld
+      # een Docker-secret onder /run/secrets/, en laat TODO_ADMIN_PASSWORD leeg.
       TODO_ADMIN_USER: ${TODO_ADMIN_USER:-}
       TODO_ADMIN_PASSWORD: ${TODO_ADMIN_PASSWORD:-}
+      TODO_ADMIN_PASSWORD_FILE: ${TODO_ADMIN_PASSWORD_FILE:-}
       TODO_ADMIN_NAME: ${TODO_ADMIN_NAME:-}
       # Zet op 1 als er een eigen reverse proxy voor staat; dan telt het adres van de bezoeker bij het beperken van inlogpogingen.
       TRUST_PROXY: ${TRUST_PROXY:-0}
