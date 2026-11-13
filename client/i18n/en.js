@@ -483,4 +483,23 @@ export default {
   'ago.minutes': { one: '{count} minute ago', other: '{count} minutes ago' },
   'ago.hours': { one: '{count} hour ago', other: '{count} hours ago' },
   'ago.days': { one: '{count} day ago', other: '{count} days ago' },
+
+  // ---------- dragging and moving ----------
+  'dnd.cancelled': 'Move cancelled.',
+  'dnd.dropped': '"{name}" moved to "{container}".',
+  'dnd.droppedSub': '"{name}" is now a subtask of "{parent}".',
+  'dnd.outdented': '"{name}" is no longer under "{parent}".',
+  'dnd.keyMoved': '"{name}": position {position} of {count} in "{container}".',
+  'dnd.alreadyFirst': '"{name}" is already at the top.',
+  'dnd.alreadyLast': '"{name}" is already at the bottom.',
+  'dnd.noPrevious': 'There is nothing above "{name}" to put it under.',
+  'dnd.noParent': '"{name}" is already at the top level.',
+  'dnd.movedToProject': '"{name}" moved to "{project}".',
+  'dnd.projectNested': 'Project "{name}" is now a subproject of "{parent}".',
+  'dnd.projectTop': 'Project "{name}" is now at the top level.',
+  'dnd.projectDropped': 'Project "{name}" moved.',
+  'dnd.projectKeyMoved': 'Project "{name}": position {position} of {count}.',
+  'shortcuts.moveUpDown': 'Move a task or project one place up or down',
+  'shortcuts.moveInOut': 'Put a task or project under the previous one (subtask) or take it out again',
+  'shortcuts.dragNote': 'You can also drag with the mouse or your finger (on a phone: press and hold, or use the handle). Only the owner of a project can move it.',
 };

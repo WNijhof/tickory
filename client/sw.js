@@ -9,6 +9,7 @@ const CACHE = 'tickory-v4';
 const SHELL = [
   '/',
   '/app.css',
+  '/dnd.css',
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
@@ -17,6 +18,7 @@ const SHELL = [
   '/ui/accountDialogs.js',
   '/ui/comments.js',
   '/ui/dom.js',
+  '/ui/dragdrop.js',
   '/ui/icons.js',
   '/ui/miscDialogs.js',
   '/ui/projectDialog.js',

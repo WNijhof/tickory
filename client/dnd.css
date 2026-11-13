@@ -1,0 +1,64 @@
+/* Slepen en verplaatsen (ui/dragdrop.js). Eigen bestand, zodat app.css er niet door verandert.
+   Alleen kleuren uit app.css (--accent, --accent-soft, --text-soft, ...), dus het contrast in licht en donker klopt vanzelf. */
+
+/* ---------- handvat ---------- */
+.drag-handle { display: none; }
+/* In een lijst waar je kunt slepen heeft elke regel links een smalle strook met het handvat. De strook zit in de regel (de
+   regels knippen hun inhoud af); de lijst schuift evenveel naar links, zodat de tekst op dezelfde plek blijft staan. */
+.group[data-drop-project] .tasks { margin-left: -20px; }
+.group[data-drop-project] .task { padding-left: 20px; }
+.group[data-drop-project] .drag-handle {
+  display: block; position: absolute; left: 0; top: 0; width: 20px; height: 44px; cursor: grab; touch-action: none;
+  color: var(--text-soft); opacity: 0;
+}
+.group[data-drop-project] .drag-handle::before {
+  content: ""; position: absolute; left: 50%; top: 22px; width: 10px; height: 16px; margin: -8px 0 0 -5px;
+  background: radial-gradient(circle at 2px 2px, currentColor 1.4px, transparent 1.7px) 0 0 / 6px 6px;
+}
+.group[data-drop-project] .task:hover .drag-handle,
+.group[data-drop-project] .task:focus-within .drag-handle { opacity: 0.85; }
+
+/* Op een telefoon (of zonder muis): het handvat zit rechts, altijd in beeld, en is groot genoeg om aan te raken. */
+@media (hover: none), (max-width: 760px) {
+  .group[data-drop-project] .tasks { margin-left: 0; }
+  .group[data-drop-project] .task { padding-left: 0; }
+  .group[data-drop-project] .drag-handle { left: auto; right: 0; width: 36px; height: 44px; opacity: 0.8; }
+  .group[data-drop-project] .task-content { padding-right: 34px; }
+}
+@media (pointer: coarse) {
+  .task, .nav-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+}
+
+/* ---------- tijdens het slepen ---------- */
+body.dnd-active, body.dnd-active * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+.dnd-active .task:hover { background: var(--bg); }
+.dnd-active .task-actions { display: none; }
+.dnd-source { opacity: 0.4; }
+
+/* de kopie die met de aanwijzer meebeweegt */
+.dnd-ghost {
+  position: fixed; left: 0; top: 0; z-index: 41; margin: 0 !important; pointer-events: none; opacity: 0.94; background: var(--bg);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: var(--shadow-pop); transition: none;
+}
+.dnd-ghost.task { padding-left: 0; }
+.dnd-ghost-project { background: var(--bg-soft); padding-right: 8px; }
+.dnd-ghost.dnd-nodrop { opacity: 0.6; }
+
+/* de lijn waar het terechtkomt (tussen twee regels) */
+.dnd-line { position: fixed; z-index: 40; height: 3px; border-radius: 2px; background: var(--accent); pointer-events: none; }
+.dnd-line::before { content: ""; position: absolute; left: -4px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
+
+/* op een taak of project laten vallen (subtaak, subproject, ander project) of op een sectie */
+.dnd-target-child { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft) !important; }
+.nav-row.dnd-target, .nav-item.dnd-target, .nav-heading.dnd-target { background: var(--accent-soft); outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+.group.dnd-target > .group-head { box-shadow: inset 0 -3px 0 var(--accent); }
+
+@media (forced-colors: active) {
+  .dnd-line, .dnd-line::before { background: Highlight; }
+  .dnd-target-child, .nav-row.dnd-target, .nav-item.dnd-target, .nav-heading.dnd-target { outline-color: Highlight; }
+  .group.dnd-target > .group-head { box-shadow: inset 0 -3px 0 Highlight; }
+  .drag-handle { forced-color-adjust: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dnd-ghost, .dnd-line, .drag-handle { transition: none !important; animation: none !important; }
+}

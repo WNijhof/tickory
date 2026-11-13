@@ -1356,7 +1356,7 @@ try {
   assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false);
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Een venster sluiten', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
