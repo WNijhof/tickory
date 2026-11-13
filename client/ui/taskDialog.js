@@ -6,6 +6,7 @@ import { formatDateInput, formatDueLong } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { byOrder, membersOf, projectList } from '../core/selectors.js';
 import { confirmDialog, h, replace } from './dom.js';
+import { reminderSection } from './reminderUi.js';
 
 const priorityLabel = (p) => (p === 1 ? t('task.priorityHighest') : p === 4 ? t('task.priorityNone') : `P${p}`);
 /** Inspringen van een subproject in de keuzelijst: twee harde spaties (gewone spaties vallen in een keuzelijst weg). */
@@ -145,6 +146,7 @@ export function openTaskDialog({ task, store, actions, today }) {
     const field = (label, control, extra = null) => h('label', { class: 'field-label' }, label, control, extra);
     const assigneeField = field(t('task.assignedTo'), assignee);
     fillAssignees(task.project_id, task.assignee_id ?? null);
+    const reminders = reminderSection({ task, store, actions, today });
     const dialog = h('dialog', { class: 'dialog dialog-wide', id: 'task-dialog' },
       h('form', { class: 'dialog-form', onsubmit: (e) => { e.preventDefault(); save(); } },
         h('h2', {}, parent ? t('task.subtaskOf', { name: parent.content }) : t('task.edit')),
@@ -159,6 +161,7 @@ export function openTaskDialog({ task, store, actions, today }) {
           !parent && field(t('task.project'), project),
           !parent && field(t('task.section'), section),
         ),
+        reminders.node,
         h('div', { class: 'subtask-row' }, subtask, h('button', { type: 'button', class: 'button', onclick: addSubtask }, t('common.add'))),
         added,
         error,
@@ -169,6 +172,7 @@ export function openTaskDialog({ task, store, actions, today }) {
         ),
       ));
     dialog.addEventListener('close', () => {
+      reminders.dispose();
       dialog.remove();
       resolve();
     });

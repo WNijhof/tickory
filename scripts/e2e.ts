@@ -16,6 +16,7 @@ import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
 import { createSchema } from '../server/schema.ts';
 import { createApp } from '../server/main.ts';
+import { createPush } from '../server/push.ts';
 import type { App } from '../server/main.ts';
 import { handleSync } from '../server/sync.ts';
 import { createSession, createUser, hashPassword, setPasswordCostForTests } from '../server/users.ts';
@@ -61,7 +62,8 @@ const alice = createUser(db, { username: 'alice', name: 'Alice', passwordHash: a
 const bob = createUser(db, { username: 'bob', name: 'Bob', passwordHash: await hashPassword(PASSWORD_BOB) });
 let app: App | null = null;
 async function startServer() {
-  app = createApp({ db });
+  // met meldingen in de browser, zoals de echte server; de klok staat uit (niets wordt verstuurd, er is ook geen apparaat aangemeld)
+  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0 });
   await new Promise<void>((r) => app!.server.listen(APP_PORT, '127.0.0.1', r));
 }
 async function stopServer() {
@@ -276,7 +278,7 @@ try {
   assert.deepEqual(await taskTitles(), [], 'de taak is voor morgen en hoort niet in Vandaag');
   await nav('Binnenkort');
   await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Binnenkort');
-  assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@bellen', 'Inbox']);
+  assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@bellen', '🔔', 'Inbox']);
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const tandarts = serverTask('Tandarts bellen');
   assert.equal(tandarts.due.date, `${tomorrow}T09:00`);
@@ -552,7 +554,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -591,7 +593,7 @@ try {
   await nav('Upcoming');
   await waitFor(`document.getElementById('view-title').textContent === 'Upcoming'`, 'scherm Upcoming');
   assert.equal((await texts('.group-title'))[0], `Tomorrow · ${inEnglish(() => formatDueLong({ date: tomorrow }, today))}`);
-  assert.deepEqual(await taskMeta('Tandarts bellen'), ['tomorrow 09:00', '@bellen', 'Inbox']);
+  assert.deepEqual(await taskMeta('Tandarts bellen'), ['tomorrow 09:00', '@bellen', '🔔', 'Inbox']);
   await noDutch('upcoming');
   await shot('engels-binnenkort');
 
@@ -623,7 +625,7 @@ try {
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .field-label')].filter((l) => !l.hidden).map((l) => l.firstChild.textContent)`), ['Due date', 'Deadline', 'Priority', 'Labels', 'Project', 'Section']);
-  assert.deepEqual(await buttons('#task-dialog'), ['Add', 'Delete', 'Cancel', 'Save']);
+  assert.deepEqual(await buttons('#task-dialog'), ['Add reminder', 'Add', 'Delete', 'Cancel', 'Save']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['P1 – highest', 'P2', 'P3', 'P4 – none', 'Inbox', 'Thuis', '(no section)']);
   const dueInput = `#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`;
@@ -649,7 +651,7 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten (Engels)');
   await waitFor(`await ${SYNCED_EN}`, 'gesynchroniseerd (Engels)');
   assert.equal(serverTask('Call the dentist').due.date, '2027-01-15T09:30');
-  assert.deepEqual(await taskMeta('Call the dentist'), ['15 Jan 2027 09:30', '@calls']);
+  assert.deepEqual(await taskMeta('Call the dentist'), ['15 Jan 2027 09:30', '@calls', '🔔']);
   await openTask('Bring the forms');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Subtask of: Call the dentist');
   await clickText('Cancel', `document.querySelector('#task-dialog')`);
@@ -715,7 +717,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -859,6 +861,174 @@ try {
   await waitFor(`await ${SYNCED}`, 'bijgewerkt (Nederlands)');
   step(`Engels: wisselen via Instellingen werkt direct en blijft bewaard (ook na herladen, in een browser die op Nederlands staat); ${checked.length} schermen zonder Nederlandse tekst van de app (${checked.join(', ')}); datums, meervouden en foutmeldingen in het Engels; niets afgekapt, ook niet op telefoonformaat; daarna terug naar Nederlands`);
 
+  // ---- 8d. herinneringen ----
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'scherm Thuis');
+  const remindersOfServer = (content: string) => {
+    const id = serverTask(content)?.id;
+    return (serverState().reminders as any[]).filter((r) => r.task_id === id);
+  };
+  const remindersOf = (content: string) => remindersOfServer(content).map(({ minute_offset, type }) => ({ minute_offset, type }));
+  await typeInto('#quick-input', 'Vergadering voorbereiden morgen om 10 uur !1u !(een kwartier ervoor) !(morgen om 8 uur)');
+  await waitFor(`document.querySelectorAll('#quick-preview .chip-bell').length === 3`, 'drie herinneringen in het voorbeeld');
+  assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('#quick-preview .chip-bell')].map((c) => c.textContent)`), ['🔔 1 uur vooraf', '🔔 15 minuten vooraf', '🔔 morgen 08:00']);
+  await submit('#quick-add');
+  await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Vergadering voorbereiden')`, 'taak in beeld');
+  assert.ok((await taskMeta('Vergadering voorbereiden'))!.includes('🔔'), 'het belletje staat bij de taak');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const vg = remindersOfServer('Vergadering voorbereiden');
+  assert.deepEqual(vg.map((r) => r.type === 'absolute' ? r.due.date : r.minute_offset).sort(), [15, 60, `${tomorrow}T08:00`].sort());
+  assert.ok(vg.every((r) => r.owner_id === alice.id), 'de herinneringen zijn van Alice');
+  assert.equal(serverTask('Vergadering voorbereiden').due.date, `${tomorrow}T10:00`, 'het uitroepteken en de haakjes zijn uit de titel');
+  step('snel toevoegen met "!1u", "!(een kwartier ervoor)" en "!(morgen om 8 uur)": de voorvertoning toont ze, ze komen als eigen herinneringen van Alice op de server, en de taak krijgt een belletje');
+
+  // een taak met een tijd, zonder zelf een herinnering op te geven: de automatische van 30 minuten
+  await quickAdd('Tuin besproeien morgen om 19 uur');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Tuin besproeien')`, 'taak in beeld');
+  assert.deepEqual(remindersOf('Tuin besproeien'), [{ minute_offset: 30, type: 'relative' }]);
+  await quickAdd('Zonder tijd morgen');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual(remindersOf('Zonder tijd'), []);
+  step('een taak met een tijd krijgt vanzelf een herinnering van 30 minuten vooraf; een taak zonder tijd niet');
+
+  // het taakvenster: lijst, verwijderen, toevoegen met een keuze en met een eigen datum en tijd
+  await openTask('Vergadering voorbereiden');
+  await waitFor(`document.querySelector('#task-dialog[open] section[aria-label="Herinneringen"]')`, 'herinneringen in het taakvenster');
+  const reminderLines = () => evaluate<string[]>(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] li.device .device-info')].map((e) => e.textContent)`);
+  assert.deepEqual(await reminderLines(), ['Op een vast tijdstip · morgen 08:00', '1 uur vooraf · morgen 09:00', '15 minuten vooraf · morgen 09:45'], 'op volgorde van afgaan: de vroegste eerst');
+  await shot('herinneringen-taakvenster');
+  await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] li.device')].find((l) => l.textContent.includes('15 minuten')).querySelector('button').click()`);
+  await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] li.device').length === 2`, 'herinnering verwijderd');
+  await evaluate(`(() => { const s = document.querySelector('#task-dialog select[aria-label="Wanneer?"]'); s.value = '0'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+  await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] li.device').length === 3`, 'herinnering op het tijdstip toegevoegd');
+  // een tweede keer dezelfde keuze maakt er geen dubbele van
+  await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+  await sleep(300);
+  assert.equal((await reminderLines()).length, 3);
+  // een eigen datum en tijd
+  await evaluate(`(() => { const s = document.querySelector('#task-dialog select[aria-label="Wanneer?"]'); s.value = 'custom'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  assert.match(await evaluate<string>(`document.querySelector('#task-dialog input[type="datetime-local"]').value`), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'het veld is alvast ingevuld met een uur later');
+  await typeInto('#task-dialog input[type="datetime-local"]', '');
+  await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+  await waitFor(`document.querySelector('#task-dialog [data-role="reminder-error"]')?.textContent === 'Kies een datum en een tijd.'`, 'melding bij een lege datum');
+  await typeInto('#task-dialog input[type="datetime-local"]', `${tomorrow}T07:15`);
+  await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+  await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] li.device').length === 4`, 'eigen herinnering toegevoegd');
+  await click('#task-dialog form .dialog-buttons button[type="submit"]');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual(remindersOfServer('Vergadering voorbereiden').map((r) => r.type === 'absolute' ? r.due.date : r.minute_offset).sort(), [0, 60, `${tomorrow}T07:15`, `${tomorrow}T08:00`].sort());
+  step('taakvenster: de herinneringen op volgorde van afgaan, verwijderen, toevoegen met een keuze (dezelfde twee keer telt één keer) en met een eigen datum en tijd (zonder datum een melding)');
+
+  await openTask('Zonder tijd');
+  await waitFor(`document.querySelector('#task-dialog section[aria-label="Herinneringen"] p.hint')?.textContent.includes('mét tijd')`, 'uitleg bij een taak zonder tijd');
+  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+
+  // instellingen: automatische herinnering, tijdzone en meldingen op dit apparaat
+  const deviceZone = await evaluate<string>(`Intl.DateTimeFormat().resolvedOptions().timeZone`);
+  const mySettings = () => (serverState().settings as any[])[0];
+  assert.equal(mySettings().timezone, deviceZone, 'de tijdzone van dit apparaat is vanzelf vastgelegd');
+  await nav('Alice');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await clickText('Herinneringen en meldingen');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm herinneringen en meldingen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]').value`), '30');
+  assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes(${js(deviceZone)})`), 'de tijdzone staat in het scherm');
+  await evaluate(`(() => { const s = document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]'); s.value = '10'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(mySettings().auto_reminder, 10);
+  await shot('meldingen-instellingen');
+  // meldingen in de browser: in een headless browser kan dit niet echt, maar het scherm moet netjes reageren
+  await send('Browser.grantPermissions', { permissions: ['notifications'], origin: BASE }).catch(() => {});
+  const supported = await evaluate<boolean>(`document.querySelector('dialog[open]').textContent.includes('Meldingen staan uit op dit apparaat.')`);
+  let pushOutcome = 'de browser ondersteunt geen pushmeldingen: het scherm legt uit waarom';
+  if (supported) {
+    await clickText('Meldingen aanzetten');
+    await waitFor(`document.querySelector('dialog[open] [role="status"]')?.textContent.length > 0 || document.querySelector('dialog[open]').textContent.includes('Meldingen staan aan op dit apparaat.')`, 'uitkomst van het aanzetten', 20_000);
+    const enabled = await evaluate<boolean>(`document.querySelector('dialog[open]').textContent.includes('Meldingen staan aan op dit apparaat.')`);
+    pushOutcome = enabled
+      ? 'de browser meldde zich echt aan; de server heeft de aanmelding'
+      : `de headless browser kon zich niet aanmelden bij zijn pushdienst; het scherm toont: "${await evaluate<string>(`document.querySelector('dialog[open] [role="status"]').textContent`)}"`;
+    if (enabled) {
+      assert.equal((db.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE user_id = ?').get(alice.id) as any).n, 1);
+      await clickText('Meldingen uitzetten');
+      await waitFor(`document.querySelector('dialog[open]').textContent.includes('Meldingen staan uit op dit apparaat.')`, 'meldingen weer uit');
+    }
+  } else {
+    assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes('Deze browser kan geen meldingen ontvangen')`));
+  }
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');
+  // een nieuwe taak met een tijd krijgt nu 10 minuten vooraf
+  await quickAdd('Bellen met de buren morgen om 11 uur');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Bellen met de buren')`, 'taak in beeld');
+  assert.deepEqual(remindersOf('Bellen met de buren'), [{ minute_offset: 10, type: 'relative' }]);
+  step(`instellingen: de tijdzone van het apparaat is vanzelf vastgelegd; de automatische herinnering is te wijzigen (daarna 10 minuten vooraf); meldingen in de browser: ${pushOutcome}`);
+
+  // de Android-app: de brug (window.TickoryAndroid) nagebootst, zoals de app die aanbiedt
+  const stub = await send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    (() => {
+      const log = (name, args) => { const l = JSON.parse(sessionStorage.getItem('android-calls') || '[]'); l.push([name, ...args]); sessionStorage.setItem('android-calls', JSON.stringify(l)); };
+      window.TickoryAndroid = {
+        setSession: (t) => log('setSession', [t]), remindersChanged: () => log('remindersChanged', []),
+        notificationStatus: () => JSON.stringify({ notifications: false, exactAlarms: false, batteryOptimized: true, appVersion: '0.3.0-test' }),
+        requestNotificationPermission: () => log('requestNotificationPermission', []), openNotificationSettings: () => log('openNotificationSettings', []),
+        openBatterySettings: () => log('openBatterySettings', []), changeServer: () => log('changeServer', []),
+      };
+    })();` });
+  await evaluate(`sessionStorage.removeItem('android-calls')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart met de Android-brug');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const calls = () => evaluate<any[][]>(`JSON.parse(sessionStorage.getItem('android-calls') || '[]')`);
+  assert.ok((await calls()).some((c) => c[0] === 'setSession' && String(c[1]).startsWith('tky_')), 'bij het starten krijgt de Android-app het sessietoken');
+  await nav('Alice');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await clickText('Herinneringen en meldingen');
+  await waitFor(`document.querySelector('dialog[open]').textContent.includes('Meldingen zijn uitgeschakeld voor Tickory')`, 'Android-uitleg over meldingen');
+  const panel = await evaluate<string>(`document.querySelector('dialog[open]').textContent`);
+  assert.ok(panel.includes('Exacte alarmen staan uit') && panel.includes('Batterijbesparing staat aan') && panel.includes('Versie van de app: 0.3.0-test'));
+  assert.ok(!panel.includes('Meldingen aanzetten'), 'in de Android-app geen aanmelding voor meldingen in de browser');
+  await shot('meldingen-android');
+  await clickText('Meldingen toestaan');
+  await clickText('Batterij-instellingen');
+  assert.deepEqual((await calls()).filter((c) => c[0].startsWith('request') || c[0].startsWith('open')).map((c) => c[0]), ['requestNotificationPermission', 'openBatterySettings']);
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');
+  // een wijziging aan een herinnering: Android hoort het (kort uitgesteld, één keer)
+  await evaluate(`sessionStorage.removeItem('android-calls')`);
+  await openTask('Bellen met de buren');
+  await waitFor(`document.querySelector('#task-dialog[open] section[aria-label="Herinneringen"]')`, 'taakvenster');
+  await evaluate(`(() => { const s = document.querySelector('#task-dialog select[aria-label="Wanneer?"]'); s.value = '1440'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+  await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await waitFor(`JSON.parse(sessionStorage.getItem('android-calls') || '[]').some((c) => c[0] === 'remindersChanged')`, 'Android is gewaarschuwd', 8000);
+  await sleep(2500);
+  assert.equal((await calls()).filter((c) => c[0] === 'remindersChanged').length, 1, 'één waarschuwing, niet één per wijziging');
+  // een melding aangetikt: de app opent de taak via #task=…
+  const buren = serverTask('Bellen met de buren').id;
+  await evaluate(`location.hash = ${js(`#task=${buren}`)}`);
+  await waitFor(`document.querySelector('#task-dialog[open] textarea')?.value === 'Bellen met de buren'`, 'taak geopend vanuit de melding');
+  assert.equal(await evaluate(`location.hash`), '', 'het adres is weer schoon');
+  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+  // een onbekende of vreemde waarde in het adres doet niets
+  await evaluate(`location.hash = '#task=<script>alert(1)</script>'`);
+  await sleep(300);
+  assert.equal(await evaluate(`Boolean(document.querySelector('#task-dialog'))`), false);
+  await evaluate(`history.replaceState(null, '', location.pathname)`);
+  await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: stub.identifier });
+  await evaluate(`sessionStorage.removeItem('android-calls')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart zonder brug');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak (een vreemde waarde niet)');
+
   // ---- 9. telefoonformaat en donkere modus ----
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await nav('Thuis');
@@ -912,7 +1082,7 @@ try {
   assert.ok(bobProjects.includes('Thuis') && bobProjects.includes('Inbox'), `Bob ziet zijn Inbox en het gedeelde project: ${JSON.stringify(bobProjects)}`);
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis bij Bob');
-  assert.deepEqual((await taskTitles()).sort(), ['Afwasmachine uitruimen', 'Gordijnen ophangen', 'Glazen apart', 'Planten water geven', 'Van mijn telefoon', 'Offline bedacht'].sort());
+  assert.deepEqual((await taskTitles()).sort(), ['Afwasmachine uitruimen', 'Gordijnen ophangen', 'Glazen apart', 'Planten water geven', 'Van mijn telefoon', 'Offline bedacht', 'Vergadering voorbereiden', 'Tuin besproeien', 'Zonder tijd', 'Bellen met de buren'].sort());
   assert.equal(await evaluate(`document.querySelector('.shared-with').textContent.startsWith('Gedeeld met Alice')`), true);
   await nav('Inbox');
   await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'Inbox van Bob');

@@ -81,6 +81,7 @@ test('de Engelse teksten zijn ook echt vertaald (alleen bewust gelijke teksten z
   const same = new Set([
     'shell.menu', 'sync.offline', 'task.deadlineChip', 'task.deadline', 'task.labels', 'task.project', 'project.menu', 'view.projectTitle',
     'settings.language', 'account.title', 'admin.accounts', 'command.noun.project', 'command.noun.label', 'command.noun.filter',
+    'reminder.line',
   ]);
   for (const key of Object.keys(nl)) {
     const equal = JSON.stringify(nl[key]) === JSON.stringify(en[key]);

@@ -4,12 +4,15 @@ import { IdbAdapter } from '../core/idb.js';
 import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
+import { androidBridge, taskIdFromHash, watchReminders } from '../core/android.js';
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
+import { createPushClient } from '../core/push.js';
 import { roleIn } from '../core/selectors.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
+import { offsetText } from '../core/reminderText.js';
 import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
@@ -17,6 +20,7 @@ import { mainView, sidebar } from './render.js';
 import { openTaskDialog } from './taskDialog.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
+import { notificationsDialog } from './reminderUi.js';
 
 const ROUTE_KEY = 'tickory.route';
 
@@ -38,6 +42,12 @@ const ui = { route: loadRoute(), showCompleted: new Set(), syncState: 'idle', as
 const api = backend.api;
 /** De Inbox van de ingelogde gebruiker; null zolang de server nog niet heeft gezegd wie je bent. */
 const inboxId = () => store?.me?.inbox_project_id ?? null;
+/** De brug naar de Android-app; buiten die app doet hij niets (zie core/android.js). Niet in de demo. */
+const bridge = androidBridge(backend.demo ? undefined : window.TickoryAndroid);
+/** Meldingen in de browser (Web Push). In de Android-app niet nodig: die plant zijn meldingen zelf in. */
+const pushClient = createPushClient({ getToken, lang: getLanguage });
+const usesPush = () => !backend.demo && !bridge.available;
+const deviceZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 let adapter;
 let store;
 let sync;
@@ -137,6 +147,7 @@ function renderPreview() {
     p.labels.map((id) => chip('label', `@${view.labels.get(id)?.name ?? ''}`)),
     p.newLabels.map((name) => chip('label', t('quick.newLabel', { name }))),
     p.priority < 4 && chip(`prio prio-${p.priority}`, `P${p.priority}`),
+    p.reminders.map((r) => chip('bell', `🔔 ${r.type === 'absolute' ? formatDue({ date: r.due.date }, today) : offsetText(r.minute_offset)}`)),
     dateNote && h('p', { class: 'hint preview-note' }, dateNote),
   );
 }
@@ -262,6 +273,7 @@ const handlers = {
       title: t('settings.title'),
       items: [
         { value: 'account', label: t('settings.account') },
+        { value: 'notifications', label: t('settings.notifications') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
@@ -269,6 +281,7 @@ const handlers = {
     });
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'account') await accountFlow();
+    else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
@@ -288,6 +301,7 @@ async function chooseLanguage() {
   setLanguage(choice);
   applyLanguage();
   render();
+  if (usesPush()) pushClient.refresh().catch(() => {}); // de melding komt in de nieuwe taal
 }
 
 /** Het accountscherm, met doorverwijzing naar gebruikersbeheer of afmelden. */
@@ -333,6 +347,7 @@ async function askLogin(note = '') {
           if (adapter.clear) await adapter.clear();
         }
         backend.setToken(res.token);
+        bridge.setSession(res.token);
         if (other) {
           location.reload();
           return res;
@@ -357,11 +372,56 @@ async function logout() {
   if (!ok) return;
   events.stop();
   sync.stop();
+  if (usesPush()) await pushClient.disable().catch(() => { /* de server ruimt een aanmelding zonder sessie ook zelf op */ });
   await api.logout().catch(() => { /* zonder verbinding: het token wordt hier toch gewist; intrekken kan later via Account */ });
+  bridge.setSession(''); // de Android-app wist dan zijn token en alle geplande herinneringen
   backend.clearToken();
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
   location.reload();
+}
+
+// ---------- een taak openen vanuit een melding ----------
+
+let pendingTaskId = null;
+let pendingSince = 0;
+
+/** Opent het taakvenster; kent de app de taak nog niet (de eerste sync loopt nog), dan zodra hij binnenkomt. */
+function openTaskById(id) {
+  const task = store.view.tasks.get(id);
+  if (!task) {
+    pendingTaskId = id;
+    pendingSince = Date.now();
+    return;
+  }
+  pendingTaskId = null;
+  if (document.querySelector('#task-dialog')) return; // er is al een taak open
+  openTaskDialog({ task, store, actions, today: todayString });
+}
+
+function openPendingTask() {
+  if (pendingTaskId && Date.now() - pendingSince > 30_000) pendingTaskId = null; // een taak die niet komt: opgeven
+  if (pendingTaskId && store.view.tasks.has(pendingTaskId)) openTaskById(pendingTaskId);
+}
+
+function openTaskFromHash() {
+  const id = taskIdFromHash(location.hash);
+  if (!id) return;
+  history.replaceState(null, '', `${location.pathname}${location.search}`); // het adres weer schoon
+  openTaskById(id);
+}
+
+// ---------- tijdzone ----------
+
+let zoneChecked = false;
+
+/** Eenmalig, zodra de instellingen binnen zijn: de tijdzone van dit apparaat vastleggen, zodat de server meldingen op de goede tijd stuurt. */
+function maybeSetTimezone() {
+  if (zoneChecked || !store?.userId || backend.demo) return;
+  const settings = store.view.settings.get(`settings-${store.userId}`);
+  if (!settings) return;
+  zoneChecked = true;
+  if (!settings.timezone) actions.updateSettings({ timezone: deviceZone() });
 }
 
 // ---------- opstarten ----------
@@ -403,6 +463,9 @@ async function boot() {
 
   events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
   store.subscribe(invalidate);
+  store.subscribe(maybeSetTimezone);
+  store.subscribe(openPendingTask);
+  watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   window.addEventListener('online', () => {
     events.restart();
     sync.requestSync(0);
@@ -420,8 +483,20 @@ async function boot() {
 
   render();
   document.body.classList.add('ready');
-  if (getToken()) sync.requestSync(0);
-  else askLogin();
+  if (getToken()) {
+    bridge.setSession(getToken()); // bij elke start, ook als de app al was ingelogd
+    if (usesPush()) pushClient.refresh().catch(() => {});
+    sync.requestSync(0);
+  } else {
+    askLogin();
+  }
+
+  // Een melding aangetikt: de taak openen, via de adresbalk (#task=…, Android en nieuwe vensters) of via de service worker.
+  openTaskFromHash();
+  window.addEventListener('hashchange', openTaskFromHash);
+  navigator.serviceWorker?.addEventListener('message', (e) => {
+    if (e.data?.type === 'open-task' && typeof e.data.id === 'string') openTaskById(e.data.id);
+  });
 
   if ('serviceWorker' in navigator && !backend.demo) {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* zonder service worker werkt de app alleen online */ });

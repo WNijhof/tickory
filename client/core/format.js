@@ -113,3 +113,9 @@ export function dueStatus(due, today, now = null) {
   if (now && due.date.length > 10 && due.date.slice(0, 16) < now) return 'overdue';
   return 'today';
 }
+
+/** Een tijdstip als "2026-12-01T09:00" in lokale tijd: de waarde die een invoerveld van het type datetime-local verwacht. */
+export function formatDateTimeLocal(date) {
+  const p = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+}

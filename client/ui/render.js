@@ -2,7 +2,7 @@
 // Geen eigen toestand; elke wijziging in de opslag tekent het scherm opnieuw.
 
 import { isInboxId } from '../../shared/schema.js';
-import { counts, isShared, membersOf, projectList, projectView, roleIn, todayView, upcomingView } from '../core/selectors.js';
+import { counts, hasReminder, isShared, membersOf, projectList, projectView, roleIn, todayView, upcomingView } from '../core/selectors.js';
 import { dueStatus, formatDate, formatDayHeading, formatDue } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { h } from './dom.js';
@@ -46,6 +46,7 @@ function taskRow(task, { view, today, now, depth = 0, showProject = false, handl
     const label = view.labels.get(id);
     if (label) meta.push(h('span', { class: 'chip chip-label' }, `@${label.name}`));
   }
+  if (hasReminder(view, task.id, me?.id)) meta.push(h('span', { class: 'chip chip-bell', title: t('reminder.bell'), role: 'img', 'aria-label': t('reminder.bell') }, '🔔'));
   if (task.assignee_id) {
     const mine = task.assignee_id === me?.id;
     const name = mine ? t('task.assigneeYou') : userName(task.assignee_id) ?? t('common.someone');
