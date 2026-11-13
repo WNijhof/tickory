@@ -329,8 +329,9 @@ async function logout() {
 
 async function boot() {
   try {
-    adapter = new IdbAdapter();
-    await adapter.open();
+    // In de demo bewaren we niets: elke keer openen begint opnieuw met de voorbeeldgegevens.
+    adapter = backend.demo ? new MemoryAdapter() : new IdbAdapter();
+    if (adapter.open) await adapter.open();
   } catch {
     adapter = new MemoryAdapter();
     toast('Lokale opslag is niet beschikbaar. De app werkt, maar bewaart niets als je dit venster sluit.', { kind: 'error', timeout: 0 });
@@ -383,7 +384,7 @@ async function boot() {
   if (getToken()) sync.requestSync(0);
   else askLogin();
 
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && !backend.demo) {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* zonder service worker werkt de app alleen online */ });
     // Even na het starten laten controleren of de offline-kopie compleet is. Een netwerkfilter (AdGuard) kan die
     // kort na het aanleggen wissen; het filter is dan klaar en de kopie wordt opnieuw gevuld.

@@ -26,8 +26,9 @@ const BROWSERS = [
 const browserPath = BROWSERS.find((p) => existsSync(p));
 if (!browserPath) throw new Error('geen browser gevonden; geef het pad mee als argument');
 
-const APP_PORT = 8791;
-const CDP_PORT = 9341;
+// Poorten zijn in te stellen (E2E_PORT, E2E_CDP_PORT), zodat er meerdere testen naast elkaar kunnen draaien.
+const APP_PORT = Number(process.env.E2E_PORT ?? 8791);
+const CDP_PORT = Number(process.env.E2E_CDP_PORT ?? 9341);
 const BASE = `http://127.0.0.1:${APP_PORT}`;
 const workDir = fileURLToPath(new URL('../.e2e/', import.meta.url));
 const shotsDir = `${workDir}shots/`;
