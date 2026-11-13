@@ -98,6 +98,13 @@ De tests draaien op de pc, zonder telefoon. Een deel test de rekenregels (wannee
 zomer- en wintertijd); een deel bootst Android na met Robolectric (alarmen, meldingen, de knoppen, opstarten, de
 schermen en de brug). Robolectric haalt de eerste keer een bestand van ongeveer 150 MB op.
 
+De widgets hebben eigen tests: welke taken zichtbaar zijn en in welke volgorde (ook rond de tijdzone, middernacht en de zomer-
+en wintertijd), de bewaarde gegevens per gebruiker (afmelden, een ander account, herstart), de wachtrij voor afvinken (dubbel
+tikken, opnieuw proberen met hetzelfde uuid, weigering, 401, een oudere server), de hele verversing tegen een testserver, het
+tekenen van de widgets, het configuratiescherm, het manifest (wat exporteerbaar is) en de leesbaarheid van de kleuren. Die
+tests staan in `core/Widget*Test.kt` en `widget/Widget*Test.kt`. Aan de kant van de server en de web-app staan ze in
+`server/sync.test.ts` (`if_due`) en `client/core/widgets.test.js`.
+
 Eén test praat met een echte server en draait alleen als je het adres opgeeft:
 
 ```sh

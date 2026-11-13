@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Een taak in een lijstwidget: links de cirkel om af te vinken (48dp), rechts de titel; tikken op de titel opent de taak. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:minHeight="@dimen/widget_row_min"
     android:orientation="horizontal"
-    android:paddingStart="4dp">
+    android:paddingStart="4dp"
+    tools:ignore="RtlSymmetry">
 
     <ImageView
         android:id="@+id/check"
@@ -15,6 +17,7 @@
         android:layout_height="@dimen/widget_row_min"
         android:background="@drawable/widget_ripple"
         android:importantForAccessibility="yes"
+        tools:ignore="ContentDescription"
         android:scaleType="center"
         android:src="@drawable/widget_check_p4" />
 

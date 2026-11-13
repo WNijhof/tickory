@@ -87,7 +87,6 @@
     <string name="widget_add_task">Add task</string>
     <string name="widget_complete_task">Complete: %1$s</string>
     <string name="widget_open_task">Open task: %1$s</string>
-    <string name="widget_open_app">Open Tickory</string>
     <string name="widget_signed_out">Sign in via the app</string>
     <string name="widget_expired">Sign in again via the app</string>
     <string name="widget_loading">Loading…</string>

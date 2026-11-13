@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Voorbeeld in de lijst van widgets (Android 12 en nieuwer): vaste voorbeeldtaken, geen echte gegevens. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
@@ -14,6 +15,7 @@
         android:paddingTop="12dp"
         android:paddingEnd="16dp"
         android:paddingBottom="8dp"
+        tools:ignore="RtlSymmetry"
         android:text="@string/widget_title_today"
         android:textColor="@color/widget_text"
         android:textSize="18sp"
@@ -24,7 +26,8 @@
         android:layout_height="40dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="4dp">
+        android:paddingStart="4dp"
+        tools:ignore="RtlSymmetry">
 
         <ImageView
             android:layout_width="40dp"
@@ -46,7 +49,8 @@
         android:layout_height="40dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="4dp">
+        android:paddingStart="4dp"
+        tools:ignore="RtlSymmetry">
 
         <ImageView
             android:layout_width="40dp"
@@ -68,7 +72,8 @@
         android:layout_height="40dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="4dp">
+        android:paddingStart="4dp"
+        tools:ignore="RtlSymmetry">
 
         <ImageView
             android:layout_width="40dp"

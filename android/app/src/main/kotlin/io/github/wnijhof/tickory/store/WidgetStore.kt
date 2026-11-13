@@ -2,6 +2,7 @@ package io.github.wnijhof.tickory.store
 
 import android.content.Context
 import android.util.Log
+import androidx.core.content.edit
 import io.github.wnijhof.tickory.core.QueuedComplete
 import io.github.wnijhof.tickory.core.WidgetCodec
 import io.github.wnijhof.tickory.core.WidgetQueue
@@ -121,12 +122,10 @@ object WidgetConfigStore {
     fun get(context: Context, appWidgetId: Int): String? = prefs(context).getString("w$appWidgetId", null)
 
     fun set(context: Context, appWidgetId: Int, sourceKey: String) {
-        prefs(context).edit().putString("w$appWidgetId", sourceKey).apply()
+        prefs(context).edit { putString("w$appWidgetId", sourceKey) }
     }
 
     fun remove(context: Context, appWidgetIds: IntArray) {
-        val edit = prefs(context).edit()
-        for (id in appWidgetIds) edit.remove("w$id")
-        edit.apply()
+        prefs(context).edit { for (id in appWidgetIds) remove("w$id") }
     }
 }

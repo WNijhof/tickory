@@ -92,7 +92,6 @@
     <string name="widget_add_task">Taak toevoegen</string>
     <string name="widget_complete_task">Voltooien: %1$s</string>
     <string name="widget_open_task">Taak openen: %1$s</string>
-    <string name="widget_open_app">Tickory openen</string>
     <string name="widget_signed_out">Log in in de app</string>
     <string name="widget_expired">Log opnieuw in in de app</string>
     <string name="widget_loading">Bezig met laden…</string>
