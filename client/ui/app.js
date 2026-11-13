@@ -8,7 +8,7 @@ import { androidBridge, taskIdFromHash, watchReminders } from '../core/android.j
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
-import { roleIn } from '../core/selectors.js';
+import { isArchivedProject, roleIn } from '../core/selectors.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDue, nowString, todayString } from '../core/format.js';
@@ -252,7 +252,7 @@ const handlers = {
         { value: 'sub', label: t('project.addSub') },
         { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
         { value: 'share', label: mine === 'member' ? t('project.members') : t('project.shareMenu') },
-        mine === 'owner' && { value: 'archive', label: t('project.archive') },
+        mine === 'owner' && !isArchivedProject(store.view, project.id) && { value: 'archive', label: t('project.archive') }, // een gearchiveerd project zet je terug (de balk bovenaan)
         mine === 'member'
           ? { value: 'leave', label: t('project.leave'), danger: true }
           : { value: 'delete', label: t('project.delete'), danger: true },
