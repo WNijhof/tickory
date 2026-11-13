@@ -1,72 +1,282 @@
-// Bouwt de zichtbare onderdelen uit de lokale toestand: de zijbalk en het hoofdscherm.
-// Geen eigen toestand; elke wijziging in de opslag tekent het scherm opnieuw.
+// Bouwt de zichtbare onderdelen uit de lokale toestand: de zijbalk, de kop en de takenlijst.
+// Geen eigen toestand behalve een bewaarplaats met getekende regels (zie `rowCache`); elke wijziging in de opslag tekent het
+// scherm opnieuw, en een regel waarvan de gegevens niet veranderden wordt hergebruikt in plaats van opnieuw gebouwd.
+//
+// AANHAKEN VOOR LATERE ONDERDELEN (zoeken, filters, labels): de zijbalk heeft twee lege plekken met een vaste id, `#sidebar-search`
+// (bovenaan, onder de knop "Taak toevoegen", voor een zoekveld of zoekknop) en `#sidebar-extra` (direct onder Binnenkort en vóór
+// Favorieten, voor Filters en Labels). `sidebar()` maakt de plekken bij elke keer tekenen opnieuw leeg aan; een onderdeel dat er iets
+// in zet, meldt zich één keer aan met `sidebarHooks.push(({ search, extra }) => { … })`. app.js roept elke aangemelde functie aan
+// direct nadat de zijbalk is getekend, met de twee plekken als argument. In de kop van de pagina is `#topbar-tools` (index.html)
+// de plek voor een zoekveld in het midden; die is vast en wordt niet opnieuw getekend.
 
 import { isInboxId } from '../../shared/schema.js';
-import { counts, hasReminder, isShared, membersOf, projectList, projectView, roleIn, todayView, upcomingView } from '../core/selectors.js';
-import { dueStatus, formatDate, formatDayHeading, formatDue } from '../core/format.js';
+import {
+  archivedList, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
+  roleIn, subtaskCounts, tasksWithReminder, todayView, upcomingView,
+} from '../core/selectors.js';
+import { formatDayHeading } from '../core/format.js';
+import { colorClass } from '../core/colors.js';
+import { rowModel } from '../core/rowModel.js';
 import { t } from '../core/i18n.js';
 import { h } from './dom.js';
+import { emptyArt, icon } from './icons.js';
 
 const sameRoute = (a, b) => a.type === b.type && (a.id ?? null) === (b.id ?? null);
 
+/** Functies die na elke keer tekenen van de zijbalk de plekken `{ search, extra }` mogen vullen (zie bovenaan). */
+export const sidebarHooks = [];
+
+/** Het gekleurde bolletje van een project of label. */
+export const dot = (color, extra = '') => h('span', { class: `dot ${colorClass(color)}${extra ? ` ${extra}` : ''}`, 'aria-hidden': 'true' });
+
+// ---------- zijbalk ----------
+
 export function sidebar({ view, today, route, handlers, me = null }) {
   const n = counts(view, today);
-  const item = (target, label, count, depth = 0, shared = false) => {
+  const countOf = (count) => count > 0 && h('span', { class: 'nav-count' }, String(count));
+  const item = ({ target, label, lead, count = 0, shared = false, fk }) => {
     const active = sameRoute(route, target);
     return h('button', {
-      class: `nav-item ${active ? 'active' : ''}`, type: 'button', dataset: { depth: String(Math.min(depth, 3)) },
-      'aria-current': active ? 'page' : null, onclick: () => handlers.navigate(target),
+      class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk },
+      onclick: () => handlers.navigate(target),
     },
+    lead,
     h('span', { class: 'nav-label' }, label),
-    shared && h('span', { class: 'nav-shared', title: t('nav.sharedProject'), role: 'img', 'aria-label': t('nav.sharedProjectLabel') }, '👥'),
-    count > 0 && h('span', { class: 'nav-count' }, String(count)));
+    shared && h('span', { class: 'nav-shared', title: t('nav.sharedProject'), role: 'img', 'aria-label': t('nav.sharedProjectLabel') }, icon('users')),
+    countOf(count));
   };
+  const projectItem = (project, extra = {}) => item({
+    target: { type: 'project', id: project.id }, label: project.name, lead: dot(project.color), count: n.perProject.get(project.id) ?? 0,
+    shared: isShared(view, project.id), ...extra,
+  });
+  const inbox = view.projects.get(me?.inbox_project_id) ?? [...view.projects.values()].find((p) => isInboxId(p.id));
+  const favorites = favoriteProjects(view);
+  const archivedCount = archivedList(view).length;
+
   return [
-    h('div', { class: 'brand' }, 'Tickory'),
+    h('div', { class: 'brand' }, h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, icon('check')), h('span', { class: 'brand-name' }, 'Tickory')),
+    h('button', { class: 'sidebar-add', type: 'button', 'aria-keyshortcuts': 'q', onclick: () => handlers.quickAdd() }, h('span', { class: 'sidebar-add-plus', 'aria-hidden': 'true' }, icon('plus')), t('quick.addTask')),
+    h('div', { id: 'sidebar-search', class: 'sidebar-slot' }),
     h('nav', { class: 'nav', 'aria-label': t('nav.views') },
-      item({ type: 'today' }, t('nav.today'), n.today),
-      item({ type: 'upcoming' }, t('nav.upcoming'), 0),
+      inbox && item({ target: { type: 'project', id: inbox.id }, label: inbox.name, lead: icon('inbox'), count: n.perProject.get(inbox.id) ?? 0, fk: 'nav-inbox' }),
+      item({ target: { type: 'today' }, label: t('nav.today'), lead: icon('today'), count: n.today, fk: 'nav-today' }),
+      item({ target: { type: 'upcoming' }, label: t('nav.upcoming'), lead: icon('upcoming'), fk: 'nav-upcoming' }),
+      h('div', { id: 'sidebar-extra', class: 'sidebar-slot' }),
+      favorites.length > 0 && [
+        h('div', { class: 'nav-heading' }, h('span', {}, t('nav.favorites'))),
+        favorites.map((p) => projectItem(p, { fk: `fav:${p.id}` })),
+      ],
       h('div', { class: 'nav-heading' },
         h('span', {}, t('nav.projects')),
-        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: handlers.addProject }, '+')),
-      projectList(view).map(({ project, depth }) => item({ type: 'project', id: project.id }, project.name, n.perProject.get(project.id) ?? 0, depth, isShared(view, project.id))),
+        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus'))),
+      navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)) } },
+        hasChildren
+          ? h('button', {
+            class: 'nav-toggle', type: 'button', 'aria-expanded': String(!collapsed), dataset: { fk: `toggle:${project.id}` },
+            'aria-label': collapsed ? t('nav.expand', { name: project.name }) : t('nav.collapse', { name: project.name }),
+            onclick: () => handlers.toggleProject(project),
+          }, icon(collapsed ? 'chevronRight' : 'chevronDown'))
+          : h('span', { class: 'nav-toggle nav-toggle-empty', 'aria-hidden': 'true' }),
+        projectItem(project, { fk: `project:${project.id}` }))),
+      archivedCount > 0 && h('button', { class: 'nav-link', type: 'button', onclick: handlers.showArchive }, icon('archive'), t('nav.archived')),
     ),
     h('div', { class: 'sidebar-footer' },
       h('button', { class: 'nav-item', type: 'button', onclick: handlers.settings },
-        h('span', { class: 'nav-label' }, me ? me.name : t('settings.title')),
-        me && h('span', { class: 'nav-count' }, t('settings.title')))),
+        h('span', { class: 'nav-avatar', 'aria-hidden': 'true' }, me ? initialsOf(me.name) : icon('settings')),
+        h('span', { class: 'nav-stack' },
+          h('span', { class: 'nav-label' }, me ? me.name : t('settings.title')),
+          me && h('span', { class: 'nav-count' }, t('settings.title')))),
+      h('button', { class: 'icon-button', type: 'button', 'aria-label': t('shortcuts.open'), title: t('shortcuts.open'), 'aria-keyshortcuts': '?', onclick: handlers.shortcuts }, icon('keyboard'))),
   ];
 }
 
-function taskRow(task, { view, today, now, depth = 0, showProject = false, handlers, me, userName }) {
-  const meta = [];
-  if (task.due) meta.push(h('span', { class: `chip chip-due due-${dueStatus(task.due, today, now)}` }, formatDue(task.due, today)));
-  if (task.deadline) meta.push(h('span', { class: `chip chip-deadline ${task.deadline < today ? 'due-overdue' : ''}` }, t('task.deadlineChip', { date: formatDate(task.deadline, today) })));
-  for (const id of task.labels ?? []) {
-    const label = view.labels.get(id);
-    if (label) meta.push(h('span', { class: 'chip chip-label' }, `@${label.name}`));
+const initialsOf = (name) => [...String(name ?? '?').trim()][0]?.toLocaleUpperCase() ?? '?';
+
+// ---------- takenlijst ----------
+
+/**
+ * Getekende regels, per taak-id: { json (de gegevens waarmee ze getekend is), node, task (de nieuwste taak, voor de knoppen), model }.
+ * De regels zelf hebben geen eigen gebeurtenissen: `bindList` luistert één keer op de hele lijst (zie hieronder). Dat scheelt bij
+ * duizenden taken veel tijd bij het tekenen.
+ */
+let rowCache = new Map();
+
+/** Een element maken zonder omwegen (voor de regels, waar het om snelheid gaat). */
+function mk(tag, cls, ...kids) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  for (const kid of kids) if (kid !== null && kid !== undefined && kid !== false) el.append(kid);
+  return el;
+}
+
+/** Een knop in een regel; `act` zegt `bindList` wat er bij een klik moet gebeuren. */
+function rowButton(cls, act, ...kids) {
+  const el = mk('button', cls, ...kids);
+  el.type = 'button';
+  el.dataset.act = act;
+  return el;
+}
+
+/** Maakt de regel van één taak uit zijn gegevens (zie core/rowModel.js). */
+function buildRow(m) {
+  const li = mk('li', `task prio-${m.priority}${m.done ? ' task-done' : ''}${m.depth > 0 ? ' task-sub' : ''}`);
+  li.dataset.id = m.id;
+  li.dataset.depth = String(m.depth);
+
+  const check = rowButton('check', 'check');
+  check.dataset.fk = `check:${m.id}`;
+  check.setAttribute('aria-pressed', String(m.done));
+  check.setAttribute('aria-label', m.done ? t('task.reopenLabel', { name: m.content }) : t('task.completeLabel', { name: m.content }));
+
+  const chips = [];
+  const chip = (cls, ...kids) => mk('span', `chip ${cls}`, ...kids);
+  if (m.due) chips.push(chip(`chip-due due-${m.due.status}`, icon('calendar'), m.due.text)); // bij een herhaling staat ↻ al in de tekst
+  if (m.deadline) chips.push(chip(`chip-deadline${m.deadline.overdue ? ' due-overdue' : ''}`, m.deadline.text));
+  if (m.subtasks) {
+    const body = [icon('subtasks'), m.subtasks.text];
+    if (m.hasChildren || m.collapsed) {
+      const toggle = rowButton('chip chip-subtasks chip-toggle', 'fold', ...body, icon(m.collapsed ? 'chevronRight' : 'chevronDown'));
+      toggle.dataset.fk = `fold:${m.id}`;
+      toggle.setAttribute('aria-expanded', String(!m.collapsed));
+      toggle.setAttribute('aria-label', m.subtasks.label);
+      toggle.title = m.subtasks.label;
+      chips.push(toggle);
+    } else {
+      const plain = chip('chip-subtasks', ...body);
+      plain.title = m.subtasks.label;
+      chips.push(plain);
+    }
   }
-  if (hasReminder(view, task.id, me?.id)) meta.push(h('span', { class: 'chip chip-bell', title: t('reminder.bell'), role: 'img', 'aria-label': t('reminder.bell') }, '🔔'));
-  if (task.assignee_id) {
-    const mine = task.assignee_id === me?.id;
-    const name = mine ? t('task.assigneeYou') : userName(task.assignee_id) ?? t('common.someone');
-    meta.push(h('span', { class: `chip chip-assignee${mine ? ' chip-mine' : ''}`, title: t('task.assigneeTitle', { name }) }, t('task.assigneeChip', { name })));
+  if (m.comments) {
+    const c = chip('chip-comments', icon('comment'), String(m.comments.count));
+    c.title = m.comments.label;
+    chips.push(c);
   }
-  if (showProject) {
-    const project = view.projects.get(task.project_id);
-    const section = task.section_id ? view.sections.get(task.section_id) : null;
-    if (project) meta.push(h('span', { class: 'chip chip-project' }, section ? `${project.name} / ${section.name}` : project.name));
+  for (const label of m.labels) chips.push(chip(`chip-label ${colorClass(label.color)}`, `@${label.name}`));
+  if (m.bell) {
+    const bell = chip('chip-bell', '🔔');
+    bell.title = t('reminder.bell');
+    bell.setAttribute('role', 'img');
+    bell.setAttribute('aria-label', t('reminder.bell'));
+    chips.push(bell);
   }
-  if (task.description) meta.push(h('span', { class: 'chip chip-note', title: t('task.hasDescription') }, t('task.noteChip')));
-  return h('li', { class: `task prio-${task.priority} ${task.checked ? 'task-done' : ''}`, dataset: { id: task.id, depth: String(Math.min(depth, 4)) } },
-    h('button', {
-      class: 'check', type: 'button', 'aria-pressed': String(Boolean(task.checked)),
-      'aria-label': task.checked ? t('task.reopenLabel', { name: task.content }) : t('task.completeLabel', { name: task.content }), onclick: () => handlers.toggle(task),
-    }),
-    h('button', { class: 'task-body', type: 'button', onclick: () => handlers.open(task) },
-      h('span', { class: 'task-title' }, task.content),
-      meta.length > 0 && h('span', { class: 'task-meta' }, meta)),
-  );
+  if (m.assignee) {
+    const who = chip(`chip-assignee${m.assignee.mine ? ' chip-mine' : ''}`, m.assignee.text);
+    who.title = m.assignee.title;
+    who.dataset.initials = m.assignee.initials;
+    chips.push(who);
+  }
+
+  const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
+  li.append(check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
+  if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
+  return li;
+}
+
+/** De snelle knoppen (bewerken, dag kiezen, verwijderen) van een regel; ze worden pas gemaakt als je de regel aanwijst of er met het toetsenbord in komt. */
+function ensureActions(li, model) {
+  if (li.querySelector('.task-actions')) return;
+  const make = (act, iconName, label, title) => {
+    const b = rowButton('icon-button', act, icon(iconName));
+    b.setAttribute('aria-label', label);
+    b.title = title;
+    return b;
+  };
+  li.append(mk('span', 'task-actions',
+    make('edit', 'pencil', t('task.actionEdit', { name: model.content }), t('task.edit')),
+    make('date', 'calendar', t('task.actionDate', { name: model.content }), t('task.actionDateTitle')),
+    make('delete', 'trash', t('task.actionDelete', { name: model.content }), t('common.delete'))));
+}
+
+/**
+ * Koppelt het gedrag van de takenlijst (afvinken, openen, in- en uitklappen, snelle knoppen) aan de vaste houder van de lijst.
+ * Eén keer aanroepen; werkt voor alle regels, ook de latere.
+ * @param {HTMLElement} container
+ */
+export function bindList(container, handlers) {
+  const rowOf = (target) => {
+    const li = target.closest?.('li.task');
+    const entry = li ? rowCache.get(li.dataset.id) : null;
+    return entry ? { li, entry } : null;
+  };
+  container.addEventListener('click', (e) => {
+    const hit = rowOf(e.target);
+    if (!hit) return;
+    const { li, entry } = hit;
+    const control = e.target.closest('[data-act]');
+    const act = control?.dataset.act;
+    const task = entry.task;
+    if (act === 'check') {
+      if (entry.model.done || li.classList.contains('task-completing')) {
+        handlers.toggle(task);
+        return;
+      }
+      // een korte animatie voordat de taak uit de lijst verdwijnt (niet bij "minder beweging")
+      if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        handlers.toggle(task);
+        return;
+      }
+      li.classList.add('task-completing');
+      control.setAttribute('aria-pressed', 'true');
+      setTimeout(() => handlers.toggle(rowCache.get(li.dataset.id)?.task ?? task), 280);
+      return;
+    }
+    if (act === 'fold') handlers.toggleTask(task);
+    else if (act === 'date') handlers.reschedule(task);
+    else if (act === 'delete') handlers.removeTask(task);
+    else if (act || !e.target.closest('button, a')) handlers.open(task); // "open", "edit", of een klik op de regel zelf
+  });
+  const reveal = (e) => {
+    const hit = rowOf(e.target);
+    if (hit) ensureActions(hit.li, hit.entry.model);
+  };
+  container.addEventListener('mouseover', reveal);
+  container.addEventListener('focusin', reveal);
+}
+
+/** Zet getekende regels in een lijst en bewaart ze voor de volgende keer. `pool` verzamelt wat nu in gebruik is. */
+function rowsOf(list, pool, ctx) {
+  return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
+    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id) });
+    const json = JSON.stringify(model);
+    let entry = rowCache.get(task.id);
+    if (entry && entry.json === json) {
+      entry.task = task;
+    } else {
+      entry = { json, task, model, node: buildRow(model) };
+    }
+    pool.set(task.id, entry);
+    return entry.node;
+  });
+}
+
+/** Vergeet alle getekende regels. */
+export function resetRowCache() {
+  rowCache = new Map();
+}
+
+// ---------- groepen, lege staat en kop ----------
+
+const count = (n) => h('span', { class: 'group-count' }, String(n));
+
+function group({ title, rows, total, collapsible = null, extra = null, footer = null }) {
+  const head = title && h('div', { class: 'group-head' },
+    collapsible && h('button', {
+      class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
+      'aria-label': collapsible.collapsed ? t('section.expand', { name: title }) : t('section.collapse', { name: title }), onclick: collapsible.toggle,
+    }, icon(collapsible.collapsed ? 'chevronRight' : 'chevronDown')),
+    h('h2', { class: 'group-title' }, title),
+    total > 0 && count(total),
+    extra);
+  const collapsed = collapsible?.collapsed;
+  return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}` },
+    head,
+    !collapsed && rows.length > 0 && h('ul', { class: 'tasks' }, rows),
+    !collapsed && footer);
+}
+
+function emptyState({ title, text, action = null }) {
+  return h('div', { class: 'empty' }, emptyArt(), h('p', { class: 'empty-title' }, title), text && h('p', { class: 'empty-text' }, text), action);
 }
 
 /** "Gedeeld met Anna en Bob", of niets als het project van jou alleen is. */
@@ -77,63 +287,99 @@ function sharedWith(view, projectId, me, userName) {
   return h('p', { class: 'hint shared-with' }, t('share.sharedWith', { names }), roleIn(view, projectId, me?.id) === 'owner' ? '' : ` · ${t('share.youAreMember')}`);
 }
 
-const group = (title, rows, extra = null) =>
-  h('section', { class: 'group' },
-    title && h('div', { class: 'group-head' }, h('h2', { class: 'group-title' }, title), extra),
-    rows.length > 0 && h('ul', { class: 'tasks' }, rows));
-
-const empty = (text) => h('p', { class: 'empty' }, text);
+const addInline = (handlers, target, label = t('quick.addTask')) =>
+  h('button', { class: 'add-inline', type: 'button', onclick: () => handlers.quickAdd(target) }, icon('plus'), label);
 
 /**
- * @returns {{ title: string, nodes: Node[] }}
+ * @returns {{ title: string, count: number | null, lead: Node | null, actions: Node[], nodes: Node[] }}
  */
 export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null }) {
-  const row = (task, depth = 0, showProject = false) => taskRow(task, { view, today, now, depth, showProject, handlers, me, userName });
+  const pool = new Map();
+  const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), reminders: tasksWithReminder(view, me?.id) };
+  const rows = (list, showProject) => rowsOf(list, pool, { ...ctx, showProject });
+  const finish = (result) => {
+    rowCache = pool; // alleen wat nu in beeld is, blijft bewaard
+    return result;
+  };
 
   if (route.type === 'today') {
     const list = todayView(view, today);
-    return {
+    const total = list.overdue.length + list.today.length;
+    return finish({
       title: t('nav.today'),
+      count: total,
+      lead: icon('today'),
+      actions: [],
       nodes: [
-        list.overdue.length > 0 && group(t('view.overdue'), list.overdue.map((x) => row(x, 0, true))),
-        group(formatDayHeading(today, today), list.today.map((x) => row(x, 0, true))),
-        list.overdue.length + list.today.length === 0 && empty(t('view.todayEmpty')),
+        list.overdue.length > 0 && group({ title: t('view.overdue'), rows: rows(list.overdue.map((task) => ({ task })), true), total: list.overdue.length }),
+        group({
+          title: formatDayHeading(today, today), rows: rows(list.today.map((task) => ({ task })), true), total: list.today.length,
+          footer: addInline(handlers, { due: 'today' }),
+        }),
+        total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }),
       ],
-    };
+    });
   }
 
   if (route.type === 'upcoming') {
     const days = upcomingView(view, today);
-    return {
+    return finish({
       title: t('nav.upcoming'),
+      count: days.reduce((sum, d) => sum + d.tasks.length, 0),
+      lead: icon('upcoming'),
+      actions: [],
       nodes: days.length > 0
-        ? days.map((d) => group(formatDayHeading(d.date, today), d.tasks.map((x) => row(x, 0, true))))
-        : [empty(t('view.upcomingEmpty'))],
-    };
+        ? days.map((d) => group({ title: formatDayHeading(d.date, today), rows: rows(d.tasks.map((task) => ({ task })), true), total: d.tasks.length }))
+        : [emptyState({ title: t('view.upcomingEmptyTitle'), text: t('view.upcomingEmpty') })],
+    });
   }
 
   const pv = projectView(view, route.id, { showCompleted });
-  if (!pv) return { title: t('view.projectTitle'), nodes: [empty(t('view.projectGone'))] };
+  if (!pv) return finish({ title: t('view.projectTitle'), count: null, lead: null, actions: [], nodes: [emptyState({ title: t('view.projectGone') })] });
+  const project = pv.project;
+  const inbox = isInboxId(project.id);
+  const open = pv.groups.reduce((sum, g) => sum + g.tasks.filter((x) => !x.task.checked).length, 0);
   const total = pv.groups.reduce((sum, g) => sum + g.tasks.length, 0);
-  const more = (label, onclick) => h('button', { class: 'icon-button', type: 'button', 'aria-label': label, title: label, onclick }, '⋯');
-  return {
-    title: pv.project.name,
+  const comments = projectCommentCount(view, project.id);
+  const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost ${cls}`, type: 'button', onclick, ...extra },
+    icon(iconName), h('span', { class: 'btn-label' }, label));
+  const actions = [
+    headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
+    !inbox && headButton('btn-share', 'users', isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
+    !inbox && headButton('btn-menu', 'more', t('project.menu'), () => handlers.projectMenu(project)),
+  ];
+  const archived = isArchivedProject(view, project.id);
+  const addTarget = (section) => ({ projectId: project.id, sectionId: section?.id ?? null });
+  const sectionGroups = pv.groups.map((g) => {
+    const folded = foldRows(g.tasks);
+    const items = rows(folded, false);
+    if (!g.section) {
+      return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)) });
+    }
+    const section = g.section;
+    return group({
+      title: section.name, rows: items, total: g.tasks.length,
+      collapsible: { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
+      extra: h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
+      footer: !archived && addInline(handlers, addTarget(section)),
+    });
+  });
+  return finish({
+    title: project.name,
+    count: open,
+    lead: inbox ? icon('inbox') : dot(project.color, 'dot-large'),
+    actions,
     nodes: [
-      h('div', { class: 'toolbar' },
-        h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.addSection(pv.project) }, t('section.add')),
-        !isInboxId(pv.project.id)
-          ? [
-              h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.shareProject(pv.project) }, isShared(view, pv.project.id) ? t('project.shared') : t('project.share')),
-              h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.projectMenu(pv.project) }, t('project.menu')),
-            ]
-          : null),
-      sharedWith(view, pv.project.id, me, userName),
-      ...pv.groups.map((g) => (g.section
-        ? group(g.section.name, g.tasks.map((x) => row(x.task, x.depth)), more(t('section.editLabel', { name: g.section.name }), () => handlers.sectionMenu(g.section)))
-        : g.tasks.length > 0 && group(null, g.tasks.map((x) => row(x.task, x.depth))))),
-      total === 0 && pv.groups.length === 1 && empty(t('view.projectEmpty')),
-      pv.completedCount > 0 && h('button', { class: 'link-button', type: 'button', onclick: () => handlers.toggleCompleted(pv.project.id) },
+      archived && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('project.archivedBanner')), h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.restoreProject(project) }, t('project.restore'))),
+      sharedWith(view, project.id, me, userName),
+      ...sectionGroups,
+      total === 0 && pv.groups.length === 1 && emptyState({
+        title: t('view.projectEmptyTitle'), text: t('view.projectEmpty'), action: archived ? null : h('button', { class: 'button button-primary', type: 'button', onclick: () => handlers.quickAdd(addTarget(null)) }, t('quick.addTask')),
+      }),
+      !archived && h('div', { class: 'toolbar' },
+        h('button', { class: 'button button-small button-ghost', type: 'button', onclick: () => handlers.addSection(project) }, icon('plus'), t('section.add'))),
+      pv.completedCount > 0 && h('button', { class: 'link-button', type: 'button', onclick: () => handlers.toggleCompleted(project.id) },
         showCompleted ? t('view.hideCompleted') : t('view.showCompleted', { count: pv.completedCount })),
     ],
-  };
+  });
 }

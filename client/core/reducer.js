@@ -87,6 +87,11 @@ function add(state, e, args, now, userId) {
     // maker/eigenaar/auteur vult de server in met de gebruiker die het commando uitvoert; hier doen we alvast hetzelfde
     row[c.name] = c.stamp ? userId : has(args, c.name) ? args[c.name] : c.default !== undefined ? copyDefault(c.default) : null;
   }
+  if (e.name === 'comment') {
+    // precies één van task_id en project_id, en dat moet bestaan (de server weigert anders)
+    if ((row.task_id === null) === (row.project_id === null)) return;
+    if (row.task_id !== null ? !state.tasks.has(row.task_id) : !state.projects.has(row.project_id)) return;
+  }
   if (e.name === 'task' && row.parent_id) {
     const parent = state.tasks.get(row.parent_id);
     if (!parent) return;
@@ -241,6 +246,11 @@ export function applyCommand(state, cmd, now, userId = null) {
       if (CAN_WRITE_FOREIGN.has(e.name) && userId) {
         const row = state[e.resource].get(args.id);
         if (row && row.owner_id && row.owner_id !== userId) return undefined;
+      }
+      // een opmerking wijzig of verwijder je alleen als je de schrijver bent
+      if (e.name === 'comment' && userId) {
+        const row = state.comments.get(args.id);
+        if (row && row.author_id && row.author_id !== userId) return undefined;
       }
       if (m[2] === 'update') return update(state, e, args, now);
       return remove(state, e, args, now, userId);

@@ -537,12 +537,27 @@ async function randomAction(c, rnd) {
       return 'setTaskLabels';
     }
     case 15: {
-      if (!task) return 'skip';
       const uuid = `uuid-${String(++counter).padStart(10, '0')}`;
       const id = `id${String(++counter).padStart(10, '0')}`;
-      const cmd = rnd(2)
-        ? { type: 'comment_add', uuid, args: { id, task_id: task.id, content: 'Opmerking' } }
-        : { type: 'reminder_add', uuid, args: { id, task_id: task.id, type: 'relative', minute_offset: 30 } };
+      const comment = pick(v.comments);
+      const what = [0, 0, 0, 1, 1, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 7, 8][rnd(18)];
+      const other = pick(v.projects, (p) => p.id !== INBOX_ID);
+      let cmd = null;
+      if (what === 0 && task) cmd = { type: 'comment_add', uuid, args: { id, task_id: task.id, content: 'Opmerking' } };
+      else if (what === 1) cmd = { type: 'comment_add', uuid, args: { id, project_id: project.id, content: `Over het project ${rnd(100)}\nmet een tweede regel` } };
+      else if (what === 2 && task) cmd = { type: 'reminder_add', uuid, args: { id, task_id: task.id, type: 'relative', minute_offset: 30 } };
+      else if (what === 3 && comment) cmd = { type: 'comment_update', uuid, args: { id: comment.id, content: `Aangepast ${rnd(1000)}` } };
+      else if (what === 4 && comment) cmd = { type: 'comment_delete', uuid, args: { id: comment.id } };
+      else if (what === 5 && other) {
+        // archiveren en terugzetten, zoals de zijbalk dat doet (een hele tak tegelijk)
+        await (other.is_archived ? c.actions.unarchiveProject(other.id) : c.actions.archiveProject(other.id));
+        return 'archiveProject';
+      } else if (what === 6 && task) cmd = { type: 'task_update', uuid, args: { id: task.id, is_collapsed: !task.is_collapsed } };
+      else if (what === 7) {
+        const s = pick(v.sections);
+        if (s) cmd = { type: 'section_update', uuid, args: { id: s.id, is_collapsed: !s.is_collapsed } };
+      } else if (what === 8 && project.id !== INBOX_ID) cmd = { type: 'project_update', uuid, args: { id: project.id, is_collapsed: !project.is_collapsed, color: ['red', 'blue', 'charcoal', 'berry_red'][rnd(4)] } };
+      if (!cmd) return 'skip';
       await c.store.enqueue([cmd]);
       return cmd.type;
     }
@@ -572,7 +587,7 @@ for (const { seed, every } of [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { s
     await fresh.sync.syncNow();
     assert.deepEqual(snapshot(fresh.store.view), snapshot(c.store.view), 'een nieuw apparaat ziet hetzelfde');
     const kinds = new Set(log);
-    for (const k of ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add']) {
+    for (const k of ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject']) {
       assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
     }
   });

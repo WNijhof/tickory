@@ -2,6 +2,12 @@
 // (nooit als HTML), zodat een taaknaam nooit code kan uitvoeren.
 
 import { t } from '../core/i18n.js';
+import { icon } from './icons.js';
+
+/** Een knop met alleen een pictogram. `label` is de tekst voor schermlezers en de tooltip. */
+export function iconButton({ name, label, onclick, className = '', props = {} }) {
+  return h('button', { class: `icon-button ${className}`.trim(), type: 'button', 'aria-label': label, title: label, onclick, ...props }, icon(name));
+}
 
 /**
  * Maakt een element. Eigenschappen die met "on" beginnen zijn gebeurtenissen; `class` en `dataset` spreken voor zich.
@@ -19,14 +25,14 @@ export function h(tag, props = {}, ...children) {
     else if (key in el && key !== 'list' && key !== 'form') el[key] = value;
     else el.setAttribute(key, value === true ? '' : String(value));
   }
-  for (const child of children.flat()) {
+  for (const child of children.flat(Infinity)) {
     if (child !== null && child !== undefined && child !== false) el.append(child);
   }
   return el;
 }
 
 export function replace(el, ...children) {
-  el.replaceChildren(...children.flat().filter((c) => c !== null && c !== undefined && c !== false));
+  el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
 
 /** Meldingen onderin beeld, optioneel met een knop (bijvoorbeeld "Ongedaan maken"). */
@@ -51,11 +57,11 @@ export function toast(message, { action = null, timeout = 6000, kind = 'info' } 
  * een browser laat dat alleen toe na een handeling van de gebruiker, en op een net geopende pagina is die er nog niet.
  * Sluit het venster toch, dan openen we het meteen opnieuw (met de ingevulde velden intact).
  */
-export function openDialog(build, { wide = false, dismissable = true, onClose = () => {} } = {}) {
+export function openDialog(build, { wide = false, dismissable = true, onClose = () => {}, className = '' } = {}) {
   return new Promise((resolve) => {
     let outcome = null;
     let finished = false;
-    const dialog = h('dialog', { class: `dialog${wide ? ' dialog-wide' : ''}` });
+    const dialog = h('dialog', { class: `dialog${wide ? ' dialog-wide' : ''}${className ? ` ${className}` : ''}` });
     const finish = (value) => {
       outcome = value;
       finished = true;

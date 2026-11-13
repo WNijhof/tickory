@@ -7,6 +7,7 @@ import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
 import { settingsId } from '../../shared/schema.js';
 import { ENTITIES, validateValue } from '../../shared/schema.js';
+import { projectDescendantIds } from './selectors.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -152,15 +153,22 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     deleteTask: (id) => send([{ type: 'task_delete', args: { id } }]),
 
     // ---- projecten en secties ----
-    async addProject({ name, color, parent_id = null }) {
+    async addProject({ name, color, parent_id = null, is_favorite = false }) {
       const id = makeId();
       const args = { id, name: name.trim(), order_key: endKey('projects', 'project', { parent_id }) };
       if (color) args.color = color;
       if (parent_id) args.parent_id = parent_id;
+      if (is_favorite) args.is_favorite = true;
       await send([{ type: 'project_add', args }]);
       return id;
     },
     updateProject: (id, changes) => send([{ type: 'project_update', args: { id, ...changes } }]),
+    /** Archiveert een project met al zijn subprojecten (de zijbalk laat een subproject van een gearchiveerd project toch niet zien). */
+    archiveProject: (id) => send([id, ...projectDescendantIds(store.view, id)].map((x) => ({ type: 'project_update', args: { id: x, is_archived: true } }))),
+    /** Zet een gearchiveerd project terug, met de subprojecten die mee zijn gearchiveerd. */
+    unarchiveProject: (id) => send([id, ...projectDescendantIds(store.view, id)]
+      .filter((x) => store.view.projects.get(x)?.is_archived)
+      .map((x) => ({ type: 'project_update', args: { id: x, is_archived: false } }))),
     deleteProject: (id) => send([{ type: 'project_delete', args: { id } }]),
     async addSection(project_id, name) {
       const id = makeId();
@@ -177,6 +185,23 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     leaveProject: (project_id) => send([{ type: 'project_leave', args: { project_id } }]),
     /** Wijst een taak toe aan een lid van het project, of aan niemand (null). */
     assignTask: (id, assignee_id) => send([{ type: 'task_update', args: { id, assignee_id } }]),
+
+    // ---- opmerkingen ----
+    /**
+     * Zet een opmerking bij een taak (`{ taskId }`) of een project (`{ projectId }`). Wie de schrijver is, vult de server in.
+     * Geeft het id terug.
+     */
+    async addComment({ taskId = null, projectId = null }, content) {
+      const id = makeId();
+      const args = { id, content: content.trim() };
+      if (taskId) args.task_id = taskId;
+      else args.project_id = projectId;
+      await send([{ type: 'comment_add', args }]);
+      return id;
+    },
+    /** Wijzigt de tekst van een opmerking. Alleen de schrijver mag dat; de server weigert het anders. */
+    updateComment: (id, content) => send([{ type: 'comment_update', args: { id, content: content.trim() } }]),
+    deleteComment: (id) => send([{ type: 'comment_delete', args: { id } }]),
 
     // ---- labels ----
     async addLabel(name) {
