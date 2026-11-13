@@ -64,6 +64,14 @@ self.addEventListener('install', (event) => {
 });
 
 /**
+ * Mag dit antwoord in de bewaarde kopie? Alleen een geslaagd antwoord van onszelf, en de app-pagina "/" alleen als het echte HTML
+ * is (geen JSON of foutpagina van een tussenliggende dienst: die zou de app bij het volgende openen vervangen).
+ */
+function storable(key, response) {
+  return response.ok && response.type === 'basic' && (key !== '/' || (response.headers.get('content-type') ?? '').startsWith('text/html'));
+}
+
+/**
  * Vult de bewaarde kopie aan als er bestanden ontbreken. Nodig omdat de kopie buiten de app om gewist kan worden:
  * door de browser bij ruimtegebrek, en door netwerkfilters als AdGuard, dat eigen code vóór elke service worker plakt
  * en daarmee alle caches wist bij de eerste start en na elke herstart van AdGuard.
@@ -75,7 +83,7 @@ async function ensureShell() {
   await Promise.all(missing.map(async (path) => {
     try {
       const response = await fetch(path, { cache: 'no-cache' });
-      if (response.ok) await cache.put(path, response);
+      if (storable(path, response)) await cache.put(path, response);
     } catch { /* geen verbinding: volgende keer opnieuw */ }
   }));
 }
@@ -92,22 +100,35 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+/**
+ * Wat deze service worker bewaart en teruggeeft: alleen de eigen bestanden uit SHELL, en voor een navigatie alleen de app-pagina "/".
+ * Al het andere (een ander pad, de API, een link naar bijvoorbeeld /app.css) gaat gewoon naar het netwerk. Een navigatie naar een
+ * ander bestand mag nooit de bewaarde app-pagina overschrijven: dat liet de app, na één klik op zo'n link, met een stylesheet
+ * als pagina openen (en zonder verbinding zo blijven).
+ * @returns {string | null} de sleutel in de bewaarde kopie, of null als dit verzoek niet van ons is
+ */
+function cacheKey(request, url) {
+  if (request.method !== 'GET' || url.origin !== self.location.origin) return null;
+  if (request.mode === 'navigate') return url.pathname === '/' ? '/' : null;
+  return url.pathname !== '/' && SHELL.includes(url.pathname) ? url.pathname : null;
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  const url = new URL(request.url);
-  if (request.method !== 'GET' || url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/') || url.pathname === '/health' || url.pathname === '/sw.js') return;
+  const key = cacheKey(request, new URL(request.url));
+  if (key === null) return;
+  const navigation = request.mode === 'navigate';
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const key = request.mode === 'navigate' ? '/' : url.pathname; // elke navigatie opent dezelfde app
     const cached = await cache.match(key);
-    const fresh = fetch(request)
+    // De app-pagina halen we zonder zoekdeel op, zodat wat er na het vraagteken staat nooit in de bewaarde kopie terechtkomt.
+    const fresh = fetch(navigation ? '/' : request)
       .then((response) => {
-        if (response.ok && response.type === 'basic') cache.put(key, response.clone());
+        if (storable(key, response)) cache.put(key, response.clone());
         return response;
       });
-    if (request.mode === 'navigate') event.waitUntil(ensureShell()); // bij elke start controleren of de kopie nog compleet is
+    if (navigation) event.waitUntil(ensureShell()); // bij elke start controleren of de kopie nog compleet is
     if (!cached) return fresh;
     event.waitUntil(fresh.catch(() => { /* geen verbinding: de bewaarde kopie volstaat */ }));
     return cached;
