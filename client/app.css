@@ -17,12 +17,15 @@
   --accent-text: #ffffff;
   --danger: #b42318;
   --warn: #b54708;
-  --ok: #1a7f37;
+  --ok: #187434;
   --future: #5a4fcf;
   --p1: #d1453b;
-  --p2: #e07b00;
+  --p2: #cc6d00;
   --p3: #246fe0;
   --p4: #7d8791;
+  --p1-text: #c43a30; /* dezelfde kleuren als tekst: donkerder voor genoeg contrast */
+  --p2-text: #9a5200;
+  --p3-text: #2268d8;
   --focus: #0b5ed7;
   --radius: 10px;
   --radius-sm: 7px;
@@ -56,6 +59,9 @@
     --p2: #f5a03a;
     --p3: #6aa3ff;
     --p4: #8b96a1;
+    --p1-text: #f2776c;
+    --p2-text: #f5a03a;
+    --p3-text: #6aa3ff;
     --focus: #7db4ff;
     --shadow-pop: 0 18px 50px rgb(0 0 0 / 55%);
     --shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
@@ -223,9 +229,9 @@ textarea.field { resize: vertical; }
 .chip-due.due-future { color: var(--future); }
 .chip-deadline { color: var(--warn); }
 .chip-deadline.due-overdue { color: var(--danger); }
-.chip.prio-1 { color: var(--p1); }
-.chip.prio-2 { color: var(--p2); }
-.chip.prio-3 { color: var(--p3); }
+.chip.prio-1 { color: var(--p1-text); }
+.chip.prio-2 { color: var(--p2-text); }
+.chip.prio-3 { color: var(--p3-text); }
 
 /* ---------- takenlijst ---------- */
 .content { padding-top: 10px; }
@@ -250,10 +256,10 @@ textarea.field { resize: vertical; }
 .task[data-depth="2"] { margin-left: 56px; }
 .task[data-depth="3"] { margin-left: 84px; }
 .task[data-depth="4"] { margin-left: 112px; }
-.prio-1 { --prio: var(--p1); }
-.prio-2 { --prio: var(--p2); }
-.prio-3 { --prio: var(--p3); }
-.prio-4 { --prio: var(--p4); }
+.prio-1 { --prio: var(--p1); --prio-text: var(--p1-text); }
+.prio-2 { --prio: var(--p2); --prio-text: var(--p2-text); }
+.prio-3 { --prio: var(--p3); --prio-text: var(--p3-text); }
+.prio-4 { --prio: var(--p4); --prio-text: var(--text-soft); }
 .check {
   flex: none; width: 40px; height: 44px; border: 0; background: none; position: relative; padding: 0; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
@@ -410,6 +416,7 @@ textarea.task-title-input {
   font-size: 1.35rem; font-weight: 650; line-height: 1.3; border-color: transparent; background: none; padding: 6px 8px; resize: none; overflow: hidden; min-height: 44px; letter-spacing: -0.01em;
 }
 .task-title-input:hover, .task-title-input:focus { border-color: var(--line-strong); }
+textarea.task-title-input:focus-visible, textarea.task-description:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 25%, transparent); }
 .task-description { border-color: transparent; background: none; padding: 6px 8px; font-size: 0.95rem; min-height: 72px; }
 .task-description:hover, .task-description:focus { border-color: var(--line-strong); }
 .prop { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -425,7 +432,7 @@ textarea.task-title-input {
 .prio-option input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .prio-option span {
   display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 38px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg);
-  font-weight: 600; font-size: 0.88rem; color: var(--prio);
+  font-weight: 600; font-size: 0.88rem; color: var(--prio-text);
 }
 .prio-option .icon { width: 14px; height: 14px; stroke-width: 3; display: none; }
 .prio-option:hover span { background: var(--bg-hover); }
@@ -559,7 +566,7 @@ textarea.task-title-input {
   .task[data-depth="2"] { margin-left: 44px; }
   .task[data-depth="3"], .task[data-depth="4"] { margin-left: 66px; }
   .add-inline { min-height: 48px; }
-  .group-toggle { width: 40px; height: 40px; margin-left: -8px; }
+  .group-toggle { width: 44px; height: 44px; margin-left: -10px; }
   .group-more { width: 44px; height: 44px; }
   .dialog-form { padding: 16px; }
   .swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -576,7 +583,7 @@ textarea.task-title-input {
   .save-tip { display: none; }
   .subtask-title { min-height: 44px; }
   .comment-tools { opacity: 1; }
-  .chip-button { min-height: 40px; padding: 4px 12px; }
+  .chip-button { min-height: 44px; padding: 4px 14px; }
   .prio-option span { min-height: 44px; }
 }
 

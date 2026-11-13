@@ -85,3 +85,26 @@ test('app.css toont precies dit palet: een klasse per kleur, licht en donker', (
   assert.deepEqual(read(lightBlock), Object.fromEntries(COLOR_NAMES.map((n) => [n, PALETTE[n].light])));
   assert.deepEqual(read(darkBlock), Object.fromEntries(COLOR_NAMES.map((n) => [n, PALETTE[n].dark])));
 });
+
+test('de tekstkleuren van de interface hebben genoeg contrast (4,5:1) op de achtergronden waar ze op staan, licht en donker', () => {
+  const text = ['text', 'text-soft', 'accent', 'danger', 'warn', 'ok', 'future', 'p1-text', 'p2-text', 'p3-text', 'focus'];
+  const problems = [];
+  for (const scheme of ['light', 'dark']) {
+    for (const name of text) {
+      for (const bg of ['bg', 'bg-soft', 'bg-hover']) {
+        const ratio = contrast(token(name, scheme), token(bg, scheme));
+        if (ratio < 4.5) problems.push(`${name} op ${bg} (${scheme}): ${ratio.toFixed(2)}:1`);
+      }
+    }
+    // de cirkels (alleen een rand, 3:1 volstaat) in de kleur van de prioriteit
+    for (const name of ['p1', 'p2', 'p3', 'p4']) {
+      for (const bg of ['bg', 'bg-soft', 'bg-hover']) {
+        const ratio = contrast(token(name, scheme), token(bg, scheme));
+        if (ratio < 3) problems.push(`${name} (cirkel) op ${bg} (${scheme}): ${ratio.toFixed(2)}:1`);
+      }
+    }
+    const onAccent = contrast(token('accent-text', scheme), token('accent', scheme));
+    if (onAccent < 4.5) problems.push(`tekst op een knop in de accentkleur (${scheme}): ${onAccent.toFixed(2)}:1`);
+  }
+  assert.deepEqual(problems, []);
+});
