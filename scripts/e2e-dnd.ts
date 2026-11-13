@@ -39,6 +39,9 @@ async function scenario(c: any): Promise<void> {
   asBob([cmd('project_add', { id: 'dnd-bobs-project', name: 'Van Bob' }), cmd('project_share', { project_id: 'dnd-bobs-project', username: 'alice' })]);
   await waitFor(`[...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Van Bob') && [...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Naburig')`, 'projecten van de proef in de zijbalk', 15_000);
 
+  // de lijsten Filters en Labels in de zijbalk nemen plaats in: klap ze in (zoals een gebruiker zou doen), zodat alle projecten in beeld blijven
+  for (const key of ['filters', 'labels']) await evaluate(`(() => { const b = document.querySelector('[data-fk="find-toggle:${key}"]'); if (b && b.getAttribute('aria-expanded') === 'true') b.click(); })()`);
+
   // ---------- hulpmiddelen ----------
   const nav = (label: string) => evaluate(`(() => { const el = [...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === ${js(label)}); if (!el) throw new Error('geen menu-item: ' + ${js(label)}); el.click(); })()`);
   const rowExpr = (name: string) => `[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(name)})`;
@@ -466,6 +469,8 @@ async function scenario(c: any): Promise<void> {
     for (let i = 1; i <= 6; i++) { await touch('touchMove', Math.round(pe.x - ((pe.x - 12) * i) / 6), pe.y); await sleep(16); }
     await waitFor(`document.body.classList.contains('nav-open')`, 'zijbalk opent bij de linkerrand', 4000);
     await sleep(300);
+    await evaluate(`${navRowExpr('Doelproject')}.scrollIntoView({ block: 'center' })`); // de zijbalk is nu langer (Filters en Labels): het project staat misschien onder de rand
+    await sleep(100);
     const doel = await navRect('Doelproject');
     for (let i = 1; i <= 6; i++) { await touch('touchMove', Math.round(12 + ((doel.x + 100 - 12) * i) / 6), Math.round(pe.y + ((doel.y + doel.h / 2 - pe.y) * i) / 6)); await sleep(16); }
     assert.equal((await dragState()).target, 1, 'het project licht op');
