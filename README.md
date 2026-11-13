@@ -53,7 +53,7 @@ By default the container is only reachable from the server itself (`127.0.0.1:87
 
 Open the app and sign in with the first account.
 
-While the repository or the image is still private, the server has to sign in once to pull: `docker login ghcr.io -u <your-github-name>` with a token that only has `read:packages`.
+The image is published with the first release. If pulling it asks for a sign-in, the package on ghcr.io is still private; see [Private image](#private-image).
 
 ## What it does
 
@@ -206,15 +206,15 @@ docker compose up -d
 
 The volume name starts with the name of the directory in which you run `docker compose` (here `tickory`); check it with `docker volume ls`. **After that, sign out and in again on every device** (Settings, "Sign out and clear local data"). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past its state; signing in again is the sure way and costs nothing, because everything is on the server.
 
-### Private repository or image
+### Private image
 
-While the repository or the image is private (the beginning), your server has to sign in once to be able to pull and clone:
+The repository is public. A package on ghcr.io is created private by the first publication, and the owner has to make it public once (GitHub: your profile, Packages, `tickory`, Package settings, Change visibility). Until then, a server has to sign in once to pull it:
 
 ```sh
 docker login ghcr.io -u <your-github-name>     # password: a token with only "read:packages"
 ```
 
-To fetch without signing in, make the repository and the package public (they contain no secrets; passwords and accounts are only in your own `.env` and database). The package is switched on GitHub: your profile, Packages, `tickory`, Package settings, Change visibility.
+Once the package is public, no sign-in is needed. Nothing secret is in the image (passwords and accounts are only in your own `.env` and database).
 
 ## Quick add and Dutch dates
 

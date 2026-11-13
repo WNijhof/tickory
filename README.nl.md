@@ -154,15 +154,15 @@ docker compose up -d
 
 De volumenaam begint met de naam van de map waarin je `docker compose` draait (hier `tickory`); controleer hem met `docker volume ls`. **Meld daarna op elk apparaat af en weer aan** (Instellingen, "Afmelden en lokale gegevens wissen"). Een apparaat dat nog nieuwere wijzigingen kende dan de back-up merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij zijn stand is gegroeid; opnieuw aanmelden is de zekere weg en kost niets, omdat alles op de server staat.
 
-### Privé repo of image
+### Privé image
 
-Staat de repo of de image op privé (het begin), dan moet je server eenmalig inloggen om te kunnen pullen en clonen:
+De repo is openbaar. Een pakket op ghcr.io begint bij de eerste publicatie als privé en de eigenaar moet het eenmalig openbaar maken (GitHub: je profiel, Packages, `tickory`, Package settings, Change visibility). Tot die tijd moet een server eenmalig inloggen om het te kunnen ophalen:
 
 ```sh
 docker login ghcr.io -u <jouw-github-naam>     # wachtwoord: een token met alleen "read:packages"
 ```
 
-Wil je het zonder inloggen kunnen ophalen, maak dan de repo en het pakket openbaar (er staan geen geheimen in; wachtwoorden en accounts zitten alleen in je eigen `.env` en database). Het pakket zet je om via GitHub: je profiel, Packages, `tickory`, Package settings, Change visibility.
+Is het pakket openbaar, dan is inloggen niet nodig. Er staat niets geheims in de image (wachtwoorden en accounts zitten alleen in je eigen `.env` en database).
 
 ## Een nieuwe versie publiceren (beheerder)
 
