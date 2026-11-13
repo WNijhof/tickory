@@ -234,7 +234,8 @@ export function applyCommand(state, cmd, now, userId = null) {
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;
-      if (!e || e.commands === false) return undefined;
+      // welke algemene commando's een entiteit heeft, staat in de definitie (leden: geen; instellingen: alleen wijzigen)
+      if (!e || e.commands === false || (Array.isArray(e.commands) && !e.commands.includes(m[2]))) return undefined;
       if (m[2] === 'add') return add(state, e, args, now, userId);
       // een label of filter van iemand anders lees je alleen
       if (CAN_WRITE_FOREIGN.has(e.name) && userId) {

@@ -22,7 +22,7 @@ import { nextOccurrence } from '../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
 import { bumpRev, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
-import { getUserById, getUserByName, peersOf, publicMe } from './users.ts';
+import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -60,7 +60,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': return row.owner_id === userId;
+    case 'filter': case 'settings': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -490,10 +490,11 @@ function projectLeave(ctx: Ctx, args: Args): void {
 type Handler = (ctx: Ctx, args: Args) => void;
 const HANDLERS: Record<string, Handler> = {};
 for (const e of ENTITY_LIST) {
-  if (e.commands === false) continue;
-  HANDLERS[`${e.name}_add`] = (ctx, args) => addEntity(ctx, e, args);
-  HANDLERS[`${e.name}_update`] = (ctx, args) => updateEntity(ctx, e, args);
-  HANDLERS[`${e.name}_delete`] = (ctx, args) => deleteEntity(ctx, e, args);
+  // welke algemene commando's een entiteit heeft, staat in de definitie (zie shared/schema.js)
+  const verbs = e.commands === false ? [] : e.commands ?? ['add', 'update', 'delete'];
+  if (verbs.includes('add')) HANDLERS[`${e.name}_add`] = (ctx, args) => addEntity(ctx, e, args);
+  if (verbs.includes('update')) HANDLERS[`${e.name}_update`] = (ctx, args) => updateEntity(ctx, e, args);
+  if (verbs.includes('delete')) HANDLERS[`${e.name}_delete`] = (ctx, args) => deleteEntity(ctx, e, args);
 }
 HANDLERS.task_move = taskMove;
 HANDLERS.task_complete = taskComplete;
@@ -554,7 +555,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
   }
 }
@@ -644,6 +645,8 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
     const me = getUserById(db, userId);
     if (!me || me.is_disabled) fail('UNAUTHORIZED', 'gebruiker bestaat niet of is geblokkeerd');
     const now = new Date().toISOString();
+    // een account van vóór de persoonlijke instellingen krijgt ze hier alsnog (eenmalig, met een eigen versienummer)
+    if (!db.prepare('SELECT 1 FROM user_settings WHERE owner_id = ?').get(userId)) ensureSettings({ db, rev: bumpRev(db), now, userId });
     if (commands.length > 0) {
       const cutoff = new Date(Date.now() - COMMAND_RETENTION_DAYS * 86_400_000).toISOString();
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);

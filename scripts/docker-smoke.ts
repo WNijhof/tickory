@@ -141,6 +141,12 @@ try {
   assert.deepEqual(first.json.projects.map((p: { name: string }) => p.name), ['Inbox']);
   ok('API: zonder aanmelding of met fout wachtwoord 401; na inloggen komt de eigen Inbox terug');
 
+  // ---- meldingen in de browser: de server heeft een eigen sleutel, en die blijft dezelfde ----
+  const pushKey = async (): Promise<string> => (await (await fetch(`${baseUrl()}/api/v1/push/key`, { headers: { Authorization: `Bearer ${TOKEN}` } })).json()).public_key;
+  const keyBefore = await pushKey();
+  assert.equal(Buffer.from(keyBefore, 'base64url').length, 65, 'een geldige publieke sleutel voor meldingen');
+  assert.equal((await fetch(`${baseUrl()}/api/v1/push/key`)).status, 401);
+
   // ---- een tweede gebruiker via de beheer-API, en gescheiden gegevens ----
   const created = await fetch(`${baseUrl()}/api/v1/admin/users`, {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
@@ -175,6 +181,7 @@ try {
   assert.deepEqual(after.json.projects.map((p: { name: string }) => p.name).sort(), ['Inbox', 'Rooktest']);
   assert.deepEqual(after.json.tasks.map((t: { content: string }) => t.content), ['Overleeft een herstart']);
   assert.equal((dockerTry('logs', name).out.match(/Eerste account/g) ?? []).length, 1, 'na een herstart wordt er niet nog een eerste account gemaakt');
+  assert.equal(await pushKey(), keyBefore, 'de sleutel voor meldingen overleeft een herstart (anders vervallen alle aangemelde apparaten)');
   const again = await sync({ sync_token: after.json.sync_token, commands: [{ type: 'project_add', uuid: 'smoke-docker-0001', args: { id: 'project-docker-01', name: 'Rooktest' } }] });
   assert.equal(again.json.sync_status['smoke-docker-0001'], 'ok', 'een herhaald commando na de herstart is idempotent');
   assert.equal(again.json.sync_token, after.json.sync_token, 'en verandert niets');

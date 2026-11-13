@@ -166,13 +166,28 @@ test('gedeelde modules staan onder /shared/, met het juiste type', async () => {
   assert.match(await r.text(), /export function keyBetween/);
 });
 
-test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async () => {
+test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async (t) => {
   const first = await fetch(`${base}/shared/orderKey.js`);
   const etag = first.headers.get('etag');
   assert.ok(etag);
   await first.arrayBuffer();
+  // Leg vast wat de server zelf ontvangt. Op een pc met een netwerkfilter (AdGuard) komt een header soms niet of anders
+  // aan; dan valt de 304 hier niet te meten. Dat mag deze test niet laten falen, maar ook niet verbergen: komt de header
+  // wel aan, dan moet het antwoord 304 zijn, en in CI (zonder filter) moet hij altijd aankomen.
+  let received: string | undefined;
+  const spy = (req: { url?: string; method?: string; headers: Record<string, unknown> }) => {
+    if (req.url === '/shared/orderKey.js' && req.method === 'GET') received = req.headers['if-none-match'] as string | undefined;
+  };
+  app.server.on('request', spy);
   const second = await fetch(`${base}/shared/orderKey.js`, { headers: { 'If-None-Match': etag! } });
-  assert.equal(second.status, 304);
+  app.server.off('request', spy);
+  if (received === etag || process.env.CI) {
+    assert.equal(received, etag, 'de voorwaardelijke header komt ongewijzigd aan');
+    assert.equal(second.status, 304);
+  } else {
+    assert.equal((await staticResponse('/shared/orderKey.js', CLIENT_DIR, SHARED_DIR, etag))!.status, 304, 'de regel zelf klopt');
+    t.diagnostic(`If-None-Match kwam niet ongewijzigd bij de server aan (verstuurd ${etag}, ontvangen ${received ?? 'niets'}): iets tussen de test en de server paste het verzoek aan. De 304 is hier rechtstreeks gecontroleerd in plaats van via het netwerk.`);
+  }
   const head = await fetch(`${base}/shared/orderKey.js`, { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal((await head.text()).length, 0);

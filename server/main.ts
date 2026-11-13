@@ -13,6 +13,10 @@
 //   POST /api/v1/sync                     de sync (zie sync.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password
+//   GET  /api/v1/push/key                 de publieke sleutel om meldingen in de browser aan te zetten
+//   POST /api/v1/push/subscribe           {endpoint, keys, lang}   POST /api/v1/push/unsubscribe {endpoint}
+//   GET  /api/v1/push/subscriptions       eigen apparaten met meldingen   POST /api/v1/push/test   proefmelding
+//   POST /api/v1/push/action              {token}  een knop uit een melding (zonder aanmelding; het token is het bewijs)
 
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
@@ -29,6 +33,8 @@ import {
   publicMe, revokeSession, revokeSessions, setPasswordHash, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
 } from './users.ts';
 import type { UserRow } from './users.ts';
+import { createPush } from './push.ts';
+import type { Push } from './push.ts';
 
 const MAX_BODY = 1024 * 1024; // 1 MiB
 const DRAIN_LIMIT = 16 * MAX_BODY; // tot hier lezen we een te groot verzoek weg om netjes te kunnen antwoorden
@@ -68,6 +74,10 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** Voor tests: eigen beperking van inlogpogingen. */
   limiter?: LoginLimiter;
+  /** Meldingen in de browser (Web Push). Zonder: de eindpunten onder /api/v1/push/ bestaan niet. */
+  push?: Push | null;
+  /** Hoe vaak de server kijkt welke herinneringen aan de beurt zijn; 0 = niet vanzelf (tests roepen `push.tick()` zelf aan). */
+  pushIntervalMs?: number;
 }
 
 export interface App {
@@ -145,6 +155,12 @@ export function createApp(opts: AppOptions): App {
   const clientDir = opts.clientDir === undefined ? DEFAULT_CLIENT_DIR : opts.clientDir;
   const sharedDir = opts.sharedDir ?? DEFAULT_SHARED_DIR;
   const cors: Record<string, string> = opts.corsOrigin ? { 'Access-Control-Allow-Origin': opts.corsOrigin, Vary: 'Origin' } : {};
+  const push = opts.push ?? null;
+  const pushInterval = opts.pushIntervalMs ?? 20_000;
+  const pushTimer = push && pushInterval > 0
+    ? setInterval(() => { push.tick().catch((err) => console.error('meldingen versturen mislukt', err)); }, pushInterval)
+    : null;
+  pushTimer?.unref(); // de klok houdt het proces niet in leven
 
   const authenticate = (req: IncomingMessage): Caller | null => {
     const header = req.headers.authorization;
@@ -328,12 +344,21 @@ export function createApp(opts: AppOptions): App {
 
       if (!path.startsWith('/api/')) return await serveStatic(req, res, path);
 
+      // Een knop uit een melding: de browser is op dat moment niet ingelogd; het ondertekende token is het bewijs.
+      if (path === '/api/v1/push/action' && push) {
+        if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        const outcome = push.handleAction((await readJson(req)).token);
+        if (outcome.userId) broadcast(null, currentRev(db));
+        return outcome.ok ? send(res, 200, { ok: true }) : send(res, 400, { error_code: 'INVALID_REQUEST', error: outcome.error ?? 'niet gelukt' });
+      }
+
       if (path === '/api/v1/auth/login') {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
         return await login(req, res);
       }
 
-      const known = path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users');
+      const known = path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
+        || (push !== null && path.startsWith('/api/v1/push/'));
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
@@ -370,6 +395,20 @@ export function createApp(opts: AppOptions): App {
         return send(res, 200, { ok: true });
       }
       if (path.startsWith('/api/v1/auth/')) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+
+      if (push && path.startsWith('/api/v1/push/')) {
+        const wants = (method: string): boolean => {
+          if (req.method === method) return true;
+          send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: `gebruik ${method}` });
+          return false;
+        };
+        if (path === '/api/v1/push/key') return wants('GET') ? send(res, 200, { public_key: push.publicKey }) : undefined;
+        if (path === '/api/v1/push/subscriptions') return wants('GET') ? send(res, 200, { subscriptions: push.list(caller.user.id, caller.sessionId) }) : undefined;
+        if (path === '/api/v1/push/subscribe') return wants('POST') ? send(res, 200, push.subscribe(caller.user.id, caller.sessionId, await readJson(req))) : undefined;
+        if (path === '/api/v1/push/unsubscribe') return wants('POST') ? send(res, 200, { ok: push.unsubscribe(caller.user.id, (await readJson(req)).endpoint) }) : undefined;
+        if (path === '/api/v1/push/test') return wants('POST') ? send(res, 200, await push.sendTest(caller.user.id)) : undefined;
+        return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+      }
 
       if (path === '/api/v1/events') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
@@ -427,6 +466,7 @@ export function createApp(opts: AppOptions): App {
     server,
     close: () =>
       new Promise((resolveClose) => {
+        if (pushTimer) clearInterval(pushTimer);
         for (const s of streams) s.res.end();
         streams.clear();
         server.close(() => resolveClose());
@@ -552,7 +592,13 @@ if (import.meta.main) {
     }
     const host = process.env.HOST ?? '127.0.0.1';
     const port = Number(process.env.PORT ?? 8787);
-    const app = createApp({ db, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
+    // Meldingen in de browser. VAPID_SUBJECT is het contactadres van de beheerder voor de pushdienst ("mailto:…" of een
+    // https-adres); zonder gaat er geen contactadres mee.
+    if (process.env.VAPID_SUBJECT && !/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(process.env.VAPID_SUBJECT)) {
+      console.warn('VAPID_SUBJECT is geen "mailto:…" of https-adres en wordt genegeerd.');
+    }
+    const push = createPush({ db, subject: process.env.VAPID_SUBJECT, defaultTimeZone: process.env.DEFAULT_TIMEZONE });
+    const app = createApp({ db, push, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
     app.server.listen(port, host, () => console.log(`Tickory luistert op http://${host}:${port} (database: ${process.env.DB_PATH ?? './data/todo.db'})`));
     const stop = () => app.close().then(() => { db.close(); process.exit(0); });
     process.on('SIGINT', stop);

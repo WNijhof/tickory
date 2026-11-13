@@ -2,9 +2,9 @@
 // Alle tabel- en kolomnamen in SQL komen uitsluitend uit die definities, nooit uit invoer van buiten.
 
 import type { DatabaseSync } from 'node:sqlite';
-import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, validateValue as sharedValidate } from '../shared/schema.js';
+import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings';
 export type ColType = 'text' | 'int' | 'bool' | 'json';
 
 export interface Col {
@@ -30,13 +30,13 @@ export interface Entity {
   table: string;
   resource: string;
   cols: Col[];
-  commands?: boolean;
+  commands?: false | readonly ('add' | 'update' | 'delete')[];
 }
 
 export const ENTITIES = SHARED_ENTITIES as Record<EntityName, Entity>;
 export const ENTITY_LIST = SHARED_LIST as Entity[];
 export const validateValue = sharedValidate as (col: Col, v: unknown) => string | null;
-export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES };
+export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
 export const SCHEMA_VERSION = 2;
@@ -92,6 +92,26 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS task_moves_rev ON task_moves (rev)');
   db.exec('DROP TABLE IF EXISTS commands'); // versie 0.1: zonder gebruiker; alle apparaten moeten toch opnieuw inloggen
 
+  // Apparaten die meldingen in de browser willen (Web Push), en welke herinneringen al verstuurd zijn (zie push.ts).
+  db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    session_id TEXT NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    lang TEXT NOT NULL DEFAULT 'nl',
+    created_at TEXT NOT NULL,
+    last_success_at TEXT,
+    last_error TEXT,
+    last_error_at TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS push_user ON push_subscriptions (user_id)');
+  db.exec(`CREATE TABLE IF NOT EXISTS reminder_deliveries (
+    reminder_id TEXT NOT NULL, moment TEXT NOT NULL, user_id TEXT NOT NULL, sent_at TEXT NOT NULL,
+    PRIMARY KEY (reminder_id, moment)
+  )`);
+
   for (const e of ENTITY_LIST) {
     const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
     db.exec(`CREATE TABLE IF NOT EXISTS ${e.table} (
@@ -110,6 +130,7 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS members_project ON project_members (project_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS settings_owner ON user_settings (owner_id)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
 }
 

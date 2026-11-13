@@ -2,6 +2,8 @@
 // Alleen lezen, geen wijzigingen.
 
 import { isInboxId } from '../../shared/schema.js';
+import { settingsId } from '../../shared/schema.js';
+import { reminderMoment } from '../../shared/reminders.js';
 import { addDays } from './format.js';
 
 export const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -118,3 +120,24 @@ export const isShared = (view, projectId) => membersOf(view, projectId).length >
 
 /** Een label van iemand anders (je ziet het omdat het op een taak in een gedeeld project staat). */
 export const isForeignLabel = (label, userId) => Boolean(userId && label.owner_id && label.owner_id !== userId);
+
+// ---- herinneringen en instellingen ----
+
+/** Je persoonlijke instellingen; standaardwaarden zolang de server ze nog niet heeft gestuurd. */
+export const mySettings = (view, userId) => view.settings.get(settingsId(userId)) ?? { auto_reminder: 30, timezone: null };
+
+/**
+ * Je eigen herinneringen bij een taak, met het (zwevende) tijdstip waarop ze afgaan; `moment` is null als een herinnering
+ * nu niets doet (bijvoorbeeld "30 minuten vooraf" bij een taak zonder tijd). Op volgorde van afgaan, slapende achteraan.
+ * @returns {{ reminder: object, moment: string | null }[]}
+ */
+export function remindersOf(view, taskId, userId) {
+  const task = view.tasks.get(taskId);
+  return [...view.reminders.values()]
+    .filter((r) => r.task_id === taskId && (!r.owner_id || !userId || r.owner_id === userId))
+    .map((reminder) => ({ reminder, moment: reminderMoment(reminder, task) }))
+    .sort((a, b) => (a.moment === b.moment ? (a.reminder.id < b.reminder.id ? -1 : 1) : a.moment === null ? 1 : b.moment === null ? -1 : a.moment < b.moment ? -1 : 1));
+}
+
+/** Heeft deze taak een herinnering van jou die nog gaat afgaan of kan afgaan? (voor het belletje in de lijst) */
+export const hasReminder = (view, taskId, userId) => remindersOf(view, taskId, userId).some((x) => x.moment !== null);

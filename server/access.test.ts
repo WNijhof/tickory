@@ -506,3 +506,49 @@ test('createSchema voegt ontbrekende kolommen toe aan een oudere database en ver
   const t = cmd('task_add', { project_id: u.inbox_project_id, content: 'werkt', assignee_id: u.id });
   ok(run(db, u, [t]), t);
 });
+
+test('instellingen: één rij per gebruiker, alleen van jezelf en alleen te wijzigen', () => {
+  const { db, alice, bob } = world();
+  const mine = `settings-${alice.id}`;
+  const ra = run(db, alice, []);
+  assert.deepEqual(rows(ra, 'settings').map((s) => [s.id, s.auto_reminder, s.timezone, s.owner_id]), [[mine, 30, null, alice.id]]);
+  assert.deepEqual(ids(run(db, bob, []), 'settings'), [`settings-${bob.id}`]);
+
+  const good = cmd('settings_update', { id: mine, auto_reminder: 10, timezone: 'Europe/Amsterdam' });
+  const off = cmd('settings_update', { id: mine, auto_reminder: -1 });
+  ok(run(db, alice, [good]), good);
+  assert.deepEqual(rows(run(db, alice, []), 'settings').map((s) => [s.auto_reminder, s.timezone]), [[10, 'Europe/Amsterdam']]);
+  ok(run(db, alice, [off]), off);
+  assert.equal(rows(run(db, alice, []), 'settings')[0].auto_reminder, -1);
+
+  const bad = [
+    cmd('settings_update', { id: mine, auto_reminder: -2 }), cmd('settings_update', { id: mine, auto_reminder: 60 * 24 * 365 + 1 }),
+    cmd('settings_update', { id: mine, auto_reminder: 1.5 }), cmd('settings_update', { id: mine, timezone: 'Mars/Olympus' }),
+    cmd('settings_update', { id: mine, timezone: 'x'.repeat(65) }), cmd('settings_update', { id: mine, timezone: 5 }),
+  ];
+  const rb = run(db, alice, bad);
+  for (const c of bad) err(rb, c, 'INVALID_ARG');
+  const forged = cmd('settings_update', { id: mine, owner_id: bob.id });
+  err(run(db, alice, [forged]), forged, 'READONLY');
+  // aanmaken en verwijderen bestaan niet; die van een ander bestaat voor jou niet
+  const add = cmd('settings_add', { id: 'settings-extra-01', auto_reminder: 5 });
+  const del = cmd('settings_delete', { id: mine });
+  const other = cmd('settings_update', { id: mine, auto_reminder: 5 });
+  const r2 = run(db, alice, [add, del]);
+  err(r2, add, 'UNKNOWN_COMMAND');
+  err(r2, del, 'UNKNOWN_COMMAND');
+  err(run(db, bob, [other]), other, 'NOT_FOUND');
+  assert.equal(rows(run(db, alice, []), 'settings')[0].auto_reminder, -1, 'ongewijzigd');
+});
+
+test('instellingen: een account van vóór de instellingen krijgt ze bij de eerstvolgende sync, één keer', () => {
+  const { db, alice } = world();
+  db.prepare('DELETE FROM user_settings WHERE owner_id = ?').run(alice.id); // zoals een account uit een eerdere versie
+  const token = run(db, alice, []).sync_token;
+  assert.deepEqual(ids(run(db, alice, []), 'settings'), [`settings-${alice.id}`]);
+  assert.equal(run(db, alice, []).sync_token, token, 'daarna verandert er niets meer');
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM user_settings WHERE owner_id = ?').get(alice.id) as Row).n, 1);
+  // ook het eerste account van een database uit versie 0.1 heeft ze
+  const legacy = mkdb();
+  assert.deepEqual(ids(run(legacy, firstUser(legacy), []), 'settings'), [`settings-${firstUser(legacy).id}`]);
+});

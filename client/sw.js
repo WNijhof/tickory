@@ -20,6 +20,7 @@ const SHELL = [
   '/ui/shareDialog.js',
   '/ui/taskDialog.js',
   '/core/actions.js',
+  '/core/android.js',
   '/core/auth.js',
   '/core/backend.js',
   '/core/dateHint.js',
@@ -29,6 +30,7 @@ const SHELL = [
   '/core/i18n.js',
   '/core/idb.js',
   '/core/messages.js',
+  '/core/push.js',
   '/core/quickadd.js',
   '/core/reducer.js',
   '/core/selectors.js',
@@ -39,6 +41,7 @@ const SHELL = [
   '/vendor/nlDatum.generated.js',
   '/shared/orderKey.js',
   '/shared/recurrence.js',
+  '/shared/reminders.js',
   '/shared/schema.js',
   '/shared/text.js',
 ];
@@ -95,5 +98,72 @@ self.addEventListener('fetch', (event) => {
     if (!cached) return fresh;
     event.waitUntil(fresh.catch(() => { /* geen verbinding: de bewaarde kopie volstaat */ }));
     return cached;
+  })());
+});
+
+// ---------- meldingen (Web Push) ----------
+// De server stuurt een versleuteld bericht; hier wordt het een melding. De paar woorden die daarbij horen staan hier zelf
+// (de service worker kan de woordenlijsten van de app niet laden); het bericht zegt in welke taal dit apparaat werkt.
+
+const PUSH_TEXT = {
+  nl: { reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.' },
+  en: { reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.' },
+};
+
+/** Maakt van een bericht van de server de titel en opties van een melding. Onbekende of kapotte berichten: een neutrale melding. */
+function notificationFor(data) {
+  const text = PUSH_TEXT[data && data.lang] || PUSH_TEXT.nl;
+  const base = { icon: '/icon-192.png', badge: '/icon-192.png', lang: data && data.lang === 'en' ? 'en' : 'nl' };
+  if (!data || data.type !== 'reminder' || typeof data.title !== 'string') {
+    return { title: text.test, options: { ...base, body: text.testBody, tag: 'tickory-test' } };
+  }
+  const time = typeof data.time === 'string' && data.time.length >= 16 ? data.time.slice(11, 16) : '';
+  return {
+    title: data.title,
+    options: {
+      ...base,
+      body: time ? `${text.reminder} · ${time}` : text.reminder,
+      tag: `tickory-${data.id}-${data.moment}`, // dezelfde herinnering twee keer ontvangen geeft één melding
+      requireInteraction: true,
+      data: { taskId: data.task_id, complete: data.complete, snooze: data.snooze, message: data },
+      actions: [{ action: 'complete', title: text.complete }, { action: 'snooze', title: text.snooze }],
+    },
+  };
+}
+
+self.addEventListener('push', (event) => {
+  let data = null;
+  try {
+    data = event.data ? event.data.json() : null;
+  } catch { /* geen leesbaar bericht: toon toch iets, een pushbericht zonder melding mag niet van de browser */ }
+  const n = notificationFor(data);
+  event.waitUntil(self.registration.showNotification(n.title, n.options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  const d = event.notification.data || {};
+  event.notification.close();
+  if (event.action === 'complete' || event.action === 'snooze') {
+    // De knop: zonder de app te openen. Lukt het niet (geen verbinding), dan komt de melding terug zodat je het opnieuw kunt proberen.
+    event.waitUntil(
+      fetch('/api/v1/push/action', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: d[event.action] }) })
+        .then((res) => { if (!res.ok && res.status !== 400) throw new Error('mislukt'); })
+        .catch(() => {
+          const n = notificationFor(d.message);
+          return self.registration.showNotification(n.title, n.options);
+        }),
+    );
+    return;
+  }
+  // Tikken op de melding zelf: de app naar voren halen (of openen) bij de taak.
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = windows.find((c) => new URL(c.url).origin === self.location.origin);
+    if (open) {
+      await open.focus();
+      if (d.taskId) open.postMessage({ type: 'open-task', id: d.taskId });
+      return;
+    }
+    await self.clients.openWindow(d.taskId ? `/#task=${d.taskId}` : '/');
   })());
 });
