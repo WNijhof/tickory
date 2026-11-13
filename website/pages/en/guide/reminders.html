@@ -125,7 +125,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <ul>
   <li>The title of the notification is the name of the task; below it is <em><x-ui k="sw.reminder"></x-ui> · 09:00</em> (the time of the task). The notification stays until you do something with it.</li>
   <li>If you tap or click the notification, Tickory opens at that task.</li>
-  <li>The buttons <x-ui k="sw.complete"></x-ui> and <x-ui k="sw.snooze"></x-ui> work without opening the app. <x-ui k="sw.complete"></x-ui> ticks the task off (a recurring task moves on). <x-ui k="sw.snooze"></x-ui> sets a new reminder at a set time, ten minutes later; you will see it in the task window afterwards. The buttons work for a day; if it fails (no connection), the notification comes back.</li>
+  <li>The buttons <x-ui k="sw.complete"></x-ui> and <x-ui k="sw.snooze"></x-ui> work without opening the app. <x-ui k="sw.complete"></x-ui> ticks the task off (a recurring task moves on). <x-ui k="sw.snooze"></x-ui> sets a new reminder at a set time, ten minutes later; you will see it in the task window afterwards. The buttons work for a day and only as long as this device is registered for notifications (after signing out, a revoked session or a new password they do nothing any more). Pressing the same button twice does the action once. If it fails (no connection), the notification comes back.</li>
   <li>The text of the notification follows the language you chose in the app.</li>
 </ul>
 

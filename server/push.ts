@@ -7,8 +7,13 @@
 //   van de gebruiker (of de standaardtijdzone van de server).
 // - Elke herinnering wordt per tijdstip één keer verstuurd (tabel reminder_deliveries). Was de server even uit, dan gaat
 //   wat hooguit een uur te laat is alsnog; ouder niet.
+// - Het werk per ronde is begrensd (MAX_DUE_PER_OWNER_PER_ROUND per gebruiker, TICK_BUDGET_MS in totaal): de database kiest
+//   per gebruiker alleen wat rond dit moment kan afgaan; een gebruiker met heel veel herinneringen houdt anderen niet op.
 // - De knoppen in een melding ("Voltooien", "Over 10 minuten") werken zonder dat de browser is ingelogd: de melding
-//   draagt daarvoor een ondertekend bewijsje dat precies die ene handeling toestaat, een dag lang.
+//   draagt daarvoor een ondertekend bewijsje (HMAC) dat precies die ene handeling op die ene taak toestaat, een dag lang.
+//   Het wordt strikt gelezen (alleen exact de tekst die sign() maakte), het uuid van de handeling komt uit de handtekening
+//   (dezelfde knop doet de handeling één keer, hoe het bewijs ook wordt aangeboden), en het werkt alleen zolang de
+//   gebruiker een aangemeld apparaat met meldingen heeft: na uitloggen of een ingetrokken sessie is het bewijs waardeloos.
 
 import type { DatabaseSync } from 'node:sqlite';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';

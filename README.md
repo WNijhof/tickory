@@ -39,7 +39,7 @@ cd tickory
 cp .env.example .env
 ```
 
-1. **First account.** Put the username and password (at least 10 characters) of the first account in `.env`: `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD`. That account is created on the very first start and is an **administrator**: you use it to create the other accounts in the app. Never commit `.env` (it is already in `.gitignore`). After the first start you can remove the password from `.env`; it is no longer used.
+1. **First account.** Put the username and password (at least 10 characters) of the first account in `.env`: `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD`. That account is created on the very first start and is an **administrator**: you use it to create the other accounts in the app. Never commit `.env` (it is already in `.gitignore`). After the first start, remove the password from `.env` **and recreate the container** (`docker compose up -d --force-recreate`): the password otherwise stays in the container's configuration, where `docker inspect` shows it. If you would rather not have it in the environment at all, use `TODO_ADMIN_PASSWORD_FILE` instead (the path of a file with the password, for example a Docker secret mounted under `/run/secrets/`). The password cannot be an easily guessed one (a common word or password, too few different characters).
 2. **Image.** `docker-compose.yml` pulls `ghcr.io/wnijhof/tickory:latest`. Would you rather build on the server yourself? Remove the `image:` line and put `build: .` back.
 3. **Start.**
 
@@ -119,7 +119,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 
   `--admin` after `user add` creates an administrator. Without `TODO_PASSWORD` and without a terminal (`-it`) no password can be asked for.
 - There is no open sign-up and no password reset by e-mail: an administrator creates accounts and resets passwords. There is always at least one active administrator.
-- Every device gets its own session when signing in, which you can revoke. After eight failed attempts within fifteen minutes on one account (or forty from one address), signing in is refused until those fifteen minutes have passed.
+- Every device gets its own session when signing in, which you can revoke. Signing in is limited per fifteen minutes: after eight failed attempts on one account from one address, after forty from one address (an IPv6 network counts as one address), or after sixty on one account in total, further attempts are refused until those fifteen minutes have passed. Attempts are counted before the password is checked, so a burst of simultaneous attempts does not get through. Because the account counter is per address, someone else cannot lock you out of your own account from their address. The limits are in `server/limits.ts` and in the SPEC; each user can also store only a reasonable amount (tasks, labels, reminders, devices).
 - An administrator manages accounts, not other people's tasks: an administrator, too, only sees the projects they are a member of.
 
 ### Sharing and working together
@@ -193,7 +193,7 @@ The database is a single SQLite file in the volume. Make a consistent copy while
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
 ```
 
-This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications**: keep it the way you keep the database itself.
+This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons)**: whoever has it can sign button tokens for any task of any user. Keep it the way you keep the database itself, and keep the folder with copies closed to others.
 
 Restoring a copy (the app has to be stopped; replace `backup.db` with your file):
 
@@ -244,7 +244,7 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='a-good-password' node server/main.ts  
 
 On Windows: double-click `start.cmd`, or run `.\start.cmd` in PowerShell. The first time it asks for a username and a password (typed hidden) for the first account, and then the server starts; the Windows script policy stays unchanged (see `start.cmd`).
 
-Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional) and `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). See `.env.example`.
+Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_PASSWORD_FILE`, the path of a file with the password) and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional) and `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). See `.env.example`.
 
 ## Tests
 
