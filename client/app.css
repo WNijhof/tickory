@@ -659,7 +659,15 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
   .cal-keys { display: none; }
 }
 
+/* slepen (ui/dragdrop.js): een kolom of dag als doel, en een bord dat tijdens het slepen niet vastklikt */
+.board-column.dnd-target { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+.cal-day.dnd-target { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+.dnd-active .board { scroll-snap-type: none; }
+.dnd-active .cal-add { opacity: 0; }
+@media (pointer: coarse) { .cal-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; } }
+
 @media (forced-colors: active) {
+  .board-column.dnd-target, .cal-day.dnd-target { outline-color: Highlight; }
   .cal-today .cal-daynum { outline: 2px solid Highlight; }
   .view-switch-button.active { outline: 2px solid Highlight; outline-offset: -2px; }
   .cal-check::before { border-color: CanvasText; }

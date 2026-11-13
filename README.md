@@ -39,7 +39,7 @@ cd tickory
 cp .env.example .env
 ```
 
-1. **First account.** Put the username and password (at least 10 characters) of the first account in `.env`: `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD`. That account is created on the very first start and is an **administrator**: you use it to create the other accounts in the app. Never commit `.env` (it is already in `.gitignore`). After the first start you can remove the password from `.env`; it is no longer used.
+1. **First account.** Put the username and password (at least 10 characters) of the first account in `.env`: `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD`. That account is created on the very first start and is an **administrator**: you use it to create the other accounts in the app. Never commit `.env` (it is already in `.gitignore`). After the first start, remove the password from `.env` **and recreate the container** (`docker compose up -d --force-recreate`): the password otherwise stays in the container's configuration, where `docker inspect` shows it. If you would rather not have it in the environment at all, use `TODO_ADMIN_PASSWORD_FILE` instead (the path of a file with the password, for example a Docker secret mounted under `/run/secrets/`). The password cannot be an easily guessed one (a common word or password, too few different characters).
 2. **Image.** `docker-compose.yml` pulls `ghcr.io/wnijhof/tickory:latest`. Would you rather build on the server yourself? Remove the `image:` line and put `build: .` back.
 3. **Start.**
 
@@ -59,15 +59,19 @@ The image is published with the first release. If pulling it asks for a sign-in,
 
 - Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
 - Sharing a project with other users of the same server, and assigning tasks to members.
-- Tasks with subtasks, projects, sections, labels, priorities P1 to P4, date and time, deadlines.
+- Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, and **comments** on tasks and projects.
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
 - Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`.
+- **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
+- **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
+- **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).
 - **Reminders**: several per task, relative to the time of the task (10 minutes before, 1 day before, ...) or at a fixed time; an automatic reminder for every task with a time (30 minutes before unless you change it); your own time zone. They are personal, also in shared projects.
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app.
 - The interface in English and Dutch.
-- The views Today (with overdue tasks) and Upcoming (the next two weeks).
-- **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Dragging is not available yet.
+- A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
+- **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Cards can be dragged to another column and tasks to another day in the calendar (the time and repeat stay; for a repeating task only the current date moves), also with `Alt` + arrow keys.
 - Ticking off with undo; showing or hiding completed tasks.
+- **Dragging**: change the order of tasks, move them to another section, make a task a subtask of another (and back), or drop it on a project in the sidebar; in the sidebar, change the order of projects and make or undo sub-projects (owner only; favourites can be reordered among each other). With the mouse or a pen, with a finger (press and hold, or use the handle), or from the keyboard with `Alt` + arrow keys, announced to screen readers. It works offline like every other change. Today and Upcoming are sorted by date and priority, so tasks there can only be dragged to a project.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
 - Installable as an app (PWA) on phone and computer, and an Android app of its own (see below).
 - Managing your password and the devices you are signed in on.
@@ -79,19 +83,15 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 **Coming (built or partly built, not usable yet):**
 
 - **The first Android APK.** The app exists and is tested on a computer, but there is no release yet and the maker has not tried it on a real phone. The first APK comes with the next version; until then use the web app in your phone's browser, or build it yourself from [android/README.md](android/README.md).
-- **Filters and search.** The logic is in the code (a filter language in Dutch and English, and searching tasks, projects, sections, labels and filters), but the app has no screen, search field or button for it. You cannot use it yet.
 - **English date language.** The interface is English, but what you type as a date is only recognised in Dutch.
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
 
-- **Comments** on tasks and projects.
-- Sub-projects, favourites, **archiving** projects and sections, and the **duration** of a task.
+- The **duration** of a task.
 
 **Missing entirely:**
 
-- **Dragging or otherwise changing the order of tasks.** A new task always goes to the end.
-- **Managing labels** (renaming, deleting, filtering by label) in the app.
-- Attachments, statistics, templates, import and export, an iCal feed, keyboard shortcuts, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
+- Attachments, statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
 
@@ -120,7 +120,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 
   `--admin` after `user add` creates an administrator. Without `TODO_PASSWORD` and without a terminal (`-it`) no password can be asked for.
 - There is no open sign-up and no password reset by e-mail: an administrator creates accounts and resets passwords. There is always at least one active administrator.
-- Every device gets its own session when signing in, which you can revoke. After eight failed attempts within fifteen minutes on one account (or forty from one address), signing in is refused until those fifteen minutes have passed.
+- Every device gets its own session when signing in, which you can revoke. Signing in is limited per fifteen minutes: after eight failed attempts on one account from one address, after forty from one address (an IPv6 network counts as one address), or after sixty on one account in total, further attempts are refused until those fifteen minutes have passed. Attempts are counted before the password is checked, so a burst of simultaneous attempts does not get through. Because the account counter is per address, someone else cannot lock you out of your own account from their address. The limits are in `server/limits.ts` and in the SPEC; each user can also store only a reasonable amount (tasks, labels, reminders, devices).
 - An administrator manages accounts, not other people's tasks: an administrator, too, only sees the projects they are a member of.
 
 ### Sharing and working together
@@ -130,7 +130,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 - Tasks can be **assigned** to a member ("for Bob"). When someone leaves or is removed, the assignment lapses.
 - Your **Inbox** is yours alone and cannot be shared.
 - **Personal:** reminders, filters and labels. Labels that someone else puts on a task in a shared project are visible to you (as `@label`), but you cannot rename or delete them.
-- Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (The server supports sub-projects; the app has no button to create them yet.)
+- Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (In the app you make one with "Add subproject" in the project menu.)
 - Known limitation: the **order in the sidebar** and the favourite mark belong to the project and are therefore not per person.
 
 ### Reminders and notifications
@@ -194,7 +194,7 @@ The database is a single SQLite file in the volume. Make a consistent copy while
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
 ```
 
-This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications**: keep it the way you keep the database itself.
+This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons)**: whoever has it can sign button tokens for any task of any user. Keep it the way you keep the database itself, and keep the folder with copies closed to others.
 
 Restoring a copy (the app has to be stopped; replace `backup.db` with your file):
 
@@ -245,13 +245,13 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='a-good-password' node server/main.ts  
 
 On Windows: double-click `start.cmd`, or run `.\start.cmd` in PowerShell. The first time it asks for a username and a password (typed hidden) for the first account, and then the server starts; the Windows script policy stays unchanged (see `start.cmd`).
 
-Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional) and `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). See `.env.example`.
+Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_PASSWORD_FILE`, the path of a file with the password) and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional) and `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). See `.env.example`.
 
 ## Tests
 
 ```sh
 npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
-npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 28 steps
+npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 37 steps
 node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
 ```
@@ -264,9 +264,9 @@ The tests include a property test for the order keys and a **differential test**
 shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   shared by server and client
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, sw.js, manifest             the web app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
-client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/    index.html, app.css, search.css, sw.js, manifest             the web app
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
+client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)

@@ -1,0 +1,46 @@
+<!--
+title: Labels
+description: Labels in Tickory: keywords on tasks like @bellen, the list in the sidebar with the number of open tasks, seeing all tasks with a label, and creating, renaming, coloring, favouriting and deleting labels.
+-->
+<h1>Labels</h1>
+<p class="intro">A label is a keyword on a task, like <code>@bellen</code> or <code>@buiten</code>. One task can have several labels, and with one click you see all tasks with a certain label together, from all your projects.</p>
+
+<x-shot name="labels" alt="The Labels screen: the own labels bellen, boodschappen and buiten, each with a colored dot, the number of open tasks and buttons for favorite, edit and delete. Below it 'Other people's labels' with the label buurt, without buttons because it can only be read. In the sidebar the same labels are listed under Labels.">The overview of labels. Someone else's label (at the bottom) can only be viewed.</x-shot>
+
+<h2 id="putting-a-label-on-a-task">Putting a label on a task</h2>
+<ul>
+  <li><strong>When adding:</strong> type <code>@name</code> in the line, for example <code>Tandarts bellen morgen @bellen</code>. A label that does not exist yet is created. An existing label with spaces or punctuation in its name, like <code>Uitgaan met Zoë</code>, you simply type in full: <code>@Uitgaan met Zoë</code>. If two labels fit, the longest name wins.</li>
+  <li><strong>In the task window:</strong> type a name in the <x-ui k="task.labels"></x-ui> field, separated by commas, and optionally pick one from the list.</li>
+</ul>
+<p>In the list the labels of a task appear as <code>@name</code>. Click one and you see all tasks with that label.</p>
+
+<h2 id="the-sidebar-list">The list in the sidebar</h2>
+<p>Under <x-ui k="labels.title"></x-ui> in the sidebar are your labels with the number of open tasks. A favorite label is at the top, with a star. The arrow in front of the heading folds the list in or out, and clicking the heading itself opens the overview to manage labels.</p>
+
+<h2 id="all-tasks-with-a-label">All tasks with a label</h2>
+<p>Choose a label in the sidebar, click a label on a task, or pick it in <a href="search.html">Search</a>. You see the open tasks with that label from all your projects, in the order of the other overviews: first by date, then by priority. At the bottom you can show the completed tasks. Tasks in an archived project are left out.</p>
+<p>Under the list is <x-ui k="quick.addTask"></x-ui>: the window starts with <code>@label</code> already filled in.</p>
+
+<h2 id="managing-labels">Managing labels</h2>
+<p>Click the heading <x-ui k="labels.title"></x-ui> in the sidebar. There each label is listed with its number of open tasks and three buttons: a star (favorite), a pencil (edit) and a bin (delete). Editing and deleting is also possible on the label’s own screen, under <x-ui k="label.more"></x-ui>.</p>
+<ul>
+  <li><strong>Adding:</strong> the <strong>+</strong> next to the heading in the sidebar, or <x-ui k="label.add"></x-ui> in the overview. Give a name, pick a color out of sixteen, and optionally tick <x-ui k="label.favorite"></x-ui>.</li>
+  <li><strong>Renaming:</strong> the pencil, then a new name. It is the same label: all tasks keep it, under the new name.</li>
+  <li><strong>Colour:</strong> the dot in the sidebar, in the overview and before <code>@name</code> on a task.</li>
+  <li><strong>Deleting:</strong> the bin. The window says how many tasks the label is removed from; the tasks themselves stay. This cannot be undone.</li>
+</ul>
+
+<h3 id="names">What a name may be</h3>
+<ul>
+  <li>No comma and no control characters, and at most 100 characters. Spaces and accents are fine.</li>
+  <li>A name is unique, ignoring capitals, accents and spacing: if <code>één</code> exists, you cannot also make <code>ÉÉN</code>. The app tells you right away, in your own language.</li>
+</ul>
+
+<h2 id="labels-of-others">Other people’s labels</h2>
+<p>Labels are personal. If someone puts a label on a task in a project you share, you see that label on that task, and also in the overview under <x-ui k="labels.othersTitle"></x-ui>. You can view the tasks with it, but you cannot rename it, color it or delete it. See <a href="sharing.html#what-stays-personal">Sharing and working together</a>.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li>No completion of <code>@</code> names while you type in the line to add tasks; there is in the task window, where you pick from the list.</li>
+  <li>Dragging labels or giving them an order of your own: they are in the order in which they were made, favorites first.</li>
+</ul>

@@ -1,89 +1,87 @@
 <!--
-title: Projects, sections and subtasks
-description: Organising tasks in Tickory: creating projects and sections, editing tasks, subtasks, labels and priorities, reminders, ticking off, and the Today and Upcoming views.
+title: Projects and sections
+description: Organizing tasks in Tickory: making and editing projects with a color, subprojects, favorites, archiving and restoring, the project menu for owner and member, sections, and labels.
 -->
-<h1>Projects, sections and subtasks</h1>
-<p class="intro">A project is a list of tasks. Inside a project you divide tasks over sections, and a task can have subtasks.</p>
+<h1>Projects and sections</h1>
+<p class="intro">A project is a list of tasks. Projects can have a color, contain subprojects, be a favorite or be archived. Within a project you divide tasks over sections.</p>
 
-<x-shot name="project" alt="The project Huishouden with the buttons Add section, Shared and Project… at the top, below them a task without a section and the sections Boodschappen and Klusjes. Under the task Boodschappen doen three subtasks are indented.">A project with sections. Subtasks are indented under their task; the number in the sidebar is the number of open tasks. (The sample household is Dutch, so the names in it are too.)</x-shot>
+<h2 id="the-inbox">The Inbox</h2>
+<p>Everyone has their own <strong>Inbox</strong>: the project where a task ends up if you choose nothing else. The Inbox is always at the top of the sidebar, is yours alone, and cannot be shared, renamed, archived or deleted. You can make sections in it, though.</p>
 
-<h2>The Inbox</h2>
-<p>Everyone has their own <strong>Inbox</strong>: the project a task ends up in when you choose nothing else. The Inbox is always at the top, is yours alone, and cannot be shared, renamed or deleted. You can create sections in it.</p>
-
-<h2>Projects</h2>
+<h2 id="making-and-editing-a-project">Making and editing a project</h2>
+<x-shot name="project-bewerken" alt="The Edit project window with the Name field (Huishouden), sixteen colored dots for choosing the color of which the teal one is selected, and the Favorite checkbox, with the buttons Cancel and Save.">The window for editing a project: name, color and favorite.</x-shot>
 <ul>
-  <li><strong>Creating:</strong> click the <strong>+</strong> next to <x-ui k="nav.projects"></x-ui> in the sidebar and give it a name.</li>
-  <li><strong>Renaming:</strong> open the project, choose <x-ui k="project.menu"></x-ui> and then <x-ui k="common.rename"></x-ui>.</li>
-  <li><strong>Deleting:</strong> choose <x-ui k="project.menu"></x-ui> and then <x-ui k="project.delete"></x-ui>. After confirmation the project disappears with all sections and tasks in it, also for the people you share it with. This cannot be undone.</li>
+  <li><strong>Making:</strong> click the <strong>+</strong> next to <x-ui k="nav.projects"></x-ui> in the sidebar. Give a name, choose a color, tick <x-ui k="project.favorite"></x-ui> if you like, and under <x-ui k="project.parent"></x-ui> choose a project this one becomes a subproject of, if needed. Choose <x-ui k="common.add"></x-ui>; the new project opens right away.</li>
+  <li><strong>Editing:</strong> open the project, choose <x-ui k="project.menu"></x-ui> and then <x-ui k="project.editMenu"></x-ui>. You change the name, the color and whether it is a favorite. Moving the project into another project is not possible yet.</li>
   <li><strong>Sharing:</strong> see <a href="sharing.html">Sharing and working together</a>.</li>
 </ul>
-<p>Projects are listed in the sidebar in the order in which they were created. Putting a project inside another project (sub-projects), choosing a colour, marking a project as a favourite or archiving it is not possible in the app yet.</p>
+<p>The color, the favorite mark and collapsing or expanding subprojects belong to the project itself, not to you: in a shared project the others see the same color and the same favorites.</p>
 
-<h2>Sections</h2>
+<h2 id="the-project-menu">The project menu</h2>
+<x-shot name="projectmenu" alt="The menu of the project Huishouden with the choices Edit, Add subproject, Remove from favorites, Share, Archive and Delete project (in red).">The project menu of the owner. A member sees a shorter list.</x-shot>
+<p>Open it with <x-ui k="project.menu"></x-ui> at the top right of the project. What you see depends on whether you are the owner or a member (see <a href="sharing.html#owner-and-member">owner and member</a>):</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Choice</th><th>Owner</th><th>Member</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: name, color, favorite</td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui></td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (for a member: <x-ui k="project.members"></x-ui>)</td><td>yes</td><td>view only</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>yes</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>yes</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>no</td><td>yes</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>The Inbox has no project menu.</p>
+
+<h2 id="subprojects">Subprojects</h2>
+<p>A project can hang inside another project. In the project menu choose <x-ui k="project.addSub"></x-ui>, or, for a new project, choose the project above it under <x-ui k="project.parent"></x-ui>. In the sidebar a subproject is indented under its project, and an arrow in front of the project collapses or expands the subprojects. In the drop-down lists of the task window they are indented too.</p>
 <ul>
-  <li><strong>Creating:</strong> open the project and choose <x-ui k="section.add"></x-ui>.</li>
-  <li><strong>Renaming or deleting:</strong> click the <strong>⋯</strong> to the right of the section name. If you delete a section, all tasks in it disappear as well.</li>
-  <li><strong>Putting a task in a section:</strong> type <code>/name of the section</code> when adding it, or choose the section in the edit window.</li>
+  <li>A subproject of a shared project is shared along with it.</li>
+  <li>If you delete a project, its subprojects disappear too, with all the sections and tasks in them. Only a subproject that someone else owns stays, at the top level.</li>
+  <li>If you archive a project, its subprojects go along.</li>
+</ul>
+
+<h2 id="favorites">Favorites</h2>
+<p>A favorite project is also at the top of the sidebar under <x-ui k="nav.favorites"></x-ui>, so you are one click away from it. Switch it on or off with <x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui> in the project menu. The project is then still under <x-ui k="nav.projects"></x-ui> as well.</p>
+
+<h2 id="colors">Colors</h2>
+<p>Every project has a color: the dot in the sidebar and in front of the title, and the dot by the project in Today and Upcoming. There are sixteen colors, each with its own shade for the light and the dark appearance: <x-ui k="color.charcoal"></x-ui>, <x-ui k="color.red"></x-ui>, <x-ui k="color.orange"></x-ui>, <x-ui k="color.amber"></x-ui>, <x-ui k="color.olive"></x-ui>, <x-ui k="color.green"></x-ui>, <x-ui k="color.mint"></x-ui>, <x-ui k="color.teal"></x-ui>, <x-ui k="color.sky"></x-ui>, <x-ui k="color.blue"></x-ui>, <x-ui k="color.indigo"></x-ui>, <x-ui k="color.violet"></x-ui>, <x-ui k="color.magenta"></x-ui>, <x-ui k="color.rose"></x-ui>, <x-ui k="color.brown"></x-ui> and <x-ui k="color.grey"></x-ui>. A new project starts with <x-ui k="color.charcoal"></x-ui>. Labels have a color too (the dot before <code>@bellen</code>), but you cannot choose it in the app yet.</p>
+
+<h2 id="archiving">Archiving and restoring</h2>
+<p>A project that is finished, but that you do not want to delete, you archive:</p>
+<ul>
+  <li><strong>Archiving:</strong> project menu, <x-ui k="project.archive"></x-ui> (owner only). You go to your Inbox, and for a few seconds a message at the bottom says the project has been archived, with the button <x-ui k="task.undo"></x-ui>. The project (with its subprojects) disappears from the sidebar, the favorites and the drop-down lists.</li>
+  <li><strong>Viewing:</strong> at the bottom of the sidebar is <x-ui k="nav.archived"></x-ui>, as soon as there is one. The window shows the list; click a name to open the project. An archived project has the message <x-ui k="project.archivedBanner"></x-ui> at the top, and you cannot add anything to it.</li>
+  <li><strong>Restoring:</strong> choose <x-ui k="project.restore"></x-ui>, in that window or in the bar at the top of the project. The subprojects that were archived along with it come back too.</li>
+</ul>
+<p>Tasks and comments in an archived project are kept. Note: tasks with a date from an archived project still appear in <x-ui k="nav.today"></x-ui> and <x-ui k="nav.upcoming"></x-ui>. You cannot archive the Inbox.</p>
+
+<h2 id="deleting">Deleting a project</h2>
+<p>In the project menu choose <x-ui k="project.delete"></x-ui>. After confirmation the project disappears with all the sections, subprojects and tasks in it, also for the people you share it with. That cannot be undone. If you only want it out of sight, archive it instead.</p>
+
+<h2 id="sections">Sections</h2>
+<ul>
+  <li><strong>Making:</strong> open the project and choose <x-ui k="section.add"></x-ui> at the bottom.</li>
+  <li><strong>Renaming or deleting:</strong> click the <strong>⋯</strong> to the right of the name of the section. If you delete a section, all tasks in it disappear too.</li>
+  <li><strong>Collapsing and expanding:</strong> with the arrow in front of the name. See <a href="the-screen.html#sections-in-the-list">The screen</a>.</li>
+  <li><strong>Putting a task in a section:</strong> type <code>/name of the section</code> when adding, choose <x-ui k="quick.addTask"></x-ui> under the section, or choose the section in the task window.</li>
 </ul>
 <p>Tasks without a section are at the top of the project, above the first section.</p>
 
-<h2 id="editing-a-task">Editing a task</h2>
-<p>Click the name of a task. In the window that opens, you change:</p>
-<x-shot name="taak-bewerken" alt="The Edit task window for the task Boodschappen doen, with fields for description, due date, deadline, priority, assigned to, labels, project and section, the Reminders part with one reminder, and a field to add a subtask.">The edit window. The field Assigned to is only there in a project you share with others.</x-shot>
-<dl>
-  <dt>Name and description</dt>
-  <dd>A task with a description is marked in the list with the word <x-ui k="task.noteChip"></x-ui>.</dd>
-  <dt><x-ui k="task.due"></x-ui></dt>
-  <dd>In plain Dutch, including recurrences; a date such as <code>31-12</code> works in any language. See <a href="dates-and-recurrence.html">Dates and recurrences</a>.</dd>
-  <dt><x-ui k="task.deadline"></x-ui></dt>
-  <dd>The final day, separate from the date on which you want to work on it.</dd>
-  <dt><x-ui k="task.priority"></x-ui></dt>
-  <dd>P1 (highest) to P4 (none). You can tell the priority from the colour of the circle: red, orange, blue or grey.</dd>
-  <dt><x-ui k="task.assignedTo"></x-ui></dt>
-  <dd>Only in a shared project. See <a href="sharing.html#assigning-tasks">assigning tasks</a>.</dd>
-  <dt><x-ui k="task.labels"></x-ui></dt>
-  <dd>Names separated by commas, for example <code>calls, home</code>. A new label is created.</dd>
-  <dt><x-ui k="task.project"></x-ui> and <x-ui k="task.section"></x-ui></dt>
-  <dd>Choose another project or section to move the task; subtasks move along. The task goes to the bottom there.</dd>
-  <dt><x-ui k="reminder.title"></x-ui></dt>
-  <dd>Your own reminders on this task. Adding and deleting them takes effect right there, without clicking <x-ui k="common.save"></x-ui>. See <a href="reminders.html">Reminders</a>.</dd>
-</dl>
-<p>Choose <x-ui k="common.save"></x-ui> to keep the changes, or <x-ui k="common.cancel"></x-ui> (or Escape) to discard them.</p>
+<h2 id="labels">Labels</h2>
+<p>A label is a keyword on a task, such as <code>@bellen</code> or <code>@buiten</code>. You set a label with <code>@name</code> when adding, or in the Labels field of the task window. In the list the labels appear under the name of the task.</p>
+<p>Choose a label in the sidebar and you see all tasks with it. Renaming, coloring and deleting labels is possible too. See <a href="labels.html">Labels</a>.</p>
 
-<h2>Subtasks</h2>
-<p>Open a task, type in <x-ui k="task.addSubtask"></x-ui> at the bottom and press Enter. That way you quickly add a few in a row. A subtask is an ordinary task itself: click it to give it a date, labels or subtasks of its own.</p>
-<ul>
-  <li>A subtask is always in the same project and section as the task it hangs under. So you choose the project and section on the top-level task.</li>
-  <li>If you tick off a task, its subtasks are ticked off too.</li>
-  <li>If you delete a task, its subtasks are gone too.</li>
-  <li>Turning an existing task into a subtask of another one (or the other way round) is not possible in the app yet.</li>
-</ul>
-
-<h2>Ticking off and bringing back</h2>
-<p>Click the circle in front of a task to tick it off. For a few seconds the message <x-ui k="task.completed"></x-ui> appears at the bottom with the button <x-ui k="task.undo"></x-ui>.</p>
-<ul>
-  <li><strong>Viewing completed tasks:</strong> at the bottom of a project you find <x-ui k="view.showCompleted" n="3"></x-ui> (with the number of completed tasks). Click the circle of a completed task again to reopen it. If you reopen a task with subtasks, the subtasks stay ticked off until you reopen them yourself.</li>
-  <li><strong>Recurring tasks</strong> do not disappear when ticked off: the date moves on to the next occurrence. See <a href="dates-and-recurrence.html#what-happens-when-you-tick-off-a-recurrence">ticking off a recurrence</a>.</li>
-</ul>
-
-<h2>Deleting a task</h2>
-<p>Open the task and choose <x-ui k="common.delete"></x-ui>. After confirmation the task is gone, with its subtasks. There is no recycle bin: what you delete, you cannot get back. If you only want a task out of sight, tick it off instead.</p>
-
-<h2>Labels</h2>
-<p>A label is a keyword on a task, such as <code>@bellen</code> or <code>@buiten</code>. You set a label with <code>@name</code> when adding the task, or in the <x-ui k="task.labels"></x-ui> field of the edit window. In the list, labels are shown below the name of the task.</p>
-<p>More is not possible yet: there is no screen for renaming or deleting labels, and you cannot filter by a label.</p>
-
-<h2 id="today-and-upcoming">Today and Upcoming</h2>
-<x-shot name="vandaag" alt="The Today view: under Overdue two tasks with a red date, and below them today's tasks with the project they belong to.">Today: first what is overdue, then what is due today.</x-shot>
-<ul>
-  <li><x-ui k="nav.today"></x-ui> shows all open tasks dated today, from all your projects, and above them what is <x-ui k="view.overdue"></x-ui>. The number in the sidebar counts those two together.</li>
-  <li><x-ui k="nav.upcoming"></x-ui> shows the next fourteen days, starting tomorrow, with a heading per day. Days without tasks are skipped.</li>
-</ul>
-<p>Within a day, tasks without a time come first and then those with a time, from early to late; at the same time the highest priority goes first. Each task shows the project (and section) it is in, and a bell 🔔 if a reminder is going to go off. In a shared project you also see the tasks assigned to someone else here. Tasks without a date are in neither view; you find them in their project.</p>
+<h2 id="order-and-subprojects">The order and subprojects</h2>
+<p>You drag projects in the sidebar: above or below another project for another place, onto another project to become a subproject of it, and onto the heading <x-ui k="nav.projects"></x-ui> to be an ordinary project again. Only the owner can do this. With the keyboard it works with <kbd>Alt</kbd> and the arrow keys. See <a href="the-screen.html#moving-tasks-and-projects">Moving tasks and projects</a>.</p>
 
 <h2>What is not possible yet</h2>
 <ul>
-  <li><strong>Changing the order.</strong> Tasks, sections and projects are listed in the order in which they were created; dragging is not possible.</li>
-  <li><strong>Search and filters.</strong> The search function and the filter language are built, but there are no screens for them yet, so you cannot use them yet.</li>
-  <li>Comments on a task, attachments, the duration of a task, and a board or calendar view.</li>
+  <li><strong>Dragging sections.</strong> Sections stay in the order in which they were made. Favourites have no order of their own: they follow the order of the projects.</li>
+  <li>A board or calendar view.</li>
 </ul>

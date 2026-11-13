@@ -1,0 +1,170 @@
+<!--
+title: Filters
+description: Filters in Tickory: bewaarde zoekopdrachten op je taken in een eigen filtertaal (Nederlands en Engels door elkaar), met controle terwijl je typt, foutmeldingen, voorbeelden en alle termen.
+-->
+<h1>Filters</h1>
+<p class="intro">Een filter is een bewaarde zoekopdracht op je taken, bijvoorbeeld “alles van vandaag of te laat, zonder subtaken”. Je schrijft het in een korte eigen taal en het staat daarna in de zijbalk, met het aantal taken erbij.</p>
+
+<x-shot name="filter" alt="Het scherm van het filter Nu of te laat: bovenaan de naam met een blauw bolletje en '7 taken', daaronder de filtertekst (vandaag | morgen | te laat) & !subtaak en dan de zeven taken, met bij elke taak het project. In de zijbalk staat het filter onder Filters, gekozen, met het getal 7.">Een filter met zijn taken. In de zijbalk staat het onder Filters, met het aantal taken.</x-shot>
+
+<h2 id="een-filter-maken">Een filter maken</h2>
+<x-shot name="filter-venster" alt="Het venster Nieuw filter met de naam Nu of te laat, de filtertekst (vandaag | morgen | te laat) & !subtaak, daaronder in groen 'Dit klopt: nu voldoen 7 taken.', zestien kleuren waarvan blauw gekozen is, het vakje Favoriet en de uitklapknop Hulp bij de filtertaal.">Het venster om een filter te maken, met direct de uitkomst.</x-shot>
+<ol>
+  <li>Klik in de zijbalk op de <strong>+</strong> naast <x-ui k="filters.title"></x-ui>, of kies <x-ui k="filter.add"></x-ui> op het scherm Filters.</li>
+  <li>Geef het filter een naam en typ de filtertekst. Eronder staat meteen of het klopt en hoeveel taken het nu oplevert.</li>
+  <li>Kies eventueel een kleur, en zet een vinkje bij <x-ui k="filter.favorite"></x-ui> om het filter bovenaan de lijst te zetten.</li>
+  <li>Kies <x-ui k="common.add"></x-ui>. Het filter opent meteen.</li>
+</ol>
+<p>Een filter met een fout wordt niet bewaard: het venster wijst eerst aan wat er niet klopt. Onder <x-ui k="filter.helpSummary"></x-ui> staan de uitleg en alle voorbeelden; een voorbeeld aantikken zet het in het veld op de plek van de cursor.</p>
+
+<h2 id="combineren">Termen combineren</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Teken</th><th>Betekenis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>&amp;</code></td><td class="wrap-ok"><x-ui k="filter.help.and"></x-ui></td></tr>
+      <tr><td><code>|</code></td><td class="wrap-ok"><x-ui k="filter.help.or"></x-ui></td></tr>
+      <tr><td><code>!</code></td><td class="wrap-ok"><x-ui k="filter.help.not"></x-ui></td></tr>
+      <tr><td><code>( )</code></td><td class="wrap-ok"><x-ui k="filter.help.group"></x-ui></td></tr>
+      <tr><td><code>,</code></td><td class="wrap-ok"><x-ui k="filter.help.lists"></x-ui></td></tr>
+      <tr><td><code>" "</code></td><td class="wrap-ok"><x-ui k="filter.help.quotes"></x-ui></td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Nederlandse en Engelse woorden werken altijd allebei, ook door elkaar: <code>vandaag &amp; p1</code> en <code>today &amp; p1</code> geven hetzelfde. Hoofdletters en accenten maken niet uit, ook niet bij de namen van projecten, secties en labels. Een filter toont alleen open taken, tenzij <code>afgevinkt</code> erin staat; taken in een gearchiveerd project doen niet mee.</p>
+
+<h2 id="voorbeelden">Voorbeelden</h2>
+<p>De voorbeelden zijn gecontroleerd tegen de voorbeeldgegevens van de <a href="{{root}}demo/?lang=nl">demo</a>: project Huishouden, label bellen en een label van een ander.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Je krijgt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle|Oppas voor de kat vragen" data-hasnot="Boodschappen doen">@bellen</code></td><td class="wrap-ok">Alle taken met het label bellen.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle" data-hasnot="Oppas voor de kat vragen">(vandaag | morgen) &amp; @bellen</code></td><td class="wrap-ok">Wat je vandaag of morgen moet bellen.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle|Boot reserveren" data-hasnot="Fietsband plakken">p1 &amp; !subtaak</code></td><td class="wrap-ok">De hoogste prioriteit, maar geen subtaken.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Lamp in de gang vervangen" data-hasnot="Kamer opruimen">#Huishouden &amp; zoek: lamp</code></td><td class="wrap-ok">Taken in Huishouden met “lamp” in de titel of beschrijving.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Boodschappen doen" data-hasnot="Weekmenu maken">toegewezen aan mij</code></td><td class="wrap-ok">Wat aan jou is toegewezen.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Playlist maken" data-hasnot="Tandarts bellen voor controle">geen datum &amp; zonder label</code></td><td class="wrap-ok">Taken zonder datum en zonder label: de rommellade.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Flyers rondbrengen">@buurt</code></td><td class="wrap-ok">Een label dat iemand anders op een gedeelde taak zette, werkt ook.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Pakketje ophalen bij de buren" data-hasnot="Tandarts bellen voor controle">afgevinkt &amp; #Inbox</code></td><td class="wrap-ok">Wat je in de Inbox hebt afgevinkt.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="meerdere-lijsten">Meerdere lijsten in één filter</h2>
+<p>Met een komma maak je aparte lijsten, elk met een eigen naam. Het scherm toont ze onder elkaar met hun naam als kop. Een taak die in meer dan één lijst past, staat in elke lijst.</p>
+<div class="table-wrap">
+  <table>
+    <tbody>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-groups="Huis,Texel" data-has="Boodschappen doen|Boot reserveren">Huis: #Huishouden, Texel: #"Vakantie Texel"</code></td><td class="wrap-ok">Twee lijsten, Huis en Texel. Een naam met een spatie zet je tussen aanhalingstekens.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="fouten">Als iets niet klopt</h2>
+<x-shot name="filter-fout" alt="Het venster Nieuw filter met de filtertekst 'vandaag &amp; #Keuken'. Eronder staat in een rood vlak 'Onbekend project: Keuken' en de filtertekst waarin #Keuken rood is onderstreept.">Een fout in het filter wordt aangewezen, in de taal van je app.</x-shot>
+<p>De melding staat in de taal van de app en wijst de plek aan. Dat zijn de meldingen die je kunt krijgen:</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Melding</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="unknown_project">vandaag &amp; #Keuken</code></td><td class="wrap-ok">Onbekend project: “Keuken”. Hetzelfde voor een sectie of een label dat niet bestaat.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="expected_operator">vandaag morgen</code></td><td class="wrap-ok">Hier hoort &amp; (en) of | (of) te staan.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="empty_term">vandaag &amp;</code></td><td class="wrap-ok">Hier ontbreekt een term.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="unclosed_paren">(vandaag | morgen</code></td><td class="wrap-ok">Dit haakje wordt niet gesloten.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="unknown_term">binnenkort</code></td><td class="wrap-ok">Onbekende term: “binnenkort”.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-error="invalid_date">31-02</code></td><td class="wrap-ok">Geen geldige datum: “31-02”.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Verdwijnt of verandert later een project, sectie of label waar een bewaard filter naar verwijst, dan klopt het filter niet meer. Het staat dan met een uitroepteken in de zijbalk, en het scherm van het filter toont de fout met de plek, een knop <x-ui k="filter.editButton"></x-ui> en een knop <x-ui k="filter.helpButton"></x-ui>. Het filter blijft bewaard zoals je het typte; pas het aan en het werkt weer.</p>
+
+<h2 id="alle-termen">Alle termen</h2>
+<p>Bij elke term staat de Nederlandse en de Engelse vorm; beide werken. Namen van projecten, secties en labels schrijf je zoals ze heten.</p>
+<h3 id="termen-dates"><x-ui k="filter.group.dates"></x-ui></h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Term</th><th>Wat het doet</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code>vandaag</code> <span class="small">(ook: <code>today</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.today"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>morgen</code> <span class="small">(ook: <code>tomorrow</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.tomorrow"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>te laat</code> <span class="small">(ook: <code>overdue</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.overdue"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>geen datum</code> <span class="small">(ook: <code>no date</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.nodate"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>7 dagen</code> <span class="small">(ook: <code>7 days</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.days"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>deze week</code> <span class="small">(ook: <code>this week</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.week"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>31-12</code> <span class="small">(ook: <code>dec 31</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.day"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>vóór: 1-12</code> <span class="small">(ook: <code>before: 1 dec</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.before"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>na: 1-12</code> <span class="small">(ook: <code>after: 1 dec</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.after"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>heeft tijd</code> <span class="small">(ook: <code>has time</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.time"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>terugkerend</code> <span class="small">(ook: <code>recurring</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.recurring"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>deadline</code> <span class="small">(ook: <code>has deadline</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.deadline"></x-ui></td></tr>
+    </tbody>
+  </table>
+</div>
+<h3 id="termen-what"><x-ui k="filter.group.what"></x-ui></h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Term</th><th>Wat het doet</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code>p1</code></td><td class="wrap-ok"><x-ui k="filter.term.priority"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>#Werk</code> <span class="small">(ook: <code>#Work</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.project"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>##Werk</code> <span class="small">(ook: <code>##Work</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.subprojects"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>/Planning</code></td><td class="wrap-ok"><x-ui k="filter.term.section"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>@bellen</code> <span class="small">(ook: <code>@calls</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.label"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>zonder label</code> <span class="small">(ook: <code>no labels</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.nolabel"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>subtaak</code> <span class="small">(ook: <code>subtask</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.subtask"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>zoek: café</code> <span class="small">(ook: <code>search: café</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.search"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>heeft herinnering</code> <span class="small">(ook: <code>has reminder</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.reminder"></x-ui></td></tr>
+    </tbody>
+  </table>
+</div>
+<h3 id="termen-people"><x-ui k="filter.group.people"></x-ui></h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Term</th><th>Wat het doet</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code>toegewezen aan mij</code> <span class="small">(ook: <code>assigned to me</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.me"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>toegewezen aan anderen</code> <span class="small">(ook: <code>assigned to others</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.others"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>niet toegewezen</code> <span class="small">(ook: <code>unassigned</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.unassigned"></x-ui></td></tr>
+    </tbody>
+  </table>
+</div>
+<h3 id="termen-more"><x-ui k="filter.group.more"></x-ui></h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Term</th><th>Wat het doet</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code>afgevinkt</code> <span class="small">(ook: <code>completed</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.completed"></x-ui></td></tr>
+      <tr><td class="wrap-ok"><code>alles</code> <span class="small">(ook: <code>all</code>)</span></td><td class="wrap-ok"><x-ui k="filter.term.all"></x-ui></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="beheren">Bewerken, favoriet en verwijderen</h2>
+<ul>
+  <li><strong>Bewerken:</strong> open het filter en kies <x-ui k="filter.editButton"></x-ui>. Naam, tekst, kleur en favoriet kun je wijzigen.</li>
+  <li><strong>Favoriet:</strong> kies <x-ui k="filter.more"></x-ui> en dan <x-ui k="filter.favoriteAdd"></x-ui>, of tik op het sterretje op het scherm <x-ui k="filters.title"></x-ui>. Favorieten staan bovenaan de lijst, met een sterretje.</li>
+  <li><strong>Verwijderen:</strong> <x-ui k="filter.more"></x-ui> en dan <x-ui k="filter.delete"></x-ui>, of het prullenbakje op het scherm <x-ui k="filters.title"></x-ui>. Je taken blijven staan.</li>
+  <li><strong>Overzicht:</strong> klik op <x-ui k="filters.title"></x-ui> in de zijbalk (het kopje zelf). Met het pijltje ernaast klap je de lijst in of uit.</li>
+</ul>
+<p>Filters zijn persoonlijk: ook in een gedeeld project ziet niemand anders je filters.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Filters slepen of een eigen volgorde geven: ze staan in de volgorde waarin ze zijn gemaakt, favorieten eerst.</li>
+  <li>Datums in een filter: de vaste vormen (<code>31-12</code>, <code>dec 31</code>, <code>morgen</code>, <code>tomorrow</code>) werken in beide talen; andere gewone taal, zoals <code>volgende week donderdag</code>, wordt alleen in het Nederlands herkend.</li>
+</ul>

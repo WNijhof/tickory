@@ -15,7 +15,7 @@ description: De Android-app van Tickory: je eigen server in een app, met herinne
   <li>Een eigen app in Kotlin die jouw Tickory-server in de ingebouwde browser van Android (<em>Android System WebView</em>) toont. Het is dezelfde app als in je browser, met dezelfde schermen.</li>
   <li>Daarbij haalt de app je taken en herinneringen op en zet ze als <strong>alarmen op het toestel</strong>. Een herinnering gaat af zonder dat de server of een pushdienst erbij betrokken is.</li>
   <li><strong>Geen diensten van Google</strong>: geen Google Play, geen Firebase, geen trackers of statistieken. De app praat alleen met de server die jij invult. De ingebouwde browser stuurt geen gebruiksstatistieken naar Google en gebruikt geen <em>Safe Browsing</em>.</li>
-  <li>Je aanmelding staat versleuteld op het toestel (sleutel in de Android Keystore). Niets van de app gaat mee in back-ups naar de cloud of bij het overzetten naar een ander toestel.</li>
+  <li>De aanmelding die de app zelf op de achtergrond gebruikt, staat versleuteld op het toestel (sleutel in de Android Keystore). De web-app in de app bewaart zoals elke browser haar eigen kopie van de aanmelding, in de privé-opslag van de app en niet versleuteld; wie het toestel rootet of de gegevens van de app kan lezen, kan die dus ook lezen. Niets van de app gaat mee in back-ups naar de cloud of bij het overzetten naar een ander toestel.</li>
 </ul>
 <p>Je hebt Android 8 of nieuwer nodig. De app volgt de taal van het toestel (Nederlands of Engels; een andere taal krijgt Nederlands), en de web-app erin volgt zijn eigen taalkeuze.</p>
 
@@ -40,7 +40,7 @@ description: De Android-app van Tickory: je eigen server in een app, met herinne
   <li>Typ je geen <code>http://</code> of <code>https://</code>, dan neemt de app <code>https</code> aan. Een pad achter het adres en een poort 443 of 80 laat hij weg.</li>
   <li>Zet geen gebruikersnaam of wachtwoord in het adres; je logt daarna in de app in.</li>
   <li>De app bewaart het adres pas als de server er antwoordt zoals een Tickory-server hoort (het adres <code>/health</code>). Staat er iets anders of niets, dan zegt hij dat, met een tip: het adres bestaat niet, de server draait niet, het certificaat wordt niet vertrouwd, of het adres stuurt door naar een ander adres (de app opent alleen het adres dat je invult).</li>
-  <li><strong>https</strong> is de aanbevolen keuze. Met <code>http://</code> is de verbinding niet versleuteld; de app waarschuwt als je zo'n adres invult. Gebruik dat alleen op je eigen thuisnetwerk.</li>
+  <li><strong>https</strong> is de aanbevolen keuze en nodig voor een server op internet. Met <code>http://</code> is de verbinding niet versleuteld; de app staat dat alleen toe voor een adres op je eigen netwerk (zoals <code>192.168.1.10</code> of <code>nas.local</code>) en waarschuwt als je zo'n adres invult. Een <code>http://</code>-adres naar een server op internet weigert de app, ook als dat in een eerdere versie was ingesteld; wijzig dan het serveradres en gebruik <code>https://</code>.</li>
   <li>Het adres veranderen kan later: de app vraagt dan bevestiging, want je wordt afgemeld, de geplande alarmen verdwijnen en wijzigingen die nog niet naar de server zijn gestuurd gaan verloren.</li>
 </ul>
 

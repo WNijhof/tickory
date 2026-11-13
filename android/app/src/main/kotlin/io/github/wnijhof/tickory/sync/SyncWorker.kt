@@ -27,6 +27,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         val origin = prefs.serverOrigin
         val token = if (prefs.sessionExpired) null else TokenVault.load(app)
         if (origin == null || token == null) return Result.success() // niet (meer) aangemeld: niets te doen
+        if (prefs.cleartextToInternet) return Result.success() // onversleuteld naar een server op internet: het token gaat niet over de lijn
 
         if (!flushCompletes(app)) return failed(app, prefs, origin)
 

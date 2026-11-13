@@ -40,7 +40,7 @@ export function previewChips(text, { view, context }) {
 
 /**
  * Het venster "Taak toevoegen": dezelfde invoer als de balk bovenaan, groter, met beschrijving en een keuze voor het project.
- * @param {{ store: import('../core/store.js').Store, actions: object, context: { projectId?: string | null, sectionId?: string | null, due?: 'today' | string | null } }} options
+ * @param {{ store: import('../core/store.js').Store, actions: object, context: { projectId?: string | null, sectionId?: string | null, due?: 'today' | string | null, text?: string } }} options
  * @returns {Promise<string | null>} het id van de nieuwe taak, of null bij annuleren
  */
 export function openQuickAddDialog({ store, actions, context = {} }) {
@@ -49,7 +49,7 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
   const startProject = context.projectId && view.projects.has(context.projectId) ? context.projectId : inbox;
   return openDialog((finish) => {
     const input = h('input', {
-      class: 'field quick-big', type: 'text', maxLength: 4000, placeholder: t('quick.placeholder'), 'aria-label': t('quick.label'), autocomplete: 'off', enterkeyhint: 'done', autofocus: true,
+      class: 'field quick-big', type: 'text', maxLength: 4000, value: context.text ?? '', placeholder: t('quick.placeholder'), 'aria-label': t('quick.label'), autocomplete: 'off', enterkeyhint: 'done', autofocus: true,
     });
     const description = h('textarea', { class: 'field', rows: 2, maxLength: 16000, placeholder: t('task.description'), 'aria-label': t('task.descriptionLabel') });
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
@@ -63,6 +63,10 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);
+    if (input.value) {
+      draw(); // een begintekst (bijvoorbeeld het label waar je bij staat): meteen de voorvertoning, de cursor erachter
+      queueMicrotask(() => input.setSelectionRange(input.value.length, input.value.length));
+    }
     return h('form', {
       class: 'dialog-form quick-form',
       onsubmit: async (e) => {

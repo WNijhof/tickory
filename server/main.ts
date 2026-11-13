@@ -22,12 +22,13 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
-import { currentRev, handleSync, SyncError } from './sync.ts';
+import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
+import { LIMITS } from './limits.ts';
 import {
   countUsers, createSession, createUser, findSession, getUserById, getUserByName, hashPassword, listSessions, listUsers, LoginLimiter,
   publicMe, revokeSession, revokeSessions, setPasswordHash, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
@@ -74,6 +75,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** Voor tests: eigen beperking van inlogpogingen. */
   limiter?: LoginLimiter;
+  /** Voor tests: eigen beperking van pogingen het huidige wachtwoord te raden bij een wachtwoordwijziging. */
+  passwordLimiter?: LoginLimiter;
   /** Meldingen in de browser (Web Push). Zonder: de eindpunten onder /api/v1/push/ bestaan niet. */
   push?: Push | null;
   /** Hoe vaak de server kijkt welke herinneringen aan de beurt zijn; 0 = niet vanzelf (tests roepen `push.tick()` zelf aan). */
@@ -99,7 +102,7 @@ export function resolveStatic(pathname: string, clientDir: string, sharedDir: st
   // geen lege stukken, geen "..", geen verborgen bestanden, geen vreemde tekens (dubbele punt, spaties) en geen Windows-apparaatnamen
   if (segments.length === 0 || !segments.every((s) => SAFE_SEGMENT.test(s) && !s.includes('..') && !WINDOWS_DEVICE.test(s.split('.')[0]))) return null;
   const name = segments[segments.length - 1];
-  if (name.endsWith('.test.js')) return null;
+  if (/\.test\.[a-z]+$/i.test(name)) return null; // ook met andere hoofdletters: op Windows en macOS is "AUTH.TEST.JS" hetzelfde bestand
   const type = MIME[extname(name).toLowerCase()];
   if (!type) return null;
   const shared = segments[0] === 'shared';
@@ -142,7 +145,7 @@ export async function staticResponse(
 }
 
 const STATUS_FOR: Record<string, number> = {
-  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, DUPLICATE: 409, CONFLICT: 409,
+  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
 };
 
 interface Caller { user: UserRow; sessionId: string }
@@ -152,6 +155,8 @@ export function createApp(opts: AppOptions): App {
   const db = opts.db;
   const streams = new Set<Stream>();
   const limiter = opts.limiter ?? new LoginLimiter();
+  // eigen tellers voor het raden van het huidige wachtwoord bij een wachtwoordwijziging (met een geldig token), strenger dan inloggen
+  const passwordLimiter = opts.passwordLimiter ?? new LoginLimiter({ pair: 5, ip: 20, user: 20 }, limiter.windowMs, limiter.now);
   const clientDir = opts.clientDir === undefined ? DEFAULT_CLIENT_DIR : opts.clientDir;
   const sharedDir = opts.sharedDir ?? DEFAULT_SHARED_DIR;
   const cors: Record<string, string> = opts.corsOrigin ? { 'Access-Control-Allow-Origin': opts.corsOrigin, Vary: 'Origin' } : {};
@@ -226,9 +231,17 @@ export function createApp(opts: AppOptions): App {
     return payload as Record<string, unknown>;
   };
 
-  const broadcast = (clientId: string | null, rev: number): void => {
-    const msg = `event: sync_needed\ndata: ${JSON.stringify({ client_id: clientId, rev })}\n\n`;
-    for (const s of streams) s.res.write(msg);
+  /**
+   * Meldt `audience` (de gebruikers die iets van de wijziging zien, zie audienceSince) dat ze moeten synchroniseren. Het signaal
+   * draagt geen versienummer: dat telt over alle gebruikers samen en zou verraden hoeveel anderen doen. Alleen de apparaten van
+   * de gebruiker die de wijziging deed krijgen het id van de client mee, zodat die zijn eigen wijziging negeert.
+   */
+  const broadcast = (actorId: string | null, clientId: string | null, audience: Set<string>): void => {
+    const own = `event: sync_needed\ndata: ${JSON.stringify({ client_id: clientId })}\n\n`;
+    const other = 'event: sync_needed\ndata: {}\n\n';
+    for (const s of streams) {
+      if (audience.has(s.userId)) s.res.write(s.userId === actorId ? own : other);
+    }
   };
 
   /** Sluit de live-verbindingen van een gebruiker (of één sessie), bijvoorbeeld na uitloggen of blokkeren. */
@@ -257,29 +270,47 @@ export function createApp(opts: AppOptions): App {
     const username = typeof body.username === 'string' ? body.username.slice(0, 200) : '';
     const password = typeof body.password === 'string' ? body.password.slice(0, 1000) : '';
     const device = typeof body.device_name === 'string' ? body.device_name : '';
-    const ip = clientIp(req);
-    const wait = limiter.retryAfter(username, ip);
-    if (wait > 0) {
+    // De poging wordt geteld vóórdat het wachtwoord wordt gecontroleerd. Dat controleren is asynchroon en duurt even; tellen
+    // erna liet honderden gelijktijdige pogingen door de beperking voordat de eerste was geteld.
+    const { wait, attempt } = limiter.begin(username, clientIp(req));
+    if (!attempt) {
       return send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
     }
-    const user = username ? getUserByName(db, username) : undefined;
-    const valid = user ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
+    let user: ReturnType<typeof getUserByName> = undefined;
+    let valid = false;
+    try {
+      user = username ? getUserByName(db, username) : undefined;
+      valid = user ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
+    } catch (err) {
+      limiter.cancel(attempt); // de server was druk (BUSY) of er ging iets mis: dat is niet de schuld van de bezoeker
+      throw err;
+    }
     if (!user || !valid || user.is_disabled) {
-      limiter.fail(username, ip);
-      // Dezelfde melding voor onbekende gebruiker, fout wachtwoord en geblokkeerd account.
+      // Dezelfde melding voor onbekende gebruiker, fout wachtwoord en geblokkeerd account. De poging blijft geteld.
       return send(res, 401, { error_code: 'INVALID_CREDENTIALS', error: 'gebruikersnaam of wachtwoord klopt niet' });
     }
-    limiter.success(username);
+    limiter.succeed(attempt);
     const { token, id } = createSession(db, user.id, device);
     send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
 
   const changePassword = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
     const body = await readJson(req);
-    const current = getUserByName(db, caller.user.username);
-    if (!current || typeof body.current_password !== 'string' || !(await verifyPassword(body.current_password, current.password_hash))) {
-      return send(res, 403, { error_code: 'FORBIDDEN', error: 'het huidige wachtwoord klopt niet' });
+    // Het huidige wachtwoord raden kan met een gestolen sessietoken ook zonder in te loggen: dezelfde beperking als bij het inloggen.
+    const { wait, attempt } = passwordLimiter.begin(caller.user.username, clientIp(req));
+    if (!attempt) {
+      return send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
     }
+    let correct = false;
+    try {
+      const current = getUserByName(db, caller.user.username);
+      correct = Boolean(current) && typeof body.current_password === 'string' && (await verifyPassword(body.current_password, current!.password_hash));
+    } catch (err) {
+      passwordLimiter.cancel(attempt);
+      throw err;
+    }
+    if (!correct) return send(res, 403, { error_code: 'FORBIDDEN', error: 'het huidige wachtwoord klopt niet' });
+    passwordLimiter.succeed(attempt);
     const next = validatePassword(body.new_password, caller.user.username);
     setPasswordHash(db, caller.user.id, await hashPassword(next), caller.sessionId); // andere apparaten moeten opnieuw inloggen
     closeStreams(caller.user.id); // live-verbindingen van andere apparaten; dit apparaat verbindt vanzelf opnieuw
@@ -347,8 +378,9 @@ export function createApp(opts: AppOptions): App {
       // Een knop uit een melding: de browser is op dat moment niet ingelogd; het ondertekende token is het bewijs.
       if (path === '/api/v1/push/action' && push) {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        const before = currentRev(db);
         const outcome = push.handleAction((await readJson(req)).token);
-        if (outcome.userId) broadcast(null, currentRev(db));
+        if (outcome.userId) broadcast(outcome.userId, null, audienceSince(db, before, outcome.userId));
         return outcome.ok ? send(res, 200, { ok: true }) : send(res, 400, { error_code: 'INVALID_REQUEST', error: outcome.error ?? 'niet gelukt' });
       }
 
@@ -412,6 +444,11 @@ export function createApp(opts: AppOptions): App {
 
       if (path === '/api/v1/events') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        let mine = 0;
+        for (const s of streams) if (s.userId === caller.user.id) mine++;
+        if (mine >= LIMITS.sseConnectionsPerUser) {
+          return send(res, 429, { error_code: 'TOO_MANY_CONNECTIONS', error: `te veel live-verbindingen tegelijk (maximaal ${LIMITS.sseConnectionsPerUser}); sluit een tabblad of apparaat dat je niet gebruikt` });
+        }
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-store',
@@ -419,7 +456,7 @@ export function createApp(opts: AppOptions): App {
           'X-Accel-Buffering': 'no',
           ...cors,
         });
-        res.write(`event: hello\ndata: ${JSON.stringify({ rev: currentRev(db) })}\n\n`);
+        res.write('event: hello\ndata: {}\n\n'); // geen versienummer: dat telt over alle gebruikers samen
         const stream: Stream = { res, userId: caller.user.id, sessionId: caller.sessionId };
         streams.add(stream);
         const ping = setInterval(() => {
@@ -446,11 +483,11 @@ export function createApp(opts: AppOptions): App {
       const result = handleSync(db, payload, caller.user.id);
       const after = currentRev(db);
       send(res, 200, result);
-      if (after !== before) broadcast(clientId, after);
+      if (after !== before) broadcast(caller.user.id, clientId, audienceSince(db, before, caller.user.id));
     } catch (err) {
       if (err instanceof SyncError) {
         // De body is op dit punt volledig weggelezen, dus de verbinding kan gewoon open blijven.
-        if (!res.headersSent && !res.destroyed) send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
+        if (!res.headersSent && !res.destroyed) send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message }, err.code === 'BUSY' ? { 'Retry-After': '5' } : {});
         return;
       }
       console.error('onverwachte fout', err);
@@ -521,6 +558,34 @@ function openDatabase(): DatabaseSync {
   return db;
 }
 
+/**
+ * Het wachtwoord van het eerste account: uit TODO_ADMIN_PASSWORD, of uit het bestand dat TODO_ADMIN_PASSWORD_FILE aanwijst
+ * (bijvoorbeeld een Docker-secret onder /run/secrets). Met een bestand komt het wachtwoord niet in de omgeving van de container
+ * te staan, waar `docker inspect` het blijvend toont. Een eindregel aan het eind van het bestand hoort er niet bij.
+ */
+export function adminPasswordFrom(env: Record<string, string | undefined>): string | undefined {
+  if (env.TODO_ADMIN_PASSWORD) return env.TODO_ADMIN_PASSWORD;
+  const file = env.TODO_ADMIN_PASSWORD_FILE;
+  if (!file) return undefined;
+  try {
+    return readFileSync(file, 'utf8').replace(/\r?\n$/, '');
+  } catch (err) {
+    throw new Error(`TODO_ADMIN_PASSWORD_FILE (${file}) is niet te lezen: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`);
+  }
+}
+
+/**
+ * Maakt het eerste account (beheerder) uit TODO_ADMIN_USER en het wachtwoord uit de omgeving, als er nog geen accounts zijn.
+ * Geeft het account terug, of null als er niets is ingesteld. Gooit bij een ongeldig wachtwoord of een onleesbaar bestand.
+ */
+export async function createFirstAccount(db: DatabaseSync, env: Record<string, string | undefined>): Promise<UserRow | null> {
+  if (countUsers(db) !== 0) return null;
+  const admin = env.TODO_ADMIN_USER;
+  const password = adminPasswordFrom(env);
+  if (!admin || !password) return null;
+  return createUser(db, { username: admin, name: env.TODO_ADMIN_NAME || admin, passwordHash: await hashPassword(validatePassword(password, admin)), isAdmin: true });
+}
+
 async function userCommand(args: string[]): Promise<void> {
   const [action, username, ...rest] = args;
   const db = openDatabase();
@@ -576,18 +641,17 @@ if (import.meta.main) {
   } else {
     const db = openDatabase();
     if (countUsers(db) === 0) {
-      const admin = process.env.TODO_ADMIN_USER;
-      const password = process.env.TODO_ADMIN_PASSWORD;
-      if (admin && password) {
-        try {
-          const u = createUser(db, { username: admin, name: process.env.TODO_ADMIN_NAME || admin, passwordHash: await hashPassword(validatePassword(password, admin)), isAdmin: true });
-          console.log(`Eerste account "${u.username}" (beheerder) aangemaakt. Je kunt TODO_ADMIN_PASSWORD nu uit je instellingen halen.`);
-        } catch (err) {
-          console.error(`Het eerste account kon niet worden aangemaakt: ${(err as Error).message}`);
-          process.exit(1);
+      try {
+        const u = await createFirstAccount(db, process.env);
+        if (u) {
+          console.log(`Eerste account "${u.username}" (beheerder) aangemaakt. Haal TODO_ADMIN_PASSWORD nu uit je instellingen en maak de container opnieuw aan; het wachtwoord blijft anders in de configuratie van de container staan.`);
+          delete process.env.TODO_ADMIN_PASSWORD; // het hoeft niet in de omgeving van dit proces te blijven
+        } else {
+          console.warn('Er zijn nog geen accounts. Zet TODO_ADMIN_USER en TODO_ADMIN_PASSWORD (of TODO_ADMIN_PASSWORD_FILE; minimaal 10 tekens) en start opnieuw, of gebruik: node server/main.ts user add <naam> --admin');
         }
-      } else {
-        console.warn('Er zijn nog geen accounts. Zet TODO_ADMIN_USER en TODO_ADMIN_PASSWORD (minimaal 10 tekens) en start opnieuw, of gebruik: node server/main.ts user add <naam> --admin');
+      } catch (err) {
+        console.error(`Het eerste account kon niet worden aangemaakt: ${(err as Error).message}`);
+        process.exit(1);
       }
     }
     const host = process.env.HOST ?? '127.0.0.1';
@@ -597,11 +661,17 @@ if (import.meta.main) {
     if (process.env.VAPID_SUBJECT && !/^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(process.env.VAPID_SUBJECT)) {
       console.warn('VAPID_SUBJECT is geen "mailto:…" of https-adres en wordt genegeerd.');
     }
-    const push = createPush({
-      db, subject: process.env.VAPID_SUBJECT, defaultTimeZone: process.env.DEFAULT_TIMEZONE,
-      // extra pushdiensten die mogen (bijvoorbeeld een eigen dienst), als komma-gescheiden domeinen
-      extraAllowedHosts: (process.env.PUSH_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
-    });
+    let push: ReturnType<typeof createPush>;
+    try {
+      push = createPush({
+        db, subject: process.env.VAPID_SUBJECT, defaultTimeZone: process.env.DEFAULT_TIMEZONE,
+        // extra pushdiensten die mogen (bijvoorbeeld een eigen dienst), als komma-gescheiden domeinen
+        extraAllowedHosts: (process.env.PUSH_ALLOWED_HOSTS ?? '').split(',').map((h) => h.trim()).filter(Boolean),
+      });
+    } catch (err) {
+      console.error(`Fout: ${(err as Error).message}`);
+      process.exit(1);
+    }
     const app = createApp({ db, push, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
     app.server.listen(port, host, () => console.log(`Tickory luistert op http://${host}:${port} (database: ${process.env.DB_PATH ?? './data/todo.db'})`));
     const stop = () => app.close().then(() => { db.close(); process.exit(0); });

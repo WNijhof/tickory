@@ -290,6 +290,32 @@ class ScreensTest {
     }
 
     @Test
+    fun `instelscherm - http naar een server buiten het eigen netwerk wordt geweigerd en niet bewaard`() {
+        val activity = setup()
+        for (address in listOf("http://203.0.113.9:8787", "http://taken.voorbeeld.invalid")) {
+            connect(activity, address)
+            val message = errorOf(activity)
+            assertNotNull(address, message)
+            assertTrue(message, message!!.startsWith("Een adres met http:// is alleen toegestaan op je eigen netwerk"))
+            assertTrue("de knop is weer te gebruiken", activity.findViewById<Button>(R.id.connect).isEnabled)
+            assertNull(Prefs(app).serverOrigin)
+        }
+    }
+
+    @Test
+    fun `een eerder bewaard http-adres buiten het eigen netwerk wordt niet meer geladen`() {
+        val prefs = Prefs(app)
+        prefs.setServer("http://203.0.113.9:8787", false)
+        assertTrue(prefs.cleartextToInternet)
+        prefs.setServer("http://192.168.1.10:8787", true)
+        assertFalse(prefs.cleartextToInternet)
+        prefs.setServer("https://taken.voorbeeld.nl", false)
+        assertFalse(prefs.cleartextToInternet)
+        prefs.setServer("http://127.0.0.1:8795", false)
+        assertFalse("het toestel zelf", prefs.cleartextToInternet)
+    }
+
+    @Test
     fun `instelscherm - een Tickory-server wordt bewaard als oorsprong en de app gaat door`() {
         FakeServer { Response(200, """{"ok":true}""") }.use { server ->
             val activity = setup()
@@ -315,7 +341,7 @@ class ScreensTest {
             connect(activity, server.origin.removePrefix("http://"))
             val message = errorOf(activity)
             assertNotNull(message)
-            assertTrue(message, message!!.contains("Draait je server zonder https? Zet dan http:// voor het adres."))
+            assertTrue(message, message!!.contains("Draait je server thuis zonder https? Zet dan http:// voor het adres; dat mag alleen voor een adres op je eigen netwerk."))
             assertNull(Prefs(app).serverOrigin)
         }
 

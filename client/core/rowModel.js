@@ -39,7 +39,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
   const labels = [];
   for (const id of task.labels ?? []) {
     const label = view.labels.get(id);
-    if (label) labels.push({ name: label.name, color: colorName(label.color) });
+    if (label) labels.push({ id: label.id, name: label.name, color: colorName(label.color) });
   }
   let assignee = null;
   if (task.assignee_id) {

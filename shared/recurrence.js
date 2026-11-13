@@ -70,12 +70,18 @@ export function nthWeekdayOfMonth(y, m0, wd, nth) {
 const fmt = (d) => d.toISOString().slice(0, 10);
 
 /**
- * De eerstvolgende datum na `date` volgens `rec`.
+ * De eerstvolgende datum na `date` volgens `rec`, of null als die buiten het bereik van het datummodel valt (na 9999-12-31):
+ * er komt dan geen volgende keer, en de aanroeper behandelt de taak als niet-terugkerend. Zo ontstaat er nooit een ongeldige datum.
  * @param {string} date
  * @param {Recurrence} rec
- * @returns {string}
+ * @returns {string | null}
  */
 export function nextOccurrence(date, rec) {
+  const next = rawNextOccurrence(date, rec);
+  return isValidDate(next) ? next : null;
+}
+
+function rawNextOccurrence(date, rec) {
   const m = DATE_RE.exec(date);
   if (!m) throw new Error(`ongeldige datum: ${date}`);
   const time = m[4] ?? '';

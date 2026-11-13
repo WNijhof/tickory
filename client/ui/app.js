@@ -18,6 +18,7 @@ import { createShortcuts } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
+import { createDragDrop } from './dragdrop.js';
 import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { openQuickAddDialog, previewChips } from './quickAdd.js';
@@ -26,6 +27,7 @@ import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
+import { installFind, isFindRoute } from './find.js';
 
 const ROUTE_KEY = 'tickory.route';
 
@@ -38,7 +40,7 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && ['today', 'upcoming', 'project'].includes(r.type)) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
@@ -551,13 +553,19 @@ async function boot() {
   setInterval(invalidate, 60_000); // "te laat" en de datum van vandaag schuiven mee met de klok
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
+  installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
+  // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
+  createDragDrop({
+    content: $('content'), sidebar: $('sidebar'), actions,
+    getContext: () => ({ view: store.view, userId: store.userId, showCompleted: (projectId) => ui.showCompleted.has(projectId) }),
+  });
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
   $('menu-button').addEventListener('click', () => document.body.classList.toggle('nav-open'));
   $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));
   $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' || !getToken() ? askLogin() : sync.requestSync(0)));
 
-  // Sneltoetsen (zie core/shortcuts.js): alleen buiten invoervelden en zonder open venster. `/` en Ctrl+K blijven vrij voor zoeken.
+  // Sneltoetsen (zie core/shortcuts.js): alleen buiten invoervelden en zonder open venster. `/` en Ctrl+K zijn voor zoeken (ui/find.js).
   const shortcuts = createShortcuts({
     addTask: () => handlers.quickAdd(),
     goToday: () => navigate({ type: 'today' }),

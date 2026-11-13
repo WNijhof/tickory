@@ -1,0 +1,66 @@
+<!--
+title: Zoeken
+description: Zoeken in Tickory met / of Ctrl+K: taken, opmerkingen, projecten, secties, labels en filters, zonder letter- of accentverschil, met de gevonden woorden gemarkeerd en bediening met het toetsenbord.
+-->
+<h1>Zoeken</h1>
+<p class="intro">Weet je nog dat je ergens iets over de tandarts had genoteerd, maar niet waar? Zoek het: in al je taken, opmerkingen, projecten, labels en filters tegelijk, terwijl je typt.</p>
+
+<x-shot name="zoeken" alt="Het zoekvenster met de tekst 'boodschap' in het zoekveld. Eronder vier treffers met de gevonden letters geel gemarkeerd: het label boodschappen, de sectie Boodschappen van het project Huishouden, de taak Boodschappen doen met project en datum, en een opmerking bij die taak met een stuk van de tekst. Rechts bij elke treffer staat wat het is.">Het zoekvenster: treffers van verschillende soorten, met de gevonden woorden gemarkeerd.</x-shot>
+
+<h2 id="zoeken-openen">Het zoekvenster openen</h2>
+<ul>
+  <li>Druk op <kbd>/</kbd>, of op <kbd>Ctrl</kbd>+<kbd>K</kbd> (op een Mac <kbd>Cmd</kbd>+<kbd>K</kbd>).</li>
+  <li>Of klik op <x-ui k="search.fieldText"></x-ui> bovenaan de zijbalk. Op een telefoon staat een vergrootglas in de balk bovenaan het scherm.</li>
+</ul>
+<p>Een <kbd>/</kbd> is alleen een sneltoets als je niet in een invoerveld typt en er geen venster openstaat; anders is het gewoon een schuine streep. <kbd>Ctrl</kbd>+<kbd>K</kbd> werkt altijd. Zie ook <a href="sneltoetsen.html">Sneltoetsen</a>.</p>
+
+<h2 id="wat-wordt-doorzocht">Wat wordt doorzocht</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Soort</th><th>Waarin wordt gezocht</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><x-ui k="search.kind.task"></x-ui></td><td class="wrap-ok">De titel, de beschrijving en de namen van de labels. Een treffer in de beschrijving of een label toont het stuk tekst waarin het woord staat.</td></tr>
+      <tr><td><x-ui k="search.kind.comment"></x-ui></td><td class="wrap-ok">De tekst van opmerkingen bij taken en projecten. Alle woorden moeten in dezelfde opmerking staan.</td></tr>
+      <tr><td><x-ui k="search.kind.project"></x-ui>, <x-ui k="search.kind.section"></x-ui></td><td class="wrap-ok">De naam, en bij een project ook de beschrijving.</td></tr>
+      <tr><td><x-ui k="search.kind.label"></x-ui></td><td class="wrap-ok">De naam. Ook labels die iemand anders op een taak in een gedeeld project heeft gezet.</td></tr>
+      <tr><td><x-ui k="search.kind.filter"></x-ui></td><td class="wrap-ok">De naam en de filtertekst.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Gearchiveerde projecten en secties, en alles wat erin zit, doen niet mee. Afgevinkte taken wel, maar die staan achteraan.</p>
+
+<h2 id="hoe-er-gezocht-wordt">Hoe er gezocht wordt</h2>
+<ul>
+  <li><strong>Hoofdletters en accenten tellen niet.</strong> <code>cafe</code> vindt “Café”, <code>zoe</code> vindt “Zoë” en <code>ijs</code> vindt “IJs kopen”. Dat geldt ook als je toetsenbord een accent als los teken aflevert.</li>
+  <li><strong>Alle woorden, in elke volgorde.</strong> <code>bellen tandarts</code> vindt “Tandarts bellen voor controle”.</li>
+  <li><strong>Een stuk van een woord is genoeg.</strong> <code>boodschap</code> vindt “boodschappen”; de gevonden letters zijn gemarkeerd.</li>
+  <li><strong>De volgorde van de treffers.</strong> Eerst wat met je woord begint, dan wat het in de titel heeft, dan wat het alleen in de beschrijving, een label of een opmerking heeft. Binnen die groepen staan projecten, labels, filters en secties vóór taken, en kortere titels vóór langere.</li>
+</ul>
+<p>Er worden hooguit 50 treffers getoond. Een wijziging van een ander apparaat verschijnt vanzelf in de lijst.</p>
+
+<h2 id="bedienen">Met het toetsenbord bedienen</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Toets</th><th>Wat er gebeurt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><kbd>↓</kbd> en <kbd>↑</kbd></td><td class="wrap-ok">De volgende of vorige treffer kiezen; na de laatste kom je weer bij de eerste. <kbd>Page Up</kbd> en <kbd>Page Down</kbd> springen vijf treffers.</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td class="wrap-ok">De gekozen treffer openen. De eerste treffer is al gekozen zodra er resultaten zijn.</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td class="wrap-ok">Het zoekvenster sluiten.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Met de muis klik je op een treffer. Schermlezers horen hoeveel resultaten er zijn en welke treffer gekozen is.</p>
+
+<h2 id="wat-opent-er">Wat een treffer opent</h2>
+<ul>
+  <li><strong>Een taak:</strong> het <a href="taakvenster.html">taakvenster</a> van die taak, bovenop het scherm waar je was.</li>
+  <li><strong>Een opmerking:</strong> het taakvenster van de taak waar ze bij hoort, of bij een opmerking bij een project dat project met zijn opmerkingen.</li>
+  <li><strong>Een project of een sectie:</strong> dat project.</li>
+  <li><strong>Een label of een filter:</strong> het scherm met de taken, zie <a href="labels.html">Labels</a> en <a href="filters.html">Filters</a>.</li>
+</ul>
+
+<x-shot name="telefoon-zoeken" alt="Het zoekvenster op een telefoon, over het hele scherm: bovenaan het zoekveld met de tekst 'boodschap' en een kruisje om te sluiten, daaronder dezelfde treffers als op de computer.">Op een telefoon vult het zoekvenster het hele scherm.</x-shot>

@@ -109,7 +109,7 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
         'aria-label': t('task.completeLabel', { name: task.content }), title: t('task.completeLabel', { name: task.content }), onclick: () => handlers.toggle(task),
       })
       : h('span', { class: 'cal-repeat', title: t('calendar.repeatHint'), role: 'img', 'aria-label': t('calendar.repeatHint') }, icon('repeat')),
-    h('button', { class: 'cal-open', type: 'button', title, dataset: { fk: `calopen:${task.id}:${date}` }, onclick: () => handlers.open(task) },
+    h('button', { class: 'cal-open', type: 'button', title, dataset: { fk: real ? `calopen:${task.id}` : `calopen:${task.id}:${date}` }, onclick: () => handlers.open(task) },
       withDate && h('span', { class: 'cal-when' }, dayLabel(locale, date, 'short')),
       time && h('span', { class: 'cal-time' }, time),
       h('span', { class: 'cal-title-text' }, task.content),

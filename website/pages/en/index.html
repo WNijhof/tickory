@@ -63,7 +63,7 @@ description: Tickory is a to-do app you host yourself, for you, your family or a
       <h3>Today and Upcoming</h3>
       <p><x-ui k="nav.today"></x-ui> shows what is due today and what is overdue, from all your projects together. <x-ui k="nav.upcoming"></x-ui> shows the next two weeks, day by day.</p>
       <p>A recurring task you tick off moves on to its next date. Ticking off can be undone with one click.</p>
-      <a class="more" href="guide/projects.html#today-and-upcoming">More about the views</a>
+      <a class="more" href="guide/the-screen.html#today-and-upcoming">More about the views</a>
     </div>
     <x-shot name="binnenkort" alt="The Upcoming view: tasks from tomorrow through next week, grouped by day, each with its project and who is doing it."></x-shot>
   </div>
@@ -81,10 +81,31 @@ description: Tickory is a to-do app you host yourself, for you, your family or a
   <div class="feature">
     <div class="feature-text">
       <h3>Everything about a task in one place</h3>
-      <p>Click a task for its details: description, due date, deadline, priority, labels, project and section, reminders, and subtasks. In the date field you type the same as when adding a task.</p>
-      <a class="more" href="guide/projects.html">Projects, sections and subtasks</a>
+      <p>Click a task for its details: description, due date with quick choices, deadline, priority, labels, project and section, reminders, and subtasks. At the bottom are the comments: talk with the others in a shared project, or make a note for yourself. In the date field you type the same as when adding a task.</p>
+      <p>It works with the keyboard too: <kbd>q</kbd> adds a task and <kbd>Ctrl</kbd>+<kbd>Enter</kbd> saves.</p>
+      <p>You drag tasks and projects to their place, with the mouse or your finger, or with <kbd>Alt</kbd> and the arrow keys. <a href="guide/the-screen.html#moving-tasks-and-projects">How moving works</a>.</p>
+      <a class="more" href="guide/task-window.html">The task window</a> · <a class="more" href="guide/shortcuts.html">Keyboard shortcuts</a>
     </div>
-    <x-shot name="taak-bewerken" alt="The Edit task window for the task Boodschappen doen, with fields for description, due date, deadline, priority, assigned to, labels, project and section, the Reminders part with one reminder, and a field to add a subtask."></x-shot>
+    <x-shot name="taak-bewerken" alt="The task window of Boodschappen doen in two columns: on the left the title, the description, subtasks and comments, on the right project, section, due date with quick choices, priority, labels, assigned to, deadline and one reminder."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Search it, filter it, label it</h3>
+      <p>Press <kbd>/</kbd> and search all your tasks, comments, projects and labels at once: capitals and accents do not matter, and the words found are highlighted.</p>
+      <p>A filter is a saved search in a short language of its own, like <code>(today | tomorrow | overdue) &amp; !subtask</code>. The app checks it while you type and tells you in your own language what is wrong. Labels have a list of their own with the number of open tasks.</p>
+      <a class="more" href="guide/search.html">Search</a> · <a class="more" href="guide/filters.html">Filters</a> · <a class="more" href="guide/labels.html">Labels</a>
+    </div>
+    <x-shot name="filter" alt="The screen of the filter Now or overdue, with the filter text (today | tomorrow | overdue) & !subtask and seven tasks from different projects. In the sidebar are the filter and the labels bellen, boodschappen and buiten, each with the number of tasks."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Your projects, kept in order</h3>
+      <p>Give every project its own color, put your favorites at the top of the sidebar and hang projects under each other as subprojects. When a project is finished you archive it: it disappears from view and you can bring it back later.</p>
+      <a class="more" href="guide/projects.html">Projects and sections</a> · <a class="more" href="guide/the-screen.html">The screen</a>
+    </div>
+    <x-shot name="project-bewerken" alt="The Edit project window with the name Huishouden, sixteen colored dots for choosing a color and the Favorite checkbox."></x-shot>
   </div>
 
   <div class="feature">
@@ -106,7 +127,7 @@ description: Tickory is a to-do app you host yourself, for you, your family or a
     </div>
     <div class="feature-pair">
       <x-shot name="telefoon-project" alt="The project Huishouden on a phone, with sections and subtasks below each other."></x-shot>
-      <x-shot name="telefoon-menu" alt="The slide-out menu on a phone with Today, Upcoming and the projects Inbox, Huishouden, Vakantie Texel and Buurtfeest."></x-shot>
+      <x-shot name="telefoon-menu" alt="The slide-out menu on a phone with Add task, Inbox, Today and Upcoming, the favorites and the projects Huishouden, Vakantie Texel with the subproject Fietsroute, and Buurtfeest."></x-shot>
     </div>
   </div>
 
@@ -161,24 +182,20 @@ docker compose ps          # after a few seconds: (healthy)</code></pre>
       <h3>Coming</h3>
       <ul>
         <li><strong>The Android app (APK).</strong> Built and tested on a computer, but there is no released APK yet: the first one comes with the next version, and the maker has not yet tried it on a real phone. Until then you use the web app in your phone's browser. <a href="guide/android-app.html">Current state</a></li>
-        <li><strong>Filters and search.</strong> The filter language and the search are built, but there are no screens for them yet, so you cannot use them yet.</li>
         <li><strong>Date language in English.</strong> The app itself is bilingual (English and Dutch), but what you type (<code>morgen om 9 uur</code>, <code>elke maandag</code>) is recognised in Dutch only for now.</li>
       </ul>
     </div>
     <div>
       <h3>On the server, not yet in the app</h3>
       <ul>
-        <li>Comments on tasks and projects</li>
-        <li>Sub-projects, favourites, archiving projects and sections</li>
         <li>The duration of a task, and a board or calendar view</li>
       </ul>
     </div>
     <div>
       <h3>Missing entirely</h3>
       <ul>
-        <li>Changing the order of tasks (dragging): a new task always goes to the end</li>
-        <li>Managing labels: renaming, deleting, filtering by label</li>
-        <li>Attachments, import and export, an iCal feed, keyboard shortcuts, widgets, statistics, templates</li>
+        <li>Your own order for Today and Upcoming, and an order of their own for favourites</li>
+        <li>Attachments, import and export, an iCal feed, widgets, statistics, templates</li>
         <li>Inviting by link or e-mail, and handing a project over to another owner</li>
         <li>Signing up yourself or resetting your password by e-mail: an administrator does that</li>
       </ul>

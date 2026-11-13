@@ -1,89 +1,87 @@
 <!--
-title: Projecten, secties en subtaken
-description: Taken indelen in Tickory: projecten en secties maken, taken bewerken, subtaken, labels en prioriteiten, afvinken, en de overzichten Vandaag en Binnenkort.
+title: Projecten en secties
+description: Taken indelen in Tickory: projecten maken en bewerken met een kleur, subprojecten, favorieten, archiveren en terugzetten, het projectmenu voor eigenaar en lid, secties, en labels.
 -->
-<h1>Projecten, secties en subtaken</h1>
-<p class="intro">Een project is een lijst met taken. Binnen een project verdeel je taken over secties, en een taak kan subtaken hebben.</p>
+<h1>Projecten en secties</h1>
+<p class="intro">Een project is een lijst met taken. Projecten kunnen een kleur hebben, subprojecten bevatten, favoriet zijn of worden gearchiveerd. Binnen een project verdeel je taken over secties.</p>
 
-<x-shot name="project" alt="Het project Huishouden met bovenaan de knoppen Sectie toevoegen, Gedeeld en Project, daaronder een taak zonder sectie en de secties Boodschappen en Klusjes. Onder de taak Boodschappen doen staan drie subtaken ingesprongen.">Een project met secties. Subtaken staan ingesprongen onder hun taak; het getal in de zijbalk is het aantal openstaande taken.</x-shot>
+<h2 id="de-inbox">De Inbox</h2>
+<p>Iedereen heeft een eigen <strong>Inbox</strong>: het project waar een taak terechtkomt als je niets anders kiest. De Inbox staat altijd bovenaan de zijbalk, is van jou alleen, en kan niet worden gedeeld, hernoemd, gearchiveerd of verwijderd. Secties kun je er wel in maken.</p>
 
-<h2>De Inbox</h2>
-<p>Iedereen heeft een eigen <strong>Inbox</strong>: het project waar een taak terechtkomt als je niets anders kiest. De Inbox staat altijd bovenaan, is van jou alleen, en kan niet worden gedeeld, hernoemd of verwijderd. Secties kun je er wel in maken.</p>
-
-<h2>Projecten</h2>
+<h2 id="een-project-maken-en-bewerken">Een project maken en bewerken</h2>
+<x-shot name="project-bewerken" alt="Het venster Project bewerken met het veld Naam (Huishouden), zestien gekleurde bolletjes om de kleur te kiezen waarvan het turquoise bolletje is aangevinkt, en het selectievakje Favoriet, met de knoppen Annuleren en Opslaan.">Het venster om een project te bewerken: naam, kleur en favoriet.</x-shot>
 <ul>
-  <li><strong>Maken:</strong> klik in de zijbalk op de <strong>+</strong> naast <x-ui k="nav.projects"></x-ui> en geef een naam.</li>
-  <li><strong>Naam wijzigen:</strong> open het project, kies <x-ui k="project.menu"></x-ui> en dan <x-ui k="common.rename"></x-ui>.</li>
-  <li><strong>Verwijderen:</strong> kies <x-ui k="project.menu"></x-ui> en dan <x-ui k="project.delete"></x-ui>. Na bevestiging verdwijnt het project met alle secties en taken erin, ook voor de mensen met wie je het deelt. Dat is niet terug te draaien.</li>
+  <li><strong>Maken:</strong> klik in de zijbalk op de <strong>+</strong> naast <x-ui k="nav.projects"></x-ui>. Geef een naam, kies een kleur, zet eventueel een vinkje bij <x-ui k="project.favorite"></x-ui>, en kies zo nodig bij <x-ui k="project.parent"></x-ui> een project waar dit een subproject van wordt. Kies <x-ui k="common.add"></x-ui>; het nieuwe project opent meteen.</li>
+  <li><strong>Bewerken:</strong> open het project, kies <x-ui k="project.menu"></x-ui> en dan <x-ui k="project.editMenu"></x-ui>. Je wijzigt de naam, de kleur en of het een favoriet is. Het project verhuizen naar een ander project kan nog niet.</li>
   <li><strong>Delen:</strong> zie <a href="delen.html">Delen en samenwerken</a>.</li>
 </ul>
-<p>Projecten staan in de zijbalk in de volgorde waarin ze zijn gemaakt. Een project in een ander project hangen (subprojecten), een kleur kiezen, een project als favoriet markeren of archiveren kan in de app nog niet.</p>
+<p>De kleur, de favorietmarkering en het in- of uitklappen van subprojecten horen bij het project zelf, niet bij jou: in een gedeeld project zien de anderen dezelfde kleur en dezelfde favorieten.</p>
 
-<h2>Secties</h2>
+<h2 id="het-projectmenu">Het projectmenu</h2>
+<x-shot name="projectmenu" alt="Het menu van het project Huishouden met de keuzes Bewerken, Subproject toevoegen, Uit favorieten halen, Delen, Archiveren en Project verwijderen (in het rood).">Het projectmenu van de eigenaar. Een lid ziet een kortere lijst.</x-shot>
+<p>Open het met <x-ui k="project.menu"></x-ui> rechtsboven in het project. Wat je ziet, hangt af van of je eigenaar of lid bent (zie <a href="delen.html#eigenaar-en-lid">eigenaar en lid</a>):</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Keuze</th><th>Eigenaar</th><th>Lid</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: naam, kleur, favoriet</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> of <x-ui k="project.unfavorite"></x-ui></td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (voor een lid: <x-ui k="project.members"></x-ui>)</td><td>ja</td><td>alleen bekijken</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>nee</td><td>ja</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>De Inbox heeft geen projectmenu.</p>
+
+<h2 id="subprojecten">Subprojecten</h2>
+<p>Een project kan binnen een ander project hangen. Kies in het projectmenu <x-ui k="project.addSub"></x-ui>, of kies bij een nieuw project bij <x-ui k="project.parent"></x-ui> het project erboven. In de zijbalk staat een subproject ingesprongen onder zijn project, en een pijltje voor het project klapt de subprojecten in of uit. In de keuzelijsten van het taakvenster staan ze ook ingesprongen.</p>
 <ul>
-  <li><strong>Maken:</strong> open het project en kies <x-ui k="section.add"></x-ui>.</li>
+  <li>Een subproject van een gedeeld project wordt mee gedeeld.</li>
+  <li>Verwijder je een project, dan verdwijnen ook zijn subprojecten, met alle secties en taken erin. Alleen een subproject waar iemand anders eigenaar van is, blijft bestaan, op het hoogste niveau.</li>
+  <li>Archiveer je een project, dan gaan de subprojecten mee.</li>
+</ul>
+
+<h2 id="favorieten">Favorieten</h2>
+<p>Een favoriet project staat ook bovenaan de zijbalk onder <x-ui k="nav.favorites"></x-ui>, zodat je er met één klik bij bent. Zet het aan of uit met <x-ui k="project.favoriteAdd"></x-ui> of <x-ui k="project.unfavorite"></x-ui> in het projectmenu. Het project staat dan nog steeds ook onder <x-ui k="nav.projects"></x-ui>.</p>
+
+<h2 id="kleuren">Kleuren</h2>
+<p>Elk project heeft een kleur: het bolletje in de zijbalk en voor de titel, en het bolletje bij het project in Vandaag en Binnenkort. Er zijn zestien kleuren, elk met een eigen tint voor de lichte en de donkere weergave: <x-ui k="color.charcoal"></x-ui>, <x-ui k="color.red"></x-ui>, <x-ui k="color.orange"></x-ui>, <x-ui k="color.amber"></x-ui>, <x-ui k="color.olive"></x-ui>, <x-ui k="color.green"></x-ui>, <x-ui k="color.mint"></x-ui>, <x-ui k="color.teal"></x-ui>, <x-ui k="color.sky"></x-ui>, <x-ui k="color.blue"></x-ui>, <x-ui k="color.indigo"></x-ui>, <x-ui k="color.violet"></x-ui>, <x-ui k="color.magenta"></x-ui>, <x-ui k="color.rose"></x-ui>, <x-ui k="color.brown"></x-ui> en <x-ui k="color.grey"></x-ui>. Een nieuw project begint met <x-ui k="color.charcoal"></x-ui>. Labels en filters hebben ook een kleur (het bolletje voor <code>@bellen</code>); die kies je met dezelfde zestien kleuren, zie <a href="labels.html">Labels</a> en <a href="filters.html">Filters</a>.</p>
+
+<h2 id="archiveren">Archiveren en terugzetten</h2>
+<p>Een project dat klaar is, maar dat je niet wilt verwijderen, archiveer je:</p>
+<ul>
+  <li><strong>Archiveren:</strong> projectmenu, <x-ui k="project.archive"></x-ui> (alleen de eigenaar). Je gaat naar je Inbox, en onderaan verschijnt een paar seconden de melding dat het project is gearchiveerd, met de knop <x-ui k="task.undo"></x-ui>. Het project (met zijn subprojecten) verdwijnt uit de zijbalk, de favorieten en de keuzelijsten.</li>
+  <li><strong>Bekijken:</strong> onderaan de zijbalk staat <x-ui k="nav.archived"></x-ui>, zodra er een is. Het venster toont de lijst; klik op een naam om het project te openen. Een gearchiveerd project heeft bovenaan de melding <x-ui k="project.archivedBanner"></x-ui>, en je kunt er niets aan toevoegen.</li>
+  <li><strong>Terugzetten:</strong> kies <x-ui k="project.restore"></x-ui>, in dat venster of in de balk bovenaan het project. De subprojecten die mee zijn gearchiveerd, komen ook terug.</li>
+</ul>
+<p>Taken en opmerkingen in een gearchiveerd project blijven bewaard. Let op: taken met een datum uit een gearchiveerd project staan nog wel in <x-ui k="nav.today"></x-ui> en <x-ui k="nav.upcoming"></x-ui>. De Inbox kun je niet archiveren.</p>
+
+<h2 id="verwijderen">Een project verwijderen</h2>
+<p>Kies in het projectmenu <x-ui k="project.delete"></x-ui>. Na bevestiging verdwijnt het project met alle secties, subprojecten en taken erin, ook voor de mensen met wie je het deelt. Dat is niet terug te draaien. Wil je het alleen uit het zicht hebben, archiveer het dan.</p>
+
+<h2 id="secties">Secties</h2>
+<ul>
+  <li><strong>Maken:</strong> open het project en kies onderaan <x-ui k="section.add"></x-ui>.</li>
   <li><strong>Naam wijzigen of verwijderen:</strong> klik op de <strong>⋯</strong> rechts van de naam van de sectie. Verwijder je een sectie, dan verdwijnen ook alle taken die erin staan.</li>
-  <li><strong>Een taak in een sectie zetten:</strong> typ bij het toevoegen <code>/naam van de sectie</code>, of kies de sectie in het bewerkvenster.</li>
+  <li><strong>In- en uitklappen:</strong> met het pijltje voor de naam. Zie <a href="het-scherm.html#secties-in-de-lijst">Het scherm</a>.</li>
+  <li><strong>Een taak in een sectie zetten:</strong> typ bij het toevoegen <code>/naam van de sectie</code>, kies <x-ui k="quick.addTask"></x-ui> onder de sectie, of kies de sectie in het taakvenster.</li>
 </ul>
 <p>Taken zonder sectie staan bovenaan het project, boven de eerste sectie.</p>
 
-<h2 id="een-taak-bewerken">Een taak bewerken</h2>
-<p>Klik op de naam van een taak. In het venster dat opent, wijzig je:</p>
-<x-shot name="taak-bewerken" alt="Het venster Taak bewerken voor de taak Boodschappen doen, met velden voor beschrijving, datum, deadline, prioriteit, toegewezen aan, labels, project en sectie, het deel Herinneringen met één herinnering, en een veld om een subtaak toe te voegen.">Het bewerkvenster. Het veld Toegewezen aan staat er alleen bij een project dat je met anderen deelt.</x-shot>
-<dl>
-  <dt>Naam en beschrijving</dt>
-  <dd>Een taak met een beschrijving herken je in de lijst aan het woord <x-ui k="task.noteChip"></x-ui>.</dd>
-  <dt>Datum</dt>
-  <dd>In gewone taal, ook herhalingen. Zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>.</dd>
-  <dt>Deadline</dt>
-  <dd>De uiterste dag, los van de datum waarop je eraan wilt werken.</dd>
-  <dt>Prioriteit</dt>
-  <dd>P1 (hoogste) tot P4 (geen). Je ziet de prioriteit aan de kleur van het rondje: rood, oranje, blauw of grijs.</dd>
-  <dt>Toegewezen aan</dt>
-  <dd>Alleen in een gedeeld project. Zie <a href="delen.html#taken-toewijzen">taken toewijzen</a>.</dd>
-  <dt>Labels</dt>
-  <dd>Namen gescheiden door komma's, bijvoorbeeld <code>bellen, thuis</code>. Een nieuw label wordt aangemaakt.</dd>
-  <dt>Project en sectie</dt>
-  <dd>Kies een ander project of een andere sectie om de taak te verplaatsen; subtaken gaan mee. De taak komt daar onderaan te staan.</dd>
-  <dt>Herinneringen</dt>
-  <dd>Je eigen herinneringen bij deze taak. Toevoegen en verwijderen gaat daar meteen door, zonder op <x-ui k="common.save"></x-ui> te klikken. Zie <a href="herinneringen.html">Herinneringen</a>.</dd>
-</dl>
-<p>Kies <x-ui k="common.save"></x-ui> om de wijzigingen te bewaren, of <x-ui k="common.cancel"></x-ui> (of Escape) om ze te laten vervallen.</p>
+<h2 id="labels">Labels</h2>
+<p>Een label is een trefwoord bij een taak, zoals <code>@bellen</code> of <code>@buiten</code>. Je zet een label met <code>@naam</code> bij het toevoegen, of in het veld Labels van het taakvenster. In de lijst staan de labels onder de naam van de taak.</p>
+<p>Kies een label in de zijbalk en je ziet alle taken ermee. Labels hernoemen, kleuren en verwijderen kan ook. Zie <a href="labels.html">Labels</a>.</p>
 
-<h2>Subtaken</h2>
-<p>Open een taak, typ onderaan in <x-ui k="task.addSubtask"></x-ui> en druk op Enter. Zo voeg je er snel een paar achter elkaar toe. Een subtaak is zelf een gewone taak: klik erop om haar een datum, labels of eigen subtaken te geven.</p>
-<ul>
-  <li>Een subtaak staat altijd in hetzelfde project en dezelfde sectie als de taak waar ze onder hangt. Het project en de sectie kies je dus bij de bovenste taak.</li>
-  <li>Vink je een taak af, dan zijn haar subtaken ook afgevinkt.</li>
-  <li>Verwijder je een taak, dan zijn haar subtaken ook weg.</li>
-  <li>Een bestaande taak tot subtaak van een andere maken (of andersom) kan in de app nog niet.</li>
-</ul>
-
-<h2>Afvinken en terughalen</h2>
-<p>Klik op het rondje voor een taak om haar af te vinken. Onderaan verschijnt een paar seconden de melding <x-ui k="task.completed"></x-ui> met de knop <x-ui k="task.undo"></x-ui>.</p>
-<ul>
-  <li><strong>Voltooide taken bekijken:</strong> onderaan een project staat <x-ui k="view.showCompleted" n="3"></x-ui> (met het aantal voltooide taken). Klik nog een keer op het rondje van een voltooide taak om haar te heropenen. Heropen je een taak met subtaken, dan blijven de subtaken afgevinkt tot je ze zelf heropent.</li>
-  <li><strong>Terugkerende taken</strong> verdwijnen niet bij afvinken: de datum schuift door naar de volgende keer. Zie <a href="datums-en-herhalingen.html#wat-er-gebeurt-als-je-een-herhaling-afvinkt">herhalingen afvinken</a>.</li>
-</ul>
-
-<h2>Een taak verwijderen</h2>
-<p>Open de taak en kies <x-ui k="common.delete"></x-ui>. Na bevestiging is de taak weg, met haar subtaken. Er is geen prullenbak: wat je verwijdert, haal je niet terug. Wil je een taak alleen uit het zicht hebben, vink haar dan af.</p>
-
-<h2>Labels</h2>
-<p>Een label is een trefwoord bij een taak, zoals <code>@bellen</code> of <code>@buiten</code>. Je zet een label met <code>@naam</code> bij het toevoegen, of in het veld Labels van het bewerkvenster. In de lijst staan de labels onder de naam van de taak.</p>
-<p>Meer kan nog niet: er is geen scherm om labels te hernoemen of te verwijderen, en je kunt niet op een label filteren.</p>
-
-<h2 id="vandaag-en-binnenkort">Vandaag en Binnenkort</h2>
-<x-shot name="vandaag" alt="Het overzicht Vandaag: onder Te laat twee taken met een rode datum, daaronder de taken van vandaag met het project waar ze in staan.">Vandaag: eerst wat te laat is, dan wat vandaag moet.</x-shot>
-<ul>
-  <li><x-ui k="nav.today"></x-ui> toont alle openstaande taken met de datum van vandaag, uit al je projecten, en daarboven wat <x-ui k="view.overdue"></x-ui> is. Het getal in de zijbalk telt die twee samen.</li>
-  <li><x-ui k="nav.upcoming"></x-ui> toont de komende veertien dagen, vanaf morgen, met een kopje per dag. Dagen zonder taken worden overgeslagen.</li>
-</ul>
-<p>Binnen een dag staan eerst de taken zonder tijdstip en dan die met een tijdstip, van vroeg naar laat; bij gelijke tijd gaat de hoogste prioriteit voor. Bij elke taak staat het project (en de sectie) waar ze in zit, en een belletje 🔔 als er een herinnering gaat afgaan. In een gedeeld project zie je hier ook de taken die aan een ander zijn toegewezen. Taken zonder datum staan in geen van beide overzichten; die vind je in hun project.</p>
+<h2 id="volgorde-en-subprojecten">De volgorde en subprojecten</h2>
+<p>Projecten sleep je in de zijbalk: boven of onder een ander project voor een andere plek, op een ander project om er een subproject van te worden, en op de kop <x-ui k="nav.projects"></x-ui> om weer een gewoon project te zijn. Dat kan alleen de eigenaar. Met het toetsenbord gaat het met <kbd>Alt</kbd> en de pijltjestoetsen. Zie <a href="het-scherm.html#taken-en-projecten-verplaatsen">Taken en projecten verplaatsen</a>.</p>
 
 <h2>Wat nog niet kan</h2>
 <ul>
-  <li><strong>De volgorde wijzigen.</strong> Taken, secties en projecten staan in de volgorde waarin ze zijn gemaakt; slepen kan niet.</li>
-  <li><strong>Zoeken en filters.</strong> De zoekfunctie en de filtertaal zijn gebouwd, maar er zijn nog geen schermen voor; je kunt ze dus nog niet gebruiken.</li>
-  <li>Opmerkingen bij een taak, bijlagen, de duur van een taak, en een bord- of kalenderweergave.</li>
+  <li><strong>Secties slepen.</strong> Secties staan in de volgorde waarin ze zijn gemaakt. Favorieten hebben geen eigen volgorde: ze staan in de volgorde van de projecten.</li>
+  <li>Een bord- of kalenderweergave.</li>
 </ul>

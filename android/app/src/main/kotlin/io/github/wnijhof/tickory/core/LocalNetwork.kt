@@ -35,6 +35,12 @@ object LocalNetwork {
         return LOCAL_SUFFIXES.any { h.endsWith(it) }
     }
 
+    /** Is [host] het toestel zelf (localhost, 127.x.x.x, ::1)? Verkeer daarheen verlaat het toestel niet. Alleen de tekst, geen opzoeking. */
+    fun isLoopbackHost(host: String): Boolean {
+        val h = host.lowercase().removeSuffix(".")
+        return h == "localhost" || h == "[::1]" || IPV4.matchEntire(h)?.groupValues?.get(1) == "127"
+    }
+
     /** Zoekt [host] op en kijkt of een van de adressen lokaal is. Doet netwerkverkeer (DNS): niet op de hoofddraad aanroepen. */
     fun resolvesToLocal(host: String): Boolean = try {
         InetAddress.getAllByName(host.removePrefix("[").removeSuffix("]")).any { isLocalAddress(it.address) }

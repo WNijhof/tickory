@@ -1,0 +1,97 @@
+<!--
+title: The screen: sidebar and task list
+description: What Tickory looks like and how it works: the sidebar with Inbox, Today, Upcoming, favorites and projects, the task list with its circles and chips, ticking off with undo, and the view on a phone.
+-->
+<h1>The screen: sidebar and task list</h1>
+<p class="intro">The sidebar on the left is for choosing what you see, the task list is on the right. This page explains where everything is and what the circles, numbers and chips mean.</p>
+
+<x-shot name="vandaag" alt="The Today view. On the left the sidebar with Add task, Inbox, Today, Upcoming, Favorites and Projects. On the right, under Overdue two tasks with a red date, and below that today's tasks with the project each one is in.">The screen with Today. The sidebar is on the left, the list on the right. Above the list is the input field for adding a task quickly.</x-shot>
+
+<h2 id="the-sidebar">The sidebar</h2>
+<p>From top to bottom:</p>
+<ul>
+  <li><strong><x-ui k="quick.addTask"></x-ui></strong> opens a window to add a task, even if you are in another project. See <a href="adding-tasks.html#the-add-task-window">the Add task window</a>. The shortcut is <kbd>q</kbd>.</li>
+  <li><strong>Inbox, <x-ui k="nav.today"></x-ui> and <x-ui k="nav.upcoming"></x-ui></strong>: your Inbox and the two views with tasks from all your projects. The number behind each is the number of open tasks (for Today: overdue and due today together).</li>
+  <li><strong><x-ui k="search.fieldText"></x-ui></strong> under the button: the search field, see <a href="search.html">Search</a>. The shortcut is <kbd>/</kbd>.</li>
+  <li><strong><x-ui k="filters.title"></x-ui> and <x-ui k="labels.title"></x-ui></strong>, under Upcoming: your filters (see <a href="filters.html">Filters</a>) and your labels (see <a href="labels.html">Labels</a>), with the number of tasks after them. The arrow folds a list in or out, the <strong>+</strong> makes a filter or label.</li>
+  <li><strong><x-ui k="nav.favorites"></x-ui></strong>: the projects you marked as a favorite. This heading is only there if you have at least one.</li>
+  <li><strong><x-ui k="nav.projects"></x-ui></strong>: all your other projects, each with a colored dot. The sign with two figures means you share the project with others. The <strong>+</strong> next to the heading makes a new project.</li>
+  <li><strong><x-ui k="nav.archived"></x-ui></strong>: at the bottom, only when there are archived projects. See <a href="projects.html#archiving">archiving</a>.</li>
+  <li><strong>Your name with <x-ui k="settings.title"></x-ui></strong> at the bottom: the menu with your account, reminders and notifications, the language and signing out. Next to it is the keyboard icon that shows the <a href="shortcuts.html">keyboard shortcuts</a>.</li>
+</ul>
+<p><strong>Collapsing and expanding subprojects:</strong> if a project has subprojects, there is a small arrow in front of it. Click it to hide or show the subprojects. The choice belongs to the project, not to you: it also stays on your other devices, and in a shared project the others see the same.</p>
+<p>The app remembers which screen you looked at last on that device.</p>
+
+<h2 id="the-title-bar">The title and the buttons above the list</h2>
+<p>Above the list is the name of the screen, with the number of open tasks (“14 tasks”). In a project there are buttons on the right:</p>
+<ul>
+  <li><x-ui k="comment.projectButton"></x-ui>: the comments on the whole project, with their number behind it. See <a href="task-window.html#comments">comments</a>.</li>
+  <li><x-ui k="project.share"></x-ui> (or <x-ui k="project.shared"></x-ui> for a project that is already shared): see <a href="sharing.html">Sharing and working together</a>.</li>
+  <li><x-ui k="project.menu"></x-ui>: the menu of the project. See <a href="projects.html#the-project-menu">the project menu</a>.</li>
+</ul>
+<p>The Inbox only has the comments button: you cannot share or delete it.</p>
+
+<x-shot name="project" alt="The project Huishouden with the buttons Comments (1), Shared and Project… at the top, below that a task without a section and the section Boodschappen with the task Boodschappen doen, which has three subtasks indented below it.">A project: the buttons at the top, the section Boodschappen and a task with subtasks below it.</x-shot>
+
+<h2 id="a-row-in-the-list">A row in the list</h2>
+<p>Every task is one row:</p>
+<ul>
+  <li><strong>The circle</strong> on the left is the button to tick the task off. The color of its edge is the priority: red for P1, orange for P2, blue for P3 and grey for P4 (none).</li>
+  <li><strong>The name</strong> of the task, and below it in grey the first line of the description, if there is one. Click the name or the row to open the task; see <a href="task-window.html">The task window</a>.</li>
+  <li><strong>Chips</strong> below that, in this order: the date (its color shows whether it is overdue, today or later; for a recurrence there is a <strong>↻</strong> in front), the deadline, the number of completed subtasks (“1/4”), the number of comments, the labels (<code>@name</code>, in the color of the label), a bell 🔔 if a reminder is going to go off, and who the task is for (“for Bram”, “for you”) in a shared project.</li>
+  <li><strong>The project</strong> is on the right, with its color, in Today and Upcoming. If the task is in a section, that is shown too (“Huishouden / Klusjes”).</li>
+</ul>
+
+<h3 id="subtasks-in-the-list">Subtasks in the list</h3>
+<p>Subtasks are indented below their task. If a task has subtasks, the “1/4” chip shows a small arrow: click it to hide or show the subtasks. The app remembers that too. You make subtasks in <a href="task-window.html#subtasks">the task window</a>.</p>
+
+<h3 id="quick-buttons">Quick buttons</h3>
+<p>If you point at a row (or reach it with the keyboard), three buttons appear on the right: a <strong>pencil</strong> to edit the task, a <strong>calendar</strong> to pick another day and a <strong>trash can</strong> to delete it. With the calendar button you choose from <x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui> or <x-ui k="task.quickNone"></x-ui>. The time and any recurrence stay as they were.</p>
+
+<h2 id="sections-in-the-list">Sections</h2>
+<p>In a project, tasks stand under the heading of their section, with the number of tasks behind it. Tasks without a section come first.</p>
+<ul>
+  <li>Click the arrow in front of the name to collapse or expand a section. That is kept, just like collapsing and expanding subtasks.</li>
+  <li>The <strong>⋯</strong> to the right of the name opens the section menu: rename and delete.</li>
+  <li>Under each section is <strong><x-ui k="quick.addTask"></x-ui></strong>: the task then goes into that section. Under <x-ui k="nav.today"></x-ui> the task gets today's date.</li>
+  <li>At the bottom of the project you add a section with <x-ui k="section.add"></x-ui>.</li>
+</ul>
+
+<h2 id="ticking-off">Ticking off and bringing back</h2>
+<p>Click the circle to tick a task off. A moment later it disappears from the list and for a few seconds the message <x-ui k="task.completed"></x-ui> appears at the bottom, with the button <x-ui k="task.undo"></x-ui>.</p>
+<ul>
+  <li><strong>Viewing completed tasks:</strong> at the bottom of a project is <x-ui k="view.showCompleted" n="3"></x-ui> (with the number). Click the circle of a completed task to reopen it. If you reopen a task with subtasks, the subtasks stay ticked until you reopen them yourself.</li>
+  <li><strong>Recurring tasks</strong> do not disappear when you tick them off: the date moves on to the next time. See <a href="dates-and-recurrence.html#what-happens-when-you-tick-off-a-recurrence">ticking off recurrences</a>.</li>
+  <li>If you tick off a task with subtasks, its subtasks are ticked off too.</li>
+</ul>
+
+<h2 id="today-and-upcoming">Today and Upcoming</h2>
+<ul>
+  <li><x-ui k="nav.today"></x-ui> shows all open tasks dated today, from all your projects, and above them whatever is <x-ui k="view.overdue"></x-ui>. If there is nothing to do you see “All done for today”.</li>
+  <li><x-ui k="nav.upcoming"></x-ui> shows the next fourteen days, starting tomorrow, with a heading per day. Days without tasks are skipped.</li>
+</ul>
+<p>Within a day, tasks without a time come first, then those with a time, from early to late; at the same time the highest priority goes first. In a shared project you also see the tasks assigned to someone else here. Tasks without a date are in neither view; you find those in their project.</p>
+
+<h2 id="moving-tasks-and-projects">Moving tasks and projects</h2>
+<p>You drag tasks and projects to their place. A line shows where it will end up. Drop a task on the top edge or bottom edge of another task and it goes before or after it; drop it in the middle of a task and it becomes a subtask of that task (the frame around that task shows this). Subtasks always move along with their task.</p>
+<ul>
+  <li><strong>Tasks:</strong> change the order within a project, move to another section (also onto the heading of a section, which puts it at the top), make a subtask, and drag a subtask out again. Drop a task on a project in the sidebar and it moves there; the message below has <x-ui k="task.undo"></x-ui>. In a shared project every member can move tasks.</li>
+  <li><strong>Projects</strong> in the sidebar: change the order, drop a project on another project (it becomes a subproject) and drop a subproject on the heading <x-ui k="nav.projects"></x-ui> (it becomes an ordinary project again). Only the owner of the project can do this; members do not see it as an option. The Inbox stays where it is. You can order favourites among themselves, as long as they are projects with the same parent.</li>
+  <li><strong>With the mouse:</strong> take hold of a row and drag; it starts after a few millimetres. An ordinary click still opens the task. <kbd>Esc</kbd> cancels the drag, and at the top or bottom edge of the screen the list scrolls along by itself.</li>
+  <li><strong>On a phone:</strong> press and hold a row for a moment and then drag, or take the handle (the six dots) on the right of a task, which drags at once. Swiping just scrolls. To move a task to another project, drag it against the left edge of the screen: the sidebar opens and you drop it on the project.</li>
+  <li><strong>With the keyboard:</strong> <kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> move the task or project you are on one place up or down (at the edge of a section a task goes to the previous or next section). <kbd>Alt</kbd>+<kbd>→</kbd> puts it under the task or project above; <kbd>Alt</kbd>+<kbd>←</kbd> takes it out again. A screen reader announces where it ended up, or why it could not.</li>
+</ul>
+<p>Moving also works without a connection and is sent later. If something has changed in the meantime so that it is no longer possible (a section was removed, a task deleted), the change is undone and you see why. In <x-ui k="nav.today"></x-ui> and <x-ui k="nav.upcoming"></x-ui> tasks are sorted by date and priority; there you can only drag them to a project in the sidebar.</p>
+
+<h2 id="on-a-phone">On a phone</h2>
+<x-shot name="telefoon-project" alt="The project Huishouden on a phone: at the top the menu button and the status, below that the title with the Comments button and the icons for Share and Project, the input field and the task list.">On a narrow screen the sidebar is behind the button with the three lines at the top left. The Share and Project buttons become icons.</x-shot>
+<p>On a narrow screen the sidebar is hidden. Tap the button with the three lines at the top left to open it; when you choose something it closes by itself. Tap next to the sidebar (or press Escape) to close it. On a phone the task window takes up the whole screen.</p>
+
+<h2 id="the-status-in-the-top-right-corner">The status in the top right</h2>
+<p>The top right shows whether everything is up to date (<x-ui k="sync.upToDate"></x-ui>), whether changes are waiting, or whether the server cannot be reached. Click it to sync right away. See <a href="offline.html#the-status-in-the-top-right">Working offline</a>.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li><strong>Your own order in Today and Upcoming.</strong> Tasks are sorted there by date and priority. You cannot drag sections, and favourites have no order of their own: they follow the order of the projects.</li>
+  <li>A board or calendar view, the duration of a task, attachments.</li>
+</ul>
