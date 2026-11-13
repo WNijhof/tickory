@@ -1706,6 +1706,19 @@ try {
   assert.equal(await evaluate(`Boolean(document.querySelector('#search-dialog'))`), false, '/ bij een open venster opent niets');
   await press('Escape');
   await noDialog();
+  await waitFor(`!document.querySelector('dialog')`, 'taakvenster opgeruimd');
+  // ook als de focus niet in een invoerveld staat: het overzicht van sneltoetsen heeft alleen knoppen
+  await typeInto('#quick-input', '');
+  await evaluate(`document.activeElement?.blur(); document.body.focus()`);
+  await press('?');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
+  assert.equal(await evaluate(`document.activeElement?.tagName`), 'BUTTON', 'de focus staat op een knop, niet in een invoerveld');
+  await press('/');
+  await sleep(150);
+  assert.equal(await evaluate(`Boolean(document.querySelector('#search-dialog'))`), false, '/ opent geen zoekvenster boven een ander venster');
+  await press('Escape');
+  await noDialog();
+  await waitFor(`!document.querySelector('dialog')`, 'opgeruimd');
   // een opmerking vinden en de taak erbij openen; de knop in de zijbalk
   await click('.search-field');
   await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekveld in de zijbalk');

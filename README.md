@@ -264,9 +264,9 @@ The tests include a property test for the order keys and a **differential test**
 shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   shared by server and client
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, sw.js, manifest             the web app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
-client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/    index.html, app.css, search.css, sw.js, manifest             the web app
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
+client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, reminderUi, shareDialog, accountDialogs, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)

@@ -249,9 +249,9 @@ node scripts/make-icons.js      # tekent de PNG-pictogrammen opnieuw, met dezelf
 shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   gedeeld door server en client
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tabellen, rijen, sync-engine met rechten, accounts en sessies, meldingen (Web Push), HTTP + SSE + bestanden, back-up
-client/    index.html, app.css, sw.js, manifest             de web-app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
-client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/    index.html, app.css, search.css, sw.js, manifest             de web-app
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
+client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, reminderUi, shareDialog, accountDialogs, dom
 client/i18n/   nl.js, en.js                                  de teksten van de interface, in het Nederlands en het Engels
 android/       de Android-app (Kotlin, WebView, lokale alarmen)
 client/vendor/ nlDatum.generated.js                         Nederlandse datumherkenner (met chrono-node, zie THIRD_PARTY_NOTICES.md)

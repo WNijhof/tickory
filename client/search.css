@@ -168,6 +168,8 @@
   .nav-section-link { min-height: 46px; }
   .nav-section-head .icon-button { width: 44px; height: 44px; }
   .task-meta button.chip-label { min-height: 28px; display: inline-flex; align-items: center; }
+  /* de knoppen boven een filter of label houden hun tekst: een los plusje of potlood zegt te weinig */
+  .view-actions .find-action .btn-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
   .manage-open { min-height: 56px; }
   .filter-help-row { grid-template-columns: minmax(0, 1fr); }
   .filter-code-button { min-height: 44px; }

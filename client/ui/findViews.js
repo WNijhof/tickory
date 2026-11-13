@@ -11,7 +11,7 @@ import { errorBlock, filterContext } from './filterDialog.js';
 import { icon } from './icons.js';
 import { dot } from './render.js';
 
-const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost ${cls}`, type: 'button', onclick, ...extra },
+const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost find-action ${cls}`, type: 'button', onclick, ...extra },
   icon(iconName), h('span', { class: 'btn-label' }, label));
 
 const gone = (ctx, title) => ({ title, count: null, lead: null, actions: [], nodes: [ctx.emptyState({ title })] });
