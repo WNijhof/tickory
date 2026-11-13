@@ -166,8 +166,23 @@ test('gedeelde modules staan onder /shared/, met het juiste type', async () => {
   assert.match(await r.text(), /export function keyBetween/);
 });
 
+/**
+ * Eén verzoek, met één nieuwe poging als de verbinding onderweg wordt verbroken (ECONNRESET). De server breekt zelf geen
+ * verbindingen af (gemeten: 3000 opeenvolgende verzoeken op één verbinding zonder fout); op een pc met een netwerkfilter
+ * (AdGuard) gebeurt het wel, vooral als de machine druk is. Een tweede reset achter elkaar is wél een fout.
+ */
+async function fetchWithRetry(t: { diagnostic: (m: string) => void }, ...args: Parameters<typeof fetch>): Promise<Response> {
+  try {
+    return await fetch(...args);
+  } catch (err) {
+    if ((err as { cause?: { code?: string } }).cause?.code !== 'ECONNRESET') throw err;
+    t.diagnostic('verbinding onderweg verbroken (ECONNRESET), één nieuwe poging');
+    return fetch(...args);
+  }
+}
+
 test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async (t) => {
-  const first = await fetch(`${base}/shared/orderKey.js`);
+  const first = await fetchWithRetry(t, `${base}/shared/orderKey.js`);
   const etag = first.headers.get('etag');
   assert.ok(etag);
   await first.arrayBuffer();
@@ -179,7 +194,7 @@ test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async (t
     if (req.url === '/shared/orderKey.js' && req.method === 'GET') received = req.headers['if-none-match'] as string | undefined;
   };
   app.server.on('request', spy);
-  const second = await fetch(`${base}/shared/orderKey.js`, { headers: { 'If-None-Match': etag! } });
+  const second = await fetchWithRetry(t, `${base}/shared/orderKey.js`, { headers: { 'If-None-Match': etag! } });
   app.server.off('request', spy);
   if (received === etag || process.env.CI) {
     assert.equal(received, etag, 'de voorwaardelijke header komt ongewijzigd aan');
@@ -188,7 +203,7 @@ test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async (t
     assert.equal((await staticResponse('/shared/orderKey.js', CLIENT_DIR, SHARED_DIR, etag))!.status, 304, 'de regel zelf klopt');
     t.diagnostic(`If-None-Match kwam niet ongewijzigd bij de server aan (verstuurd ${etag}, ontvangen ${received ?? 'niets'}): iets tussen de test en de server paste het verzoek aan. De 304 is hier rechtstreeks gecontroleerd in plaats van via het netwerk.`);
   }
-  const head = await fetch(`${base}/shared/orderKey.js`, { method: 'HEAD' });
+  const head = await fetchWithRetry(t, `${base}/shared/orderKey.js`, { method: 'HEAD' });
   assert.equal(head.status, 200);
   assert.equal((await head.text()).length, 0);
 });
