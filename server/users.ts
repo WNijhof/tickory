@@ -10,7 +10,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { DatabaseSync } from 'node:sqlite';
-import { ENTITIES, INBOX_ID } from './schema.ts';
+import { ENTITIES, INBOX_ID, settingsId } from './schema.ts';
 import type { Entity } from './schema.ts';
 import { bumpRev, fail, getRow, insertRow, newId } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
@@ -140,6 +140,16 @@ function claimLegacyData(ctx: Ctx): void {
   for (const p of projects) insertWithDefaults(ctx, ENTITIES.member, newId(), { project_id: p.id, user_id: ctx.userId, role: 'owner' });
 }
 
+/**
+ * Zorgt dat de gebruiker een rij met instellingen heeft (standaardwaarden). Geeft true als die er nog niet was.
+ * Accounts van vóór deze instellingen krijgen hem bij hun eerstvolgende sync.
+ */
+export function ensureSettings(ctx: Ctx): boolean {
+  if (ctx.db.prepare('SELECT 1 FROM user_settings WHERE owner_id = ?').get(ctx.userId)) return false;
+  insertWithDefaults(ctx, ENTITIES.settings, settingsId(ctx.userId), { owner_id: ctx.userId });
+  return true;
+}
+
 export interface NewUser { username: string; name: string; passwordHash: string; isAdmin?: boolean }
 
 /** Maakt een gebruiker met een eigen Inbox. Het allereerste account wordt altijd beheerder. */
@@ -162,6 +172,7 @@ export function createUser(db: DatabaseSync, input: NewUser): UserRow {
       insertWithDefaults(ctx, ENTITIES.project, inbox, { name: 'Inbox', order_key: keyAfter(null) });
       insertWithDefaults(ctx, ENTITIES.member, newId(), { project_id: inbox, user_id: id, role: 'owner' });
     }
+    ensureSettings(ctx);
     db.prepare(
       'INSERT INTO users (id, username, username_key, name, password_hash, is_admin, is_disabled, inbox_project_id, created_at, password_changed_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?)',
     ).run(id, username, nameKey(username), name, input.passwordHash, first || input.isAdmin ? 1 : 0, inbox, now, now);

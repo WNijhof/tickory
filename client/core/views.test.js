@@ -33,14 +33,14 @@ test('quick-add: alles in één regel', () => {
   const r = parseQuickAdd('Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen @spoed p1', ctx(v));
   assert.deepEqual(r, {
     content: 'Tandarts bellen', project_id: 'p-thuis', section_id: 's-keuken', labels: ['l-bellen'], newLabels: ['spoed'],
-    priority: 1, due: { date: '2026-11-12T09:00', string: 'morgen om 9 uur', lang: 'nl' }, deadline: null,
+    priority: 1, due: { date: '2026-11-12T09:00', string: 'morgen om 9 uur', lang: 'nl' }, deadline: null, reminders: [],
   });
 });
 
 test('quick-add: zonder tekens blijft het een gewone taak in het standaardproject', () => {
   const { v } = sampleView();
   assert.deepEqual(parseQuickAdd('  Melk   halen ', ctx(v)), {
-    content: 'Melk halen', project_id: INBOX_ID, section_id: null, labels: [], newLabels: [], priority: 4, due: null, deadline: null,
+    content: 'Melk halen', project_id: INBOX_ID, section_id: null, labels: [], newLabels: [], priority: 4, due: null, deadline: null, reminders: [],
   });
 });
 

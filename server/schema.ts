@@ -2,9 +2,9 @@
 // Alle tabel- en kolomnamen in SQL komen uitsluitend uit die definities, nooit uit invoer van buiten.
 
 import type { DatabaseSync } from 'node:sqlite';
-import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, validateValue as sharedValidate } from '../shared/schema.js';
+import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings';
 export type ColType = 'text' | 'int' | 'bool' | 'json';
 
 export interface Col {
@@ -30,13 +30,13 @@ export interface Entity {
   table: string;
   resource: string;
   cols: Col[];
-  commands?: boolean;
+  commands?: false | readonly ('add' | 'update' | 'delete')[];
 }
 
 export const ENTITIES = SHARED_ENTITIES as Record<EntityName, Entity>;
 export const ENTITY_LIST = SHARED_LIST as Entity[];
 export const validateValue = sharedValidate as (col: Col, v: unknown) => string | null;
-export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES };
+export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
 export const SCHEMA_VERSION = 2;
@@ -110,6 +110,7 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS members_project ON project_members (project_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS settings_owner ON user_settings (owner_id)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
 }
 

@@ -20,6 +20,7 @@ const SHELL = [
   '/ui/shareDialog.js',
   '/ui/taskDialog.js',
   '/core/actions.js',
+  '/core/android.js',
   '/core/auth.js',
   '/core/backend.js',
   '/core/dateNl.js',
@@ -35,6 +36,7 @@ const SHELL = [
   '/vendor/nlDatum.generated.js',
   '/shared/orderKey.js',
   '/shared/recurrence.js',
+  '/shared/reminders.js',
   '/shared/schema.js',
   '/shared/text.js',
 ];

@@ -7,12 +7,15 @@
 //   @label     een label; een onbekend label wordt aangemaakt
 //   p1 … p4    prioriteit (ook !!1 … !!4); 1 is de hoogste
 //   {vrijdag}  een deadline (los van de datum waarop je eraan wilt werken)
+//   !30m       een herinnering: !30m, !1u, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
+//              in gewone taal: !(een kwartier ervoor), !(morgen om 8 uur). Meerdere mag.
 //   datum      gewone taal, ook herhalingen ("elke maandag")
 //
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
 
 import { parseDateText, parseDue } from './dateNl.js';
 import { nameKey, normalizeText } from '../../shared/text.js';
+import { hasTime, parseOffsetNl } from '../../shared/reminders.js';
 
 const START = '(?<![^\\s])'; // begin van de tekst of na witruimte
 const END = '(?![\\p{L}\\p{N}_-])';
@@ -47,11 +50,12 @@ const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.r
  * @returns {{
  *   content: string, project_id: string, section_id: string | null, labels: string[], newLabels: string[],
  *   priority: number, due: object | null, deadline: string | null,
+ *   reminders: ({ type: 'relative', minute_offset: number } | { type: 'absolute', due: { date: string } })[],
  * }}
  */
 export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
-  const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null };
+  const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
   // prioriteit
   const prio = new RegExp(`${START}(?:p|!!)([1-4])${END}`, 'iu').exec(rest);
@@ -86,6 +90,24 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
     } else if (!out.newLabels.some((n) => nameKey(n) === nameKey(name))) {
       out.newLabels.push(name);
     }
+    return '';
+  }).replace(/\s+/g, ' ').trim();
+
+  // herinneringen; wat niet te begrijpen is, blijft gewoon in de titel staan
+  const UNITS = 'minuten|minuut|min|mv|m|uren|uur|uv|u|dagen|dag|dv|d|weken|week|w';
+  const reminderRe = new RegExp(`${START}!(?:\\(([^()]{1,80})\\)|(\\d{1,4} ?(?:${UNITS})|0))${END}`, 'giu');
+  rest = rest.replace(reminderRe, (whole, phrase, code) => {
+    let spec = null;
+    const offset = parseOffsetNl(phrase ?? code);
+    if (offset !== null) {
+      spec = { type: 'relative', minute_offset: offset };
+    } else if (phrase) {
+      const when = parseDateText(phrase, now);
+      if (when && !when.recurrence && hasTime(when.date)) spec = { type: 'absolute', due: { date: when.date } };
+    }
+    if (!spec) return whole;
+    const same = (r) => r.type === spec.type && (spec.type === 'absolute' ? r.due.date === spec.due.date : r.minute_offset === spec.minute_offset);
+    if (!out.reminders.some(same)) out.reminders.push(spec);
     return '';
   }).replace(/\s+/g, ' ').trim();
 

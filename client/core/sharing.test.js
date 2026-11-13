@@ -159,8 +159,6 @@ test('een taak die naar een project verhuist dat de ander niet ziet, verdwijnt b
   await w.alice.actions.shareProject(shared, 'bob');
   await w.alice.sync.syncNow();
   await w.bob.sync.syncNow();
-  const rem = await w.bob.actions.addReminder?.call?.(null);
-  void rem;
   assert.deepEqual(names(w.bob, 'tasks'), ['Onderdeel', 'Verhuist']);
 
   await settles(w.alice, () => w.alice.actions.moveTask(task, { project_id: w.alice.store.me.inbox_project_id }));

@@ -4,6 +4,8 @@
 import { keyAfter, keyBetween } from '../../shared/orderKey.js';
 import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
+import { hasTime } from '../../shared/reminders.js';
+import { settingsId } from '../../shared/schema.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -65,9 +67,29 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     return { ids, commands };
   };
 
+  // ---- herinneringen ----
+  /** De instelling "automatische herinnering": zoveel minuten vóór een taak met een tijd; -1 = geen. */
+  const autoReminder = () => store.view.settings.get(settingsId(store.userId))?.auto_reminder ?? 30;
+  const isMine = (row) => !row.owner_id || !store.userId || row.owner_id === store.userId;
+  const myReminders = (taskId) => [...store.view.reminders.values()].filter((r) => r.task_id === taskId && isMine(r));
+  const sameReminder = (r, spec) => r.type === spec.type
+    && (spec.type === 'absolute' ? r.due?.date === spec.due.date : r.minute_offset === spec.minute_offset);
+  const reminderCommand = (taskId, spec) => ({
+    type: 'reminder_add',
+    args: spec.type === 'absolute'
+      ? { id: makeId(), task_id: taskId, type: 'absolute', due: { date: spec.due.date } }
+      : { id: makeId(), task_id: taskId, type: 'relative', minute_offset: spec.minute_offset },
+  });
+  /** Bij een nieuwe taak: de herinneringen die zijn opgegeven, en anders de automatische als de taak een tijd heeft. */
+  const remindersForNewTask = (taskId, due, given) => {
+    if (given && given.length > 0) return given.map((spec) => reminderCommand(taskId, spec));
+    const auto = autoReminder();
+    return hasTime(due?.date) && auto >= 0 ? [reminderCommand(taskId, { type: 'relative', minute_offset: auto })] : [];
+  };
+
   return {
     // ---- taken ----
-    async addTask({ content, project_id, section_id = null, parent_id = null, newLabels = [], labels = [], ...rest }) {
+    async addTask({ content, project_id, section_id = null, parent_id = null, newLabels = [], labels = [], reminders = null, ...rest }) {
       const id = makeId();
       const parent = parent_id ? store.view.tasks.get(parent_id) : null;
       const scope = { project_id, section_id: parent ? parent.section_id ?? null : section_id, parent_id };
@@ -77,10 +99,40 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       else if (section_id) args.section_id = section_id;
       const allLabels = [...new Set([...labels, ...extra.ids])];
       if (allLabels.length > 0) args.labels = allLabels;
-      await send([...extra.commands, { type: 'task_add', args }]);
+      await send([...extra.commands, { type: 'task_add', args }, ...remindersForNewTask(id, args.due ?? null, reminders)]);
       return id;
     },
-    updateTask: (id, changes) => send([{ type: 'task_update', args: { id, ...changes } }]),
+    /**
+     * Wijzigt een taak. Verandert de datum, dan volgen de herinneringen zoals in Todoist: krijgt de taak een tijd en heb
+     * je er nog geen herinnering bij, dan komt de automatische erbij; verdwijnt de tijd, dan vervallen je herinneringen
+     * "vooraf" (een herinnering op een eigen datum en tijd blijft staan).
+     */
+    async updateTask(id, changes) {
+      const commands = [{ type: 'task_update', args: { id, ...changes } }];
+      if (Object.hasOwn(changes, 'due')) {
+        const before = hasTime(store.view.tasks.get(id)?.due?.date);
+        const after = hasTime(changes.due?.date);
+        const mine = myReminders(id);
+        const auto = autoReminder();
+        if (!before && after && mine.length === 0 && auto >= 0) commands.push(reminderCommand(id, { type: 'relative', minute_offset: auto }));
+        if (before && !after) for (const r of mine) if (r.type === 'relative') commands.push({ type: 'reminder_delete', args: { id: r.id } });
+      }
+      await send(commands);
+    },
+    /**
+     * Voegt een herinnering toe: `{ type: 'relative', minute_offset }` of `{ type: 'absolute', due: { date } }`.
+     * Bestaat precies dezelfde al, dan gebeurt er niets. Geeft het id terug.
+     */
+    async addReminder(taskId, spec) {
+      const existing = myReminders(taskId).find((r) => sameReminder(r, spec));
+      if (existing) return existing.id;
+      const command = reminderCommand(taskId, spec);
+      await send([command]);
+      return command.args.id;
+    },
+    deleteReminder: (id) => send([{ type: 'reminder_delete', args: { id } }]),
+    /** Wijzigt je persoonlijke instellingen, bijvoorbeeld `{ auto_reminder: 10 }` (-1 = geen automatische herinnering). */
+    updateSettings: (changes) => send([{ type: 'settings_update', args: { id: settingsId(store.userId), ...changes } }]),
     /** Zet de labels van een taak op basis van namen; onbekende namen worden als label aangemaakt. */
     async setTaskLabels(id, names) {
       const { ids, commands } = labelCommands(names);

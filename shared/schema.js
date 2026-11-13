@@ -4,9 +4,10 @@
 
 import { isValidKey } from './orderKey.js';
 import { isValidDate, isValidRecurrence } from './recurrence.js';
+import { MAX_OFFSET } from './reminders.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'bool' | 'json',
@@ -22,8 +23,9 @@ import { isValidDate, isValidRecurrence } from './recurrence.js';
  *   stamp?: boolean,           // bij aanmaken door de server gevuld met het id van de gebruiker die het commando uitvoert
  *   check?: (v: unknown) => string | null,
  * }} Col
- * @typedef {{ name: EntityName, table: string, resource: string, cols: Col[], commands?: boolean }} Entity
- *   commands: false = geen algemene *_add/_update/_delete-commando's (deze entiteit wordt alleen via eigen commando's gewijzigd)
+ * @typedef {{ name: EntityName, table: string, resource: string, cols: Col[], commands?: false | readonly ('add' | 'update' | 'delete')[] }} Entity
+ *   commands: welke algemene commando's er zijn. Weggelaten = alle drie (*_add, *_update, *_delete); false = geen
+ *   (alleen eigen commando's); een lijst = alleen die.
  */
 
 export const ID_RE = /^[A-Za-z0-9_-]{8,40}$/;
@@ -56,6 +58,17 @@ function dueCheck(v) {
   return null;
 }
 
+/** Het vaste id van de instellingen van een gebruiker. De server maakt die rij zelf aan; er is er precies één per gebruiker. */
+export const settingsId = (userId) => `settings-${userId}`;
+
+function timeZoneCheck(v) {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: v });
+    return null;
+  } catch {
+    return 'onbekende tijdzone';
+  }
+}
 const userIdCheck = (v) => (typeof v === 'string' && ID_RE.test(v) ? null : 'ongeldig gebruikers-id');
 const owner = () => ({ name: 'owner_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true });
 const labelName = (v) => (/[,\u0000-\u001f]|^\s|\s$/u.test(v) ? 'mag geen komma, omringende spaties of stuurtekens bevatten' : null);
@@ -143,6 +156,17 @@ export const ENTITIES = {
   filter: {
     name: 'filter', table: 'filters', resource: 'filters',
     cols: [{ name: 'name', type: 'text', required: true, maxLen: 200 }, { name: 'query', type: 'text', required: true, maxLen: 2000 }, color(), key(), fav(), owner()],
+  },
+  // De persoonlijke instellingen van een gebruiker: één rij per gebruiker (id: settingsId), alleen te wijzigen.
+  settings: {
+    name: 'settings', table: 'user_settings', resource: 'settings', commands: ['update'],
+    cols: [
+      // Automatische herinnering: zoveel minuten vóór een taak met een tijd, als je zelf geen herinnering opgeeft. -1 = geen.
+      { name: 'auto_reminder', type: 'int', default: 30, min: -1, max: MAX_OFFSET },
+      // Tijdzone voor meldingen die de server verstuurt; null = nog niet ingesteld (apparaten gebruiken hun eigen tijdzone).
+      { name: 'timezone', type: 'text', nullable: true, default: null, maxLen: 64, check: timeZoneCheck },
+      owner(),
+    ],
   },
   // Wie bij een project hoort. Alleen te wijzigen met project_share, project_unshare en project_leave.
   member: {
