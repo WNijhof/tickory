@@ -141,3 +141,28 @@ export function remindersOf(view, taskId, userId) {
 
 /** Heeft deze taak een herinnering van jou die nog gaat afgaan of kan afgaan? (voor het belletje in de lijst) */
 export const hasReminder = (view, taskId, userId) => remindersOf(view, taskId, userId).some((x) => x.moment !== null);
+
+// ---- filters en labels beheren ----
+
+/** Je eigen filters, op volgorde. (Een filter van iemand anders zie je niet; dit is voor de zekerheid.) */
+export function filterList(view, userId) {
+  return [...view.filters.values()].filter((f) => !isForeignLabel(f, userId)).sort(byOrder);
+}
+
+/**
+ * Labels met het aantal open taken waar ze op staan: je eigen labels (op volgorde) en apart de labels van anderen die je
+ * ziet omdat ze op een taak in een gedeeld project staan (alleen lezen).
+ * @returns {{ own: { label: object, openCount: number }[], others: { label: object, openCount: number }[] }}
+ */
+export function labelList(view, userId) {
+  const open = new Map();
+  for (const t of view.tasks.values()) {
+    if (t.checked) continue;
+    for (const id of t.labels ?? []) open.set(id, (open.get(id) ?? 0) + 1);
+  }
+  const out = { own: [], others: [] };
+  for (const label of [...view.labels.values()].sort(byOrder)) {
+    (isForeignLabel(label, userId) ? out.others : out.own).push({ label, openCount: open.get(label.id) ?? 0 });
+  }
+  return out;
+}
