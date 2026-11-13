@@ -21,6 +21,7 @@ import type { App } from '../server/main.ts';
 import { handleSync } from '../server/sync.ts';
 import { createSession, createUser, hashPassword, setPasswordCostForTests } from '../server/users.ts';
 import { addDays, formatDate, formatDateInput, formatDueLong, todayString } from '../client/core/format.js';
+import { addMonths, isoWeek, periodTitle } from '../client/core/calendar.js';
 import { quickDates } from '../client/core/quickDates.js';
 import { setLanguage } from '../client/core/i18n.js';
 import dutchTexts from '../client/i18n/nl.js';
@@ -578,7 +579,7 @@ try {
     ['Navigation', 'Views', 'Menu', 'Add project', 'Shared project', 'Click to sync now']);
   assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent]`),
     [en['quick.placeholder'], 'Add task', 'Add']);
-  assert.deepEqual(await buttons('.view-actions'), ['Comments', 'Shared', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['List', 'Board', 'Calendar', 'Comments', 'Shared', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Add section']);
   assert.equal(await evaluate(`document.querySelector('.shared-with').textContent`), 'Shared with Bob');
   assert.equal(await evaluate(`document.title`), 'Thuis · Tickory');
@@ -862,7 +863,7 @@ try {
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
   assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
-  assert.deepEqual(await buttons('.view-actions'), ['Opmerkingen', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
   assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent, document.getElementById('sync-status').title, document.getElementById('sidebar').getAttribute('aria-label')]`),
     ['Nieuwe taak, bv. Bellen morgen p1', 'Taak toevoegen', 'Toevoegen', 'Klik om nu bij te werken', 'Navigatie']);
@@ -1132,7 +1133,7 @@ try {
   assert.equal(projectOnServer('Schuur').is_archived, true);
   assert.ok(!(await labelsOfNav()).includes('Schuur'), 'een gearchiveerd project staat niet in de zijbalk');
   assert.ok(await evaluate(`[...document.querySelectorAll('.nav-link')].some((b) => b.textContent.trim() === 'Gearchiveerde projecten')`), 'de regel "Gearchiveerde projecten" verschijnt');
-  assert.deepEqual(await buttons('.view-actions'), ['Opmerkingen'], 'de Inbox heeft geen menu, delen of archiveren');
+  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen'], 'de Inbox heeft geen menu, delen of archiveren');
   await closeToasts();
   await click('.nav-link');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Gearchiveerde projecten'`, 'archief');
@@ -1306,7 +1307,7 @@ try {
   assert.equal((serverState().comments as any[]).filter((c) => c.project_id === thuisId).length, 1);
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
-  assert.deepEqual(await buttons('.view-actions'), ['Opmerkingen (1)', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   step('opmerkingen: toevoegen (ook met Ctrl+Enter), regeleinden en webadressen als gewone link, HTML blijft tekst, bewerken en verwijderen alleen van jezelf, een opmerking van Bob verschijnt vanzelf, teller in de lijst, opmerkingen bij een project');
 
   // ---- 8h. het taakvenster: prioriteitsknoppen, snelle datums, labels, Ctrl+Enter, Esc ----
@@ -1459,7 +1460,7 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (Engels)');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorites', 'Projects']);
   assert.equal(await evaluate(`document.querySelector('.sidebar-add').textContent`), 'Add task');
-  assert.deepEqual(await buttons('.view-actions'), ['Comments (1)', 'Shared', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['List', 'Board', 'Calendar', 'Comments (1)', 'Shared', 'Project…']);
   assert.equal(await evaluate(`document.querySelector('#view-count').textContent`), `${(serverState().tasks as any[]).filter((x) => x.project_id === thuisId && !x.checked).length} tasks`, 'het aantal open taken in de kop');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-label')`), 'Hide subprojects of Thuis');
   assert.equal(await evaluate(`${row('Afwasmachine uitruimen')}.querySelector('.chip-toggle').getAttribute('aria-label')`), 'Subtasks: 0/1 done');
@@ -1517,6 +1518,328 @@ try {
   await send('Page.reload');
   await waitFor(`document.body.classList.contains('ready') && document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'weer Nederlands', 15_000);
   step('Engels: de nieuwe schermen (zijbalk, lijst, sneltoetsen, Taak toevoegen, projectmenu en -venster met kleurnamen, taakvenster met opmerkingen en snelle datums) zonder Nederlandse tekst en zonder afgekapte tekst, ook op een telefoon');
+
+  // ---- 8l. bord en kalender: de weergave van een project kiezen, kolommen en kaarten, maand en week, toetsenbord, telefoon ----
+  const viewButton = (style: string) => `document.querySelector('.view-actions .view-switch [data-view-style="${style}"]')`;
+  const serverProject = (id: string) => (serverState().projects as any[]).find((p) => p.id === id);
+  const cards = (column: string) => evaluate<string[]>(`[...document.querySelectorAll('.board-column[data-column=${js(column)}] .task-card .task-title')].map((e) => e.textContent)`);
+  const columnTitles = () => texts('.board-column:not(.board-column-new) .board-column-title');
+  const sideScroll = () => evaluate<boolean>(`document.documentElement.scrollWidth <= window.innerWidth + 1`);
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] }); // de schermafbeeldingen hier eerst licht, dan donker
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis voor de weergaven');
+  assert.equal(await evaluate(`${viewButton('list')}.getAttribute('aria-pressed')`), 'true', 'een project begint als lijst');
+  assert.equal(serverProject(thuisId).view_style, 'list');
+
+  // het bord
+  await evaluate(`${viewButton('board')}.click()`);
+  await waitFor(`document.querySelector('.board')`, 'bord getekend');
+  await waitFor(SYNCED, 'weergavekeuze gesynchroniseerd');
+  assert.equal(serverProject(thuisId).view_style, 'board', 'de keuze staat in het project op de server');
+  assert.equal(await evaluate(`${viewButton('board')}.getAttribute('aria-pressed')`), 'true');
+  assert.deepEqual(await columnTitles(), ['Zonder sectie', 'Keuken'], 'kolommen: eerst "Zonder sectie", dan de secties');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.board-column[data-column]')].map((c) => [c.dataset.column, c.dataset.sectionId, c.dataset.projectId])`), [['none', '', thuisId], [keukenId, keukenId, thuisId]], 'aanhaakpunten voor slepen: data-column, data-section-id en data-project-id');
+  assert.ok(await evaluate(`[...document.querySelectorAll('.board-column .task-card')].every((c) => c.dataset.taskId && c.dataset.id === c.dataset.taskId && c.dataset.sectionId !== undefined && c.closest('.board-cards'))`), 'elke kaart heeft data-task-id en data-section-id en staat in een .board-cards');
+  assert.ok((await cards('none')).includes('Planten water geven') && !(await cards('none')).includes('Glazen apart'), 'de kaarten van een kolom, zonder subtaken');
+  assert.ok((await cards(keukenId)).includes('Afwasmachine uitruimen') && !(await cards(keukenId)).includes('Glazen apart'));
+  assert.deepEqual(await taskMeta('Planten water geven'), ['↻ morgen'], 'een kaart heeft dezelfde chips als een regel in de lijst');
+  assert.ok(await evaluate(`${row('Afwasmachine uitruimen')}.querySelector('.check') && ${row('Afwasmachine uitruimen')}.querySelector('.chip-subtasks')`), 'cirkel en teller van subtaken op de kaart');
+  await shot('bord');
+
+  // een taak toevoegen in een kolom
+  await evaluate(`document.querySelector('.board-column[data-column=${js(keukenId)}] .add-inline').click()`);
+  await waitFor(`document.querySelector('.dialog-quick[open]')`, 'venster Taak toevoegen vanuit een kolom');
+  await typeInto('.dialog-quick[open] input[type=text]', 'Vaatdoeken wassen morgen p2');
+  await submit('.dialog-quick[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual([serverTask('Vaatdoeken wassen').section_id, serverTask('Vaatdoeken wassen').project_id], [keukenId, thuisId], 'de taak staat in de sectie van de kolom');
+  assert.equal((await cards(keukenId)).at(-1), 'Vaatdoeken wassen', 'een nieuwe taak komt onderaan de kolom');
+
+  // openen en afvinken
+  await evaluate(`${row('Vaatdoeken wassen')}.querySelector('.task-body').click()`);
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster vanaf een kaart');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog textarea[aria-label="Taak"]').value`), 'Vaatdoeken wassen');
+  await press('Escape');
+  await noDialog();
+  await evaluate(`${row('Vaatdoeken wassen')}.querySelector('.check').click()`);
+  await waitFor(`!${row('Vaatdoeken wassen')}`, 'kaart verdwijnt na afvinken');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Vaatdoeken wassen').checked, true);
+  await evaluate(`[...document.querySelectorAll('.link-button')].find((b) => b.textContent.startsWith('Voltooide taken tonen'))?.click()`);
+  await waitFor(`${row('Vaatdoeken wassen')}`, 'voltooide kaart op verzoek zichtbaar');
+  await evaluate(`${row('Vaatdoeken wassen')}.querySelector('.check').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Vaatdoeken wassen').checked, false, 'ongedaan maken vanaf de kaart');
+  await evaluate(`[...document.querySelectorAll('.link-button')].find((b) => b.textContent.startsWith('Voltooide taken verbergen'))?.click()`);
+
+  // secties toevoegen, hernoemen, kaarten verplaatsen met het menu, verwijderen
+  await click('.board-add-section');
+  await promptAnswer('Badkamer');
+  await waitFor(`[...document.querySelectorAll('.board-column-title')].some((e) => e.textContent === 'Badkamer')`, 'nieuwe kolom');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const badkamerId = (serverState().sections as any[]).find((x) => x.name === 'Badkamer').id;
+  assert.deepEqual(await columnTitles(), ['Zonder sectie', 'Keuken', 'Badkamer'], 'de nieuwe sectie komt achteraan');
+  await evaluate(`document.querySelector('.board-column[data-column=${js(badkamerId)}] .group-more').click()`);
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'kolommenu');
+  await clickText('Naam wijzigen', `document.querySelector('dialog[open]')`);
+  await promptAnswer('Badkamer boven');
+  await waitFor(`[...document.querySelectorAll('.board-column-title')].some((e) => e.textContent === 'Badkamer boven')`, 'kolom hernoemd');
+  await evaluate(`${row('Planten water geven')}.querySelector('.card-move').click()`);
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'menu Verplaats naar');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Verplaats "Planten water geven" naar');
+  assert.deepEqual(await texts('dialog[open] .menu-item'), ['Zonder sectie ✓', 'Keuken', 'Badkamer boven'], 'alle kolommen, de huidige met een vinkje');
+  await shot('bord-verplaats-menu');
+  await clickText('Badkamer boven', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Planten water geven').section_id, badkamerId, 'verplaatst naar de gekozen sectie');
+  assert.deepEqual(await cards(badkamerId), ['Planten water geven']);
+  assert.ok(!(await cards('none')).includes('Planten water geven'));
+  await evaluate(`${row('Planten water geven')}.querySelector('.card-move').click()`);
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'menu Verplaats naar (terug)');
+  await clickText('Zonder sectie', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Planten water geven').section_id ?? null, null, 'terug naar "Zonder sectie"');
+  await evaluate(`document.querySelector('.board-column[data-column=${js(badkamerId)}] .group-more').click()`);
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'kolommenu (verwijderen)');
+  await clickText('Sectie verwijderen', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sectie verwijderen?'`, 'bevestiging');
+  await evaluate(`document.querySelector('dialog[open] .button-danger').click()`);
+  await noDialog();
+  await waitFor(`![...document.querySelectorAll('.board-column-title')].some((e) => e.textContent === 'Badkamer boven')`, 'kolom weg');
+  assert.deepEqual(await columnTitles(), ['Zonder sectie', 'Keuken']);
+
+  // de keuze komt via de server van een ander apparaat; een onbekende weergave wordt geweigerd
+  assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'project_update', uuid: 'e2e-weergave-lijst-1', args: { id: thuisId, view_style: 'list' } }])).status, 200);
+  await waitFor(`document.querySelector('.group-title') && !document.querySelector('.board')`, 'de lijst komt vanzelf terug na een wijziging op een ander apparaat', 15_000);
+  assert.equal(await evaluate(`${viewButton('list')}.getAttribute('aria-pressed')`), 'true');
+  const bad = await syncAs(otherToken, 'ander-apparaat', [{ type: 'project_update', uuid: 'e2e-weergave-fout-01', args: { id: thuisId, view_style: 'gantt' } }]);
+  assert.notEqual(((await bad.json()) as any).sync_status['e2e-weergave-fout-01'], 'ok', 'een onbekende weergave wordt door de server geweigerd');
+  assert.equal(serverProject(thuisId).view_style, 'list');
+  await evaluate(`${viewButton('board')}.click()`);
+  await waitFor(`document.querySelector('.board')`, 'bord weer');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.querySelector('.board')`, 'het bord blijft na herladen', 15_000);
+  step('bord: de keuze Lijst / Bord / Kalender staat in het project (view_style) en komt via de server op andere apparaten, een onbekende waarde wordt geweigerd; kolommen = "Zonder sectie" + secties met aanhaakpunten (data-column, data-section-id, data-task-id); kaarten met cirkel, titel en chips; taak toevoegen in een kolom, openen, afvinken en terugzetten; sectie toevoegen, hernoemen en verwijderen; "Verplaats naar…"');
+
+  // het bord op een telefoon
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  const boardPhone = await evaluate<any>(`(() => { const b = document.querySelector('.board'); const s = getComputedStyle(b); const c = document.querySelector('.board-column'); return { snap: s.scrollSnapType, overflow: s.overflowX, wide: b.scrollWidth > b.clientWidth, col: Math.round(c.getBoundingClientRect().width), move: Math.round(document.querySelector('.card-move').getBoundingClientRect().height), moveVisible: getComputedStyle(document.querySelector('.card-move')).opacity }; })()`);
+  assert.match(boardPhone.snap, /x mandatory/, 'op een telefoon springt het bord per kolom');
+  assert.equal(boardPhone.overflow, 'auto');
+  assert.ok(boardPhone.wide, 'de kolommen scrollen horizontaal binnen het bord');
+  assert.ok(boardPhone.col >= 280 && boardPhone.col <= 350, `een kolom vult bijna het scherm: ${boardPhone.col} px`);
+  assert.ok(boardPhone.move >= 44 && boardPhone.moveVisible === '1', 'het menu "Verplaats naar…" is op een telefoon altijd te zien en groot genoeg');
+  assert.ok(await sideScroll(), 'de pagina zelf scrolt niet zijwaarts');
+  await shot('bord-telefoon');
+  await evaluate(`document.querySelector('.board').scrollTo({ left: 400 })`);
+  await sleep(500);
+  const snappedAt = await evaluate<number>(`Math.round(document.querySelector('.board').scrollLeft)`);
+  assert.ok(snappedAt > 100, `het bord is naar de volgende kolom gesprongen (${snappedAt})`);
+  await shot('bord-telefoon-tweede-kolom');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await sleep(200);
+  await shot('bord-telefoon-donker');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  await shot('bord-donker');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+  step('bord op een telefoon: horizontaal scrollen met snap per kolom, kolom bijna schermbreed, "Verplaats naar…" altijd zichtbaar en groot genoeg, geen zijwaarts scrollen van de pagina; licht en donker bekeken');
+
+  // de kalender
+  const yesterday = addDays(today, -1);
+  assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-kalender-telaat-1', args: { id: 'e2ekalendertelaat01', project_id: thuisId, content: 'Belastingformulier invullen', due: { date: yesterday } } },
+    { type: 'task_add', uuid: 'e2e-kalender-overleg-1', args: { id: 'e2ekalenderoverleg01', project_id: thuisId, content: 'Teamoverleg', due: { date: `${today}T10:00`, string: 'elke week', lang: 'nl', recurrence: { freq: 'weekly' } } } }])).status, 200);
+  await evaluate(`${viewButton('calendar')}.click()`);
+  await waitFor(`document.querySelector('.cal')`, 'kalender getekend');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverProject(thuisId).view_style, 'calendar');
+  assert.equal(await evaluate(`document.querySelector('.cal').dataset.mode`), 'month');
+  const titleOf = () => evaluate<string>(`document.querySelector('.cal-title').textContent`);
+  assert.equal(await titleOf(), periodTitle('month', today, 'nl-NL'), 'de kop noemt de maand in het Nederlands');
+  assert.deepEqual(await texts('.cal-table thead th:not(.cal-weekhead) abbr'), ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'], 'de week begint op maandag');
+  const first = await evaluate<string>(`document.querySelector('.cal-day').dataset.date`);
+  assert.equal(await evaluate(`new Date(${js(first)} + 'T00:00:00Z').getUTCDay()`), 1, 'de eerste kolom is een maandag');
+  assert.equal(await evaluate(`document.querySelector('.cal-weeknum').textContent`), `Week ${isoWeek(first).week}`, 'het ISO-weeknummer staat bij de rij');
+  assert.equal(await evaluate(`document.querySelectorAll('.cal-today').length`), 1);
+  assert.equal(await evaluate(`document.querySelector('.cal-today').dataset.date`), today, 'vandaag is gemarkeerd');
+  assert.equal(await evaluate(`document.querySelector('.cal-today').getAttribute('aria-current')`), 'date');
+  assert.deepEqual(await texts('.cal-overdue-list .cal-title-text'), ['Belastingformulier invullen'], 'wat te laat is, staat apart');
+  assert.equal(await evaluate(`document.querySelector('.cal-day[data-date="${yesterday}"] .cal-item')`), null, 'en niet nog eens op zijn oude dag');
+  assert.deepEqual(await texts(`.cal-day[data-date="${today}"] .cal-title-text`).then((x) => x.filter((y) => y === 'Teamoverleg')), ['Teamoverleg'], 'een taak staat op haar dag');
+  assert.equal(await evaluate(`document.querySelector('.cal-day[data-date="${today}"] .cal-item[data-task-id="e2ekalenderoverleg01"] .cal-time').textContent`), '10:00', 'met haar tijd');
+  // een herhaling staat ook op de komende voorkomens, zonder dat er iets bewaard wordt
+  const plantenDue = serverTask('Planten water geven').due.date;
+  const planten = await evaluate<any>(`(() => { const items = [...document.querySelectorAll('.cal-item')].filter((i) => i.querySelector('.cal-title-text').textContent === 'Planten water geven'); return { n: items.length, real: items.filter((i) => i.dataset.real === 'true').length, virtualChecks: items.filter((i) => i.dataset.real === 'false' && i.querySelector('.cal-check')).length, dates: items.map((i) => i.dataset.date) }; })()`);
+  assert.ok(planten.n > 1, 'de dagelijkse taak staat op meerdere dagen');
+  assert.equal(planten.real, 1, 'alleen de eigen datum is echt');
+  assert.equal(planten.virtualChecks, 0, 'een voorkomen dat nog niet aan de beurt is, kan niet worden afgevinkt');
+  assert.equal(new Set(planten.dates).size, planten.n);
+  assert.equal(planten.dates[0], plantenDue.slice(0, 10), 'het echte voorkomen staat op de eigen datum');
+  assert.equal(serverTask('Planten water geven').due.date, plantenDue, 'op de server staat alleen de eigen datum');
+  await shot('kalender-maand');
+
+  // een taak toevoegen met de plus bij een dag, openen en afvinken
+  const nextDay = await evaluate<string>(`(() => { const d = document.querySelector('.cal-day[data-date="${addDays(today, 1)}"]'); return d ? d.dataset.date : ${js(today)}; })()`);
+  await evaluate(`document.querySelector('.cal-add[data-date="${nextDay}"]').click()`);
+  await waitFor(`document.querySelector('.dialog-quick[open]')`, 'venster Taak toevoegen vanuit de kalender');
+  assert.match(await evaluate(`document.querySelector('.dialog-quick[open] .quick-day').textContent`), /^Voor /, 'het venster zegt voor welke dag de taak is');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Thuis');
+  await typeInto('.dialog-quick[open] input[type=text]', 'Loodgieter bellen p3');
+  await submit('.dialog-quick[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const lood = serverTask('Loodgieter bellen');
+  assert.deepEqual([lood.due.date, lood.project_id, lood.priority], [nextDay, thuisId, 3], 'de taak staat op de dag van de plus, in dit project');
+  assert.ok((await texts(`.cal-day[data-date="${nextDay}"] .cal-title-text`)).includes('Loodgieter bellen'));
+  await evaluate(`document.querySelector('.cal-day[data-date="${nextDay}"] .cal-item[data-task-id="${lood.id}"] .cal-open').click()`);
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster vanuit de kalender');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog textarea[aria-label="Taak"]').value`), 'Loodgieter bellen');
+  await press('Escape');
+  await noDialog();
+  await evaluate(`document.querySelector('.cal-item[data-task-id="${lood.id}"] .cal-check').click()`);
+  await waitFor(`!document.querySelector('.cal-item[data-task-id="${lood.id}"]')`, 'afgevinkte taak verdwijnt uit de kalender');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Loodgieter bellen').checked, true);
+  await evaluate(`document.querySelector('.cal-overdue-list .cal-check').click()`);
+  await waitFor(`!document.querySelector('.cal-overdue')`, 'het blok "Te laat" verdwijnt als er niets meer te laat is');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Belastingformulier invullen').checked, true);
+
+  // bladeren: vorige, volgende, vandaag, en de weekweergave
+  await click('[data-fk="cal-next"]');
+  await waitFor(`document.querySelector('.cal-title').textContent !== ${js(periodTitle('month', today, 'nl-NL'))}`, 'volgende maand');
+  assert.equal(await titleOf(), periodTitle('month', addMonths(today, 1), 'nl-NL'));
+  assert.equal(await evaluate(`document.querySelectorAll('.cal-today').length`), 0, 'vandaag staat niet in het scherm van volgende maand');
+  assert.ok(await evaluate(`document.querySelectorAll('.cal-virtual').length > 0`), 'de herhaling loopt door in de volgende maand');
+  await click('[data-fk="cal-prev"]');
+  await click('[data-fk="cal-prev"]');
+  assert.equal(await titleOf(), periodTitle('month', addMonths(today, -1), 'nl-NL'));
+  assert.equal(await evaluate(`document.querySelectorAll('.cal-item').length`), 0, 'in het verleden staat niets meer open');
+  await click('[data-fk="cal-today"]');
+  assert.equal(await titleOf(), periodTitle('month', today, 'nl-NL'));
+  await click('[data-fk="cal-mode:week"]');
+  await waitFor(`document.querySelector('.cal').dataset.mode === 'week'`, 'weekweergave');
+  assert.equal(await titleOf(), periodTitle('week', today, 'nl-NL'));
+  assert.equal(await evaluate(`document.querySelectorAll('.cal-day').length`), 7);
+  assert.equal(await evaluate(`localStorage.getItem('tickory.calendarMode')`), 'week', 'de keuze Maand of Week blijft op dit apparaat');
+  assert.equal(await evaluate(`document.querySelector('.cal-weeknum').textContent`), `Week ${isoWeek(today).week}`);
+  await shot('kalender-week');
+  await click('[data-fk="cal-next"]');
+  assert.equal(await titleOf(), periodTitle('week', addDays(today, 7), 'nl-NL'));
+  assert.equal(await evaluate(`document.querySelector('.cal-weeknum').textContent`), `Week ${isoWeek(addDays(today, 7)).week}`);
+  await click('[data-fk="cal-today"]');
+  await click('[data-fk="cal-mode:month"]');
+  await waitFor(`document.querySelector('.cal').dataset.mode === 'month'`, 'maandweergave');
+
+  // het toetsenbord
+  const activeDay = () => evaluate<string | null>(`document.activeElement?.closest?.('td.cal-day')?.dataset.date ?? null`);
+  await evaluate(`document.querySelector('.cal-day[data-date="${today}"]').focus()`);
+  assert.equal(await activeDay(), today);
+  assert.equal(await evaluate(`document.querySelectorAll('td.cal-day[tabindex="0"]').length`), 1, 'precies één dag is met Tab bereikbaar');
+  await press('ArrowRight');
+  assert.equal(await activeDay(), addDays(today, 1), 'pijl rechts: volgende dag');
+  await press('ArrowLeft');
+  await press('ArrowDown');
+  assert.equal(await activeDay(), addDays(today, 7), 'pijl omlaag: een week verder');
+  await press('ArrowUp');
+  assert.equal(await activeDay(), today);
+  const ring = await evaluate<string>(`(() => { const s = getComputedStyle(document.activeElement); return s.outlineStyle + '|' + s.outlineWidth; })()`);
+  assert.ok(!ring.startsWith('none'), `zichtbare focusring op een dag: ${ring}`);
+  await press('PageDown');
+  await waitFor(`document.querySelector('.cal-title').textContent === ${js(periodTitle('month', addMonths(today, 1), 'nl-NL'))}`, 'PageDown: volgende maand');
+  await press('Home');
+  await waitFor(`document.querySelector('.cal-title').textContent === ${js(periodTitle('month', today, 'nl-NL'))}`, 'Home: vandaag');
+  await waitFor(`document.activeElement?.dataset?.date === ${js(today)}`, 'focus op vandaag');
+  await press('Enter');
+  await waitFor(`document.querySelector('.dialog-quick[open] .quick-day')`, 'Enter voegt een taak toe op de gekozen dag');
+  await press('Escape');
+  await noDialog();
+
+  // Binnenkort als kalender: taken uit alle projecten, de keuze hoort bij dit apparaat
+  await nav('Binnenkort');
+  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  assert.ok(await evaluate(`!document.querySelector('.cal')`));
+  assert.deepEqual(await texts('.view-actions .view-switch button'), ['Lijst', 'Kalender'], 'Binnenkort kent geen bord');
+  await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+  await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'kalender bij Binnenkort');
+  const projectsOnCal = await evaluate<string[]>(`[...new Set([...document.querySelectorAll('.cal-item .cal-project-name')].map((e) => e.textContent))]`);
+  assert.ok(projectsOnCal.length >= 2, `taken van meer projecten: ${JSON.stringify(projectsOnCal)}`);
+  assert.equal(await evaluate(`localStorage.getItem('tickory.upcomingView')`), 'calendar');
+  await shot('kalender-binnenkort');
+  await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
+  await waitFor(`!document.querySelector('.cal') && document.querySelector('.group-title')`, 'terug naar de lijst bij Binnenkort');
+  assert.equal(serverProject(thuisId).view_style, 'calendar', 'Binnenkort verandert het project niet');
+  step('kalender: maand en week (maandag eerst, Nederlandse namen, ISO-weeknummers), vandaag gemarkeerd, te late taken apart, herhaling op de komende voorkomens zonder opslag, plus bij een dag voegt toe op die dag, openen en afvinken, vorige / volgende / vandaag, Maand of Week bewaard op dit apparaat, toetsenbord (pijlen, PageUp/PageDown, Home, Enter), Binnenkort als kalender met taken van alle projecten');
+
+  // telefoon: een lijst per dag in plaats van een maandtabel
+  await nav('Thuis');
+  await waitFor(`document.querySelector('.cal')`, 'kalender van Thuis');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  const calPhone = await evaluate<any>(`(() => { const q = (s) => document.querySelector(s); const h = (s) => Math.round(q(s).getBoundingClientRect().height); const w = (s) => Math.round(q(s).getBoundingClientRect().width);
+    return { table: getComputedStyle(q('.cal-table')).display, head: getComputedStyle(q('.cal-table thead')).display, cell: getComputedStyle(q('.cal-today')).display, add: [w('.cal-today .cal-add'), h('.cal-today .cal-add')], check: [w('.cal-today .cal-check'), h('.cal-today .cal-check')], open: h('.cal-today .cal-open'),
+      hiddenOut: [...document.querySelectorAll('.cal-out')].every((d) => getComputedStyle(d).display === 'none'), keys: getComputedStyle(q('.cal-keys')).display }; })()`);
+  assert.deepEqual([calPhone.table, calPhone.head, calPhone.cell], ['block', 'none', 'block'], 'op een telefoon is de maandtabel een lijst per dag');
+  assert.ok(calPhone.add[0] >= 44 && calPhone.add[1] >= 44 && calPhone.check[0] >= 44 && calPhone.check[1] >= 44 && calPhone.open >= 44, `alles aan te tikken is minstens 44 px: ${JSON.stringify(calPhone)}`);
+  assert.ok(calPhone.hiddenOut, 'dagen van een andere maand worden niet getoond');
+  assert.equal(calPhone.keys, 'none');
+  assert.ok(await sideScroll(), 'geen zijwaarts scrollen van de pagina');
+  await shot('kalender-telefoon');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await sleep(200);
+  await shot('kalender-telefoon-donker');
+  await click('[data-fk="cal-mode:week"]');
+  await waitFor(`document.querySelector('.cal').dataset.mode === 'week'`, 'week op telefoon');
+  assert.equal(await evaluate(`[...document.querySelectorAll('.cal-day')].filter((d) => d.getBoundingClientRect().height > 0).length`), 7, 'in de weekweergave zijn alle zeven dagen te zien');
+  assert.ok(await sideScroll());
+  await shot('kalender-telefoon-week');
+  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  await sleep(200);
+  await shot('kalender-week-donker');
+  await click('[data-fk="cal-mode:month"]');
+  await shot('kalender-maand-donker');
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
+  step('kalender op een telefoon: een lijst per dag (geen maandtabel), dagen van andere maanden weg, alles minstens 44 px, geen zijwaarts scrollen; licht en donker bekeken');
+
+  // Engels
+  await evaluate(`localStorage.setItem('tickory.lang', 'en')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.querySelector('.cal') && document.getElementById('sync-status').textContent === 'Up to date'`, 'kalender in het Engels', 15_000);
+  assert.equal(await titleOf(), periodTitle('month', today, 'en-GB'), 'maandnaam in de taal van de app');
+  assert.deepEqual(await texts('.cal-table thead th:not(.cal-weekhead) abbr'), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+  assert.equal(await evaluate(`document.querySelector('[data-fk="cal-today"]').textContent`), 'Today');
+  assert.equal(await evaluate(`document.querySelector('[data-fk="cal-prev"]').getAttribute('aria-label')`), 'Previous month');
+  assert.equal(await evaluate(`document.querySelector('.cal-add').getAttribute('aria-label').startsWith('Add a task on')`), true);
+  assert.deepEqual(await texts('.view-actions .view-switch button'), ['List', 'Board', 'Calendar']);
+  await noDutch('kalender', mine);
+  await fits('kalender');
+  await shot('kalender-engels');
+  await evaluate(`${viewButton('board')}.click()`);
+  await waitFor(`document.querySelector('.board')`, 'bord in het Engels');
+  assert.deepEqual(await columnTitles(), ['No section', 'Keuken']);
+  await noDutch('bord', mine);
+  await fits('bord');
+  await shot('bord-engels');
+  await evaluate(`localStorage.setItem('tickory.lang', 'nl')`);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.querySelector('.board') && document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'weer Nederlands', 15_000);
+  // opruimen: het project weer als lijst, en de taken van deze stap weg
+  await evaluate(`${viewButton('list')}.click()`);
+  await waitFor(`document.querySelector('.group-title')`, 'lijst terug');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverProject(thuisId).view_style, 'list');
+  const opruim = ['e2ekalendertelaat01', 'e2ekalenderoverleg01', serverTask('Loodgieter bellen').id, serverTask('Vaatdoeken wassen').id];
+  assert.equal((await syncAs(otherToken, 'ander-apparaat', opruim.map((id, i) => ({ type: 'task_delete', uuid: `e2e-kalender-weg-${i}-aaa`, args: { id } })))).status, 200);
+  await waitFor(`!${row('Vaatdoeken wassen')}`, 'taken opgeruimd');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await evaluate(`localStorage.removeItem('tickory.upcomingView'); localStorage.removeItem('tickory.calendarMode')`);
+  await send('Emulation.setEmulatedMedia', { features: [] });
+  step('bord en kalender in het Engels: maand- en dagnamen volgen de taal van de app, geen Nederlandse tekst, niets afgekapt; daarna terug naar Nederlands en het project weer als lijst');
 
   // ---- 9. telefoonformaat en donkere modus ----
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
@@ -1636,7 +1959,7 @@ try {
   assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
-  assert.deepEqual(await buttons('.view-actions'), ['Opmerkingen (1)', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   await openTask('Afwasmachine uitruimen');
   assert.deepEqual(await texts('#task-dialog .comment-author'), ['Alice', 'Bob']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .comment')].map((c) => c.querySelectorAll('.comment-tools button').length)`), [0, 2], 'Bob kan alleen zijn eigen opmerking wijzigen of verwijderen');
