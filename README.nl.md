@@ -10,7 +10,7 @@
   <a href="README.md">English</a>
 </p>
 
-Zelf te hosten, offline-first takenapp voor jezelf, je gezin of een klein team: een sync-server en een installeerbare web-app (PWA) in één Docker-container. Meerdere gebruikers, gedeelde projecten, taken toewijzen. Het protocol staat in [SPEC.md](SPEC.md); het is een eigen ontwerp, gebouwd op de bevindingen van een eerder onderzoek naar de werking van Todoist (niet onderdeel van deze repo).
+Zelf te hosten, offline-first takenapp voor jezelf, je gezin of een klein team: een sync-server en een installeerbare web-app (PWA) in één Docker-container. Meerdere gebruikers, gedeelde projecten, taken toewijzen, herinneringen met meldingen. De app is er in het Nederlands en het Engels. Het protocol staat in [SPEC.md](SPEC.md); het is een eigen ontwerp, gebouwd op de bevindingen van een eerder onderzoek naar de werking van Todoist (niet onderdeel van deze repo).
 
 Geen npm-pakketten en geen build-stap: Node 26 voert de TypeScript zelf uit en SQLite zit in Node. De image is daardoor klein en heeft vrijwel niets om te onderhouden.
 
@@ -21,7 +21,7 @@ Geen npm-pakketten en geen build-stap: Node 26 voert de TypeScript zelf uit en S
 
 ## Proberen
 
-De [demo](https://wnijhof.github.io/tickory/demo/?lang=nl) is de echte app met voorbeeldgegevens, helemaal in je browser: geen server, geen account, er wordt niets bewaard. Dezelfde demo draai je ook lokaal:
+De [demo](https://wnijhof.github.io/tickory/demo/?lang=nl) is de echte app met voorbeeldgegevens, helemaal in je browser: geen server, geen account, er wordt niets bewaard. Herinneringen kun je erin uitproberen (het belletje bij een taak, het deel Herinneringen in het venster van een taak, Instellingen, "Herinneringen en meldingen"), maar **meldingen werken niet in de demo**: die komen van een server, dus alleen op je eigen. Dezelfde demo draai je ook lokaal:
 
 ```sh
 node scripts/build-site.ts && node scripts/serve-site.ts     # http://127.0.0.1:8798/tickory/demo/
@@ -80,13 +80,34 @@ Open de app en log in met het eerste account.
 - Subprojecten van een gedeeld project worden mee gedeeld. Verwijder je een project, dan blijft een subproject waar je geen eigenaar van bent staan, op het hoogste niveau. (De server kent subprojecten; de app heeft nog geen knop om ze te maken of een project te verplaatsen.)
 - Bekende beperking: de **volgorde in de zijbalk** en het markeren als favoriet horen bij het project en zijn dus niet per persoon.
 
+### Herinneringen en meldingen
+
+- **Instellen.** In het venster van een taak, het deel Herinneringen: kies "30 minuten vooraf", "1 dag vooraf", "Op het tijdstip van de taak" enzovoort, of kies een datum en tijd. Een herinnering *vooraf* werkt alleen bij een taak met een tijd. Op één regel typ je `!30m` (minuten vooraf), `!1u` (uren), `!2d` (dagen), `!0` (op het tijdstip van de taak) of een zin tussen haakjes voor een vast moment, bijvoorbeeld `!(vandaag om 20:00)`. Een belletje bij een taak betekent dat er een herinnering is.
+- **Automatische herinnering.** Elke taak met een tijd krijgt vanzelf een herinnering, standaard 30 minuten vooraf (Instellingen, "Herinneringen en meldingen"; "Geen automatische herinnering" zet dat uit). Daar zie en stel je ook je **tijdzone** in; herinneringen gaan af op die tijd. Herinneringen zijn persoonlijk: in een gedeeld project ziet of krijgt niemand anders de jouwe.
+- **In de browser** (Web Push, van de server via de pushdienst van je browser): vraagt HTTPS of `localhost`; op een iPhone of iPad alleen voor een app op het beginscherm. Zet het per apparaat aan onder Instellingen, "Herinneringen en meldingen", "Meldingen aanzetten", en controleer het met "Testmelding versturen". De melding heeft de knoppen Voltooien en Over 10 minuten. De server kijkt elke 20 seconden; een herinnering die hooguit een uur te laat is, wordt nog verstuurd, een oudere vervalt.
+- **Op de server:** er is niets te installeren. De server maakt zelf sleutels voor de meldingen (VAPID) en bewaart ze in de database, dus een back-up bevat ze. Optioneel in `.env`: `VAPID_SUBJECT` (jouw contactadres, `mailto:jij@voorbeeld.nl` of een https-adres; de pushdienst van Apple vraagt erom) en `DEFAULT_TIMEZONE` (voor gebruikers die nog geen tijdzone hebben ingesteld; `Europe/Amsterdam`). De server zelf moet via https bij de pushdiensten van Google, Mozilla, Microsoft en Apple kunnen komen.
+- **Het werkt niet?** Zie [Meldingen komen niet aan](https://wnijhof.github.io/tickory/nl/handleiding/problemen-oplossen.html#meldingen-komen-niet-aan). De meldingen in de browser zijn getest met een nagebootste pushdienst; of er een bij jou aankomt, hangt af van je browser, besturingssysteem en hun pushdienst.
+
+Meer in de handleiding: [Herinneringen](https://wnijhof.github.io/tickory/nl/handleiding/herinneringen.html).
+
+### De Android-app
+
+Een eigen app (Kotlin, in [`android/`](android/README.md)) die de web-app van je server toont en je herinneringen als **alarmen op de telefoon zelf** inplant, zodat ze ook afgaan als de app dicht is en zonder internet. Geen Google-diensten, geen Firebase, geen trackers; de app praat alleen met de server die je invult.
+
+- **Er is nog geen release.** De eerste APK komt met de eerstvolgende versie, als bijlage bij die versie op de [releasepagina](https://github.com/WNijhof/tickory/releases). Tot die tijd gebruik je de web-app in de browser van je telefoon, of bouw je de app zelf: zie [android/README.md](android/README.md) (JDK 21 en de Android SDK).
+- **Installeren** (als er een APK is): download hem op de telefoon, open hem en sta "onbekende apps installeren" toe voor de app waarmee je hem opent, vul dan het adres van je server in en log in. Bijwerken: installeer de nieuwe APK over de oude heen; dat kan alleen als beide met dezelfde sleutel zijn ondertekend (een debug-APK kan niet bijwerken, verwijder die eerst).
+- **Beperkingen:** zonder verbinding openen werkt alleen als je server op `https` staat (de herinneringen gaan wel af); de app vertrouwt alleen certificaten die Android zelf vertrouwt, geen zelfgemaakte; een inlogpagina vóór de server (Authelia, Cloudflare Access) werkt niet; er is geen bestandskiezer (bijlagen bestaan nog niet). Android 8 of nieuwer.
+- **Niet op een telefoon getest.** De app is getest op een computer (rekenregels, een nagebootste Android en één test tegen een echte server), maar de maker heeft hem nog niet op een echt toestel geprobeerd. Meld gerust wat je tegenkomt.
+
+Meer in de handleiding: [de Android-app](https://wnijhof.github.io/tickory/nl/handleiding/android-app.html).
+
 ### Upgraden vanaf versie 0.1
 
 Versie 0.1 had één token voor één persoon. Zet in `.env` `TODO_ADMIN_USER` en `TODO_ADMIN_PASSWORD` (je mag `TODO_TOKEN` weghalen), en start de nieuwe versie. Bij de eerste start wordt dat account aangemaakt en **neemt het alle bestaande gegevens over** (projecten, labels, filters, herinneringen), inclusief je Inbox. Daarna moet je op elk apparaat opnieuw inloggen. Maak vooraf een back-up (zie hieronder).
 
 ### HTTPS (nodig voor je telefoon)
 
-Browsers staan **offline gebruik** (service worker) en **installeren als app** alleen toe via HTTPS; alleen `localhost` is een uitzondering. Zonder HTTPS werkt de app op je telefoon dus wel in de browser, maar niet offline en niet als geïnstalleerde app. Kies wat bij je netwerk past:
+Browsers staan **offline gebruik** (service worker), **installeren als app** en **meldingen in de browser** alleen toe via HTTPS; alleen `localhost` is een uitzondering. Zonder HTTPS werkt de app op je telefoon dus wel in de browser, maar niet offline, niet als geïnstalleerde app en zonder meldingen (de Android-app heeft voor haar alarmen geen HTTPS nodig). Kies wat bij je netwerk past:
 
 - **Tailscale** (het eenvoudigst, niets openbaar): installeer Tailscale op server en telefoon, schakel HTTPS in je tailnet in en draai op de server `tailscale serve --bg 8787`. Je krijgt een `https://…ts.net`-adres dat alleen je eigen apparaten bereiken.
 - **Reverse proxy met een eigen domein** (Caddy, Traefik, Nginx Proxy Manager): laat de proxy naar `127.0.0.1:8787` wijzen en het certificaat regelen. Met Caddy is de hele configuratie:
@@ -120,7 +141,7 @@ De database is één SQLite-bestand in het volume. Maak een consistente kopie te
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
 ```
 
-Dit overschrijft nooit een bestaande kopie. De kopieën staan in het volume zelf; haal ze regelmatig ook van de server af, bijvoorbeeld met `docker cp tickory:/data/backups ./backups`, en plan het commando in met `cron`. Oude kopieën ruim je zelf op. **Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes en de (gehashte) sessies**: bewaar hem zoals je de database zelf bewaart.
+Dit overschrijft nooit een bestaande kopie. De kopieën staan in het volume zelf; haal ze regelmatig ook van de server af, bijvoorbeeld met `docker cp tickory:/data/backups ./backups`, en plan het commando in met `cron`. Oude kopieën ruim je zelf op. **Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen**: bewaar hem zoals je de database zelf bewaart.
 
 Terugzetten van een kopie (de app moet stilstaan; vervang `backup.db` door je bestand):
 
@@ -163,20 +184,21 @@ Cadeau kopen voor Sinterklaas
 Belasting regelen eind januari
 Hardlopen elke ochtend om 7 uur
 Aangifte doen {31-12} !!2
+Tandarts bellen morgen om 9 uur !1u !(vandaag om 20:00)       (herinneringen: 1 uur vooraf, en vanavond om 20:00)
 ~Mei bellen          (het ~ zet de datumherkenning voor de hele regel uit)
 ```
 
-`#project`, `/sectie` (binnen dat project), `@label` (onbekende labels worden aangemaakt), `p1` tot `p4` of `!!1` tot `!!4` (1 is de hoogste), `{deadline}`, en een datum of herhaling in gewone taal.
+`#project`, `/sectie` (binnen dat project), `@label` (onbekende labels worden aangemaakt), `p1` tot `p4` of `!!1` tot `!!4` (1 is de hoogste), `{deadline}`, `!30m` `!1u` `!2d` `!0` `!(…)` voor herinneringen (zie hierboven), en een datum of herhaling in gewone taal.
 
 ## Nederlands
 
-Nederlands is de hoofdtaal van de app: de interface, de datumtaal en de foutmeldingen zijn Nederlands en er is geen Engelse terugval. (Een Engelse interface is in ontwikkeling.) Wat werkt:
+Nederlands is de hoofdtaal van de app. De interface en de meldingen zijn er in het Nederlands en het Engels (de app volgt je browser, en onder Instellingen, "Taal / Language" kies je zelf); de **datumtaal**, wat je intypt, is voorlopig alleen Nederlands. Engelse zinnen als `tomorrow` worden nog niet herkend, en de app zegt dat als je er een typt. Wat in elke taal werkt: `31-12` en `31-12-2026`, en in het datumveld van een taak `2026-12-31` en `2026-12-31T14:30`. Wat werkt:
 
 - **Datums:** `morgen`, `overmorgen`, `vanavond`, `volgende week donderdag`, `aanstaande vrijdag`, `over twee weken`, `eind van de week`, `deze week` (= vrijdag), `25 december`, `3 maart 2027`, `begin december`, `midden mei`, `eind januari`, en tijden als `om 9 uur`, `om half 3`, `kwart over 2`, `14u30`, `2 uur 's middags`, `over een kwartier`.
 - **Herhalingen:** `elke dag`, `elke maandag`, `elke ma en do`, `elke werkdag`, `doordeweeks`, `elke 2 weken`, `om de week`, `elke ochtend/middag/avond` (met een standaardtijd van 9, 15 en 20 uur, tenzij je er een tijd bij zet), `elke maand op de 15e`, `elke laatste dag van de maand`, `elk jaar op 5 december`, en de **n-de weekdag van de maand**: `elke eerste maandag`, `elke tweede dinsdag`, `elke laatste vrijdag` (eerste tot en met vierde, en laatste).
 - **Feestdagen**, met een voorzetsel (`voor`, `tegen`, `op`, `uiterlijk`, `per`): Kerst en de eerste en tweede kerstdag, Oud en nieuw, Nieuwjaar, Sinterklaas en pakjesavond, Koningsdag, Bevrijdingsdag, Dodenherdenking, Goede Vrijdag, Pasen en tweede paasdag, Hemelvaart, Pinksteren en tweede pinksterdag. De datum van Pasen wordt voor elk jaar berekend.
 - **Letters:** `é`, `ë`, `ï`, `ö` en dergelijke werken overal, hoofdletterongevoelig (`@ÉÉN` is het label `één`) en ook als een toetsenbord ze als losse tekens aflevert. Alle tekst wordt in dezelfde Unicode-vorm (NFC) bewaard, ook gebruikersnamen en wachtwoorden. Na het weghalen van een datum wordt `ijs` correct `IJs` (in het Nederlands is IJ één letter).
-- **Meldingen** als de server een wijziging weigert, zijn begrijpelijk Nederlands, met wat je probeerde te doen.
+- **Meldingen** als de server een wijziging weigert, zijn begrijpelijk, met wat je probeerde te doen (ook in de Engelse interface).
 
 Bewust niet aangeraakt, om geen verkeerde datum te raden: een titel met **twee** datums, een feestdag zonder voorzetsel (`Kerst inkopen doen` blijft een gewone taak), `Mei bellen`, `Zo snel mogelijk`, `Hoofdstuk 3`. Typ `~` voor een woord om de herkenning daar uit te zetten. Niet ondersteund: `elke vijfde dinsdag` (een vijfde bestaat niet altijd; gebruik `elke laatste dinsdag`) en `elke tweede week van de maand`.
 
@@ -192,13 +214,13 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.
 
 Op Windows: dubbelklik op `start.cmd`, of draai `.\start.cmd` in PowerShell. Bij de eerste keer vraagt dat om een gebruikersnaam en een wachtwoord (ongezien getypt) voor het eerste account, en daarna start de server; het scriptbeleid van Windows blijft ongewijzigd (zie `start.cmd`).
 
-Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong).
+Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel) en `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). Zie `.env.example`.
 
 ## Testen
 
 ```sh
-npm test            # protocol, rechten, accounts, server, client, datumtaal, overzichten, back-up, offline-bestanden
-npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 22 stappen
+npm test            # protocol, rechten, accounts, server, client, datumtaal, herinneringen en meldingen, filters en zoeken, talen, overzichten, back-up, offline-bestanden
+npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 28 stappen
 node scripts/docker-smoke.ts tickory:ci    # test van de image (vereist Docker, na: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # de website en de demo (vereist Edge of Chrome)
 ```
@@ -224,12 +246,14 @@ node scripts/make-icons.js      # tekent de PNG-pictogrammen opnieuw, met dezelf
 ## Indeling
 
 ```
-shared/    orderKey.js, recurrence.js, schema.js, text.js   gedeeld door server en client
-server/    schema.ts, rows.ts, sync.ts, users.ts, main.ts, backup.ts
-           tabellen, rijen, sync-engine met rechten, accounts en sessies, HTTP + SSE + bestanden, back-up
+shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   gedeeld door server en client
+server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
+           tabellen, rijen, sync-engine met rechten, accounts en sessies, meldingen (Web Push), HTTP + SSE + bestanden, back-up
 client/    index.html, app.css, sw.js, manifest             de web-app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, dateNl, quickadd, selectors, format, messages
-client/ui/     app, render, taskDialog, shareDialog, accountDialogs, dom
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
+client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/i18n/   nl.js, en.js                                  de teksten van de interface, in het Nederlands en het Engels
+android/       de Android-app (Kotlin, WebView, lokale alarmen)
 client/vendor/ nlDatum.generated.js                         Nederlandse datumherkenner (met chrono-node, zie THIRD_PARTY_NOTICES.md)
 website/       pages (nl, en), assets, layout.html, site.json, demo/   de website, de handleiding en de backend van de demo
 scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
@@ -238,27 +262,25 @@ scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
 
 ## Status
 
-Versie 0.2: meerdere gebruikers en gedeelde projecten. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
+Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen en een interface in het Nederlands en het Engels. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
 
-**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
+**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
 
-**Nog niet af (in ontwikkeling):**
-- **Herinneringen met een melding.** De server kan herinneringen opslaan en synchroniseren, maar de app heeft er nog geen scherm voor en **er wordt nergens een melding verstuurd**.
-- **Een Android-app (APK).** Tot die er is, gebruik je de web-app in de browser van je telefoon.
-- **Een Engelse interface.** De app is nu alleen Nederlands; Engelse datumtaal komt daarna.
+**Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
+- **De eerste Android-APK.** De app bestaat en is op een computer getest, maar er is nog geen release en de maker heeft hem niet op een echte telefoon geprobeerd. De eerste APK komt met de eerstvolgende versie; tot die tijd gebruik je de web-app in de browser van je telefoon, of bouw je hem zelf (zie [android/README.md](android/README.md)).
+- **Filters en zoeken.** De logica zit in de code (een filtertaal in het Nederlands en het Engels, en zoeken in taken, projecten, secties, labels en filters), maar de app heeft er geen scherm, zoekveld of knop voor. Je kunt het dus nog niet gebruiken.
+- **Engelse datumtaal.** De interface is Engels, maar wat je als datum intypt, wordt alleen in het Nederlands herkend.
 
 **Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
 - **Opmerkingen** bij taken en projecten.
-- **Filters** (opgeslagen zoekopdrachten): er is geen filtertaal en geen scherm.
 - Subprojecten, favorieten, **archiveren** van projecten en secties, de **duur** van een taak, en bord- of kalenderweergave.
 
 **Ontbreekt helemaal:**
 - **Slepen of anderszins de volgorde van taken wijzigen.** Een nieuwe taak komt altijd achteraan.
-- **Zoeken.**
-- **Labels beheren** (hernoemen, verwijderen, op een label filteren).
+- **Labels beheren** (hernoemen, verwijderen, op een label filteren) in de app.
 - Bijlagen, statistieken, sjablonen, import en export, een iCal-feed, sneltoetsen, widgets, een eigen volgorde voor Vandaag, uitnodigen via een link of e-mail, en overdragen van de eigenaar van een project.
 
-Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. Zie ook SPEC.md hoofdstuk 10.
+Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. SPEC.md hoofdstuk 10 is ouder dan deze lijst en niet bijgewerkt; deze lijst klopt.
 
 ## Bijdragen en beveiliging
 
