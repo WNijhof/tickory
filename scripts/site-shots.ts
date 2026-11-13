@@ -42,6 +42,8 @@ const FIXED_DATE = `(() => {
 const DESKTOP = { width: 1120, height: 720, scale: 2, mobile: false };
 /** Voor vensters (taak bewerken, instellingen): hoog genoeg dat er niets wordt afgesneden. */
 const TALL = { width: 1120, height: 1000, scale: 2, mobile: false };
+/** Voor het taakvenster: zo hoog dat het grote venster met al zijn onderdelen in beeld past. */
+const HIGH = { width: 1120, height: 1500, scale: 2, mobile: false };
 const PHONE = { width: 390, height: 780, scale: 2, mobile: true };
 type View = typeof DESKTOP;
 
@@ -140,20 +142,54 @@ async function shootAll() {
   await typeInto('#quick-input', '');
 
   // vensters op een hoger scherm, zodat het hele venster in beeld past
-  await browser.viewport(TALL.width, TALL.height, { scale: TALL.scale, mobile: false });
+  await browser.viewport(HIGH.width, HIGH.height, { scale: HIGH.scale, mobile: false });
   await openTask('Boodschappen doen');
   await waitFor(`document.querySelector('#task-dialog[open]')`, 'bewerkvenster');
   await evaluate(`document.activeElement?.blur()`);
-  await capture('taak-bewerken', TALL, await around('#task-dialog', 24));
+  await evaluate(`(() => { const d = document.querySelector('#task-dialog'); d.style.height = '960px'; d.style.maxHeight = 'none'; })()`); // zonder schuiven: het hele venster in beeld
+  await settle();
+  await capture('taak-bewerken', HIGH, await around('#task-dialog', 24));
   await clickText(T('common.cancel'), `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
+
+  // het venster "Taak toevoegen": de knop bovenaan de zijbalk
+  await evaluate(`document.querySelector('.sidebar-add').click()`);
+  await waitFor(`document.querySelector('dialog[open] .quick-big')`, 'venster Taak toevoegen');
+  await typeInto('dialog[open] .quick-big', 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u');
+  await typeInto('dialog[open] textarea', lang === 'nl' ? 'Het lekkende kraantje in de keuken.' : 'The leaking tap in the kitchen.');
+  await waitFor(`document.querySelectorAll('dialog[open] .chips .chip').length >= 6`, 'voorbeeld in het venster');
+  await evaluate(`document.activeElement?.blur()`);
+  await capture('taak-toevoegen', TALL, await around('dialog[open]', 24));
+  await clickText(T('common.cancel'), `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
+
+  // het projectmenu en het venster om een project te bewerken (naam, kleur, favoriet)
+  await clickText(T('project.menu'));
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
+  await capture('projectmenu', TALL, await around('dialog[open]', 24));
+  await clickText(T('project.editMenu'), `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] input[name="project-color"]')`, 'projectvenster');
+  await evaluate(`document.activeElement?.blur()`);
+  await capture('project-bewerken', TALL, await around('dialog[open]', 24));
+  await clickText(T('common.cancel'), `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'projectvenster gesloten');
+
+  // de sneltoetsen (de knop met het toetsenbord onderaan de zijbalk)
+  await evaluate(`document.querySelector('.sidebar-footer .icon-button').click()`);
+  await waitFor(`document.querySelector('dialog[open] .shortcuts')`, 'overzicht van sneltoetsen');
+  await evaluate(`document.activeElement?.blur()`);
+  await capture('sneltoetsen', TALL, await around('dialog[open]', 24));
+  await clickText(T('common.close'), `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
 
   await nav('Inbox');
   await title('Inbox');
   await openTask('Tandarts bellen voor controle');
   await waitFor(`document.querySelectorAll('#task-dialog .device').length === 3`, 'herinneringen in het taakvenster');
   await evaluate(`document.activeElement?.blur()`);
-  await capture('herinneringen', TALL, await around('#task-dialog section[aria-label]', 8));
+  await evaluate(`(() => { const d = document.querySelector('#task-dialog'); d.style.height = '960px'; d.style.maxHeight = 'none'; })()`);
+  await settle();
+  await capture('herinneringen', HIGH, await around('#task-dialog section[aria-label]', 8));
   await clickText(T('common.cancel'), `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
 
