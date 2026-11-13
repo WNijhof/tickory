@@ -256,6 +256,16 @@ export async function boardTouchScenario(c: any): Promise<void> {
     await waitFor(`document.querySelector('.board').scrollLeft > 100`, 'het bord schuift mee bij de rand', 5000);
     await touch('touchMove', 200, p.y); // weg bij de rand: het bord blijft staan
     await sleep(200);
+    // en terug: bij de linkerrand schuift het bord de andere kant op
+    const scrolled = await evaluate(`document.querySelector('.board').scrollLeft`) as number;
+    for (let i = 1; i <= 4; i++) { await touch('touchMove', Math.round(200 - ((200 - 6) * i) / 4), p.y); await sleep(16); }
+    await waitFor(`document.querySelector('.board').scrollLeft < ${scrolled - 20}`, 'het bord schuift terug bij de linkerrand', 5000);
+    await touch('touchMove', 200, p.y);
+    await sleep(200);
+    await touch('touchMove', 380, p.y); // en weer naar rechts, naar de kolom Keuken
+    await waitFor(`document.querySelector('.board').scrollLeft > 100`, 'het bord schuift weer mee', 5000);
+    await touch('touchMove', 200, p.y);
+    await sleep(200);
     const column = await rectOf(`document.querySelector('.board-column[data-column=${js(keukenId)}] .add-inline')`);
     const at = { x: Math.round(Math.min(column.x + column.w / 2, 340)), y: Math.round(column.y + column.h / 2) };
     for (let i = 1; i <= 6; i++) { await touch('touchMove', Math.round(200 + ((at.x - 200) * i) / 6), Math.round(p.y + ((at.y - p.y) * i) / 6)); await sleep(16); }
