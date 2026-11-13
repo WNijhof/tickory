@@ -20,7 +20,7 @@ description: Making a backup of Tickory while the app is running, getting the co
 <p>and put the directory <code>backups</code> somewhere else: on another computer, an external disk, or encrypted with a storage service. You clean up old copies yourself; they are not removed automatically.</p>
 <div class="note warn">
   <span class="note-label">Keep a backup the way you keep the database</span>
-  <p>A copy contains all tasks of all users, the password hashes and the (hashed) sessions. Do not leave it where others can get at it.</p>
+  <p>A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications. Do not leave it where others can get at it.</p>
 </div>
 
 <h2>Automatically, every night</h2>
@@ -39,7 +39,7 @@ docker compose up -d</code></pre>
 </ul>
 
 <h3>After that: sign in again on every device</h3>
-<p>After restoring, sign out and in again on every device (<strong>Instellingen</strong>, then <strong>Afmelden en lokale gegevens wissen</strong>). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past that device's state. Signing in again is the sure way, and it costs nothing: everything is on the server.</p>
+<p>After restoring, sign out and in again on every device (<x-ui k="settings.title"></x-ui>, then <x-ui k="settings.signOut"></x-ui>). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past that device's state. Signing in again is the sure way, and it costs nothing: everything is on the server.</p>
 <p>Whatever was added or changed after the backup was made is gone after restoring.</p>
 
 <h2>Without Docker</h2>

@@ -1,39 +1,51 @@
 <!--
 title: Account, password and devices
-description: Your account in Tickory: changing your password, seeing which devices you are signed in on, signing a device out and signing out yourself.
+description: Your account in Tickory: changing your password, seeing which devices you are signed in on, signing a device out, signing out yourself, and choosing the language of the app.
 -->
 <h1>Account, password and devices</h1>
-<p class="intro">Click your name at the bottom of the sidebar to open the settings, and choose <strong>Account, wachtwoord en apparaten</strong> (account, password and devices).</p>
+<p class="intro">Click your name at the bottom of the sidebar to open the settings, and choose <x-ui k="settings.account"></x-ui>.</p>
 
-<x-shot name="account" alt="The Account window of Anna, administrator. Under Aangemelde apparaten (signed-in devices) there are three devices; the first is marked 'dit apparaat' (this device), the other two have an Afmelden (sign out) button. Below that Wachtwoord wijzigen (change password) and the buttons Afmelden, Gebruikersbeheer and Sluiten.">The account window. The button Gebruikersbeheer (user management) is only there for administrators.</x-shot>
+<x-shot name="account" alt="The Account window of Anna, admin. Under Signed-in devices there are three devices; the first is marked 'this device', the other two have a Sign out button. Below that Change password and the buttons Sign out, User management and Close.">The account window. The button User management is only there for administrators.</x-shot>
 
 <h2>Settings</h2>
-<p>Behind your name at the bottom of the sidebar there are three choices:</p>
+<x-shot name="instellingen" alt="The Settings menu with five choices: Account, password and devices; Reminders and notifications; Sync now; Taal / Language; and Sign out and clear local data."></x-shot>
+<p>Behind your name at the bottom of the sidebar there are five choices:</p>
 <ul>
-  <li><strong>Account, wachtwoord en apparaten</strong>: the window on this page.</li>
-  <li><strong>Nu bijwerken</strong> (sync now): fetches the latest state from the server right away and sends what was still waiting.</li>
-  <li><strong>Afmelden en lokale gegevens wissen</strong> (sign out and erase local data): see <a href="signing-in.html#signing-out">signing out</a>.</li>
+  <li><x-ui k="settings.account"></x-ui>: the window on this page.</li>
+  <li><x-ui k="settings.notifications"></x-ui>: the automatic reminder, the time zone and notifications on this device; see <a href="reminders.html">Reminders</a>.</li>
+  <li><x-ui k="settings.syncNow"></x-ui>: fetches the latest state from the server right away and sends what was still waiting.</li>
+  <li><x-ui k="settings.language"></x-ui>: the language of the app, see below.</li>
+  <li><x-ui k="settings.signOut"></x-ui>: see <a href="signing-in.html#signing-out">signing out</a>.</li>
 </ul>
 
 <h2>Signed-in devices</h2>
-<p>Every browser and every device you sign in on gets its own session. The list shows a name for each session, such as “Chrome op Android”, and when it was last used. The session you are working with now is marked <strong>dit apparaat</strong> (this device).</p>
+<p>Every browser and every device you sign in on gets its own session. The list shows a name for each session, such as “Chrome on Android”, and when it was last used. The session you are working with now is marked <x-ui k="account.thisDevice"></x-ui>.</p>
 <ul>
-  <li>Choose <strong>Afmelden</strong> (sign out) next to another device to sign it out immediately, for example when you have lost a phone. That device then has to sign in again.</li>
+  <li>Choose <x-ui k="account.signOut"></x-ui> next to another device to sign it out immediately, for example when you have lost a phone. That device then has to sign in again.</li>
   <li>If you do not recognise a device, sign it out and change your password.</li>
   <li>The name is determined when signing in and cannot be changed. The same name twice means you signed in twice with the same kind of browser.</li>
 </ul>
 
 <h2 id="changing-your-password">Changing your password</h2>
 <ol>
-  <li>Open <strong>Wachtwoord wijzigen</strong> (change password).</li>
+  <li>Open <x-ui k="account.changePassword"></x-ui>.</li>
   <li>Enter your current password and the new one twice.</li>
-  <li>Choose <strong>Wachtwoord wijzigen</strong>.</li>
+  <li>Choose <x-ui k="account.changePassword"></x-ui>.</li>
 </ol>
 <p>A password has at least 10 characters and may not be the same as your username. After changing it you stay signed in on this device; <strong>all your other devices are signed out</strong> and have to sign in again with the new password.</p>
 <p>If you no longer know your current password, ask an administrator for a new one; see <a href="signing-in.html#forgotten-password">forgotten password</a>.</p>
+
+<h2 id="language">The language of the app</h2>
+<p>The app is available in English and in Dutch. As long as you choose nothing, it follows your browser: if one of your browser's languages is Dutch, the app is Dutch, otherwise English. To decide for yourself, choose <x-ui k="settings.language"></x-ui> and then <em>English</em> or <em>Nederlands</em>; those two names are the same in every language, so you can always find the choice.</p>
+<ul>
+  <li>The switch is immediate, without reloading the page. The choice applies to this device and this browser, and is kept even after signing out; it is not a setting of your account.</li>
+  <li>Notifications arrive in the language you chose on that device.</li>
+  <li>What you <strong>type</strong> is a different matter: dates and recurrences (<code>morgen om 9 uur</code>) are recognised in Dutch only for now, also in the English interface. It gives a hint if you type an English date. A date such as <code>31-12</code>, <code>31-12-2026</code> or <code>2026-12-31T14:30</code> works in any language.</li>
+  <li>The names of projects, tasks and labels are whatever you type; the app does not translate them.</li>
+</ul>
 
 <h2>Your name and username</h2>
 <p>The top of the window shows your name and your username. The name is what others see in a shared project; the username is what you sign in with and what others use to share a project with you. Neither can be changed in the app.</p>
 
 <h2>For administrators</h2>
-<p>If you are an administrator, it says so (“beheerder”) after your username and the window has a button <strong>Gebruikersbeheer</strong>. See <a href="managing-users.html">Managing users</a>.</p>
+<p>If you are an administrator, it says so (<x-ui k="account.admin"></x-ui>) after your username and the window has a button <x-ui k="admin.title"></x-ui>. See <a href="managing-users.html">Managing users</a>.</p>

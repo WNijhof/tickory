@@ -70,6 +70,8 @@ docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
     <tbody>
       <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code><br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">Het eerste account. Alleen gebruikt zolang er nog geen enkel account bestaat.</td></tr>
       <tr><td><code>TRUST_PROXY</code></td><td class="wrap-ok">Zet op <code>1</code> als er een eigen reverse proxy voor staat. Zie <a href="https.html#trust-proxy">HTTPS</a>.</td></tr>
+      <tr><td><code>VAPID_SUBJECT</code></td><td class="wrap-ok">Optioneel: jouw contactadres voor de pushdienst van de browser (<code>mailto:jij@voorbeeld.nl</code> of een https-adres), voor meldingen. Zie <a href="herinneringen.html#voor-beheerders">Herinneringen</a>.</td></tr>
+      <tr><td><code>DEFAULT_TIMEZONE</code></td><td class="wrap-ok">De tijdzone voor gebruikers die er zelf nog geen hebben ingesteld; standaard <code>Europe/Amsterdam</code>.</td></tr>
       <tr><td><code>PORT</code></td><td class="wrap-ok">De poort waarop de server luistert; standaard 8787.</td></tr>
       <tr><td><code>HOST</code></td><td class="wrap-ok">Het adres waarop de server luistert; standaard <code>127.0.0.1</code>, in de container <code>0.0.0.0</code>.</td></tr>
       <tr><td><code>DB_PATH</code></td><td class="wrap-ok">Waar de database staat; standaard <code>./data/todo.db</code>, in de container <code>/data/todo.db</code>.</td></tr>
@@ -77,7 +79,7 @@ docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
     </tbody>
   </table>
 </div>
-<p>Het meegeleverde <code>docker-compose.yml</code> geeft alleen het eerste account en <code>TRUST_PROXY</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
+<p>Het meegeleverde <code>docker-compose.yml</code> geeft het eerste account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code> en <code>DEFAULT_TIMEZONE</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
 
 <h2>De image is nog privé</h2>
 <p>Zolang de repo en de image op GitHub privé staan, moet je server één keer inloggen om ze te kunnen ophalen:</p>

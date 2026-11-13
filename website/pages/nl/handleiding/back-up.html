@@ -20,7 +20,7 @@ description: Een back-up maken van Tickory terwijl de app draait, de kopie van d
 <p>en zet de map <code>backups</code> ergens anders neer: op een andere computer, een externe schijf of versleuteld bij een opslagdienst. Oude kopieën ruim je zelf op; ze worden niet automatisch verwijderd.</p>
 <div class="note warn">
   <span class="note-label">Bewaar een back-up zoals de database zelf</span>
-  <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes en de (gehashte) aanmeldingen. Leg haar niet neer waar anderen bij kunnen.</p>
+  <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) aanmeldingen en de sleutels van de server voor meldingen. Leg haar niet neer waar anderen bij kunnen.</p>
 </div>
 
 <h2>Automatisch, elke nacht</h2>
@@ -39,7 +39,7 @@ docker compose up -d</code></pre>
 </ul>
 
 <h3>Daarna: op elk apparaat opnieuw aanmelden</h3>
-<p>Meld na het terugzetten op elk apparaat af en weer aan (<strong>Instellingen</strong>, dan <strong>Afmelden en lokale gegevens wissen</strong>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>
+<p>Meld na het terugzetten op elk apparaat af en weer aan (<x-ui k="settings.title"></x-ui>, dan <x-ui k="settings.signOut"></x-ui>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>
 <p>Wat na het maken van de back-up is toegevoegd of gewijzigd, is na het terugzetten weg.</p>
 
 <h2>Zonder Docker</h2>

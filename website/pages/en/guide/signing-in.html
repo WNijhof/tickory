@@ -13,19 +13,19 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
 
 <h2>Signing in</h2>
 <ol>
-  <li>Open the address in your browser. You see the window <strong>Inloggen</strong> (sign in).</li>
-  <li>Enter your username (<em>Gebruikersnaam</em>) and password (<em>Wachtwoord</em>) and choose <strong>Inloggen</strong>. Capitals do not matter in the username.</li>
-  <li>The app fetches your tasks. The top right shows <strong>Bijgewerkt</strong> (up to date) once everything is in.</li>
+  <li>Open the address in your browser. You see the window <x-ui k="login.title"></x-ui>.</li>
+  <li>Enter your username and password and choose <x-ui k="login.title"></x-ui>. Capitals do not matter in the username.</li>
+  <li>The app fetches your tasks. The top right shows <x-ui k="sync.upToDate"></x-ui> once everything is in.</li>
 </ol>
 <p>You stay signed in on this device until you sign out yourself or someone revokes the session. Every device and every browser gets its own session; you can see them all in <a href="account.html">your account</a>.</p>
 
 <h2>When signing in fails</h2>
 <dl>
-  <dt>“Gebruikersnaam of wachtwoord klopt niet” (username or password is incorrect)</dt>
+  <dt>“<x-ui k="api.invalidCredentials"></x-ui>”</dt>
   <dd>One of the two is wrong. You get the same message when the account does not exist or is blocked: the server does not reveal which usernames exist.</dd>
-  <dt>“Te veel mislukte pogingen” (too many failed attempts)</dt>
+  <dt>“<x-ui k="api.tooManyAttempts"></x-ui>”</dt>
   <dd>After eight failed attempts within fifteen minutes for the same username (or forty from the same address) you cannot sign in for a while. The message says how long to wait; that is fifteen minutes at most.</dd>
-  <dt>“Geen verbinding met de server” (no connection to the server)</dt>
+  <dt>“No connection to the server”</dt>
   <dd>The app cannot reach the server. Check your internet connection and whether the address is right.</dd>
 </dl>
 
@@ -33,14 +33,14 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
 <p>There is no “forgot password” link and no e-mail is sent. Ask an administrator for a new password; they set it in <a href="managing-users.html">user management</a>. After that you can change it yourself in <a href="account.html#changing-your-password">your account</a>.</p>
 
 <h2>Signing out</h2>
-<p>Click your name at the bottom of the sidebar (<strong>Instellingen</strong>, settings) and choose <strong>Afmelden en lokale gegevens wissen</strong> (sign out and erase local data). The copy of your tasks is then erased from this device; everything stays on the server.</p>
+<p>Click your name at the bottom of the sidebar (<x-ui k="settings.title"></x-ui>) and choose <x-ui k="settings.signOut"></x-ui>. The copy of your tasks is then erased from this device; everything stays on the server.</p>
 <div class="note warn">
   <span class="note-label">Careful</span>
   <p>If there are still changes waiting that have not been sent to the server (for example because you were offline), they are lost when you sign out. The app warns you about that.</p>
 </div>
 
 <h2>Having to sign in again</h2>
-<p>If the sign-in window appears by itself and the top right says <strong>Inloggen nodig</strong> (sign-in required), your session on this device has been revoked. That happens when you changed your password on another device, when you or an administrator signed this device out, or when your account was blocked. Your username is already filled in; sign in again to continue. Changes that were still waiting are sent after that.</p>
+<p>If the sign-in window appears by itself and the top right says <x-ui k="sync.signInNeeded"></x-ui>, your session on this device has been revoked. That happens when you changed your password on another device, when you or an administrator signed this device out, or when your account was blocked. Your username is already filled in; sign in again to continue. Changes that were still waiting are sent after that.</p>
 
 <h2>A different account on the same device</h2>
 <p>If someone else signs in on a device that still holds your data, the app first asks for confirmation and then erases your local copy. That way one person's tasks never end up with another.</p>

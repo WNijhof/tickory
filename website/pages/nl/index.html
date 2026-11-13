@@ -10,7 +10,7 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
       <a class="button button-primary" href="{{root}}demo/?lang=nl">Probeer de demo</a>
       <a class="button" href="#installeren">Zelf installeren</a>
     </div>
-    <p class="small">Vrije software (AGPL-3.0) · één Docker-container · geen account bij een ander nodig</p>
+    <p class="small">Vrije software (AGPL-3.0) · één Docker-container · geen account bij een ander nodig · de app in het Nederlands of het Engels</p>
   </div>
   <div class="hero-art">
     <x-shot name="project" class="first" alt="Tickory op een computer: het gedeelde project Huishouden met de secties Boodschappen, Klusjes en Vaste prik, subtaken, en taken die aan Bram en Sanne zijn toegewezen."></x-shot>
@@ -61,7 +61,7 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
   <div class="feature">
     <div class="feature-text">
       <h3>Vandaag en Binnenkort</h3>
-      <p><strong>Vandaag</strong> laat zien wat vandaag moet en wat te laat is, uit al je projecten bij elkaar. <strong>Binnenkort</strong> toont de komende twee weken, dag voor dag.</p>
+      <p><x-ui k="nav.today"></x-ui> laat zien wat vandaag moet en wat te laat is, uit al je projecten bij elkaar. <x-ui k="nav.upcoming"></x-ui> toont de komende twee weken, dag voor dag.</p>
       <p>Een terugkerende taak die je afvinkt, schuift door naar de volgende keer. Afvinken maak je met één klik ongedaan.</p>
       <a class="more" href="handleiding/projecten.html#vandaag-en-binnenkort">Meer over de overzichten</a>
     </div>
@@ -84,15 +84,25 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
       <p>Klik op een taak voor de details: beschrijving, datum, deadline, prioriteit, labels, project en sectie, en subtaken. In het datumveld typ je dezelfde gewone taal als bij het toevoegen.</p>
       <a class="more" href="handleiding/projecten.html">Projecten, secties en subtaken</a>
     </div>
-    <x-shot name="taak-bewerken" alt="Het venster Taak bewerken voor de taak Boodschappen doen, met velden voor beschrijving, datum, deadline, prioriteit, toegewezen aan, labels, project en sectie, en een veld om een subtaak toe te voegen."></x-shot>
+    <x-shot name="taak-bewerken" alt="Het venster Taak bewerken voor de taak Boodschappen doen, met velden voor beschrijving, datum, deadline, prioriteit, toegewezen aan, labels, project en sectie, het deel Herinneringen met één herinnering, en een veld om een subtaak toe te voegen."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Herinneringen die afgaan</h3>
+      <p>Een taak met een tijd krijgt vanzelf een herinnering, standaard 30 minuten vooraf. Je kunt er zelf bij zetten, in het venster van de taak of in de regel zelf: <code>Tandarts bellen morgen om 9 uur !30m</code>.</p>
+      <p>De melding komt in je browser (via HTTPS) of in de Android-app, met knoppen om de taak af te vinken of tien minuten uit te stellen. Herinneringen zijn persoonlijk, ook in een gedeeld project.</p>
+      <a class="more" href="handleiding/herinneringen.html">Alles over herinneringen</a>
+    </div>
+    <x-shot name="herinneringen" alt="Het deel Herinneringen in het venster van een taak: drie herinneringen (1 dag vooraf, op een vast tijdstip, 30 minuten vooraf), elk met het moment waarop ze afgaan, en een keuzelijst om er een toe te voegen."></x-shot>
   </div>
 
   <div class="feature">
     <div class="feature-text">
       <h3>Op je telefoon, ook zonder bereik</h3>
       <p>Tickory is een web-app die je op je telefoon en computer als app installeert. Zonder verbinding opent hij gewoon en kun je taken toevoegen en afvinken; zodra er weer verbinding is, gaat alles naar de server.</p>
-      <p>Daarvoor moet je server via HTTPS bereikbaar zijn. Een Android-app (APK) is in ontwikkeling.</p>
-      <a class="more" href="handleiding/installeren-als-app.html">Installeren als app</a>
+      <p>Daarvoor moet je server via HTTPS bereikbaar zijn. Voor Android komt er ook een eigen app (APK) die je herinneringen als alarm op de telefoon zet, zonder diensten van Google; de eerste versie komt met de eerstvolgende release.</p>
+      <a class="more" href="handleiding/installeren-als-app.html">Installeren als app</a> · <a class="more" href="handleiding/android-app.html">De Android-app</a>
     </div>
     <div class="feature-pair">
       <x-shot name="telefoon-project" alt="Het project Huishouden op een telefoon, met secties en subtaken onder elkaar."></x-shot>
@@ -145,21 +155,20 @@ docker compose ps          # na enkele seconden: (healthy)</code></pre>
 
 <section class="wrap" aria-labelledby="niet">
   <h2 id="niet">Wat het (nog) niet kan</h2>
-  <p class="section-lead">Tickory is jong (versie {{version}}). De kern werkt en is getest, maar veel van wat je van grote takenapps kent, ontbreekt nog. Liever eerlijk vooraf dan een teleurstelling achteraf.</p>
+  <p class="section-lead">Tickory is jong. De kern werkt en is getest, maar veel van wat je van grote takenapps kent, ontbreekt nog. Liever eerlijk vooraf dan een teleurstelling achteraf.</p>
   <div class="limits">
     <div>
-      <h3>In ontwikkeling</h3>
+      <h3>Komt eraan</h3>
       <ul>
-        <li><strong>Herinneringen met een melding.</strong> De server kan ze al opslaan, maar de app heeft er nog geen scherm voor en er wordt nergens een melding verstuurd. <a href="handleiding/herinneringen.html">Stand van zaken</a></li>
-        <li><strong>Een Android-app (APK).</strong> Tot die er is, gebruik je de web-app in de browser van je telefoon. <a href="handleiding/android-app.html">Stand van zaken</a></li>
-        <li><strong>Een Engelse interface.</strong> De app is nu alleen Nederlands, ook de datumtaal.</li>
+        <li><strong>De Android-app (APK).</strong> Gebouwd en op de computer getest, maar er is nog geen uitgebrachte APK: de eerste komt met de eerstvolgende versie, en de maker heeft hem nog niet op een echte telefoon geprobeerd. Tot dan gebruik je de web-app in de browser van je telefoon. <a href="handleiding/android-app.html">Stand van zaken</a></li>
+        <li><strong>Filters en zoeken.</strong> De filtertaal en het zoeken zijn gebouwd, maar er zijn nog geen schermen voor: je kunt ze dus nog niet gebruiken.</li>
+        <li><strong>Datumtaal in het Engels.</strong> De app zelf is tweetalig (Nederlands en Engels), maar wat je intypt (<code>morgen om 9 uur</code>, <code>elke maandag</code>) wordt voorlopig alleen in het Nederlands herkend.</li>
       </ul>
     </div>
     <div>
       <h3>Staat op de server, nog niet in de app</h3>
       <ul>
         <li>Opmerkingen bij taken en projecten</li>
-        <li>Filters (opgeslagen zoekopdrachten)</li>
         <li>Subprojecten, favorieten, archiveren van projecten en secties</li>
         <li>De duur van een taak, en een bord- of kalenderweergave</li>
       </ul>
@@ -168,7 +177,6 @@ docker compose ps          # na enkele seconden: (healthy)</code></pre>
       <h3>Ontbreekt helemaal</h3>
       <ul>
         <li>De volgorde van taken wijzigen (slepen): een nieuwe taak komt altijd achteraan</li>
-        <li>Zoeken</li>
         <li>Labels beheren: hernoemen, verwijderen, op een label filteren</li>
         <li>Bijlagen, import en export, een iCal-feed, sneltoetsen, widgets, statistieken, sjablonen</li>
         <li>Uitnodigen via een link of e-mail, en een project overdragen aan een andere eigenaar</li>

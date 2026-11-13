@@ -3,9 +3,9 @@ title: Taken toevoegen
 description: Snel taken toevoegen in Tickory: typ één regel met #project, /sectie, @label, p1 tot p4, een {deadline} en een datum in gewoon Nederlands.
 -->
 <h1>Taken toevoegen</h1>
-<p class="intro">Bovenaan elk scherm staat één invoerveld. Typ een regel, druk op Enter, en de taak staat erin: met datum, project, sectie, labels en prioriteit als je die erbij typt.</p>
+<p class="intro">Bovenaan elk scherm staat één invoerveld. Typ een regel, druk op Enter, en de taak staat erin: met datum, project, sectie, labels, prioriteit en herinneringen als je die erbij typt.</p>
 
-<x-shot name="snel-toevoegen" alt="Het invoerveld met de regel 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1'. Eronder staat wat er herkend is: de naam Loodgieter bellen, morgen 09:00, de sectie Klusjes, het label bellen en prioriteit P1.">Onder het veld zie je tijdens het typen wat er herkend is. Wat daar niet staat, blijft gewoon in de naam van de taak.</x-shot>
+<x-shot name="snel-toevoegen" alt="Het invoerveld met de regel 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u'. Eronder staat wat er herkend is: de naam Loodgieter bellen, morgen 09:00, de sectie Klusjes, het label bellen, prioriteit P1 en een herinnering van een uur vooraf.">Onder het veld zie je tijdens het typen wat er herkend is. Wat daar niet staat, blijft gewoon in de naam van de taak.</x-shot>
 
 <h2>De tekens in één oogopslag</h2>
 <div class="table-wrap">
@@ -20,6 +20,7 @@ description: Snel taken toevoegen in Tickory: typ één regel met #project, /sec
       <tr><td><code>p1</code> tot <code>p4</code></td><td class="wrap-ok">De prioriteit; 1 is de hoogste. Je mag ook <code>!!1</code> tot <code>!!4</code> typen.</td></tr>
       <tr><td><code>{vrijdag}</code></td><td class="wrap-ok">Een deadline: de uiterste dag, los van de datum waarop je eraan wilt werken.</td></tr>
       <tr><td><code>morgen om 9 uur</code></td><td class="wrap-ok">Een datum of herhaling in gewone taal. Zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>.</td></tr>
+      <tr><td><code>!30m</code></td><td class="wrap-ok">Een herinnering: 30 minuten vooraf. Ook <code>!1u</code>, <code>!2d</code> en <code>!0</code> (op het tijdstip zelf), of in gewone taal tussen haakjes. Zie <a href="herinneringen.html#snel-toevoegen-met">Herinneringen</a>.</td></tr>
       <tr><td><code>~</code></td><td class="wrap-ok">Zet de datumherkenning uit, voor als een woord toevallig op een datum lijkt.</td></tr>
     </tbody>
   </table>
@@ -37,6 +38,10 @@ description: Snel taken toevoegen in Tickory: typ één regel met #project, /sec
       <tr>
         <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-project="Thuis" data-section="Keuken" data-labels="bellen" data-prio="1">Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1</code></td>
         <td class="wrap-ok">“Tandarts bellen”, woensdag 18 november om 9:00, in Thuis / Keuken, label bellen, prioriteit 1</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Huur betalen" data-date="2026-12-31" data-prio="1">Huur betalen 31-12 p1</code></td>
+        <td class="wrap-ok">“Huur betalen”, 31 december, prioriteit 1 (dit is ook het voorbeeld in het invoerveld van de Engelse interface)</td>
       </tr>
       <tr>
         <td class="wrap-ok"><code class="ex-quick" data-title="Aangifte doen" data-date="" data-deadline="2026-12-31" data-prio="2" data-project="Inbox">Aangifte doen {31-12} !!2</code></td>
@@ -65,8 +70,8 @@ description: Snel taken toevoegen in Tickory: typ één regel met #project, /sec
 <h2>Waar de taak terechtkomt</h2>
 <ul>
   <li>Sta je in een <strong>project</strong>, dan komt de taak in dat project.</li>
-  <li>Sta je in <strong>Vandaag</strong>, dan komt de taak in je Inbox en krijgt ze de datum van vandaag, tenzij je zelf een andere datum typt.</li>
-  <li>Sta je in <strong>Binnenkort</strong>, dan komt de taak in je Inbox, zonder datum als je er geen typt.</li>
+  <li>Sta je in <x-ui k="nav.today"></x-ui>, dan komt de taak in je Inbox en krijgt ze de datum van vandaag, tenzij je zelf een andere datum typt.</li>
+  <li>Sta je in <x-ui k="nav.upcoming"></x-ui>, dan komt de taak in je Inbox, zonder datum als je er geen typt.</li>
   <li>Met <code>#project</code> kies je altijd zelf een ander project.</li>
 </ul>
 <p>Een nieuwe taak komt onderaan de lijst. De volgorde van taken wijzigen kan nog niet.</p>
@@ -87,6 +92,9 @@ description: Snel taken toevoegen in Tickory: typ één regel met #project, /sec
 
 <h3>Deadline: { }</h3>
 <p>Een taak heeft een <strong>datum</strong> (wanneer wil je eraan werken) en kan daarnaast een <strong>deadline</strong> hebben (wanneer moet het uiterlijk af zijn). De deadline zet je tussen accolades: <code>{31-12}</code>, <code>{vrijdag}</code>, <code>{voor Sinterklaas}</code>. Tussen de accolades zet je één dag: een herhaling kan daar niet, en een tijdstip telt niet mee.</p>
+
+<h3>Herinnering: !</h3>
+<p>Een uitroepteken met een aantal minuten, uren of dagen vooraf geeft de taak een herinnering: <code>!30m</code>, <code>!1u</code>, <code>!2d</code>; <code>!0</code> is op het tijdstip zelf. Dat werkt bij een taak met een tijd. Zet je geen herinnering in de regel, dan krijgt een taak met een tijd vanzelf de automatische herinnering (standaard 30 minuten vooraf). Alles daarover staat bij <a href="herinneringen.html">Herinneringen</a>.</p>
 
 <h3>Datumherkenning uitzetten: ~</h3>
 <p>Soms lijkt een woord op een datum terwijl het dat niet is. Typ dan een <code>~</code>:</p>

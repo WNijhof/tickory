@@ -1,20 +1,20 @@
 <!--
 title: The to-do list you host yourself
-description: Tickory is a to-do app you host yourself, for you, your family or a small team. Your data stays at home, it works offline, and it understands dates in plain Dutch.
+description: Tickory is a to-do app you host yourself, for you, your family or a small team. Your data stays at home, it works offline, and the app is available in English and Dutch.
 -->
 <section class="wrap hero">
   <div>
     <h1>The to-do list you host yourself</h1>
-    <p class="lead">Tickory is a to-do app for you, your family or a small team, running on your own server. Your data stays at home, the app keeps working without a connection, and you type a date the way you would say it.</p>
+    <p class="lead">Tickory is a to-do app for you, your family or a small team, running on your own server. Your data stays at home, the app keeps working without a connection, and it reminds you when a task is due.</p>
     <div class="buttons">
       <a class="button button-primary" href="{{root}}demo/?lang=en">Try the demo</a>
       <a class="button" href="#install">Install it yourself</a>
     </div>
-    <p class="small">Free software (AGPL-3.0) · one Docker container · no account with anyone else · the app itself is in Dutch for now</p>
+    <p class="small">Free software (AGPL-3.0) · one Docker container · no account with anyone else · the app in English or Dutch</p>
   </div>
   <div class="hero-art">
     <x-shot name="project" class="first" alt="Tickory on a computer: the shared project Huishouden (household) with the sections Boodschappen, Klusjes and Vaste prik, subtasks, and tasks assigned to Bram and Sanne."></x-shot>
-    <x-shot name="telefoon-vandaag" class="first" alt="Tickory on a phone: the Vandaag (today) view with two overdue tasks and three tasks for today."></x-shot>
+    <x-shot name="telefoon-vandaag" class="first" alt="Tickory on a phone: the Today view with two overdue tasks and three tasks for today."></x-shot>
   </div>
 </section>
 
@@ -46,26 +46,26 @@ description: Tickory is a to-do app you host yourself, for you, your family or a
 
 <section class="wrap" aria-labelledby="features">
   <h2 id="features">What you do with it</h2>
-  <p class="section-lead">All screenshots below come from the app itself, with the sample data of the <a href="{{root}}demo/?lang=en">demo</a>. The app is in Dutch for now; an English interface is in development.</p>
+  <p class="section-lead">All screenshots below come from the app itself, in English, with the sample data of the <a href="{{root}}demo/?lang=en">demo</a>. The sample household is Dutch, so its names are too.</p>
 
   <div class="feature">
     <div class="feature-text">
       <h3>Type it the way you say it</h3>
-      <p>One line is enough. <code>Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1</code> (“call the plumber tomorrow at 9”) becomes a task for tomorrow 9:00, in the section Klusjes, with the label bellen and the highest priority. Below the field you see right away what was recognised.</p>
-      <p>Dates and recurrences are written in plain Dutch: <code>over twee weken</code> (in two weeks), <code>voor Sinterklaas</code> (before 5 December), <code>elke tweede dinsdag</code> (every second Tuesday), <code>elke werkdag om 8:30</code> (every weekday at 8:30).</p>
+      <p>One line is enough. <code>Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u</code> (“call the plumber tomorrow at 9”) becomes a task for tomorrow 9:00, in the section Klusjes, with the label bellen, the highest priority and a reminder an hour before. Below the field you see right away what was recognised.</p>
+      <p>The app is available in English and Dutch, but the dates and recurrences you type are recognised in Dutch for now: <code>over twee weken</code> (in two weeks), <code>voor Sinterklaas</code> (before 5 December), <code>elke tweede dinsdag</code> (every second Tuesday). Dates like <code>31-12</code>, <code>31-12-2026</code> and <code>2026-12-31T14:30</code> work in any language.</p>
       <a class="more" href="guide/dates-and-recurrence.html">All dates and recurrences</a>
     </div>
-    <x-shot name="snel-toevoegen" alt="The input field with the line 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1'. Below it, what was recognised: the name Loodgieter bellen, tomorrow 09:00, the section Klusjes, the label bellen and priority P1."></x-shot>
+    <x-shot name="snel-toevoegen" alt="The input field with the line 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u'. Below it, what was recognised: the name Loodgieter bellen, tomorrow 09:00, the section Klusjes, the label bellen, priority P1 and a reminder of one hour before."></x-shot>
   </div>
 
   <div class="feature">
     <div class="feature-text">
       <h3>Today and Upcoming</h3>
-      <p><strong>Vandaag</strong> (today) shows what is due today and what is overdue, from all your projects together. <strong>Binnenkort</strong> (upcoming) shows the next two weeks, day by day.</p>
+      <p><x-ui k="nav.today"></x-ui> shows what is due today and what is overdue, from all your projects together. <x-ui k="nav.upcoming"></x-ui> shows the next two weeks, day by day.</p>
       <p>A recurring task you tick off moves on to its next date. Ticking off can be undone with one click.</p>
       <a class="more" href="guide/projects.html#today-and-upcoming">More about the views</a>
     </div>
-    <x-shot name="binnenkort" alt="The Binnenkort (upcoming) view: tasks from tomorrow through next week, grouped by day, each with its project and who is doing it."></x-shot>
+    <x-shot name="binnenkort" alt="The Upcoming view: tasks from tomorrow through next week, grouped by day, each with its project and who is doing it."></x-shot>
   </div>
 
   <div class="feature">
@@ -75,35 +75,45 @@ description: Tickory is a to-do app you host yourself, for you, your family or a
       <p>Assign a task to whoever is going to do it. Your Inbox and your labels remain yours alone.</p>
       <a class="more" href="guide/sharing.html">Sharing and working together</a>
     </div>
-    <x-shot name="delen" alt="The Delen (share) window of the project Huishouden: Anna is the owner, Bram and Sanne are members, and there is a field to add someone by username."></x-shot>
+    <x-shot name="delen" alt="The Share window of the project Huishouden: Anna is the owner, Bram and Sanne are members, and there is a field to add someone by username."></x-shot>
   </div>
 
   <div class="feature">
     <div class="feature-text">
       <h3>Everything about a task in one place</h3>
-      <p>Click a task for its details: description, date, deadline, priority, labels, project and section, and subtasks. In the date field you type the same plain language as when adding a task.</p>
+      <p>Click a task for its details: description, due date, deadline, priority, labels, project and section, reminders, and subtasks. In the date field you type the same as when adding a task.</p>
       <a class="more" href="guide/projects.html">Projects, sections and subtasks</a>
     </div>
-    <x-shot name="taak-bewerken" alt="The Taak bewerken (edit task) window for the task Boodschappen doen, with fields for description, date, deadline, priority, assignee, labels, project and section, and a field to add a subtask."></x-shot>
+    <x-shot name="taak-bewerken" alt="The Edit task window for the task Boodschappen doen, with fields for description, due date, deadline, priority, assigned to, labels, project and section, the Reminders part with one reminder, and a field to add a subtask."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Reminders that go off</h3>
+      <p>A task with a time gets a reminder by itself, 30 minutes before by default. You can add your own in the task window or in the line itself: <code>Tandarts bellen morgen om 9 uur !30m</code>.</p>
+      <p>The notification arrives in your browser (over HTTPS) or in the Android app, with buttons to tick the task off or postpone it ten minutes. Reminders are personal, also in a shared project.</p>
+      <a class="more" href="guide/reminders.html">All about reminders</a>
+    </div>
+    <x-shot name="herinneringen" alt="The Reminders part of a task window: three reminders (1 day before, at a set time, 30 minutes before), each with the moment it goes off, and a drop-down list to add one."></x-shot>
   </div>
 
   <div class="feature">
     <div class="feature-text">
       <h3>On your phone, even without signal</h3>
       <p>Tickory is a web app that you install as an app on your phone and computer. Without a connection it still opens and you can add and tick off tasks; as soon as the connection is back, everything goes to the server.</p>
-      <p>For that, your server has to be reachable over HTTPS. An Android app (APK) is in development.</p>
-      <a class="more" href="guide/install-as-app.html">Install as an app</a>
+      <p>For that, your server has to be reachable over HTTPS. For Android there will also be an app of its own (APK) that sets your reminders as alarms on the phone, without Google services; the first version comes with the next release.</p>
+      <a class="more" href="guide/install-as-app.html">Install as an app</a> · <a class="more" href="guide/android-app.html">The Android app</a>
     </div>
     <div class="feature-pair">
       <x-shot name="telefoon-project" alt="The project Huishouden on a phone, with sections and subtasks below each other."></x-shot>
-      <x-shot name="telefoon-menu" alt="The slide-out menu on a phone with Vandaag, Binnenkort and the projects Inbox, Huishouden, Vakantie Texel and Buurtfeest."></x-shot>
+      <x-shot name="telefoon-menu" alt="The slide-out menu on a phone with Today, Upcoming and the projects Inbox, Huishouden, Vakantie Texel and Buurtfeest."></x-shot>
     </div>
   </div>
 
   <div class="band">
     <div>
       <h3>Try it in your browser first</h3>
-      <p>The demo is the real app with the sample data of a Dutch household. There is no server and no account: everything happens in your browser, and reloading starts over. The app is in Dutch; the bar at the top has a few things to try.</p>
+      <p>The demo is the real app with the sample data of a Dutch household; from this page it opens in English. There is no server and no account: everything happens in your browser, and reloading starts over. The bar at the top has a few things to try. Notifications only come from your own server, so the demo does not send any.</p>
     </div>
     <a class="button button-primary" href="{{root}}demo/?lang=en">Try the demo</a>
   </div>
@@ -145,21 +155,20 @@ docker compose ps          # after a few seconds: (healthy)</code></pre>
 
 <section class="wrap" aria-labelledby="not">
   <h2 id="not">What it cannot do (yet)</h2>
-  <p class="section-lead">Tickory is young (version {{version}}). The core works and is tested, but much of what you know from the big to-do apps is still missing. Better to be honest up front than to disappoint you later.</p>
+  <p class="section-lead">Tickory is young. The core works and is tested, but much of what you know from the big to-do apps is still missing. Better to be honest up front than to disappoint you later.</p>
   <div class="limits">
     <div>
-      <h3>In development</h3>
+      <h3>Coming</h3>
       <ul>
-        <li><strong>Reminders with a notification.</strong> The server can already store them, but the app has no screen for them yet and no notification is sent anywhere. <a href="guide/reminders.html">Current state</a></li>
-        <li><strong>An Android app (APK).</strong> Until it exists, you use the web app in your phone's browser. <a href="guide/android-app.html">Current state</a></li>
-        <li><strong>An English interface.</strong> The app is Dutch only for now, including the date language.</li>
+        <li><strong>The Android app (APK).</strong> Built and tested on a computer, but there is no released APK yet: the first one comes with the next version, and the maker has not yet tried it on a real phone. Until then you use the web app in your phone's browser. <a href="guide/android-app.html">Current state</a></li>
+        <li><strong>Filters and search.</strong> The filter language and the search are built, but there are no screens for them yet, so you cannot use them yet.</li>
+        <li><strong>Date language in English.</strong> The app itself is bilingual (English and Dutch), but what you type (<code>morgen om 9 uur</code>, <code>elke maandag</code>) is recognised in Dutch only for now.</li>
       </ul>
     </div>
     <div>
       <h3>On the server, not yet in the app</h3>
       <ul>
         <li>Comments on tasks and projects</li>
-        <li>Filters (saved searches)</li>
         <li>Sub-projects, favourites, archiving projects and sections</li>
         <li>The duration of a task, and a board or calendar view</li>
       </ul>
@@ -168,7 +177,6 @@ docker compose ps          # after a few seconds: (healthy)</code></pre>
       <h3>Missing entirely</h3>
       <ul>
         <li>Changing the order of tasks (dragging): a new task always goes to the end</li>
-        <li>Search</li>
         <li>Managing labels: renaming, deleting, filtering by label</li>
         <li>Attachments, import and export, an iCal feed, keyboard shortcuts, widgets, statistics, templates</li>
         <li>Inviting by link or e-mail, and handing a project over to another owner</li>

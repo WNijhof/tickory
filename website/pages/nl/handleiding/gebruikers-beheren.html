@@ -15,23 +15,23 @@ description: Accounts beheren in Tickory: in de app onder Gebruikersbeheer, of v
 </ul>
 
 <h2>In de app</h2>
-<p>Klik onderaan de zijbalk op je naam, kies <strong>Account, wachtwoord en apparaten</strong> en dan <strong>Gebruikersbeheer</strong>. Die knop staat er alleen als je beheerder bent.</p>
+<p>Klik onderaan de zijbalk op je naam, kies <x-ui k="settings.account"></x-ui> en dan <x-ui k="admin.title"></x-ui>. Die knop staat er alleen als je beheerder bent.</p>
 <x-shot name="gebruikersbeheer" alt="Het venster Gebruikersbeheer met de lijst Accounts: Anna (beheerder), Bram, Joost, Opa Kees, Mila en Sanne, elk met een knop Beheren. Daaronder het inklapbare deel Nieuw account.">Gebruikersbeheer: alle accounts op de server, en daaronder het formulier voor een nieuw account.</x-shot>
 
 <h3>Een account aanmaken</h3>
 <ol>
-  <li>Klap <strong>Nieuw account</strong> open.</li>
-  <li>Vul een gebruikersnaam, een naam en een beginwachtwoord in. Vink <strong>Beheerder</strong> aan als dit account ook accounts mag beheren.</li>
-  <li>Kies <strong>Account aanmaken</strong> en geef de gebruikersnaam en het beginwachtwoord door aan de persoon. Die kan het wachtwoord daarna zelf wijzigen.</li>
+  <li>Klap <x-ui k="admin.newAccount"></x-ui> open.</li>
+  <li>Vul een gebruikersnaam, een naam en een beginwachtwoord in. Vink <x-ui k="admin.isAdmin"></x-ui> aan als dit account ook accounts mag beheren.</li>
+  <li>Kies <x-ui k="admin.createAccount"></x-ui> en geef de gebruikersnaam en het beginwachtwoord door aan de persoon. Die kan het wachtwoord daarna zelf wijzigen.</li>
 </ol>
 
 <h3>Een account beheren</h3>
-<p>Kies <strong>Beheren</strong> achter een account:</p>
+<p>Kies <x-ui k="admin.manage"></x-ui> achter een account:</p>
 <dl>
   <dt>Wachtwoord herstellen</dt>
   <dd>Je stelt een nieuw wachtwoord in. De persoon wordt op alle apparaten afgemeld en logt opnieuw in met het nieuwe wachtwoord.</dd>
   <dt>Account blokkeren</dt>
-  <dd>De persoon kan niet meer inloggen en is direct overal afgemeld. De gegevens blijven bewaard, en taken in gedeelde projecten blijven staan. Met <strong>Account weer activeren</strong> draai je het terug.</dd>
+  <dd>De persoon kan niet meer inloggen en is direct overal afgemeld. De gegevens blijven bewaard, en taken in gedeelde projecten blijven staan. Zijn apparaten bij meldingen aangemeld, dan krijgen die er geen meer. Met <x-ui k="admin.unblock"></x-ui> draai je het terug.</dd>
   <dt>Beheerder maken of Beheerdersrechten afnemen</dt>
   <dd>Maakt van een gewone gebruiker een beheerder, of andersom.</dd>
 </dl>

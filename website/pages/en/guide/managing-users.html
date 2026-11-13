@@ -1,6 +1,6 @@
 <!--
 title: Managing users
-description: Managing accounts in Tickory: in the app under Gebruikersbeheer, or from the server with user add, passwd, list, disable and enable. Rules for names and passwords.
+description: Managing accounts in Tickory: in the app under User management, or from the server with user add, passwd, list, disable and enable. Rules for names and passwords.
 -->
 <h1>Managing users</h1>
 <p class="intro">An administrator creates the accounts and resets passwords. That can be done in the app, and also from the server when you can no longer get into the app.</p>
@@ -15,24 +15,24 @@ description: Managing accounts in Tickory: in the app under Gebruikersbeheer, or
 </ul>
 
 <h2>In the app</h2>
-<p>Click your name at the bottom of the sidebar, choose <strong>Account, wachtwoord en apparaten</strong> and then <strong>Gebruikersbeheer</strong> (user management). That button is only there when you are an administrator.</p>
-<x-shot name="gebruikersbeheer" alt="The Gebruikersbeheer (user management) window with the list Accounts: Anna (beheerder, administrator), Bram, Joost, Opa Kees, Mila and Sanne, each with a Beheren (manage) button. Below it the collapsible part Nieuw account (new account).">User management: all accounts on the server, and below them the form for a new account.</x-shot>
+<p>Click your name at the bottom of the sidebar, choose <x-ui k="settings.account"></x-ui> and then <x-ui k="admin.title"></x-ui>. That button is only there when you are an administrator.</p>
+<x-shot name="gebruikersbeheer" alt="The User management window with the list Accounts: Anna (admin), Bram, Joost, Opa Kees, Mila and Sanne, each with a Manage button. Below it the collapsible part New account.">User management: all accounts on the server, and below them the form for a new account.</x-shot>
 
 <h3>Creating an account</h3>
 <ol>
-  <li>Open <strong>Nieuw account</strong> (new account).</li>
-  <li>Fill in a username (Gebruikersnaam), a name (Naam) and an initial password (Beginwachtwoord). Tick <strong>Beheerder</strong> if this account may manage accounts as well.</li>
-  <li>Choose <strong>Account aanmaken</strong> (create account) and pass the username and the initial password on to the person. They can change the password themselves afterwards.</li>
+  <li>Open <x-ui k="admin.newAccount"></x-ui>.</li>
+  <li>Fill in a username, a name and an initial password. Tick <x-ui k="admin.isAdmin"></x-ui> if this account may manage accounts as well.</li>
+  <li>Choose <x-ui k="admin.createAccount"></x-ui> and pass the username and the initial password on to the person. They can change the password themselves afterwards.</li>
 </ol>
 
 <h3>Managing an account</h3>
-<p>Choose <strong>Beheren</strong> (manage) next to an account:</p>
+<p>Choose <x-ui k="admin.manage"></x-ui> next to an account:</p>
 <dl>
-  <dt>Wachtwoord herstellen (reset password)</dt>
+  <dt><x-ui k="admin.resetPassword"></x-ui></dt>
   <dd>You set a new password. The person is signed out on all devices and signs in again with the new password.</dd>
-  <dt>Account blokkeren (block account)</dt>
-  <dd>The person can no longer sign in and is signed out everywhere immediately. The data is kept, and tasks in shared projects stay. <strong>Account weer activeren</strong> (reactivate account) reverses it.</dd>
-  <dt>Beheerder maken or Beheerdersrechten afnemen (make administrator, or take away administrator rights)</dt>
+  <dt><x-ui k="admin.block"></x-ui></dt>
+  <dd>The person can no longer sign in and is signed out everywhere immediately. The data is kept, and tasks in shared projects stay. Devices registered for notifications get no more. <x-ui k="admin.unblock"></x-ui> reverses it.</dd>
+  <dt><x-ui k="admin.makeAdmin"></x-ui> or <x-ui k="admin.revokeAdmin"></x-ui></dt>
   <dd>Turns an ordinary user into an administrator, or the other way round.</dd>
 </dl>
 <p>You cannot block yourself or take away your own administrator rights. Deleting an account completely is not possible either; blocking is the alternative.</p>
@@ -51,7 +51,7 @@ docker compose exec tickory node server/main.ts user logout-all anna</code></pre
       <tr><th>Command</th><th>What it does</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>user list</code></td><td class="wrap-ok">Shows all accounts: username, name, administrator (beheerder) or user (gebruiker), and whether the account is blocked (geblokkeerd).</td></tr>
+      <tr><td><code>user list</code></td><td class="wrap-ok">Shows all accounts: username, name, administrator or user (the command prints these as <code>beheerder</code> and <code>gebruiker</code>), and whether the account is blocked (<code>geblokkeerd</code>).</td></tr>
       <tr><td><code>user add &lt;name&gt;</code></td><td class="wrap-ok">Creates an account. With <code>--name "Full name"</code> you give the name others see, with <code>--admin</code> you create an administrator.</td></tr>
       <tr><td><code>user passwd &lt;name&gt;</code></td><td class="wrap-ok">Sets a new password and signs out all devices of that user.</td></tr>
       <tr><td><code>user disable &lt;name&gt;</code></td><td class="wrap-ok">Blocks the account and signs it out everywhere.</td></tr>

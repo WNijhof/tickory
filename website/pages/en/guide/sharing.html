@@ -5,19 +5,19 @@ description: Sharing a project in Tickory: adding someone by username, the diffe
 <h1>Sharing and working together</h1>
 <p class="intro">Working together happens per project. You share a project with other people on the same server; after that everyone works in the same tasks and sections.</p>
 
-<x-shot name="delen" alt="The Delen (share) window of the project Huishouden: Anna is the owner, Bram and Sanne are members and have a Verwijderen (remove) button, and at the bottom there is a field for a username.">The share window. The owner sees the field to add someone, and next to each member the button to remove that person from the project.</x-shot>
+<x-shot name="delen" alt="The Share window of the project Huishouden: Anna is the owner, Bram and Sanne are members and have a Remove button, and at the bottom there is a field for a username.">The share window. The owner sees the field to add someone, and next to each member the button to remove that person from the project.</x-shot>
 
 <h2>Sharing a project</h2>
 <ol>
-  <li>Open the project and choose <strong>Delen</strong> (share). For a project that is already shared, the button is called <strong>Gedeeld</strong> (shared).</li>
-  <li>Type the <strong>username</strong> (gebruikersnaam) of the other person and choose <strong>Delen</strong>. That person needs an account on the same Tickory server. Capitals do not matter.</li>
-  <li>The person is listed as a <strong>member</strong> (lid) right away, and sees the project with everything in it, including what was already there. There is no invitation that has to be accepted first.</li>
+  <li>Open the project and choose <x-ui k="project.share"></x-ui>. For a project that is already shared, the button is called <x-ui k="project.shared"></x-ui>.</li>
+  <li>Type the <strong>username</strong> of the other person and choose <x-ui k="project.share"></x-ui>. That person needs an account on the same Tickory server. Capitals do not matter.</li>
+  <li>The person is listed as a <strong>member</strong> right away, and sees the project with everything in it, including what was already there. There is no invitation that has to be accepted first.</li>
 </ol>
-<p>If the username does not exist, or that account is blocked, you get the message “Deze gebruiker bestaat niet” (this user does not exist). Inviting by link or by e-mail is not possible; someone without an account first needs one from an <a href="managing-users.html">administrator</a>.</p>
+<p>If the username does not exist, or that account is blocked, you get the message “Couldn't share the project. There's no user with that username.” Inviting by link or by e-mail is not possible; someone without an account first needs one from an <a href="managing-users.html">administrator</a>.</p>
 <p>You recognise a shared project in the sidebar by the sign with two figures. Above the tasks you see who you share it with.</p>
 
 <h2>Owner and member</h2>
-<p>Whoever created the project is the <strong>owner</strong> (eigenaar). Everyone who was added is a <strong>member</strong> (lid).</p>
+<p>Whoever created the project is the <strong>owner</strong>. Everyone who was added is a <strong>member</strong>.</p>
 <div class="table-wrap">
   <table>
     <thead>
@@ -37,14 +37,14 @@ description: Sharing a project in Tickory: adding someone by username, the diffe
 <p>An owner cannot leave the project and cannot hand over ownership: the only way out is deleting the project, and then it is gone for everyone.</p>
 
 <h2 id="assigning-tasks">Assigning tasks</h2>
-<p>Open a task in a shared project and pick one of the members under <strong>Toegewezen aan</strong> (assigned to), or <strong>(niemand)</strong> (nobody). In the list the task then shows “voor Bram” (for Bram); your own tasks show “voor jou” (for you).</p>
+<p>Open a task in a shared project and pick one of the members under <x-ui k="task.assignedTo"></x-ui>, or <x-ui k="task.nobody"></x-ui>. In the list the task then shows “for Bram”; your own tasks show “for you”.</p>
 <ul>
   <li>The field is only there when the project has at least two members.</li>
   <li>Assigning changes nothing about who may see or tick off the task: everyone in the project can.</li>
   <li>If someone leaves the project or is removed from it, the assignment lapses.</li>
   <li>If you move a task to a project that person is not a member of, the assignment lapses too.</li>
 </ul>
-<p>In <strong>Vandaag</strong> and <strong>Binnenkort</strong> you see all dated tasks from your shared projects, including those assigned to someone else.</p>
+<p>In <x-ui k="nav.today"></x-ui> and <x-ui k="nav.upcoming"></x-ui> you see all dated tasks from your shared projects, including those assigned to someone else.</p>
 
 <h2>Together in the same project</h2>
 <ul>
@@ -54,17 +54,18 @@ description: Sharing a project in Tickory: adding someone by username, the diffe
 </ul>
 
 <h2>Removing someone from the project</h2>
-<p>As the owner: open <strong>Gedeeld</strong> and choose <strong>Verwijderen</strong> (remove) next to the name. After confirmation that person no longer sees the project. The tasks stay; only the assignments to that person lapse.</p>
+<p>As the owner: open <x-ui k="project.shared"></x-ui> and choose <x-ui k="share.remove"></x-ui> next to the name. After confirmation that person no longer sees the project. The tasks stay; only the assignments to that person lapse.</p>
 
 <h2>Leaving a project</h2>
-<p>As a member: choose <strong>Project…</strong> and then <strong>Project verlaten</strong> (leave project), or open <strong>Gedeeld</strong> and choose <strong>Project verlaten</strong> there. The project disappears from your list; nothing changes for the others. You only get back in when the owner adds you again.</p>
+<p>As a member: choose <x-ui k="project.menu"></x-ui> and then <x-ui k="project.leave"></x-ui>, or open <x-ui k="project.shared"></x-ui> and choose <x-ui k="project.leave"></x-ui> there. The project disappears from your list; nothing changes for the others. You only get back in when the owner adds you again.</p>
 
 <h2 id="what-stays-personal">What stays personal</h2>
 <ul>
   <li><strong>Your Inbox.</strong> It is yours alone and cannot be shared.</li>
   <li><strong>Projects you do not share.</strong> Nobody else sees them, not even an administrator: an administrator manages accounts, not tasks.</li>
   <li><strong>Your labels.</strong> If you put a label on a task in a shared project, the others see that label on that task, but they cannot rename or delete it. They can take it off the task, or put it on another task themselves by typing the same name.</li>
-  <li><strong>Reminders and filters.</strong> These will be per person; they are not in the app yet.</li>
+  <li><strong>Reminders.</strong> You set your own reminders, also on tasks in a shared project; nobody else sees or gets them. See <a href="reminders.html#personal-and-in-shared-projects">Reminders</a>.</li>
+  <li><strong>Filters.</strong> These are personal too, but the app has no screen for them yet.</li>
 </ul>
 <p>Of the people you share a project with, you only see the name and the username.</p>
 

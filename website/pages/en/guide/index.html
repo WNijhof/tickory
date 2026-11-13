@@ -1,38 +1,34 @@
 <!--
 title: Guide
-description: The Tickory guide: for users (tasks, dates, projects, sharing, offline) and for administrators (installing, HTTPS, backup, updating).
+description: The Tickory guide: for users (tasks, dates, reminders, projects, sharing, offline, the Android app) and for administrators (installing, HTTPS, backup, updating).
 -->
 <h1>Guide</h1>
 <p class="intro">Everything about using and running Tickory. Search for a word at the top left, or pick a topic below.</p>
 
-<p>This guide belongs to version {{version}}. The app itself is in Dutch for now, so this guide gives the Dutch names of buttons and menus with a translation. Want to see how it works first? <a href="{{root}}demo/?lang=en">Try the demo</a>: the real app with sample data, without a server and without an account.</p>
+<p>This guide belongs to version {{version}} of Tickory. The app is bilingual: English and Dutch (choose the language in <x-ui k="settings.title"></x-ui>, or let it follow your browser's language). Buttons and menus are named here as they appear in the English interface. What you type (<code>morgen om 9 uur</code>) is recognised in Dutch only for now. Want to see how it works first? <a href="{{root}}demo/?lang=en">Try the demo</a>: the real app with sample data, without a server and without an account.</p>
 
 <h2>For users</h2>
 <ul class="cards">
   <li><a href="signing-in.html"><strong>Signing in</strong><span>What you need, and what to do when it does not work.</span></a></li>
-  <li><a href="adding-tasks.html"><strong>Adding tasks</strong><span>Type one line with project, section, label, priority and date.</span></a></li>
+  <li><a href="adding-tasks.html"><strong>Adding tasks</strong><span>Type one line with project, section, label, priority, date and reminder.</span></a></li>
   <li><a href="dates-and-recurrence.html"><strong>Dates and recurrences</strong><span>Every form the app understands, with examples.</span></a></li>
   <li><a href="projects.html"><strong>Projects, sections and subtasks</strong><span>Organising, editing and ticking off tasks, and the Today and Upcoming views.</span></a></li>
+  <li><a href="reminders.html"><strong>Reminders</strong><span>A notification at the moment you need to do something, in your browser or in the Android app.</span></a></li>
   <li><a href="sharing.html"><strong>Sharing and working together</strong><span>Sharing a project, assigning tasks, and what stays personal.</span></a></li>
   <li><a href="offline.html"><strong>Working offline</strong><span>What happens without a connection and when everything syncs.</span></a></li>
   <li><a href="install-as-app.html"><strong>Install as an app</strong><span>On your phone and on your computer.</span></a></li>
-  <li><a href="account.html"><strong>Account, password and devices</strong><span>Changing your password and signing devices out.</span></a></li>
+  <li><a href="android-app.html"><strong>Android app</strong><span>An app of its own with reminders as alarms on your phone. The first APK comes with the next version.</span></a></li>
+  <li><a href="account.html"><strong>Account, password and devices</strong><span>Changing your password, signing devices out and choosing the language.</span></a></li>
 </ul>
 
 <h2>For administrators</h2>
 <ul class="cards">
   <li><a href="installing.html"><strong>Installing with Docker</strong><span>Setting up the server and creating the first account.</span></a></li>
   <li><a href="managing-users.html"><strong>Managing users</strong><span>Creating and blocking accounts, and resetting passwords.</span></a></li>
-  <li><a href="https.html"><strong>HTTPS</strong><span>Needed for phones: with Tailscale, a reverse proxy or a tunnel.</span></a></li>
+  <li><a href="https.html"><strong>HTTPS</strong><span>Needed for phones and for notifications in the browser: with Tailscale, a reverse proxy or a tunnel.</span></a></li>
   <li><a href="updating.html"><strong>Updating</strong><span>Installing a new version, and upgrading from version 0.1.</span></a></li>
   <li><a href="backup.html"><strong>Backup and restore</strong><span>Making a safe copy and putting it back.</span></a></li>
   <li><a href="troubleshooting.html"><strong>Troubleshooting</strong><span>Common messages and what to do about them.</span></a></li>
 </ul>
 
-<h2>In development</h2>
-<p>These parts are not finished. The pages describe honestly what is and is not there today, and will be completed once the feature is part of a released version.</p>
-<ul class="cards">
-  <li><a href="reminders.html"><strong>Reminders</strong><span>A notification at the moment you need to do something.</span></a></li>
-  <li><a href="android-app.html"><strong>Android app</strong><span>An app (APK) for your Android phone.</span></a></li>
-</ul>
-<p>An English interface is in development as well. What else is missing is listed on the <a href="../index.html#not">home page</a>.</p>
+<p>What Tickory cannot do yet is listed on the <a href="../index.html#not">home page</a>. That is meant honestly: better to know up front than to find out later.</p>
