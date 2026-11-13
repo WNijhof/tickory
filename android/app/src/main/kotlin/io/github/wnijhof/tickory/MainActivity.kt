@@ -42,6 +42,7 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
+import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
 import io.github.wnijhof.tickory.reminders.Background
@@ -78,7 +79,8 @@ class MainActivity : ComponentActivity() {
     private var localNetworkAsked = false
 
     /** De taak uit een melding, als de app eerst nog iets moet vragen voordat hij kan laden. */
-    private var pendingTaskId: String? = null
+    /** Wat de web-app na het laden moet openen ("task=<id>" of "share=<tekst>"), tot het kan. */
+    private var pendingFragment: String? = null
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         onNotificationPermissionResult(granted)
@@ -137,21 +139,21 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val taskId = taskIdFrom(intent)
+        val fragment = fragmentFrom(intent)
         if (needsLocalNetworkPermission()) {
             // Zonder deze toestemming loopt elk verzoek naar een server op het thuisnetwerk dood: eerst vragen, dan laden.
-            pendingTaskId = taskId
+            pendingFragment = fragment
             askLocalNetworkPermission()
         } else {
-            loadStart(taskId)
+            loadStart(fragment)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val taskId = taskIdFrom(intent) ?: return
-        openTask(taskId)
+        val fragment = fragmentFrom(intent) ?: return
+        openFragment(fragment)
     }
 
     override fun onStart() {
@@ -237,32 +239,45 @@ class MainActivity : ComponentActivity() {
         view.destroy()
     }
 
-    /** Laadt de web-app, eventueel meteen bij een taak. */
-    private fun loadStart(taskId: String?) {
+    /** Laadt de web-app, eventueel meteen bij een taak of met een gedeelde tekst. */
+    private fun loadStart(fragment: String?) {
         val view = webView ?: return
-        val task = taskId ?: pendingTaskId
-        pendingTaskId = null
+        val target = fragment ?: pendingFragment
+        pendingFragment = null
         hideError()
         pageReady = false
-        view.loadUrl(if (task != null) "$origin/#task=$task" else "$origin/")
+        view.loadUrl(if (target != null) "$origin/#$target" else "$origin/")
     }
 
-    /** Opent een taak (vanuit een melding). Staat de web-app al open, dan verandert alleen het fragment van het adres. */
-    private fun openTask(taskId: String) {
+    /** Opent een taak (vanuit een melding) of een gedeelde tekst. Staat de web-app al open, dan verandert alleen het fragment van het adres. */
+    private fun openFragment(fragment: String) {
         val view = webView ?: return
         if (!pageReady || errorView.isVisible) {
-            loadStart(taskId)
+            loadStart(fragment)
             return
         }
-        // Het id bestaat alleen uit letters, cijfers, "-" en "_" (gecontroleerd in taskIdFrom), dus dit is veilig in te voegen.
+        // Het fragment bestaat alleen uit letters, cijfers, "-", "_" en "=" (gecontroleerd in fragmentFrom), dus dit is veilig in te voegen.
         // Staat hetzelfde fragment er al, dan eerst leegmaken: anders merkt de web-app geen verandering op.
-        val script = "(function(){var h='#task=$taskId';" +
+        val script = "(function(){var h='#$fragment';" +
             "if(location.hash===h){history.replaceState(null,'',location.pathname+location.search);}" +
             "location.hash=h;})();"
         view.evaluateJavascript(script, null)
     }
 
     private fun taskIdFrom(intent: Intent?): String? = intent?.getStringExtra(Notifications.EXTRA_TASK_ID)?.takeIf(Ids::isSafeId)
+
+    /**
+     * Wat deze intentie de web-app laat openen: een taak (tik op een melding) of "Delen naar Tickory" met tekst uit een
+     * andere app. Een intentie die van buiten komt kan alleen tekst meegeven; die gaat als base64url door ShareLink.
+     */
+    private fun fragmentFrom(intent: Intent?): String? {
+        taskIdFrom(intent)?.let { return "task=$it" }
+        if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return null
+        return ShareLink.fragmentFor(
+            intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT) ?: intent.getCharSequenceExtra(Intent.EXTRA_TITLE),
+            intent.getCharSequenceExtra(Intent.EXTRA_TEXT),
+        )
+    }
 
     /**
      * Hoort de pagina die nu geladen is bij de ingestelde server? De brug vraagt dit bij elke aanroep. Wordt op de
