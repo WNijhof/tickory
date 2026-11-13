@@ -1788,10 +1788,12 @@ try {
   await click('button[aria-label="Filter toevoegen"]');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw filter'`, 'tweede filter');
   await typeInto('dialog[open] input[aria-label="Naam"]', 'Per plek');
-  await typeInto('dialog[open] .filter-input', 'Thuis: #Thuis, Inbox: #Inbox & p1');
+  await typeInto('dialog[open] .filter-input', 'Thuis: #Thuis, Alles: alles');
   await submit('dialog[open] form');
   await waitFor(`document.getElementById('view-title').textContent === 'Per plek'`, 'filter met lijsten');
-  assert.deepEqual(await texts('.group-title'), ['Thuis', 'Inbox'], 'elke lijst heeft zijn eigen naam');
+  assert.deepEqual(await texts('.group-title'), ['Thuis', 'Alles'], 'elke lijst heeft zijn eigen naam');
+  assert.equal((await taskTitles()).filter((x) => x === 'Planten water geven').length, 2, 'een taak die in twee lijsten past, staat in allebei'); // een regel bestaat maar één keer: de tweede is een eigen regel
+  assert.equal(await evaluate(`[...document.querySelectorAll('.group')].map((g) => g.querySelectorAll('.task').length > 0).join()`), 'true,true');
   // een filter dat niet meer klopt (bewaard zoals getypt, bijvoorbeeld na het verwijderen van een project)
   assert.equal((await aliceSync('e2e-kapot-filter', [{ type: 'filter_add', args: { id: 'e2efilterkapot01', name: 'Kapot', query: '#Verdwenen project & vandaag' } }])).status, 200);
   await waitFor(findItem('Kapot'), 'het kapotte filter staat in de zijbalk');

@@ -373,7 +373,17 @@ test('zoeken: accenten en hoofdletters gelden ook in opmerkingen, en een view zo
   assert.deepEqual(ids(search(without, 'tuin')).length > 0, true);
 });
 
+test('zoeken: een opmerking komt na een taak waarvan de beschrijving het woord bevat, ook al past de opmerking beter', () => {
+  const v = world((put) => {
+    put('tasks', task('t-beschrijving', 'Iets anders', { description: 'de wifi hapert' }));
+    put('tasks', task('t-ouder', 'Ander werk'));
+    put('comments', comment('c-wifi', 'wifi', { task_id: 't-ouder' })); // de opmerking is precies het woord: sterkere treffer dan een beschrijving
+  });
+  assert.deepEqual(ids(search(v, 'wifi')), ['task:t-beschrijving', 'comment:c-wifi'], 'taken eerst, daarna de opmerkingen');
+});
+
 test('markSegments: stukken tekst met en zonder markering, zonder lege stukken', () => {
+  assert.deepEqual(markSegments('abc', [{ start: 1 }]), [{ text: 'abc', mark: false }], 'een markering zonder lengte telt niet');
   assert.deepEqual(markSegments('Tandarts bellen', [{ start: 0, length: 8 }]), [{ text: 'Tandarts', mark: true }, { text: ' bellen', mark: false }]);
   assert.deepEqual(markSegments('abc', []), [{ text: 'abc', mark: false }]);
   assert.deepEqual(markSegments('abc', [{ start: 0, length: 3 }]), [{ text: 'abc', mark: true }]);

@@ -159,8 +159,7 @@
   .search-box { padding-top: calc(6px + env(safe-area-inset-top)); }
   .search-close { display: inline-flex; }
   .search-input { font-size: 1rem; min-height: 48px; }
-  .search-hit { grid-template-columns: 28px minmax(0, 1fr); min-height: 52px; }
-  .search-kind { grid-column: 2; justify-self: start; }
+  .search-hit { min-height: 52px; }
   .search-keys { display: none; }
   .search-field, .find-item { min-height: 46px; }
   .search-field-key { display: none; }

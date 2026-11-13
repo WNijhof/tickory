@@ -102,6 +102,9 @@ test('errorParts: de getypte tekst rond de plek van een fout, ook aan de randen'
   // vreemde invoer geeft nooit een uitzondering
   assert.deepEqual(errorParts('abc', { position: 99, length: 5 }), { before: 'abc', bad: '', after: '' });
   assert.deepEqual(errorParts('abc', { position: -3, length: 2 }), { before: '', bad: 'ab', after: 'c' });
+  assert.deepEqual(errorParts('abcdef', { position: -2, length: 1 }), { before: '', bad: 'a', after: 'bcdef' }, 'een negatieve plek begint vooraan');
+  assert.deepEqual(errorParts('abcdef', { position: 3, length: -2 }), { before: 'abc', bad: '', after: 'def' }, 'een negatieve lengte markeert niets');
+  assert.deepEqual(errorParts('abcdef', { position: 4, length: 99 }), { before: 'abcd', bad: 'ef', after: '' });
   assert.deepEqual(errorParts(null, null), { before: '', bad: '', after: '' });
   for (const q of Object.values(CAUSES)) {
     const e = compileFilter(q, ctx(v)).error;

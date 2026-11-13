@@ -32,6 +32,7 @@ test('labelnaam: leeg, te lang, een komma of een stuurteken wordt geweigerd', ()
   assert.equal(labelNameProblem(v, ME, 'a, b'), 'invalid');
   assert.equal(labelNameProblem(v, ME, 'a\u0000b'), 'invalid');
   assert.equal(labelNameProblem(v, ME, 'a\nb'), 'invalid');
+  assert.equal(labelNameProblem(v, ME, 'e\u0301'.repeat(60)), null, 'de lengte telt na normalisatie: 60 tekens, niet 120');
   assert.equal(labelNameProblem(v, ME, '  bellen  met spaties  '), null, 'omringende spaties worden weggehaald, het is dan een gewone naam');
 });
 
@@ -68,6 +69,9 @@ test('labelnaam: meldingen in het Nederlands en het Engels, voor elke reden en e
   setLanguage('nl');
   for (const code of codes) assert.notEqual(texts.get(`nl:${code}`), texts.get(`en:${code}`), `${code}: Engels is gelijk aan Nederlands`);
   assert.equal(texts.get('nl:duplicate'), texts.get('nl:DUPLICATE'), 'dezelfde melding bij de reden en bij de code van de actie');
+  assert.equal(texts.get('nl:invalid'), texts.get('nl:INVALID_ARG'));
+  const different = ['empty', 'too_long', 'invalid', 'duplicate', 'READONLY', 'NOT_FOUND'].map((c) => texts.get(`nl:${c}`));
+  assert.equal(new Set(different).size, different.length, 'elke reden heeft een eigen melding');
   assert.match(texts.get('nl:too_long'), /100/);
   assert.equal(labelProblemText('onbekend'), labelProblemText(undefined), 'een onbekende code geeft de algemene melding');
 });
