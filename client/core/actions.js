@@ -6,6 +6,7 @@ import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
 import { settingsId } from '../../shared/schema.js';
+import { ENTITIES, validateValue } from '../../shared/schema.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -185,5 +186,42 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     },
     updateLabel: (id, changes) => send([{ type: 'label_update', args: { id, ...changes } }]),
     deleteLabel: (id) => send([{ type: 'label_delete', args: { id } }]),
+    /**
+     * Hernoemt een label. Labelnamen zijn uniek per eigenaar en niet hoofdlettergevoelig; de server weigert een dubbele naam
+     * met DUPLICATE. Hier wordt dat vooraf gecontroleerd: dan komt er een fout terug en wordt er niets verstuurd.
+     * @returns {Promise<{ ok: true } | { ok: false, code: 'NOT_FOUND' | 'READONLY' | 'INVALID_ARG' | 'DUPLICATE', message: string }>}
+     */
+    async renameLabel(id, name) {
+      const label = store.view.labels.get(id);
+      if (!label) return { ok: false, code: 'NOT_FOUND', message: 'Dit label bestaat niet meer.' };
+      if (!isOwnLabel(label, store.userId)) return { ok: false, code: 'READONLY', message: 'Dit label is van iemand anders; je kunt het alleen lezen.' };
+      const clean = normalizeText(String(name ?? '')).trim();
+      const problem = validateValue(ENTITIES.label.cols.find((c) => c.name === 'name'), clean);
+      if (problem) return { ok: false, code: 'INVALID_ARG', message: `Deze naam kan niet: ${problem}.` };
+      const key = nameKey(clean);
+      for (const other of store.view.labels.values()) {
+        if (other.id !== id && isOwnLabel(other, store.userId) && nameKey(other.name) === key) {
+          return { ok: false, code: 'DUPLICATE', message: 'Er bestaat al een label met die naam.' };
+        }
+      }
+      if (clean !== label.name) await send([{ type: 'label_update', args: { id, name: clean } }]);
+      return { ok: true };
+    },
+
+    // ---- filters ----
+    // Een filter wordt bewaard zoals het is getypt, ook als de filtertekst nog niet klopt: de gebruiker kan er later aan
+    // verder werken. Of de tekst te lezen is, blijkt pas bij het tonen (compileFilter / evaluateFilter in filter.js).
+    async addFilter({ name, query, color }) {
+      const id = makeId();
+      const args = { id, name: name.trim(), query: query.trim(), order_key: endKey('filters', 'filter', {}) };
+      if (color) args.color = color;
+      await send([{ type: 'filter_add', args }]);
+      return id;
+    },
+    updateFilter: (id, changes) => send([{
+      type: 'filter_update',
+      args: { id, ...changes, ...(typeof changes.name === 'string' ? { name: changes.name.trim() } : {}), ...(typeof changes.query === 'string' ? { query: changes.query.trim() } : {}) },
+    }]),
+    deleteFilter: (id) => send([{ type: 'filter_delete', args: { id } }]),
   };
 }
