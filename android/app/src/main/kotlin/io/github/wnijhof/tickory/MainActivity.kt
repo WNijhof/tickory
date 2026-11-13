@@ -42,6 +42,7 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.ServerAddress
+import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
 import io.github.wnijhof.tickory.reminders.Background
@@ -77,7 +78,7 @@ class MainActivity : ComponentActivity() {
     private var notificationRationaleBefore = false
     private var localNetworkAsked = false
 
-    /** Waar een melding of widget naartoe wil (zie DeepLink), als de app eerst nog iets moet vragen voordat hij kan laden. */
+    /** Wat de web-app na het laden moet openen (zie DeepLink: "task=<id>", "add…" of "share=<tekst>"), tot het kan. */
     private var pendingFragment: String? = null
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -237,24 +238,25 @@ class MainActivity : ComponentActivity() {
         view.destroy()
     }
 
-    /** Laadt de web-app, eventueel meteen bij een taak of het venster Taak toevoegen (zie DeepLink). */
+    /** Laadt de web-app, eventueel meteen bij een taak, het venster Taak toevoegen of een gedeelde tekst (zie DeepLink). */
     private fun loadStart(fragment: String?) {
         val view = webView ?: return
-        val target = fragment ?: pendingFragment
+        val target = (fragment ?: pendingFragment)?.takeIf(DeepLink::isSafe)
         pendingFragment = null
         hideError()
         pageReady = false
         view.loadUrl(if (target != null) "$origin/#$target" else "$origin/")
     }
 
-    /** Opent een taak of Taak toevoegen (vanuit een melding of widget). Staat de web-app al open, dan verandert alleen het fragment van het adres. */
+    /** Opent een taak, Taak toevoegen of een gedeelde tekst. Staat de web-app al open, dan verandert alleen het fragment van het adres. */
     private fun openFragment(fragment: String) {
+        if (!DeepLink.isSafe(fragment)) return
         val view = webView ?: return
         if (!pageReady || errorView.isVisible) {
             loadStart(fragment)
             return
         }
-        // Het fragment bestaat alleen uit letters, cijfers, "-", "_" en "=" (gebouwd door DeepLink), dus dit is veilig in te voegen.
+        // Het fragment bestaat alleen uit letters, cijfers, "-", "_" en "=" (DeepLink.isSafe, ook gecontroleerd in fragmentFrom), dus dit is veilig in te voegen.
         // Staat hetzelfde fragment er al, dan eerst leegmaken: anders merkt de web-app geen verandering op.
         val script = "(function(){var h='#$fragment';" +
             "if(location.hash===h){history.replaceState(null,'',location.pathname+location.search);}" +
@@ -262,8 +264,19 @@ class MainActivity : ComponentActivity() {
         view.evaluateJavascript(script, null)
     }
 
-    private fun fragmentFrom(intent: Intent?): String? = intent?.let {
-        DeepLink.fromExtras(it.getStringExtra(Notifications.EXTRA_TASK_ID), it.hasExtra(DeepLink.EXTRA_ADD), it.getStringExtra(DeepLink.EXTRA_ADD))
+    /**
+     * Wat deze intentie de web-app laat openen: een taak (melding of widget), het venster Taak toevoegen (de "+" van een
+     * widget) of "Delen naar Tickory" met tekst uit een andere app. Een intentie die van buiten komt kan alleen tekst
+     * meegeven; die gaat als base64url door ShareLink. Alles wat hier uitkomt, is door DeepLink.isSafe gekeurd.
+     */
+    private fun fragmentFrom(intent: Intent?): String? {
+        if (intent == null) return null
+        DeepLink.fromExtras(intent.getStringExtra(Notifications.EXTRA_TASK_ID), intent.hasExtra(DeepLink.EXTRA_ADD), intent.getStringExtra(DeepLink.EXTRA_ADD))?.let { return it }
+        if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return null
+        return ShareLink.fragmentFor(
+            intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT) ?: intent.getCharSequenceExtra(Intent.EXTRA_TITLE),
+            intent.getCharSequenceExtra(Intent.EXTRA_TEXT),
+        )?.takeIf(DeepLink::isSafe)
     }
 
     /**

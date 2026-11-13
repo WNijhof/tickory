@@ -59,7 +59,8 @@ async function request(sw, path, mode = 'cors') {
   await Promise.allSettled(waits);
   return { handled: true, text, type: res.headers.get('content-type') };
 }
-const cached = async (sw, path) => sw.stores.get('tickory-v3')?.get(path)?.clone().text();
+const CACHE_NAME = /const CACHE = '([^']+)'/.exec(SOURCE)[1];
+const cached = async (sw, path) => sw.stores.get(CACHE_NAME)?.get(path)?.clone().text();
 
 const APP = { '/': { body: '<!doctype html><title>Tickory</title>APP', type: 'text/html; charset=utf-8' }, '/app.css': { body: 'body{color:red}', type: 'text/css' }, '/ui/app.js': { body: 'export {}', type: 'text/javascript' } };
 

@@ -1,13 +1,14 @@
 // Handelingen van de gebruiker, vertaald naar commando's. Elk commando krijgt een eigen uuid (voor veilig
 // herhalen) en nieuwe rijen krijgen hier al hun definitieve id en volgordesleutel, zodat alles offline werkt.
 
-import { keyAfter, keyBetween } from '../../shared/orderKey.js';
+import { keyAfter } from '../../shared/orderKey.js';
 import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
 import { settingsId } from '../../shared/schema.js';
 import { ENTITIES, validateValue } from '../../shared/schema.js';
 import { projectDescendantIds } from './selectors.js';
+import { projectMoveCommands, taskMoveCommands } from './dnd.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -32,16 +33,6 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     requestSync();
   };
   const endKey = (resource, entity, scope, exceptId = null) => keyAfter(maxKey(store.view[resource], scopeOf(entity, scope), exceptId));
-
-  /** Volgordesleutel voor een plek vóór `beforeId` (of achteraan als die ontbreekt) binnen de doel-lijst. */
-  const keyAt = (scope, beforeId, exceptId) => {
-    if (!beforeId) return endKey('tasks', 'task', scope, exceptId);
-    const pred = scopeOf('task', scope);
-    const siblings = [...store.view.tasks.values()].filter((t) => t.id !== exceptId && pred(t)).sort(byOrder);
-    const i = siblings.findIndex((t) => t.id === beforeId);
-    if (i < 0) return endKey('tasks', 'task', scope, exceptId);
-    return keyBetween(i > 0 ? siblings[i - 1].order_key : null, siblings[i].order_key);
-  };
 
   /** Commando's om labels op naam te vinden of aan te maken. Geeft de id's terug in dezelfde volgorde. */
   const labelCommands = (names) => {
@@ -140,13 +131,14 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       const { ids, commands } = labelCommands(names);
       await send([...commands, { type: 'task_update', args: { id, labels: ids } }]);
     },
-    /** Verplaatst een taak (met subtaken) naar een project, sectie of bovenliggende taak; optioneel vóór een andere taak. */
+    /**
+     * Verplaatst een taak (met subtaken) naar een project, sectie of bovenliggende taak; optioneel vóór een andere taak
+     * (anders achteraan). Is er geen plek tussen twee buren met dezelfde sleutel, dan krijgen de buren erna een nieuwe sleutel
+     * in dezelfde reeks (zie core/dnd.js).
+     */
     moveTask(id, { project_id, section_id = null, parent_id = null, beforeId = null }) {
       const parent = parent_id ? store.view.tasks.get(parent_id) : null;
-      const scope = { project_id, section_id: parent ? parent.section_id ?? null : section_id, parent_id };
-      const args = { id, project_id, parent_id, order_key: keyAt(scope, beforeId, id) };
-      if (!parent_id) args.section_id = section_id;
-      return send([{ type: 'task_move', args }]);
+      return send(taskMoveCommands(store.view, id, { project_id, section_id: parent ? parent.section_id ?? null : section_id, parent_id, beforeId }));
     },
     completeTask(id) {
       // Een terugkerende taak sturen we mee met de datum die we zagen (if_due): zo schuift hij niet twee keer door als de
@@ -168,6 +160,11 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       return id;
     },
     updateProject: (id, changes) => send([{ type: 'project_update', args: { id, ...changes } }]),
+    /**
+     * Zet een project op een andere plek in de zijbalk: onder een ander project (`parent_id`, null = hoogste niveau) en vóór
+     * `beforeId` (anders achteraan). Alleen de eigenaar mag een project verplaatsen; de server weigert het anders.
+     */
+    moveProject: (id, { parent_id = null, beforeId = null }) => send(projectMoveCommands(store.view, id, { parent_id, beforeId })),
     /** Archiveert een project met al zijn subprojecten (de zijbalk laat een subproject van een gearchiveerd project toch niet zien). */
     archiveProject: (id) => send([id, ...projectDescendantIds(store.view, id)].map((x) => ({ type: 'project_update', args: { id: x, is_archived: true } }))),
     /** Zet een gearchiveerd project terug, met de subprojecten die mee zijn gearchiveerd. */

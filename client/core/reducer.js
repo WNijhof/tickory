@@ -7,7 +7,7 @@
 // eigen kopie en mogen worden gewijzigd; rij-objecten worden altijd vervangen, nooit aangepast.
 
 import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
-import { keyAfter } from '../../shared/orderKey.js';
+import { isValidKey, keyAfter } from '../../shared/orderKey.js';
 import { nextOccurrence } from '../../shared/recurrence.js';
 
 export const RESOURCES = ENTITY_LIST.map((e) => e.resource);
@@ -138,6 +138,26 @@ function isOwner(state, userId, projectId) {
   return false;
 }
 
+/**
+ * Mag dit project zo worden gewijzigd? Alleen een nieuwe bovenliggende (verplaatsen) kent regels, net als op de server: alleen
+ * de eigenaar, het bovenliggende project moet bestaan, de Inbox kan niet verplaatst worden of subprojecten hebben, en geen cirkels.
+ */
+function mayUpdateProject(state, args, userId) {
+  const row = state.projects.get(args.id);
+  if (!row) return true; // niet te vinden: update() doet zelf niets
+  const parentId = has(args, 'parent_id') ? args.parent_id ?? null : row.parent_id ?? null;
+  if (isInboxId(args.id) && parentId !== null) return false;
+  if (!has(args, 'parent_id') || parentId === (row.parent_id ?? null)) return true;
+  if (userId && !isOwner(state, userId, args.id)) return false;
+  if (parentId === null) return true;
+  if (!state.projects.has(parentId) || isInboxId(parentId)) return false;
+  for (let p = parentId, i = 0; p && i < 1000; i++) {
+    if (p === args.id) return false;
+    p = state.projects.get(p)?.parent_id ?? null;
+  }
+  return true;
+}
+
 function remove(state, e, args, now, userId) {
   const id = args.id;
   if (!state[e.resource].has(id)) return;
@@ -180,22 +200,46 @@ function remove(state, e, args, now, userId) {
   }
 }
 
+const TASK_MOVE_ARGS = ['id', 'project_id', 'section_id', 'parent_id', 'order_key'];
+
 function taskMove(state, args, now) {
+  // Net als de server: wat niet kan (onbekend argument, cirkel, sectie van een ander project, ongeldige sleutel) doet niets.
+  if (Object.keys(args).some((k) => !TASK_MOVE_ARGS.includes(k))) return;
   const row = state.tasks.get(args.id);
   if (!row) return;
+  if (!has(args, 'project_id') && !has(args, 'section_id') && !has(args, 'parent_id')) return;
   const projectChanges = has(args, 'project_id') && args.project_id !== row.project_id;
+  if (has(args, 'project_id') && !state.projects.has(args.project_id)) return;
   const projectId = has(args, 'project_id') ? args.project_id : row.project_id;
-  let parentId = (has(args, 'parent_id') ? args.parent_id : projectChanges ? null : row.parent_id) ?? null;
+  const parentId = (has(args, 'parent_id') ? args.parent_id : projectChanges ? null : row.parent_id) ?? null;
   let sectionId = (has(args, 'section_id') ? args.section_id : projectChanges ? null : row.section_id) ?? null;
   if (parentId !== null) {
     const parent = state.tasks.get(parentId);
-    if (!parent) return;
+    if (!parent || parent.project_id !== projectId) return;
+    for (let p = parent, i = 0; p && i < 1000; i++) {
+      if (p.id === row.id) return; // een taak kan niet onder zichzelf of een eigen subtaak staan
+      p = p.parent_id ? state.tasks.get(p.parent_id) : undefined;
+    }
+    if (has(args, 'section_id') && args.section_id !== (parent.section_id ?? null)) return;
     sectionId = parent.section_id ?? null;
+  } else if (sectionId !== null) {
+    const section = state.sections.get(sectionId);
+    if (!section || section.project_id !== projectId) return;
   }
+  if (has(args, 'order_key') && !isValidKey(args.order_key)) return;
   const target = { project_id: projectId, section_id: sectionId, parent_id: parentId };
   const orderKey = has(args, 'order_key') ? args.order_key : keyAfter(maxKey(state.tasks, scopeOf('task', target)));
+  const kids = descendantIds(state, [row.id]);
   patch(state, 'tasks', row.id, { ...target, order_key: orderKey }, now);
-  for (const kid of descendantIds(state, [row.id])) patch(state, 'tasks', kid, { project_id: projectId, section_id: sectionId }, now);
+  for (const kid of kids) patch(state, 'tasks', kid, { project_id: projectId, section_id: sectionId }, now);
+  if (projectChanges) {
+    // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
+    const members = new Set([...state.members.values()].filter((m) => m.project_id === projectId).map((m) => m.user_id));
+    for (const id of [row.id, ...kids]) {
+      const moved = state.tasks.get(id);
+      if (moved.assignee_id && !members.has(moved.assignee_id)) patch(state, 'tasks', id, { assignee_id: null }, now);
+    }
+  }
 }
 
 function taskComplete(state, args, now) {
@@ -256,7 +300,7 @@ export function applyCommand(state, cmd, now, userId = null) {
         const row = state.comments.get(args.id);
         if (row && row.author_id && row.author_id !== userId) return undefined;
       }
-      if (m[2] === 'update') return update(state, e, args, now);
+      if (m[2] === 'update') return e.name === 'project' && !mayUpdateProject(state, args, userId) ? undefined : update(state, e, args, now);
       return remove(state, e, args, now, userId);
     }
   }

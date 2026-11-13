@@ -126,6 +126,12 @@ class WidgetDataTest {
         }
     }
 
+    @Test
+    fun `diepe links - alleen veilige fragmenten komen in het webadres en in JavaScript`() {
+        for (ok in listOf("task=abc-123", "add", "add=today", "share=eyJ0aXRsZSI6IngifQ", "share=" + "A".repeat(40_000))) assertTrue(ok.take(30), DeepLink.isSafe(ok))
+        for (bad in listOf(null, "", "x';alert(1);'", "a b", "a#b", "a\"b", "<script>", "a/b", "a&b=1", "a;b", "a\nb", "share=" + "A".repeat(100_001))) assertFalse("'$bad'", DeepLink.isSafe(bad))
+    }
+
     // ---------- de wachtrij ----------
 
     private fun item(task: String, uuid: String = "tickory-w-$task", account: String = "user-1", at: Long = 1_000L, ifDue: String? = null) =

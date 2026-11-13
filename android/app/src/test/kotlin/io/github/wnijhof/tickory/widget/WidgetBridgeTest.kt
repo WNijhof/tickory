@@ -58,6 +58,29 @@ class WidgetBridgeTest : WidgetTestBase() {
     }
 
     @Test
+    fun `delen naar Tickory en de plusknop gebruiken dezelfde fragmentafhandeling`() {
+        val share = Intent(Intent.ACTION_SEND).setClass(app, MainActivity::class.java).setType("text/plain")
+            .putExtra(Intent.EXTRA_SUBJECT, "Een titel").putExtra(Intent.EXTRA_TEXT, "https://voorbeeld.nl/x?a=1&b=2 'quote' <b>")
+        val url = shadowOf(webViewOf(main(share))).lastLoadedUrl
+        assertTrue(url, Regex("^${Regex.escape(origin)}/#share=[A-Za-z0-9_-]+$").matches(url))
+        // een taak gaat voor delen, delen voor niets; een SEND zonder tekst of met een ander soort gegevens opent niets
+        assertEquals("$origin/#task=task-0001", shadowOf(webViewOf(main(Intent(share).putExtra(Notifications.EXTRA_TASK_ID, "task-0001")))).lastLoadedUrl)
+        assertEquals("$origin/", shadowOf(webViewOf(main(Intent(Intent.ACTION_SEND).setClass(app, MainActivity::class.java).setType("text/plain")))).lastLoadedUrl)
+        assertEquals("$origin/", shadowOf(webViewOf(main(Intent(share).setType("image/png")))).lastLoadedUrl)
+        assertEquals("$origin/#add", shadowOf(webViewOf(main(addIntent(null)))).lastLoadedUrl)
+
+        // staat de web-app al open, dan verandert alleen het fragment; delen en Taak toevoegen na elkaar
+        Prefs(app).setServer(origin, false)
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val webView = webViewOf(controller.get())
+        shadowOf(webView).webViewClient.onPageFinished(webView, "$origin/")
+        controller.newIntent(share)
+        assertTrue(shadowOf(webView).lastEvaluatedJavascript, shadowOf(webView).lastEvaluatedJavascript.contains("'#share="))
+        controller.newIntent(addIntent("today"))
+        assertTrue(shadowOf(webView).lastEvaluatedJavascript.contains("'#add=today'"))
+    }
+
+    @Test
     fun `staat de web-app al open, dan verandert de plusknop alleen het fragment`() {
         Prefs(app).setServer(origin, false)
         val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
