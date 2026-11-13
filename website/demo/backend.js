@@ -11,6 +11,7 @@
 // meldingen als server/sync.ts. De toestand is die van één gebruiker (Anna): wat zij niet mag zien, bestaat hier niet.
 
 import { ApiError, deviceName } from './auth.js';
+import { getLanguage, t } from './i18n.js';
 import { newId } from './actions.js';
 import { HttpError } from './syncClient.js';
 import { applyCommand, cloneState, descendantIds } from './reducer.js';
@@ -23,7 +24,10 @@ const MAX_COMMANDS = 100;
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const USERNAME_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{1,39}$/u;
 const MIN_PASSWORD = 10;
-const NOT_IN_DEMO = 'Dat kan niet in de demo: hier bestaan geen echte accounts en wachtwoorden.';
+// De melding volgt de taal van de app. (Een foutmelding van de echte server wordt door de app zelf vertaald; deze komt uit de demo.)
+const notInDemo = () => (getLanguage() === 'en'
+  ? "That isn't possible in the demo: there are no real accounts or passwords here."
+  : 'Dat kan niet in de demo: hier bestaan geen echte accounts en wachtwoorden.');
 
 class CommandError extends Error {
   constructor(code, message) {
@@ -102,12 +106,12 @@ export class DemoServer {
     for (const r of RESOURCE_NAMES) for (const id of this.state[r].keys()) this.revs.set(`${r}/${id}`, 1);
     /** Uitkomst per uuid: een herhaald commando wordt niet opnieuw uitgevoerd. */
     this.seen = new Map();
-    const t = now().getTime();
-    const ago = (minutes) => new Date(t - minutes * 60_000).toISOString();
+    const nowMs = now().getTime();
+    const ago = (minutes) => new Date(nowMs - minutes * 60_000).toISOString();
     this.sessions = [
       { id: 'demo-session-1', name: deviceName(), created_at: ago(0), last_used_at: ago(0), current: true },
-      { id: 'demo-session-2', name: 'Chrome op Android', created_at: ago(60 * 24 * 41), last_used_at: ago(95), current: false },
-      { id: 'demo-session-3', name: 'Firefox op Windows', created_at: ago(60 * 24 * 120), last_used_at: ago(60 * 24 * 6), current: false },
+      { id: 'demo-session-2', name: t('device.browserOn', { browser: 'Chrome', os: 'Android' }), created_at: ago(60 * 24 * 41), last_used_at: ago(95), current: false },
+      { id: 'demo-session-3', name: t('device.browserOn', { browser: 'Firefox', os: 'Windows' }), created_at: ago(60 * 24 * 120), last_used_at: ago(60 * 24 * 6), current: false },
     ];
   }
 
@@ -197,7 +201,8 @@ export class DemoServer {
     }
     const m = GENERIC.exec(type);
     const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;
-    if (!e || e.commands === false) fail('UNKNOWN_COMMAND', `onbekend commando "${type}"`);
+    // welke algemene commando's een entiteit heeft, staat in shared/schema.js (leden: geen; instellingen: alleen wijzigen)
+    if (!e || e.commands === false || (Array.isArray(e.commands) && !e.commands.includes(m[2]))) fail('UNKNOWN_COMMAND', `onbekend commando "${type}"`);
     if (m[2] === 'add') {
       const id = args.id === undefined ? newId() : args.id;
       if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
@@ -414,10 +419,10 @@ export class DemoServer {
     };
     const otherAdmins = (id) => this.accounts.filter((a) => a.is_admin && !a.is_disabled && a.id !== id).length;
     return {
-      login: async () => { throw apiError(403, 'DEMO', NOT_IN_DEMO); },
+      login: async () => { throw apiError(403, 'DEMO', notInDemo()); },
       logout: async () => ({ ok: true }),
       me: async () => ({ me: { ...this.me } }),
-      changePassword: async () => { throw apiError(403, 'DEMO', NOT_IN_DEMO); },
+      changePassword: async () => { throw apiError(403, 'DEMO', notInDemo()); },
       sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s })) }),
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);
@@ -455,7 +460,7 @@ export class DemoServer {
         },
         resetPassword: async (id) => {
           account(id);
-          throw apiError(403, 'DEMO', NOT_IN_DEMO);
+          throw apiError(403, 'DEMO', notInDemo());
         },
       },
     };
