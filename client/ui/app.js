@@ -10,6 +10,8 @@ import { roleIn } from '../core/selectors.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
+import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
+import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { mainView, sidebar } from './render.js';
 import { openTaskDialog } from './taskDialog.js';
@@ -42,6 +44,23 @@ let sync;
 let actions;
 let events;
 
+// ---------- taal ----------
+
+/**
+ * Zet de taal op het vaste deel van de pagina (index.html). Daar staat de Nederlandse tekst als terugval voor het
+ * geval dit script niet draait; de rest van het scherm krijgt zijn tekst bij het tekenen.
+ */
+function applyLanguage() {
+  document.documentElement.lang = getLanguage();
+  $('sidebar').setAttribute('aria-label', t('shell.navigation'));
+  $('menu-button').setAttribute('aria-label', t('shell.menu'));
+  $('sync-status').title = t('shell.syncTitle');
+  $('quick-input').placeholder = t('quick.placeholder');
+  $('quick-input').setAttribute('aria-label', t('quick.label'));
+  $('quick-add').querySelector('button[type="submit"]').textContent = t('common.add');
+}
+applyLanguage(); // meteen bij het laden, zodat de Nederlandse terugval in een andere taal niet lang in beeld staat
+
 // ---------- tekenen ----------
 
 function invalidate() {
@@ -73,15 +92,15 @@ function render() {
 
 function renderStatus() {
   const n = store.queueLength;
-  const waiting = n > 0 ? `${n} wachtend` : '';
+  const waiting = n > 0 ? t('sync.waiting', { count: n }) : '';
   // Zonder aanmelding is er niets bijgewerkt, ook al is er (nog) geen sync mislukt.
   const state = getToken() ? ui.syncState : 'unauthorized';
   const text = {
-    idle: waiting || 'Bijgewerkt',
-    syncing: 'Bezig…',
-    offline: ['Offline', waiting].filter(Boolean).join(' · '),
-    unauthorized: 'Inloggen nodig',
-    error: 'Bijwerken mislukt',
+    idle: waiting || t('sync.upToDate'),
+    syncing: t('sync.syncing'),
+    offline: [t('sync.offline'), waiting].filter(Boolean).join(' · '),
+    unauthorized: t('sync.signInNeeded'),
+    error: t('sync.failed'),
   }[state];
   const el = $('sync-status');
   el.textContent = text;
@@ -92,6 +111,7 @@ function renderStatus() {
 
 function quickContext() {
   if (ui.route.type === 'project' && store.view.projects.has(ui.route.id)) return { defaultProjectId: ui.route.id };
+  // `string` en `lang` horen bij de datumtaal (wat de herkenner leest), niet bij de taal van de interface: die blijven Nederlands.
   if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' } };
   return { defaultProjectId: inboxId() };
 }
@@ -105,15 +125,19 @@ function renderPreview() {
   const today = todayString();
   const chip = (kind, label) => h('span', { class: `chip chip-${kind}` }, label);
   const view = store.view;
+  // Typt iemand een Engelse datum ("tomorrow") die niet is herkend, dan zeggen we erbij dat datums in gewone taal nu alleen
+  // in het Nederlands werken. In het Nederlands is die uitleg leeg en verandert er niets.
+  const dateNote = (!p.due || p.due === ctx.defaultDue) && mentionsEnglishDate(p.content) ? dateLanguageNote() : '';
   return replace(host,
-    chip('title', p.content || '(nog geen naam)'),
+    chip('title', p.content || t('quick.noName')),
     p.due && p.due !== ctx.defaultDue && chip('due', formatDue(p.due, today)),
-    p.deadline && chip('deadline', `deadline ${formatDate(p.deadline, today)}`),
+    p.deadline && chip('deadline', t('task.deadlineChip', { date: formatDate(p.deadline, today) })),
     p.project_id !== ctx.defaultProjectId && chip('project', `#${view.projects.get(p.project_id)?.name ?? ''}`),
     p.section_id && chip('project', `/${view.sections.get(p.section_id)?.name ?? ''}`),
     p.labels.map((id) => chip('label', `@${view.labels.get(id)?.name ?? ''}`)),
-    p.newLabels.map((name) => chip('label', `@${name} (nieuw)`)),
+    p.newLabels.map((name) => chip('label', t('quick.newLabel', { name }))),
     p.priority < 4 && chip(`prio prio-${p.priority}`, `P${p.priority}`),
+    dateNote && h('p', { class: 'hint preview-note' }, dateNote),
   );
 }
 
@@ -121,12 +145,12 @@ async function submitQuickAdd(e) {
   e.preventDefault();
   const input = $('quick-input');
   if (!quickContext().defaultProjectId) {
-    toast('Log eerst in om taken toe te voegen.');
+    toast(t('quick.signInFirst'));
     return;
   }
   const p = parseQuickAdd(input.value, { view: store.view, now: new Date(), ...quickContext() });
   if (!p.content) {
-    toast('Geef de taak een naam.');
+    toast(t('task.nameRequired'));
     return;
   }
   input.value = '';
@@ -151,9 +175,9 @@ const handlers = {
     await actions.completeTask(task.id);
     if (task.due?.recurrence) {
       const next = store.view.tasks.get(task.id);
-      return toast(next?.due ? `Volgende keer: ${formatDue({ date: next.due.date }, todayString())}` : 'Taak voltooid');
+      return toast(next?.due ? t('task.nextTime', { date: formatDue({ date: next.due.date }, todayString()) }) : t('task.completed'));
     }
-    return toast('Taak voltooid', { action: { label: 'Ongedaan maken', run: () => actions.uncompleteTask(task.id) } });
+    return toast(t('task.completed'), { action: { label: t('task.undo'), run: () => actions.uncompleteTask(task.id) } });
   },
 
   open(task) {
@@ -161,14 +185,14 @@ const handlers = {
   },
 
   async addProject() {
-    const name = await promptDialog({ title: 'Nieuw project', label: 'Naam' });
+    const name = await promptDialog({ title: t('project.new'), label: t('common.name') });
     if (!name) return;
     const id = await actions.addProject({ name });
     navigate({ type: 'project', id });
   },
 
   async addSection(project) {
-    const name = await promptDialog({ title: `Nieuwe sectie in ${project.name}`, label: 'Naam' });
+    const name = await promptDialog({ title: t('section.newIn', { name: project.name }), label: t('common.name') });
     if (name) await actions.addSection(project.id, name);
   },
 
@@ -177,20 +201,20 @@ const handlers = {
     const choice = await menuDialog({
       title: project.name,
       items: [
-        { value: 'rename', label: 'Naam wijzigen' },
-        { value: 'share', label: mine === 'member' ? 'Leden bekijken' : 'Delen…' },
+        { value: 'rename', label: t('common.rename') },
+        { value: 'share', label: mine === 'member' ? t('project.members') : t('project.shareMenu') },
         mine === 'member'
-          ? { value: 'leave', label: 'Project verlaten', danger: true }
-          : { value: 'delete', label: 'Project verwijderen', danger: true },
+          ? { value: 'leave', label: t('project.leave'), danger: true }
+          : { value: 'delete', label: t('project.delete'), danger: true },
       ],
     });
     if (choice === 'rename') {
-      const name = await promptDialog({ title: 'Naam wijzigen', label: 'Naam', value: project.name });
+      const name = await promptDialog({ title: t('common.rename'), label: t('common.name'), value: project.name });
       if (name && name !== project.name) await actions.updateProject(project.id, { name });
     } else if (choice === 'share') {
       await handlers.shareProject(project);
     } else if (choice === 'leave') {
-      const ok = await confirmDialog({ title: 'Project verlaten?', text: `Je ziet "${project.name}" daarna niet meer, tenzij de eigenaar je opnieuw uitnodigt.`, okText: 'Verlaten' });
+      const ok = await confirmDialog({ title: t('project.leaveTitle'), text: t('project.leaveText', { name: project.name }), okText: t('project.leaveOk') });
       if (ok) {
         await actions.leaveProject(project.id);
         navigate({ type: 'project', id: inboxId() });
@@ -198,8 +222,8 @@ const handlers = {
     } else if (choice === 'delete') {
       const shared = [...store.view.members.values()].filter((m) => m.project_id === project.id).length > 1;
       const ok = await confirmDialog({
-        title: 'Project verwijderen?',
-        text: `"${project.name}" wordt verwijderd, met alle secties, taken en subprojecten erin${shared ? ' — ook voor de mensen met wie je het deelt' : ''}.`,
+        title: t('project.deleteTitle'),
+        text: shared ? t('project.deleteTextShared', { name: project.name }) : t('project.deleteText', { name: project.name }),
       });
       if (ok) {
         await actions.deleteProject(project.id);
@@ -216,13 +240,13 @@ const handlers = {
   async sectionMenu(section) {
     const choice = await menuDialog({
       title: section.name,
-      items: [{ value: 'rename', label: 'Naam wijzigen' }, { value: 'delete', label: 'Sectie verwijderen', danger: true }],
+      items: [{ value: 'rename', label: t('common.rename') }, { value: 'delete', label: t('section.delete'), danger: true }],
     });
     if (choice === 'rename') {
-      const name = await promptDialog({ title: 'Naam wijzigen', label: 'Naam', value: section.name });
+      const name = await promptDialog({ title: t('common.rename'), label: t('common.name'), value: section.name });
       if (name && name !== section.name) await actions.updateSection(section.id, { name });
     } else if (choice === 'delete') {
-      const ok = await confirmDialog({ title: 'Sectie verwijderen?', text: `"${section.name}" wordt verwijderd, met alle taken erin.` });
+      const ok = await confirmDialog({ title: t('section.deleteTitle'), text: t('section.deleteText', { name: section.name }) });
       if (ok) await actions.deleteSection(section.id);
     }
   },
@@ -235,19 +259,36 @@ const handlers = {
   async settings() {
     if (!store.me) return askLogin();
     const choice = await menuDialog({
-      title: 'Instellingen',
+      title: t('settings.title'),
       items: [
-        { value: 'account', label: 'Account, wachtwoord en apparaten' },
-        { value: 'sync', label: 'Nu bijwerken' },
-        { value: 'logout', label: 'Afmelden en lokale gegevens wissen', danger: true },
+        { value: 'account', label: t('settings.account') },
+        { value: 'sync', label: t('settings.syncNow') },
+        { value: 'language', label: t('settings.language') },
+        { value: 'logout', label: t('settings.signOut'), danger: true },
       ],
     });
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'account') await accountFlow();
+    else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
   },
 };
+
+/**
+ * De taalkeuze. Wisselen werkt direct: het vaste deel van de pagina en het scherm worden opnieuw getekend, zonder de pagina
+ * te herladen (dat kan zonder verbinding niet altijd). De keuze blijft op dit apparaat bewaard, ook na afmelden.
+ */
+async function chooseLanguage() {
+  const choice = await menuDialog({
+    title: t('settings.language'),
+    items: LANGUAGES.map((l) => ({ value: l.code, label: l.code === getLanguage() ? `${l.name} ✓` : l.name })),
+  });
+  if (!choice || choice === getLanguage()) return;
+  setLanguage(choice);
+  applyLanguage();
+  render();
+}
 
 /** Het accountscherm, met doorverwijzing naar gebruikersbeheer of afmelden. */
 async function accountFlow() {
@@ -271,16 +312,16 @@ async function askLogin(note = '') {
   try {
     await loginDialog({
       username: store.me?.username ?? '',
-      note: note || (store.me ? 'Je bent niet meer aangemeld (afgemeld of het wachtwoord is gewijzigd). Log opnieuw in om verder te gaan.' : ''),
+      note: note || (store.me ? t('login.sessionEnded') : ''),
       attempt: async (username, password) => {
         const res = await api.login(username, password, deviceName(navigator.userAgent, { app: Boolean(window.TickoryAndroid) }));
         const other = store.me && store.me.id !== res.me.id;
         if (other) {
           const waiting = store.queueLength;
           const ok = await confirmDialog({
-            title: `Inloggen als ${res.me.name}?`,
-            text: `Op dit apparaat staan nog de gegevens van ${store.me.name}${waiting > 0 ? `, met ${waiting} wijziging${waiting === 1 ? '' : 'en'} die nog niet naar de server zijn gestuurd` : ''}. Die worden gewist.`,
-            okText: 'Wissen en inloggen',
+            title: t('login.switchTitle', { name: res.me.name }),
+            text: waiting > 0 ? t('login.switchTextWaiting', { name: store.me.name, count: waiting }) : t('login.switchText', { name: store.me.name }),
+            okText: t('login.switchOk'),
           });
           if (!ok) {
             api.logout(res.token).catch(() => {});
@@ -309,11 +350,9 @@ async function askLogin(note = '') {
 async function logout() {
   const waiting = store.queueLength;
   const ok = await confirmDialog({
-    title: 'Afmelden?',
-    text: waiting > 0
-      ? `Er ${waiting === 1 ? 'staat nog 1 wijziging' : `staan nog ${waiting} wijzigingen`} te wachten die niet naar de server zijn gestuurd. Die gaan verloren.`
-      : 'Je wordt afgemeld en de lokale kopie van je taken wordt van dit apparaat gewist. Op de server blijft alles staan.',
-    okText: 'Afmelden',
+    title: t('logout.title'),
+    text: waiting > 0 ? t('logout.textWaiting', { count: waiting }) : t('logout.text'),
+    okText: t('account.signOut'),
   });
   if (!ok) return;
   events.stop();
@@ -334,7 +373,7 @@ async function boot() {
     if (adapter.open) await adapter.open();
   } catch {
     adapter = new MemoryAdapter();
-    toast('Lokale opslag is niet beschikbaar. De app werkt, maar bewaart niets als je dit venster sluit.', { kind: 'error', timeout: 0 });
+    toast(t('boot.noStorage'), { kind: 'error', timeout: 0 });
   }
   store = new Store(adapter);
   await store.init();
@@ -396,5 +435,5 @@ async function boot() {
 
 boot().catch((err) => {
   console.error(err);
-  document.body.append(h('p', { class: 'fatal' }, 'De app kon niet starten. Herlaad de pagina; blijft dit zo, kijk dan in de console van de browser.'));
+  document.body.append(h('p', { class: 'fatal' }, t('boot.failed')));
 });

@@ -114,6 +114,7 @@ textarea.field { resize: vertical; }
 .quick-input { flex: 1; min-width: 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .preview { min-height: 0; padding: 8px 2px 0; }
+.preview-note { flex-basis: 100%; }
 .chip {
   display: inline-flex; align-items: center; font-size: 0.8rem; padding: 2px 8px; border-radius: 999px;
   background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--line); max-width: 100%;

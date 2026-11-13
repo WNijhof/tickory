@@ -1,6 +1,8 @@
 // Kleine hulpmiddelen voor de interface. Tekst van de gebruiker gaat altijd als tekst het document in
 // (nooit als HTML), zodat een taaknaam nooit code kan uitvoeren.
 
+import { t } from '../core/i18n.js';
+
 /**
  * Maakt een element. Eigenschappen die met "on" beginnen zijn gebeurtenissen; `class` en `dataset` spreken voor zich.
  * @param {string} tag
@@ -34,7 +36,7 @@ export function toast(message, { action = null, timeout = 6000, kind = 'info' } 
   const el = h('div', { class: `toast toast-${kind}`, role: 'status' },
     h('span', { class: 'toast-text' }, message),
     action && h('button', { class: 'toast-action', type: 'button', onclick: () => { close(); action.run(); } }, action.label),
-    h('button', { class: 'toast-close', type: 'button', 'aria-label': 'Sluiten', onclick: close }, '×'),
+    h('button', { class: 'toast-close', type: 'button', 'aria-label': t('common.close'), onclick: close }, '×'),
   );
   host.append(el);
   if (timeout) setTimeout(close, timeout);
@@ -76,7 +78,7 @@ export function openDialog(build, { wide = false, dismissable = true, onClose = 
 }
 
 /** Vraagt om één regel tekst. Geeft de tekst terug, of null bij annuleren. */
-export function promptDialog({ title, label, value = '', okText = 'Opslaan', placeholder = '', type = 'text', hint = '' }) {
+export function promptDialog({ title, label, value = '', okText = t('common.save'), placeholder = '', type = 'text', hint = '' }) {
   return openDialog((finish) => {
     const input = h('input', { type, value, placeholder, required: true, class: 'field', 'aria-label': label, autocomplete: 'off' });
     return h('form', {
@@ -91,20 +93,20 @@ export function promptDialog({ title, label, value = '', okText = 'Opslaan', pla
     h('label', { class: 'field-label' }, label, input),
     hint && h('p', { class: 'hint' }, hint),
     h('div', { class: 'dialog-buttons' },
-      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, 'Annuleren'),
+      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-primary' }, okText),
     ));
   });
 }
 
 /** Vraagt om bevestiging. Geeft true of false terug. */
-export function confirmDialog({ title, text, okText = 'Verwijderen', danger = true }) {
+export function confirmDialog({ title, text, okText = t('common.delete'), danger = true }) {
   return openDialog((finish) =>
     h('div', { class: 'dialog-form' },
       h('h2', {}, title),
       h('p', {}, text),
       h('div', { class: 'dialog-buttons' },
-        h('button', { type: 'button', class: 'button', onclick: () => finish(false) }, 'Annuleren'),
+        h('button', { type: 'button', class: 'button', onclick: () => finish(false) }, t('common.cancel')),
         h('button', { type: 'button', class: `button ${danger ? 'button-danger' : 'button-primary'}`, onclick: () => finish(true) }, okText),
       ),
     )).then(Boolean);
@@ -117,6 +119,6 @@ export function menuDialog({ title, items }) {
       h('h2', {}, title),
       h('div', { class: 'menu' }, items.map((item) =>
         h('button', { type: 'button', class: `menu-item ${item.danger ? 'menu-danger' : ''}`, onclick: () => finish(item.value) }, item.label))),
-      h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, 'Sluiten')),
+      h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))),
     ));
 }

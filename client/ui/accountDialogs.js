@@ -1,23 +1,24 @@
 // Schermen rond het account: inloggen, wachtwoord en apparaten, en (voor beheerders) gebruikersbeheer.
 
-import { ApiError } from '../core/auth.js';
+import { ApiError, MIN_PASSWORD_LENGTH, displayNameProblem, passwordProblem, usernameProblem } from '../core/auth.js';
+import { getLocale, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
 
-const MIN_PASSWORD = 10;
+const MIN_PASSWORD = MIN_PASSWORD_LENGTH;
 
-/** De tijd van laatste gebruik, in begrijpelijk Nederlands ("13 nov. 2026 14:05"). */
+/** De tijd van laatste gebruik, in de taal van de interface ("13 nov 2026, 14:05"). */
 const when = (iso) => {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('nl-NL', { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 /** Een nette foutmelding voor in een dialoog; bij te veel pogingen met de wachttijd. */
 export function errorText(err) {
   if (err instanceof ApiError) {
-    if (err.code === 'TOO_MANY_ATTEMPTS' && err.retryAfter) return `Te veel mislukte pogingen. Probeer het over ${Math.ceil(err.retryAfter / 60)} minuten opnieuw.`;
+    if (err.code === 'TOO_MANY_ATTEMPTS' && err.retryAfter) return t('account.tooManyAttempts', { count: Math.ceil(err.retryAfter / 60) });
     return err.message;
   }
-  return 'Er ging iets mis. Probeer het opnieuw.';
+  return t('common.somethingWrong');
 }
 
 /**
@@ -27,17 +28,17 @@ export function errorText(err) {
  */
 export function loginDialog({ attempt, username = '', note = '' }) {
   return openDialog((finish) => {
-    const user = h('input', { class: 'field', type: 'text', value: username, required: true, autocomplete: 'username', autocapitalize: 'none', spellcheck: false, 'aria-label': 'Gebruikersnaam' });
-    const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': 'Wachtwoord' });
+    const user = h('input', { class: 'field', type: 'text', value: username, required: true, autocomplete: 'username', autocapitalize: 'none', spellcheck: false, 'aria-label': t('account.username') });
+    const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password') });
     const error = h('p', { class: 'error', role: 'alert' });
-    const submit = h('button', { type: 'submit', class: 'button button-primary' }, 'Inloggen');
+    const submit = h('button', { type: 'submit', class: 'button button-primary' }, t('login.title'));
     const form = h('form', {
       class: 'dialog-form',
       onsubmit: async (e) => {
         e.preventDefault();
         error.textContent = '';
         submit.disabled = true;
-        submit.textContent = 'Bezig…';
+        submit.textContent = t('login.busy');
         try {
           finish(await attempt(user.value.trim(), pass.value));
         } catch (err) {
@@ -46,14 +47,14 @@ export function loginDialog({ attempt, username = '', note = '' }) {
           pass.focus();
         } finally {
           submit.disabled = false;
-          submit.textContent = 'Inloggen';
+          submit.textContent = t('login.title');
         }
       },
     },
-    h('h2', {}, 'Inloggen'),
+    h('h2', {}, t('login.title')),
     note && h('p', { class: 'hint' }, note),
-    h('label', { class: 'field-label' }, 'Gebruikersnaam', user),
-    h('label', { class: 'field-label' }, 'Wachtwoord', pass),
+    h('label', { class: 'field-label' }, t('account.username'), user),
+    h('label', { class: 'field-label' }, t('account.password'), pass),
     error,
     h('div', { class: 'dialog-buttons' }, submit));
     queueMicrotask(() => (username ? pass : user).focus());
@@ -62,67 +63,70 @@ export function loginDialog({ attempt, username = '', note = '' }) {
 }
 
 /** Het wachtwoord wijzigen, als een deel van het accountscherm. */
-function passwordSection({ api }) {
-  const current = h('input', { class: 'field', type: 'password', autocomplete: 'current-password', required: true, 'aria-label': 'Huidig wachtwoord' });
-  const next = h('input', { class: 'field', type: 'password', autocomplete: 'new-password', required: true, minLength: MIN_PASSWORD, 'aria-label': 'Nieuw wachtwoord' });
-  const again = h('input', { class: 'field', type: 'password', autocomplete: 'new-password', required: true, 'aria-label': 'Nieuw wachtwoord nogmaals' });
+function passwordSection({ me, api }) {
+  const current = h('input', { class: 'field', type: 'password', autocomplete: 'current-password', required: true, 'aria-label': t('account.currentPassword') });
+  const next = h('input', { class: 'field', type: 'password', autocomplete: 'new-password', required: true, minLength: MIN_PASSWORD, 'aria-label': t('account.newPassword') });
+  const again = h('input', { class: 'field', type: 'password', autocomplete: 'new-password', required: true, 'aria-label': t('account.newPasswordAgain') });
   const message = h('p', { class: 'hint', role: 'status' });
   const form = h('form', {
     class: 'section-form',
     onsubmit: async (e) => {
       e.preventDefault();
       message.classList.remove('error');
-      if ([...next.value].length < MIN_PASSWORD) return fail(`Het nieuwe wachtwoord heeft minimaal ${MIN_PASSWORD} tekens nodig.`);
-      if (next.value !== again.value) return fail('De twee nieuwe wachtwoorden zijn niet gelijk.');
+      if ([...next.value].length < MIN_PASSWORD) return fail(t('account.newPasswordTooShort', { min: MIN_PASSWORD }));
+      if (next.value !== again.value) return fail(t('account.passwordsDiffer'));
+      // De overige regels van de server (te lang, gelijk aan de gebruikersnaam) al hier, in de taal van de interface.
+      const problem = passwordProblem(next.value, me.username);
+      if (problem) return fail(problem);
       try {
         await api.changePassword(current.value, next.value);
         current.value = next.value = again.value = '';
-        message.textContent = 'Wachtwoord gewijzigd. Je andere apparaten zijn afgemeld.';
+        message.textContent = t('account.passwordChanged');
       } catch (err) {
         fail(errorText(err));
       }
     },
   },
-  h('label', { class: 'field-label' }, 'Huidig wachtwoord', current),
-  h('label', { class: 'field-label' }, 'Nieuw wachtwoord', next, h('span', { class: 'hint' }, `Minimaal ${MIN_PASSWORD} tekens.`)),
-  h('label', { class: 'field-label' }, 'Nieuw wachtwoord nogmaals', again),
+  h('label', { class: 'field-label' }, t('account.currentPassword'), current),
+  h('label', { class: 'field-label' }, t('account.newPassword'), next, h('span', { class: 'hint' }, t('account.minChars', { min: MIN_PASSWORD }))),
+  h('label', { class: 'field-label' }, t('account.newPasswordAgain'), again),
   message,
-  h('div', { class: 'dialog-buttons' }, h('button', { type: 'submit', class: 'button' }, 'Wachtwoord wijzigen')));
+  h('div', { class: 'dialog-buttons' }, h('button', { type: 'submit', class: 'button' }, t('account.changePassword'))));
   function fail(text) {
     message.textContent = text;
     message.classList.add('error');
   }
-  return h('details', { class: 'section' }, h('summary', {}, 'Wachtwoord wijzigen'), form);
+  return h('details', { class: 'section' }, h('summary', {}, t('account.changePassword')), form);
 }
 
 /** De lijst met apparaten waarop dit account is aangemeld. */
 function devicesSection({ api, onCurrentRevoked }) {
-  const list = h('ul', { class: 'device-list' }, h('li', { class: 'hint' }, 'Laden…'));
+  const list = h('ul', { class: 'device-list' }, h('li', { class: 'hint' }, t('common.loading')));
   const load = async () => {
     try {
       const { sessions } = await api.sessions();
       replace(list, sessions.map((s) => h('li', { class: 'device' },
         h('div', { class: 'device-info' },
-          h('strong', {}, s.name, s.current && h('span', { class: 'badge' }, 'dit apparaat')),
-          h('span', { class: 'hint' }, `Laatst gebruikt: ${when(s.last_used_at)}`)),
+          h('strong', {}, s.name, s.current && h('span', { class: 'badge' }, t('account.thisDevice'))),
+          h('span', { class: 'hint' }, t('account.lastUsed', { when: when(s.last_used_at) }))),
         !s.current && h('button', {
           type: 'button', class: 'button button-small', onclick: async () => {
             try {
               await api.revokeSession(s.id);
-              toast(`${s.name} is afgemeld.`);
+              toast(t('account.deviceSignedOut', { name: s.name }));
             } catch (err) {
               toast(errorText(err), { kind: 'error' });
             }
             load();
           },
-        }, 'Afmelden'))));
+        }, t('account.signOut')))));
     } catch (err) {
       replace(list, h('li', { class: 'error' }, errorText(err)));
       if (err instanceof ApiError && err.status === 401) onCurrentRevoked();
     }
   };
   load();
-  return h('details', { class: 'section', open: true }, h('summary', {}, 'Aangemelde apparaten'), list);
+  return h('details', { class: 'section', open: true }, h('summary', {}, t('account.devices')), list);
 }
 
 /**
@@ -131,20 +135,20 @@ function devicesSection({ api, onCurrentRevoked }) {
  */
 export function accountDialog({ me, api }) {
   return openDialog((finish) => h('div', { class: 'dialog-form' },
-    h('h2', {}, 'Account'),
-    h('p', {}, h('strong', {}, me.name), ' ', h('span', { class: 'hint' }, `@${me.username}${me.is_admin ? ' · beheerder' : ''}`)),
+    h('h2', {}, t('account.title')),
+    h('p', {}, h('strong', {}, me.name), ' ', h('span', { class: 'hint' }, `@${me.username}${me.is_admin ? ` · ${t('account.admin')}` : ''}`)),
     devicesSection({ api, onCurrentRevoked: () => finish('relogin') }),
-    passwordSection({ api }),
+    passwordSection({ me, api }),
     h('div', { class: 'dialog-buttons' },
-      h('button', { type: 'button', class: 'button button-danger button-left', onclick: () => finish('logout') }, 'Afmelden'),
-      me.is_admin && h('button', { type: 'button', class: 'button', onclick: () => finish('admin') }, 'Gebruikersbeheer'),
-      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, 'Sluiten'))), { wide: true });
+      h('button', { type: 'button', class: 'button button-danger button-left', onclick: () => finish('logout') }, t('account.signOut')),
+      me.is_admin && h('button', { type: 'button', class: 'button', onclick: () => finish('admin') }, t('admin.title')),
+      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close')))), { wide: true });
 }
 
 /** Gebruikersbeheer voor beheerders: accounts aanmaken, blokkeren en wachtwoorden herstellen. */
 export function adminDialog({ me, api }) {
   return openDialog((finish) => {
-    const list = h('ul', { class: 'device-list' }, h('li', { class: 'hint' }, 'Laden…'));
+    const list = h('ul', { class: 'device-list' }, h('li', { class: 'hint' }, t('common.loading')));
     const message = h('p', { class: 'hint', role: 'status' });
     const say = (text, bad = false) => {
       message.textContent = text;
@@ -161,25 +165,28 @@ export function adminDialog({ me, api }) {
     };
 
     async function pickPassword(title) {
-      const text = await promptDialog({ title, label: 'Nieuw wachtwoord', type: 'password', okText: 'Instellen', hint: `Minimaal ${MIN_PASSWORD} tekens. Geef het door aan de gebruiker; die kan het daarna zelf wijzigen.` });
+      const text = await promptDialog({ title, label: t('account.newPassword'), type: 'password', okText: t('admin.setPassword'), hint: t('admin.newPasswordHint', { min: MIN_PASSWORD }) });
       return text;
     }
 
     async function userMenu(u) {
       const items = [
-        { value: 'password', label: 'Wachtwoord herstellen' },
-        u.id !== me.id && { value: 'block', label: u.is_disabled ? 'Account weer activeren' : 'Account blokkeren', danger: !u.is_disabled },
-        u.id !== me.id && { value: 'admin', label: u.is_admin ? 'Beheerdersrechten afnemen' : 'Beheerder maken' },
+        { value: 'password', label: t('admin.resetPassword') },
+        u.id !== me.id && { value: 'block', label: u.is_disabled ? t('admin.unblock') : t('admin.block'), danger: !u.is_disabled },
+        u.id !== me.id && { value: 'admin', label: u.is_admin ? t('admin.revokeAdmin') : t('admin.makeAdmin') },
       ].filter(Boolean);
       const choice = await menuDialog({ title: `${u.name} (@${u.username})`, items });
       if (choice === 'password') {
-        const pw = await pickPassword(`Nieuw wachtwoord voor ${u.name}`);
-        if (pw) run(() => api.admin.resetPassword(u.id, pw), `Wachtwoord van ${u.name} is gewijzigd; die is op alle apparaten afgemeld.`);
+        const pw = await pickPassword(t('admin.newPasswordFor', { name: u.name }));
+        // Dezelfde regels als de server, vóór het versturen: de melding staat er dan meteen, in de taal van de interface.
+        const problem = pw ? passwordProblem(pw, u.username) : '';
+        if (problem) say(problem, true);
+        else if (pw) run(() => api.admin.resetPassword(u.id, pw), t('admin.passwordReset', { name: u.name }));
       } else if (choice === 'block') {
-        const ok = u.is_disabled || await confirmDialog({ title: 'Account blokkeren?', text: `${u.name} kan niet meer inloggen en is direct overal afgemeld. De gegevens blijven bewaard.`, okText: 'Blokkeren' });
-        if (ok) run(() => api.admin.updateUser(u.id, { is_disabled: !u.is_disabled }), u.is_disabled ? `${u.name} is weer actief.` : `${u.name} is geblokkeerd.`);
+        const ok = u.is_disabled || await confirmDialog({ title: t('admin.blockTitle'), text: t('admin.blockText', { name: u.name }), okText: t('admin.blockOk') });
+        if (ok) run(() => api.admin.updateUser(u.id, { is_disabled: !u.is_disabled }), u.is_disabled ? t('admin.nowActive', { name: u.name }) : t('admin.nowBlocked', { name: u.name }));
       } else if (choice === 'admin') {
-        run(() => api.admin.updateUser(u.id, { is_admin: !u.is_admin }), u.is_admin ? `${u.name} is geen beheerder meer.` : `${u.name} is nu beheerder.`);
+        run(() => api.admin.updateUser(u.id, { is_admin: !u.is_admin }), u.is_admin ? t('admin.noLongerAdmin', { name: u.name }) : t('admin.nowAdmin', { name: u.name }));
       }
     }
 
@@ -188,42 +195,46 @@ export function adminDialog({ me, api }) {
         const { users } = await api.admin.users();
         replace(list, users.map((u) => h('li', { class: 'device' },
           h('div', { class: 'device-info' },
-            h('strong', {}, u.name, u.is_admin && h('span', { class: 'badge' }, 'beheerder'), u.is_disabled && h('span', { class: 'badge badge-bad' }, 'geblokkeerd')),
+            h('strong', {}, u.name, u.is_admin && h('span', { class: 'badge' }, t('account.admin')), u.is_disabled && h('span', { class: 'badge badge-bad' }, t('account.blocked'))),
             h('span', { class: 'hint' }, `@${u.username}`)),
-          h('button', { type: 'button', class: 'button button-small', onclick: () => userMenu(u) }, 'Beheren'))));
+          h('button', { type: 'button', class: 'button button-small', onclick: () => userMenu(u) }, t('admin.manage')))));
       } catch (err) {
         replace(list, h('li', { class: 'error' }, errorText(err)));
       }
     }
 
-    const username = h('input', { class: 'field', type: 'text', required: true, autocomplete: 'off', autocapitalize: 'none', spellcheck: false, 'aria-label': 'Gebruikersnaam' });
-    const name = h('input', { class: 'field', type: 'text', autocomplete: 'off', 'aria-label': 'Naam' });
-    const password = h('input', { class: 'field', type: 'password', required: true, minLength: MIN_PASSWORD, autocomplete: 'new-password', 'aria-label': 'Beginwachtwoord' });
+    const username = h('input', { class: 'field', type: 'text', required: true, autocomplete: 'off', autocapitalize: 'none', spellcheck: false, 'aria-label': t('account.username') });
+    const name = h('input', { class: 'field', type: 'text', autocomplete: 'off', 'aria-label': t('common.name') });
+    const password = h('input', { class: 'field', type: 'password', required: true, minLength: MIN_PASSWORD, autocomplete: 'new-password', 'aria-label': t('admin.initialPassword') });
     const isAdmin = h('input', { type: 'checkbox' });
     const create = h('form', {
       class: 'section-form',
       onsubmit: (e) => {
         e.preventDefault();
         const input = { username: username.value.trim(), name: name.value.trim() || username.value.trim(), password: password.value, is_admin: isAdmin.checked };
+        // Dezelfde regels als de server en in dezelfde volgorde, vóór het versturen.
+        const problem = passwordProblem(input.password, input.username) || usernameProblem(input.username) || displayNameProblem(input.name);
+        if (problem) return say(problem, true);
         run(async () => {
           await api.admin.createUser(input);
           username.value = name.value = password.value = '';
           isAdmin.checked = false;
-        }, `Account van ${input.name} aangemaakt. Geef de gebruikersnaam en het beginwachtwoord door.`);
+        }, t('admin.created', { name: input.name }));
+        return undefined;
       },
     },
-    h('label', { class: 'field-label' }, 'Gebruikersnaam', username),
-    h('label', { class: 'field-label' }, 'Naam', name),
-    h('label', { class: 'field-label' }, 'Beginwachtwoord', password, h('span', { class: 'hint' }, `Minimaal ${MIN_PASSWORD} tekens. De gebruiker kan het daarna zelf wijzigen.`)),
-    h('label', { class: 'check-row' }, isAdmin, ' Beheerder'),
-    h('div', { class: 'dialog-buttons' }, h('button', { type: 'submit', class: 'button' }, 'Account aanmaken')));
+    h('label', { class: 'field-label' }, t('account.username'), username),
+    h('label', { class: 'field-label' }, t('common.name'), name),
+    h('label', { class: 'field-label' }, t('admin.initialPassword'), password, h('span', { class: 'hint' }, t('admin.initialPasswordHint', { min: MIN_PASSWORD }))),
+    h('label', { class: 'check-row' }, isAdmin, ` ${t('admin.isAdmin')}`),
+    h('div', { class: 'dialog-buttons' }, h('button', { type: 'submit', class: 'button' }, t('admin.createAccount'))));
 
     load();
     return h('div', { class: 'dialog-form' },
-      h('h2', {}, 'Gebruikersbeheer'),
-      h('details', { class: 'section', open: true }, h('summary', {}, 'Accounts'), list),
-      h('details', { class: 'section' }, h('summary', {}, 'Nieuw account'), create),
+      h('h2', {}, t('admin.title')),
+      h('details', { class: 'section', open: true }, h('summary', {}, t('admin.accounts')), list),
+      h('details', { class: 'section' }, h('summary', {}, t('admin.newAccount')), create),
       message,
-      h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, 'Sluiten')));
+      h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
   }, { wide: true });
 }
