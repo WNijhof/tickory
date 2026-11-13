@@ -27,6 +27,7 @@ services:
       # en de tijdzone voor gebruikers die er zelf nog geen hebben ingesteld.
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Europe/Amsterdam}
+      PUSH_ALLOWED_HOSTS: ${PUSH_ALLOWED_HOSTS:-}
     ports:
       # Alleen bereikbaar vanaf de server zelf: zet er een reverse proxy met HTTPS voor (zie README).
       # Wil je het zonder proxy op je thuisnetwerk gebruiken, maak er dan "8787:8787" van.

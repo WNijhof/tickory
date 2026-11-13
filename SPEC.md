@@ -1,4 +1,4 @@
-# Eigen taken-tool: protocolspecificatie (v0.2)
+# Eigen taken-tool: protocolspecificatie (v0.3)
 
 Een persoonlijke, offline-first takenapp. Deze spec beschrijft het sync-protocol en het datamodel van de referentie-server in `server/`. Ze is gebaseerd op een eerder onderzoek naar de werking van Todoist (niet onderdeel van deze repo), maar is een **eigen ontwerp**: geen Todoist-code, -API of -regeldata is overgenomen.
 
@@ -36,6 +36,7 @@ Alle entiteiten hebben: `id`, `is_deleted` (bool), `created_at`, `updated_at` (I
 | `reminder` | `task_id`*, `type`* (`relative` met `minute_offset`, of `absolute` met `due` inclusief tijd), `owner_id` |
 | `filter` | `name`*, `query`*, `color`, `order_key`, `is_favorite`, `owner_id` |
 | `member` | `project_id`, `user_id`, `role` (`owner` \| `member`). Alleen te wijzigen met `project_share`, `project_unshare` en `project_leave`. |
+| `settings` | `auto_reminder` (minuten vooraf; standaard 30; -1 = geen), `timezone` (IANA-naam of `null`), `owner_id`. Eén rij per gebruiker met het vaste id `settings-<gebruikers-id>`; de server maakt hem zelf aan. Alleen `settings_update` bestaat. |
 
 Taken hebben daarnaast `assignee_id` (een lid van het project, of `null`) en `creator_id`. De velden `owner_id`, `creator_id` en `author_id` vult de **server** in met de gebruiker die het commando uitvoert; meesturen geeft `READONLY`.
 
@@ -133,6 +134,22 @@ Per entiteit `<entiteit>_add`, `<entiteit>_update`, `<entiteit>_delete` (entitei
 
 Gebruikersnamen: 2 tot 40 tekens (letters, cijfers, `.`, `-`, `_`, beginnend met een letter of cijfer), uniek ongeacht hoofdletters en Unicode-vorm. Wachtwoorden: minimaal 10 tekens, niet gelijk aan de gebruikersnaam, in NFC. Het eerste account is altijd beheerder; neemt bij een database uit v0.1 alle gegevens over.
 
+## 5a. Herinneringen
+
+Een herinnering hoort bij één taak én één gebruiker (`owner_id`): in een gedeeld project zet ieder zijn eigen herinneringen.
+
+- **Relatief** (`type: "relative"`, `minute_offset`): zoveel minuten vóór het tijdstip van de taak (0 = op het tijdstip). Werkt alleen als de taak een datum **met tijd** heeft; zonder tijd doet ze niets en ze werkt weer zodra er een tijd is.
+- **Absoluut** (`type: "absolute"`, `due.date` met tijd): een eigen datum en tijd, los van de taak.
+- Datums zijn **zwevend** (`YYYY-MM-DDTHH:MM`, zonder tijdzone): negen uur is negen uur op de plek waar je bent. Pas bij het inplannen wordt het een echt tijdstip, in de tijdzone van de gebruiker (`settings.timezone`; de web-app legt die van het apparaat vast zodra de instellingen binnen zijn) of, voor de server, `DEFAULT_TIMEZONE`. Een tijd die niet bestaat (de overgang naar zomertijd) schuift naar voren, een tijd die twee keer voorkomt (naar wintertijd) telt de eerste. Dit staat in `shared/reminders.js` (met tests rond de overgangen) en is in Kotlin nagebouwd in de Android-app.
+- Geen herinnering voor een verwijderde of afgevinkte taak. Een terugkerende taak die wordt afgevinkt schuift naar de volgende keer; relatieve herinneringen schuiven mee.
+- **Automatische herinnering** (zoals Todoist): krijgt een taak een tijd en heb je er zelf nog geen herinnering bij, dan komt er een relatieve van `settings.auto_reminder` minuten bij; verdwijnt de tijd, dan vervallen je relatieve herinneringen. Dit doet de **client** (`core/actions.js`), in dezelfde reeks commando's als de wijziging van de taak.
+- Verlaat of verdwijnt iemand uit een project, dan vervallen zijn herinneringen bij de taken daarvan.
+
+**Afleveren.** Twee wegen, naast elkaar:
+
+1. **Meldingen in de browser (Web Push, `server/push.ts`)**: de server kijkt elke 20 seconden welke herinneringen aan de beurt zijn en stuurt een versleuteld bericht (RFC 8291) naar de pushdienst van de browser, ondertekend met VAPID (RFC 8292). Elke herinnering gaat per tijdstip één keer; wat hooguit een uur te laat is (bijvoorbeeld na een herstart) gaat alsnog; bij een tijdelijke fout wordt het volgende ronde opnieuw geprobeerd. Alleen bekende pushdiensten zijn toegestaan als bestemming (geen eigen netwerk). Eindpunten (aangemeld, behalve de laatste): `GET /api/v1/push/key`, `POST /api/v1/push/subscribe {endpoint, keys, lang}`, `POST /api/v1/push/unsubscribe {endpoint}`, `GET /api/v1/push/subscriptions`, `POST /api/v1/push/test`, en `POST /api/v1/push/action {token}`. De knoppen in een melding ("Voltooien", "Over 10 minuten") gebruiken het laatste: het token is een ondertekend bewijs (HMAC, een dag geldig) dat precies die ene handeling op die ene taak voor die ene gebruiker toestaat, zodat de browser daarvoor niet ingelogd hoeft te zijn. De sleutels en het geheim staan in de database van de server (`meta`). Het contactadres voor de pushdienst komt alleen uit `VAPID_SUBJECT`.
+2. **De Android-app** plant de herinneringen zelf in als lokale alarmen (zie `android/README.md`), zonder pushdienst en zonder Google-diensten; ze gaan dus ook af zonder internet. De web-app in de app praat met de Android-laag via `window.TickoryAndroid` (`core/android.js`): `setSession(token)` bij het starten, na inloggen en `""` bij afmelden; `remindersChanged()` zodra er iets aan taken of herinneringen verandert (kort uitgesteld, één keer per reeks); `notificationStatus()`, `requestNotificationPermission()`, `openNotificationSettings()`, `openBatterySettings()` en `changeServer()`. Een melding opent de taak via `#task=<id>`.
+
 ## 6. Realtime
 
 `GET /api/v1/events` (SSE; token **alleen via de `Authorization`-header**, nooit in de URL: de client leest de stroom met `fetch` in plaats van `EventSource`). Gebeurtenissen: `hello` (huidige `rev`) en `sync_needed` (`{ client_id, rev }`) na elke wijziging. Het signaal draagt **geen data**: de client haalt een delta op, en negeert signalen met zijn eigen `client_id` (header `X-Client-Id` bij het sync-verzoek). Bij het heropenen van de verbinding: ook een delta ophalen.
@@ -163,6 +180,10 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Meldingen | `core/messages.js` | Foutcodes van de server worden begrijpelijk Nederlands, zonder technische veldnamen |
 | Snel toevoegen | `core/quickadd.js` | `#project`, `/sectie`, `@label`, `p1` tot `p4` of `!!1` tot `!!4`, `{deadline}`, datum in gewone taal; `~` zet de herkenning uit |
 | Overzichten | `core/selectors.js` | Project (secties, subtaken), Vandaag (te laat apart), Binnenkort |
+| Taal van de interface | `core/i18n.js`, `i18n/nl.js`, `i18n/en.js` | `t('sleutel', { invulveld })` met meervoud; keuze: bewaarde voorkeur (`tickory.lang`), dan de talen van de browser, anders Nederlands. De datumtaal die je intypt is een ander onderwerp en voorlopig alleen Nederlands |
+| Herinneringen | `shared/reminders.js`, `core/reminderText.js`, `ui/reminderUi.js` | Tijdstip van een herinnering, de teksten, het stuk in het taakvenster en het scherm Herinneringen en meldingen |
+| Meldingen | `core/push.js`, `core/android.js`, `sw.js` | Aan- en uitzetten van meldingen in de browser, de brug naar de Android-app, en de service worker die een bericht als melding toont |
+| Filters en zoeken | `core/filter.js`, `core/search.js` | De logica van de filtertaal (Nederlands en Engels) en van zoeken; nog zonder schermen |
 | Offline | `sw.js` | Bewaart alle bestanden van de app en vult de bewaarde kopie vanzelf aan als die gewist is |
 
 **Optimistisch rekenen.** De weergave is altijd *bevestigde toestand plus wachtrij*. Na elk sync-antwoord wordt de bevestigde toestand vervangen en de nog niet bevestigde wachtrij er opnieuw op toegepast. Een wijziging van een ander apparaat overschrijft dus nooit een wijziging die nog moet worden verstuurd.
@@ -175,6 +196,8 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 - **Sessies:** per apparaat een willekeurig token van 256 bits (`tky_…`); de database bewaart alleen de SHA-256 ervan, dus een gelekte database of back-up geeft geen werkende sessies. Uitloggen, een nieuw wachtwoord, blokkeren en intrekken werken direct, ook voor open live-verbindingen.
 - **Inlogpogingen beperkt:** 8 mislukkingen per gebruikersnaam en 40 per adres per kwartier. Achter een eigen proxy telt met `TRUST_PROXY=1` het adres uit `X-Forwarded-For` (de laatste waarde).
 - Elke toegangsregel uit hoofdstuk 4 en 5 is getest, en gecontroleerd met opzettelijk gebroken code (elke gebroken regel laat een test falen).
+- **Meldingen:** een apparaat meldt zelf het adres van zijn pushdienst; dat mag nooit naar een willekeurige server wijzen (dan zou de server verzoeken doen aan je thuisnetwerk). Alleen bekende pushdiensten, via https op poort 443 en nooit een IP-adres, zijn toegestaan; verder uit te breiden met `PUSH_ALLOWED_HOSTS` (komma-gescheiden domeinen, bijvoorbeeld een eigen pushdienst). Omleidingen worden niet gevolgd. De knoppen in een melding gebruiken een ondertekend bewijs per taak en handeling dat een dag geldig is (zie 5a). De privésleutel van de server voor meldingen staat in de database en dus ook in een back-up: bewaar die net zo zorgvuldig.
+- **Android-app:** het sessietoken wordt met een sleutel uit de Android Keystore versleuteld bewaard; de brug naar de web-app werkt alleen als de geladen pagina van het ingestelde serveradres komt; de app vraagt alleen de toestemmingen die hij nodig heeft; geen Google-diensten, geen statistieken, geen "Safe Browsing"-controle bij Google.
 - Luistert standaard op `127.0.0.1`. Zet er voor gebruik buiten je netwerk een reverse proxy met **TLS** voor; wachtwoord en sessietoken reizen anders in de open lucht.
 - **Voor een telefoon heb je HTTPS nodig.** Browsers staan service workers (offline gebruik) en installeren als app alleen toe op een beveiligde herkomst; alleen `localhost` is daarop een uitzondering.
 - Het sessietoken staat nooit in een URL, dus ook niet in toegangslogs van een proxy.
@@ -186,14 +209,14 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 
 | Onderdeel | Opmerking |
 |---|---|
-| Android-app (APK) | In ontwikkeling: een eigen Kotlin-app die de web-app van je server toont en herinneringen als lokale alarmen op het toestel inplant (zonder Google-diensten). Tot die er is werkt de PWA op Android ("Toevoegen aan startscherm") |
+| Android-app (APK): getest op een echt toestel | De app bouwt, 160 tests slagen en lint is schoon, maar niets is op een telefoon of emulator gedraaid (de emulator kon op de ontwikkelmachine niet starten). Alarmen in de slaapstand en bij strenge merken, de toestemmingsvragen en de echte WebView zijn alleen op een toestel te controleren |
 | Herhalingen als gesproken of getypte zin in het bewerkvenster | Het datumveld leest ze al ("elke ma en do"); een kiezer met knoppen ontbreekt |
 | Herkennen van een teruggezette database | Het token is nu alleen een versienummer. Een `epoch` (willekeurige waarde, per database) in het token zou een teruggezette of vervangen database altijd een volledige sync laten afdwingen, ook als het versienummer toevallig weer voorbij de stand van een apparaat is gegroeid |
-| Filtertaal | Evaluator voor `filter.query` (start: `today`, `overdue`, `p1`–`p4`, `@label`, `#project`, `&`, `\|`, `!`, haakjes) |
+| Schermen voor filters en zoeken | De logica staat klaar (`core/filter.js`, `core/search.js`, `addFilter`/`renameLabel` in `core/actions.js`); er is nog geen zoekveld, filterscherm of labelbeheer |
 | Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
-| Herinneringen: aanmaken in de app én afleveren | De server kan herinneringen opslaan en synchroniseren (`reminder_*`, relatief of absoluut), maar de app heeft er geen scherm voor en niets verstuurt ze. Afleveren vraagt een planner op de server (hij kent alle herinneringen en due-datums), een tijdzone-instelling (`due` is zwevend, zonder tijdzone), onthouden wat al verstuurd is, en een kanaal naar de telefoon: bijvoorbeeld ntfy (eenvoudig, werkt met de app dicht), Web Push (vereist HTTPS en een eigen implementatie van VAPID en berichtversleuteling) of een Android-schil met exacte alarmen |
+| Herinneringen op een locatie, per e-mail, en Engelse datumtaal voor herinneringen | Alleen op tijd, in de app en als melding. Wat je intypt is voorlopig Nederlands (`!(morgen om 8 uur)`); `!30m` en een datum in de vorm `2026-12-31T14:30` werken in elke taal |
 | Opmerkingen, favorieten, archiveren, duur, bord- en kalenderweergave | Staan als velden of entiteiten in het datamodel en worden gesynchroniseerd; de app heeft er geen scherm voor |
-| De volgorde van taken wijzigen (slepen), zoeken, labels beheren | Ontbreken in de app; `order_key` (de volgordesleutel) en de commando's voor labels zijn er wel |
+| De volgorde van taken wijzigen (slepen), bord- en kalenderweergave | Ontbreken in de app; `order_key` (de volgordesleutel) bestaat |
 | Bijlagen, activiteitenlog, voltooide taken met paginering | Voltooide taken blijven nu in `tasks` met `checked: true` |
 | Persoonlijke projectvoorkeuren in gedeelde projecten | Volgorde in de zijbalk, favoriet en ingeklapt horen nu bij het project en gelden dus voor alle leden |
 | Eigenaarschap overdragen, uitnodigen via link of e-mail | Delen gaat nu op gebruikersnaam; een eigenaar kan een project alleen verwijderen, niet overdragen |
