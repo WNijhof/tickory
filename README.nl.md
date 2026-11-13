@@ -77,7 +77,7 @@ Open de app en log in met het eerste account.
 - Taken kun je **toewijzen** aan een lid ("voor Bob"). Verlaat of verdwijnt iemand, dan vervalt de toewijzing.
 - Je **Inbox** is van jou alleen en kan niet worden gedeeld.
 - **Persoonlijk blijft:** herinneringen, filters en labels. Labels die iemand anders op een taak in een gedeeld project zet, zie je wel (als `@label`), maar je kunt ze niet wijzigen of verwijderen.
-- Subprojecten van een gedeeld project worden mee gedeeld. Verwijder je een project, dan blijft een subproject waar je geen eigenaar van bent staan, op het hoogste niveau. (De server kent subprojecten; de app heeft nog geen knop om ze te maken of een project te verplaatsen.)
+- Subprojecten van een gedeeld project worden mee gedeeld. Verwijder je een project, dan blijft een subproject waar je geen eigenaar van bent staan, op het hoogste niveau. (In de app maak je er een met "Subproject toevoegen" in het projectmenu; een project verplaatsen kan nog niet.)
 - Bekende beperking: de **volgorde in de zijbalk** en het markeren als favoriet horen bij het project en zijn dus niet per persoon.
 
 ### Herinneringen en meldingen
@@ -220,7 +220,7 @@ Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` en `TODO_ADMIN_NAM
 
 ```sh
 npm test            # protocol, rechten, accounts, server, client, datumtaal, herinneringen en meldingen, filters en zoeken, talen, overzichten, back-up, offline-bestanden
-npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 28 stappen
+npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 37 stappen
 node scripts/docker-smoke.ts tickory:ci    # test van de image (vereist Docker, na: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # de website en de demo (vereist Edge of Chrome)
 ```
@@ -250,8 +250,8 @@ shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   gedeel
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tabellen, rijen, sync-engine met rechten, accounts en sessies, meldingen (Web Push), HTTP + SSE + bestanden, back-up
 client/    index.html, app.css, sw.js, manifest             de web-app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
-client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, search, selectors, format, messages
+client/ui/     app, render, taskDialog, projectDialog, quickAdd, comments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  de teksten van de interface, in het Nederlands en het Engels
 android/       de Android-app (Kotlin, WebView, lokale alarmen)
 client/vendor/ nlDatum.generated.js                         Nederlandse datumherkenner (met chrono-node, zie THIRD_PARTY_NOTICES.md)
@@ -264,7 +264,7 @@ scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
 
 Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen en een interface in het Nederlands en het Engels. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
 
-**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
+**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten met een kleur, subprojecten, favorieten en archiveren, secties, labels (via snel toevoegen en het taakvenster), **opmerkingen** bij taken en projecten, prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, een zijbalk met Inbox, Vandaag, Binnenkort, favorieten en projecten, een taakvenster met alle details, sneltoetsen (`q`, `g` dan `t`, `u` of `i`, `?`), voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
 
 **Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
 - **De eerste Android-APK.** De app bestaat en is op een computer getest, maar er is nog geen release en de maker heeft hem niet op een echte telefoon geprobeerd. De eerste APK komt met de eerstvolgende versie; tot die tijd gebruik je de web-app in de browser van je telefoon, of bouw je hem zelf (zie [android/README.md](android/README.md)).
@@ -272,13 +272,12 @@ Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen
 - **Engelse datumtaal.** De interface is Engels, maar wat je als datum intypt, wordt alleen in het Nederlands herkend.
 
 **Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
-- **Opmerkingen** bij taken en projecten.
-- Subprojecten, favorieten, **archiveren** van projecten en secties, de **duur** van een taak, en bord- of kalenderweergave.
+- De **duur** van een taak, en bord- of kalenderweergave.
 
 **Ontbreekt helemaal:**
 - **Slepen of anderszins de volgorde van taken wijzigen.** Een nieuwe taak komt altijd achteraan.
 - **Labels beheren** (hernoemen, verwijderen, op een label filteren) in de app.
-- Bijlagen, statistieken, sjablonen, import en export, een iCal-feed, sneltoetsen, widgets, een eigen volgorde voor Vandaag, uitnodigen via een link of e-mail, en overdragen van de eigenaar van een project.
+- Bijlagen, statistieken, sjablonen, import en export, een iCal-feed, widgets, een eigen volgorde voor Vandaag, uitnodigen via een link of e-mail, en overdragen van de eigenaar van een project.
 
 Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. SPEC.md hoofdstuk 10 is ouder dan deze lijst en niet bijgewerkt; deze lijst klopt.
 

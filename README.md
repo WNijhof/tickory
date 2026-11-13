@@ -59,13 +59,13 @@ The image is published with the first release. If pulling it asks for a sign-in,
 
 - Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
 - Sharing a project with other users of the same server, and assigning tasks to members.
-- Tasks with subtasks, projects, sections, labels, priorities P1 to P4, date and time, deadlines.
+- Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, and **comments** on tasks and projects.
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
 - Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`.
 - **Reminders**: several per task, relative to the time of the task (10 minutes before, 1 day before, ...) or at a fixed time; an automatic reminder for every task with a time (30 minutes before unless you change it); your own time zone. They are personal, also in shared projects.
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app.
 - The interface in English and Dutch.
-- The views Today (with overdue tasks) and Upcoming (the next two weeks).
+- A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
 - Ticking off with undo; showing or hiding completed tasks.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
 - Installable as an app (PWA) on phone and computer, and an Android app of its own (see below).
@@ -83,14 +83,13 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
 
-- **Comments** on tasks and projects.
-- Sub-projects, favourites, **archiving** projects and sections, the **duration** of a task, and a board or calendar view.
+- The **duration** of a task, and a board or calendar view.
 
 **Missing entirely:**
 
 - **Dragging or otherwise changing the order of tasks.** A new task always goes to the end.
 - **Managing labels** (renaming, deleting, filtering by label) in the app.
-- Attachments, statistics, templates, import and export, an iCal feed, keyboard shortcuts, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
+- Attachments, statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
 
@@ -129,7 +128,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 - Tasks can be **assigned** to a member ("for Bob"). When someone leaves or is removed, the assignment lapses.
 - Your **Inbox** is yours alone and cannot be shared.
 - **Personal:** reminders, filters and labels. Labels that someone else puts on a task in a shared project are visible to you (as `@label`), but you cannot rename or delete them.
-- Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (The server supports sub-projects; the app has no button to create them yet.)
+- Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (In the app you make one with "Add subproject" in the project menu.)
 - Known limitation: the **order in the sidebar** and the favourite mark belong to the project and are therefore not per person.
 
 ### Reminders and notifications
@@ -250,7 +249,7 @@ Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` and `TODO_ADMIN_
 
 ```sh
 npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
-npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 28 steps
+npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 37 steps
 node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
 ```
@@ -264,8 +263,8 @@ shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   shared
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
 client/    index.html, app.css, sw.js, manifest             the web app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, reminderText, push, filter, search, selectors, format, messages
-client/ui/     app, render, taskDialog, reminderUi, shareDialog, accountDialogs, dom
+client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, search, selectors, format, messages
+client/ui/     app, render, taskDialog, projectDialog, quickAdd, comments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)
