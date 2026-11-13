@@ -3,8 +3,11 @@ name: Website
 # Bouwt de website (met de handleiding en de demo) en publiceert haar op GitHub Pages bij elke wijziging op main.
 # Handmatig starten kan ook: Actions > Website > Run workflow.
 #
-# Eenmalig instellen in de repo: Settings > Pages > Build and deployment > Source: "GitHub Actions".
-# Zolang dat niet is gedaan, mislukt de stap "configure-pages" en wordt er niets gepubliceerd.
+# Eenmalig instellen in de repo:
+#   1. Settings > Pages > Build and deployment > Source: "GitHub Actions".
+#   2. Settings > Secrets and variables > Actions > Variables: maak PAGES_ENABLED met de waarde true.
+# Zolang dat niet is gedaan, slaat deze workflow zichzelf over (en blijft de repo groen); er wordt dan niets gepubliceerd.
+# De website wordt wel bij elke wijziging gebouwd en gecontroleerd, door de job "website en demo" in ci.yml.
 # Eerst wordt gebouwd en gecontroleerd (links, de demo in een echte browser); pas daarna wordt er gepubliceerd.
 
 on:
@@ -23,6 +26,7 @@ concurrency:
 jobs:
   build:
     name: bouwen en controleren
+    if: ${{ vars.PAGES_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
