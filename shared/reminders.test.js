@@ -136,3 +136,20 @@ test('Nederlands: wat geen relatieve herinnering is, wordt niet geraden', () => 
   assert.equal(parseOffsetNl('9999 dagen'), null, 'meer dan een jaar');
   assert.equal(parseOffsetNl('365 dagen'), MAX_OFFSET);
 });
+
+test('een echt tijdstip terug naar zwevende tijd, in een tijdzone en op dit apparaat', async () => {
+  const { epochToFloating } = await import('./reminders.js');
+  assert.equal(epochToFloating(Date.parse('2026-12-01T08:00:00Z'), 'Europe/Amsterdam'), '2026-12-01T09:00');
+  assert.equal(epochToFloating(Date.parse('2026-07-01T07:00:59Z'), 'Europe/Amsterdam'), '2026-07-01T09:00', 'seconden vallen weg');
+  assert.equal(epochToFloating(Date.parse('2026-12-31T23:30:00Z'), 'Europe/Amsterdam'), '2027-01-01T00:30', 'over de jaargrens');
+  assert.equal(epochToFloating(Date.parse('2026-12-01T03:30:00Z'), 'Asia/Kolkata'), '2026-12-01T09:00');
+  assert.equal(epochToFloating(Date.parse('2026-12-01T09:00:00Z'), 'UTC'), '2026-12-01T09:00');
+  // heen en terug: in elke zone hetzelfde, ook rond de overgangen (voor tijden die bestaan)
+  for (const zone of ['Europe/Amsterdam', 'America/New_York', 'Pacific/Auckland', 'Asia/Kolkata', 'UTC', null]) {
+    for (const f of ['2026-12-01T09:00', '2026-03-29T01:59', '2026-03-29T03:00', '2026-10-25T03:30', '2026-07-15T23:59', '2027-01-01T00:00']) {
+      assert.equal(epochToFloating(floatingToEpoch(f, zone), zone), f, `${f} in ${zone ?? 'de zone van dit apparaat'}`);
+    }
+  }
+  // tien minuten na het uur dat niet bestaat komt in de zomertijd uit
+  assert.equal(epochToFloating(floatingToEpoch('2026-03-29T01:55', 'Europe/Amsterdam') + 10 * 60_000, 'Europe/Amsterdam'), '2026-03-29T03:05');
+});

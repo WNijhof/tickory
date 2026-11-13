@@ -125,3 +125,19 @@ export function parseOffsetNl(text) {
   const minutes = n * unit[1];
   return minutes <= MAX_OFFSET ? minutes : null;
 }
+
+/**
+ * Het omgekeerde van floatingToEpoch: een echt tijdstip als zwevende datum en tijd ("2026-12-01T09:00") in de tijdzone
+ * van dit apparaat of in een opgegeven tijdzone. Seconden vallen weg.
+ * @param {number} epochMs
+ * @param {string | null} [timeZone]
+ */
+export function epochToFloating(epochMs, timeZone = null) {
+  if (!timeZone) {
+    const d = new Date(epochMs);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  const f = new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const get = Object.fromEntries(f.formatToParts(new Date(epochMs)).map((x) => [x.type, x.value]));
+  return `${get.year}-${get.month}-${get.day}T${get.hour}:${get.minute}`;
+}

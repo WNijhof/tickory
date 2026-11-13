@@ -23,6 +23,10 @@ services:
       TODO_ADMIN_NAME: ${TODO_ADMIN_NAME:-}
       # Zet op 1 als er een eigen reverse proxy voor staat; dan telt het adres van de bezoeker bij het beperken van inlogpogingen.
       TRUST_PROXY: ${TRUST_PROXY:-0}
+      # Meldingen in de browser: een contactadres voor de pushdienst ("mailto:jij@voorbeeld.nl" of een https-adres),
+      # en de tijdzone voor gebruikers die er zelf nog geen hebben ingesteld.
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Europe/Amsterdam}
     ports:
       # Alleen bereikbaar vanaf de server zelf: zet er een reverse proxy met HTTPS voor (zie README).
       # Wil je het zonder proxy op je thuisnetwerk gebruiken, maak er dan "8787:8787" van.

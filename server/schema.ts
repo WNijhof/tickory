@@ -92,6 +92,26 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS task_moves_rev ON task_moves (rev)');
   db.exec('DROP TABLE IF EXISTS commands'); // versie 0.1: zonder gebruiker; alle apparaten moeten toch opnieuw inloggen
 
+  // Apparaten die meldingen in de browser willen (Web Push), en welke herinneringen al verstuurd zijn (zie push.ts).
+  db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    session_id TEXT NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    lang TEXT NOT NULL DEFAULT 'nl',
+    created_at TEXT NOT NULL,
+    last_success_at TEXT,
+    last_error TEXT,
+    last_error_at TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS push_user ON push_subscriptions (user_id)');
+  db.exec(`CREATE TABLE IF NOT EXISTS reminder_deliveries (
+    reminder_id TEXT NOT NULL, moment TEXT NOT NULL, user_id TEXT NOT NULL, sent_at TEXT NOT NULL,
+    PRIMARY KEY (reminder_id, moment)
+  )`);
+
   for (const e of ENTITY_LIST) {
     const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
     db.exec(`CREATE TABLE IF NOT EXISTS ${e.table} (
