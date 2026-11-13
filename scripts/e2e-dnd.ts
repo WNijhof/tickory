@@ -46,7 +46,21 @@ async function scenario(c: any): Promise<void> {
   const nav = (label: string) => evaluate(`(() => { const el = [...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === ${js(label)}); if (!el) throw new Error('geen menu-item: ' + ${js(label)}); el.click(); })()`);
   const rowExpr = (name: string) => `[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(name)})`;
   const navRowExpr = (name: string) => `[...document.querySelectorAll('#sidebar .nav-row')].find((r) => r.querySelector('.nav-label').textContent === ${js(name)})`;
-  const rectOf = (expr: string) => evaluate<Rect>(`(() => { const e = ${expr}; if (!e) throw new Error('niet gevonden: ' + ${js(expr.slice(0, 120))}); const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+  const rectNow = (expr: string) => evaluate<Rect>(`(() => { const e = ${expr}; if (!e) throw new Error('niet gevonden: ' + ${js(expr.slice(0, 120))}); const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+  /**
+   * De plek van een element, pas als hij stilstaat: regels met `content-visibility: auto` hebben tot ze zijn gemeten een geschatte
+   * hoogte, waardoor de lijst na het openen nog even verspringt. Meten we te vroeg, dan pakt de muis een andere regel.
+   */
+  const rectOf = async (expr: string) => {
+    let last = await rectNow(expr);
+    for (let i = 0; i < 20; i++) {
+      await sleep(60);
+      const now = await rectNow(expr);
+      if (now.x === last.x && now.y === last.y && now.w === last.w && now.h === last.h) return now;
+      last = now;
+    }
+    return last;
+  };
   const rowRect = (name: string) => rectOf(rowExpr(name));
   const navRect = (name: string) => rectOf(navRowExpr(name));
   const at = (r: Rect, fx: number, fy: number) => ({ x: Math.round(r.x + r.w * fx), y: Math.round(r.y + r.h * fy) });
