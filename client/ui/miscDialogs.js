@@ -23,8 +23,11 @@ export function shortcutsDialog() {
       row(SHORTCUT_KEYS.inbox, t('shortcuts.goInbox')),
       row(SHORTCUT_KEYS.help, t('shortcuts.help')),
       row(['Esc'], t('shortcuts.escape')),
-      row(['Ctrl', 'Enter'], t('shortcuts.save'), false)),
+      row(['Ctrl', 'Enter'], t('shortcuts.save'), false),
+      row(['Alt', '↑ / ↓'], t('shortcuts.moveUpDown'), false),
+      row(['Alt', '→ / ←'], t('shortcuts.moveInOut'), false)),
     h('p', { class: 'hint' }, t('shortcuts.note')),
+    h('p', { class: 'hint' }, t('shortcuts.dragNote')),
     h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button button-primary', onclick: () => finish(null) }, t('common.close')))));
 }
 
