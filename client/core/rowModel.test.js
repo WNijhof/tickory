@@ -75,7 +75,7 @@ test('rowModel: tellers voor subtaken en opmerkingen', () => {
 
 test('rowModel: labels met hun kleur (onbekend of ontbrekend valt terug), onbekende labels worden overgeslagen', () => {
   const m = model({ labels: ['l1', 'l2', 'verdwenen'] });
-  assert.deepEqual(m.labels, [{ name: 'bellen', color: 'blue' }, { name: 'spoed', color: 'charcoal' }]);
+  assert.deepEqual(m.labels, [{ id: 'l1', name: 'bellen', color: 'blue' }, { id: 'l2', name: 'spoed', color: 'charcoal' }]);
 });
 
 test('rowModel: toegewezen aan jou of aan een ander, met initialen', () => {

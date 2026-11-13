@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyState } from './reducer.js';
-import { search } from './search.js';
+import { markSegments, search } from './search.js';
 import { foldMap, foldText, foldWords, foldedField, occurrences } from './fold.js';
 
 const ME = 'u-anna';
@@ -318,4 +318,74 @@ test('zoeken: 10.000 taken in redelijke tijd', (t) => {
     t.diagnostic(`${ms.toFixed(1)} ms voor "${q}": ${hits.length} treffers`);
     assert.ok(ms < 1500, `te traag: ${ms.toFixed(0)} ms`);
   }
+});
+
+// ---------- opmerkingen en markeringen tonen ----------
+
+const comment = (id, content, o = {}) => ({ id, task_id: null, project_id: null, content, author_id: ME, created_at: '2026-11-01T10:00:00Z', ...o });
+
+test('zoeken: een opmerking bij een taak of project wordt gevonden, na de taken, met een stuk tekst en waar ze bij hoort', () => {
+  const v = world((put) => {
+    put('tasks', task('t-tand', 'Tandarts bellen'));
+    put('tasks', task('t-ander', 'Iets anders'));
+    put('comments', comment('c1', 'De praktijk van de tandarts is dicht op maandag', { task_id: 't-ander' }));
+    put('comments', comment('c2', 'Offerte voor de tandarts nog opvragen', { project_id: 'p-tuin' }));
+    put('comments', comment('c3', 'Niets over dit onderwerp', { task_id: 't-tand' }));
+  });
+  const hits = search(v, 'TANDARTS', { userId: ME });
+  assert.deepEqual(ids(hits), ['task:t-tand', 'comment:c2', 'comment:c1'], 'eerst de taak, dan de opmerkingen (kortste eerst)');
+  const [, c2, c1] = hits;
+  assert.equal(c1.where, 'comment');
+  assert.deepEqual(c1.on, { kind: 'task', id: 't-ander', name: 'Iets anders' });
+  assert.deepEqual(c1.project, { id: 'p-thuis', name: 'Thuis' });
+  assert.deepEqual(c2.on, { kind: 'project', id: 'p-tuin', name: 'Tuinieren' });
+  assert.deepEqual(c2.project, { id: 'p-tuin', name: 'Tuinieren' });
+  // de markering ligt in de getoonde tekst, niet in de oorspronkelijke
+  assert.deepEqual(markSegments(c1.text, c1.marks).filter((s) => s.mark).map((s) => s.text), ['tandarts']);
+  // alle woorden moeten in dezelfde opmerking staan
+  assert.deepEqual(ids(search(v, 'tandarts maandag')).filter((x) => x.startsWith('comment')), ['comment:c1']);
+  assert.deepEqual(ids(search(v, 'tandarts onderwerp')).filter((x) => x.startsWith('comment')), [], 'twee opmerkingen samen tellen niet');
+});
+
+test('zoeken: opmerkingen bij een gearchiveerd project of een verdwenen taak doen niet mee, en bij een afgevinkte taak staan ze achteraan', () => {
+  const v = world((put) => {
+    put('tasks', task('t-oud', 'Oude klus', { project_id: 'p-oud' }));
+    put('tasks', task('t-af', 'Klaar', { checked: true }));
+    put('tasks', task('t-open', 'Open'));
+    put('comments', comment('c-oud', 'wachtwoord wifi', { task_id: 't-oud' }));
+    put('comments', comment('c-proj', 'wachtwoord wifi', { project_id: 'p-oud' }));
+    put('comments', comment('c-weg', 'wachtwoord wifi', { task_id: 't-bestaat-niet' }));
+    put('comments', comment('c-af', 'wachtwoord wifi', { task_id: 't-af' }));
+    put('comments', comment('c-open', 'wachtwoord wifi', { task_id: 't-open' }));
+  });
+  assert.deepEqual(ids(search(v, 'wachtwoord')), ['comment:c-open', 'comment:c-af']);
+  assert.equal(search(v, 'wachtwoord')[1].checked, true);
+});
+
+test('zoeken: accenten en hoofdletters gelden ook in opmerkingen, en een view zonder opmerkingen werkt gewoon', () => {
+  const v = world((put) => {
+    put('tasks', task('t1', 'Reservering'));
+    put('comments', comment('c1', 'Café "De Gouden Leeuw" is gesloten', { task_id: 't1' }));
+  });
+  assert.deepEqual(ids(search(v, 'CAFÉ gouden')), ['comment:c1']);
+  const without = world();
+  delete without.comments;
+  assert.deepEqual(ids(search(without, 'tuin')).length > 0, true);
+});
+
+test('markSegments: stukken tekst met en zonder markering, zonder lege stukken', () => {
+  assert.deepEqual(markSegments('Tandarts bellen', [{ start: 0, length: 8 }]), [{ text: 'Tandarts', mark: true }, { text: ' bellen', mark: false }]);
+  assert.deepEqual(markSegments('abc', []), [{ text: 'abc', mark: false }]);
+  assert.deepEqual(markSegments('abc', [{ start: 0, length: 3 }]), [{ text: 'abc', mark: true }]);
+  assert.deepEqual(markSegments('', [{ start: 0, length: 2 }]), []);
+  assert.deepEqual(markSegments(null, null), []);
+  // een markering die over een eerdere heen ligt wordt ingekort; een markering voorbij het einde ook; lengte 0 telt niet
+  assert.deepEqual(markSegments('abcdef', [{ start: 1, length: 3 }, { start: 2, length: 3 }, { start: 5, length: 9 }, { start: 0, length: 0 }]),
+    [{ text: 'a', mark: false }, { text: 'bcd', mark: true }, { text: 'e', mark: true }, { text: 'f', mark: true }]);
+  // met accenten uit zoeken: de stukken samen zijn weer de hele tekst
+  const text = 'Café Zoë café';
+  const hit = search(world((put) => put('tasks', task('t', text))), 'cafe').find((h) => h.kind === 'task');
+  const segments = markSegments(hit.text, hit.marks);
+  assert.equal(segments.map((s) => s.text).join(''), text);
+  assert.deepEqual(segments.filter((s) => s.mark).map((s) => s.text), ['Café', 'café']);
 });

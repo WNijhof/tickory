@@ -22,6 +22,8 @@ export function shortcutsDialog() {
       row(SHORTCUT_KEYS.upcoming, t('shortcuts.goUpcoming')),
       row(SHORTCUT_KEYS.inbox, t('shortcuts.goInbox')),
       row(SHORTCUT_KEYS.help, t('shortcuts.help')),
+      row(['/'], t('shortcuts.search'), false),
+      row(['Ctrl', 'K'], t('shortcuts.search'), false),
       row(['Esc'], t('shortcuts.escape')),
       row(['Ctrl', 'Enter'], t('shortcuts.save'), false)),
     h('p', { class: 'hint' }, t('shortcuts.note')),

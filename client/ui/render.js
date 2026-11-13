@@ -26,6 +26,12 @@ const sameRoute = (a, b) => a.type === b.type && (a.id ?? null) === (b.id ?? nul
 /** Functies die na elke keer tekenen van de zijbalk de plekken `{ search, extra }` mogen vullen (zie bovenaan). */
 export const sidebarHooks = [];
 
+/**
+ * Eigen schermen voor een soort route (`route.type`): `viewHooks.filter = (ctx) => ({ title, count, lead, actions, nodes })`.
+ * `ctx` heeft view, route, today, now, me, userName, handlers en de hulpmiddelen `rows(lijst, toonProject)`, `group` en `emptyState`.
+ */
+export const viewHooks = {};
+
 /** Het gekleurde bolletje van een project of label. */
 export const dot = (color, extra = '') => h('span', { class: `dot ${colorClass(color)}${extra ? ` ${extra}` : ''}`, 'aria-hidden': 'true' });
 
@@ -152,7 +158,13 @@ function buildRow(m) {
     c.title = m.comments.label;
     chips.push(c);
   }
-  for (const label of m.labels) chips.push(chip(`chip-label ${colorClass(label.color)}`, `@${label.name}`));
+  for (const label of m.labels) {
+    // een knop: het label openen toont alle taken met dat label
+    const open = rowButton(`chip chip-label ${colorClass(label.color)}`, 'label', `@${label.name}`);
+    open.dataset.label = label.id;
+    open.title = t('label.openLabel', { name: label.name });
+    chips.push(open);
+  }
   if (m.bell) {
     const bell = chip('chip-bell', '🔔');
     bell.title = t('reminder.bell');
@@ -221,7 +233,8 @@ export function bindList(container, handlers) {
       setTimeout(() => handlers.toggle(rowCache.get(li.dataset.id)?.task ?? task), 280);
       return;
     }
-    if (act === 'fold') handlers.toggleTask(task);
+    if (act === 'label') handlers.openLabel?.(control.dataset.label);
+    else if (act === 'fold') handlers.toggleTask(task);
     else if (act === 'date') handlers.reschedule(task);
     else if (act === 'delete') handlers.removeTask(task);
     else if (act || !e.target.closest('button, a')) handlers.open(task); // "open", "edit", of een klik op de regel zelf
@@ -239,6 +252,7 @@ function rowsOf(list, pool, ctx) {
   return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
     const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id) });
     const json = JSON.stringify(model);
+    if (pool.has(task.id)) return buildRow(model); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
     let entry = rowCache.get(task.id);
     if (entry && entry.json === json) {
       entry.task = task;
@@ -259,7 +273,7 @@ export function resetRowCache() {
 
 const count = (n) => h('span', { class: 'group-count' }, String(n));
 
-function group({ title, rows, total, collapsible = null, extra = null, footer = null }) {
+export function group({ title, rows, total, collapsible = null, extra = null, footer = null }) {
   const head = title && h('div', { class: 'group-head' },
     collapsible && h('button', {
       class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
@@ -275,7 +289,7 @@ function group({ title, rows, total, collapsible = null, extra = null, footer = 
     !collapsed && footer);
 }
 
-function emptyState({ title, text, action = null }) {
+export function emptyState({ title, text, action = null }) {
   return h('div', { class: 'empty' }, emptyArt(), h('p', { class: 'empty-title' }, title), text && h('p', { class: 'empty-text' }, text), action);
 }
 
@@ -301,6 +315,10 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     rowCache = pool; // alleen wat nu in beeld is, blijft bewaard
     return result;
   };
+
+  if (Object.hasOwn(viewHooks, route.type)) {
+    return finish(viewHooks[route.type]({ view, route, today, now, me, userName, handlers, rows, group, emptyState }));
+  }
 
   if (route.type === 'today') {
     const list = todayView(view, today);

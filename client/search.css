@@ -1,0 +1,168 @@
+/* Tickory: stijl voor zoeken, filters en labels. Staat apart van app.css (die laadt eerst) en gebruikt dezelfde kleuren en maten.
+   Opbouw: zoekveld en zoekvenster · lijsten in de zijbalk · label in een taakregel · overzichten om te beheren · filterscherm en
+   -venster · uitleg van de filtertaal · telefoon. De kleuren van de tekst zijn die van app.css, waarvan core/colors.test.js
+   het contrast bewaakt; de markering hieronder heeft een eigen paar dat in dezelfde test wordt gecontroleerd. */
+
+:root {
+  --mark: #ffe58f;
+  --mark-text: #1c1f23;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mark: #6b5600;
+    --mark-text: #f5f6f7;
+  }
+}
+
+/* ---------- het zoekveld in de zijbalk en de zoekknop in de kop ---------- */
+.search-field {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-height: 40px; padding: 6px 10px; margin: 2px 0 6px; text-align: left;
+  border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg); color: var(--text-soft);
+}
+.search-field:hover { background: var(--bg-hover); color: var(--text); }
+.search-field .icon { width: 18px; height: 18px; }
+.search-field-text { flex: 1; min-width: 0; }
+.search-field-key { color: var(--text-soft); background: var(--bg-soft); }
+.icon-button.topbar-search { display: none; margin-left: auto; }
+.topbar-tools { display: flex; justify-content: flex-end; }
+
+/* ---------- het zoekvenster ---------- */
+.dialog-search { width: min(680px, calc(100vw - 24px)); margin: 9vh auto auto; max-height: min(680px, 82dvh); overflow: hidden; }
+.dialog-search[open] { display: flex; }
+.search-panel { display: flex; flex-direction: column; min-height: 0; width: 100%; }
+.search-box { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 16px; border-bottom: 1px solid var(--line); color: var(--text-soft); }
+.search-box:focus-within { box-shadow: inset 0 -2px 0 var(--focus); }
+.search-box > .icon { width: 20px; height: 20px; flex: none; }
+.search-input { flex: 1; min-width: 0; border: 0; background: none; font-size: 1.1rem; min-height: 46px; padding: 0 4px; color: var(--text); }
+.search-input:focus-visible { outline: none; }
+.search-input::placeholder { color: var(--text-soft); opacity: 0.9; }
+.search-close { display: none; }
+.search-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.search-empty { padding: 32px 24px 36px; text-align: center; color: var(--text-soft); display: flex; flex-direction: column; gap: 6px; }
+.search-empty[hidden], .search-results[hidden] { display: none; }
+.search-empty-title { color: var(--text); font-weight: 650; font-size: 1.05rem; overflow-wrap: anywhere; }
+.search-results { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; min-height: 0; }
+.search-hit {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer;
+  border: 2px solid transparent;
+}
+.search-hit.search-active { background: var(--accent-soft); border-color: var(--accent); }
+.search-lead { display: inline-flex; align-items: center; justify-content: center; color: var(--dot, var(--text-soft)); }
+.search-lead .icon { width: 19px; height: 19px; }
+.search-check { width: 18px; height: 18px; margin: 0 5px; border-radius: 50%; border: 2px solid var(--prio, var(--p4)); background: color-mix(in srgb, var(--prio, var(--p4)) 10%, transparent); }
+.search-check-done { background: var(--p4); border-color: var(--p4); }
+.search-main { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.search-title { overflow-wrap: anywhere; line-height: 1.35; }
+.search-hit-done .search-title { color: var(--text-soft); text-decoration: line-through; }
+.search-detail { display: flex; flex-wrap: wrap; gap: 0 8px; font-size: 0.82rem; color: var(--text-soft); min-width: 0; }
+.search-detail:empty { display: none; }
+.search-detail > * + *::before { content: "·"; margin-right: 8px; }
+.search-snippet { overflow-wrap: anywhere; }
+.search-due { color: var(--future); }
+.search-kind { font-size: 0.75rem; color: var(--text-soft); border: 1px solid var(--line-strong); border-radius: 999px; padding: 0 9px; white-space: nowrap; background: var(--bg); }
+.search-mark { background: var(--mark); color: var(--mark-text); border-radius: 3px; font-weight: 650; padding: 0 1px; }
+.search-keys { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line); color: var(--text-soft); font-size: 0.8rem; }
+
+/* ---------- Filters en Labels in de zijbalk ---------- */
+.nav-heading-find { justify-content: flex-start; padding: 14px 4px 2px 0; gap: 0; }
+.nav-heading-find .nav-toggle { height: 32px; }
+.nav-heading-link {
+  flex: 1; min-width: 0; min-height: 32px; border: 0; background: none; text-align: left; padding: 4px 6px; border-radius: 6px; color: var(--text-soft);
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nav-heading-link:hover { background: var(--bg-hover); color: var(--text); }
+.nav-heading-link[aria-current="page"] { color: var(--accent); }
+.nav-heading-find .icon-button { width: 28px; height: 28px; }
+.nav-star { display: inline-flex; color: var(--text-soft); }
+.nav-star .icon { width: 12px; height: 12px; fill: currentColor; }
+.nav-bad { color: var(--danger); font-weight: 700; }
+
+/* ---------- een label in een taakregel is een knop ---------- */
+.task-meta button.chip-label {
+  border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: 6px; font: inherit; font-size: 0.78rem; color: var(--text-soft); cursor: pointer; text-align: left;
+}
+.task-meta button.chip-label:hover { background: var(--bg-hover); color: var(--text); }
+
+/* ---------- overzichten om labels en filters te beheren ---------- */
+.manage-intro { padding: 0 0 8px; }
+.manage-list { list-style: none; margin: 0; padding: 0; }
+.manage-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
+.manage-open {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; border: 0; background: none; text-align: left; padding: 8px 8px; min-height: 52px; border-radius: 8px; color: var(--text);
+}
+.manage-open:hover { background: var(--bg-hover); }
+.manage-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.manage-name { overflow-wrap: anywhere; font-weight: 550; }
+.manage-detail { font-size: 0.82rem; color: var(--text-soft); }
+.manage-query { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: 0.8rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.manage-bad { color: var(--danger); }
+.manage-buttons { display: flex; flex: none; }
+.favorite-toggle[aria-pressed="true"] { color: var(--warn); }
+.favorite-toggle[aria-pressed="true"] .icon { fill: currentColor; }
+
+/* ---------- een filter: de tekst, een fout, het venster ---------- */
+.filter-summary { display: flex; align-items: center; gap: 8px; color: var(--text-soft); padding: 0 0 8px; min-width: 0; }
+.filter-summary .icon { width: 16px; height: 16px; }
+.filter-query, .filter-code { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: 0.85rem; overflow-wrap: anywhere; }
+.filter-broken { display: flex; flex-direction: column; gap: 12px; max-width: 680px; padding-top: 6px; }
+.filter-broken-title { font-size: 1.1rem; }
+.filter-broken-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-error {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--line)); border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 7%, var(--bg));
+}
+.filter-error-text { color: var(--danger); font-weight: 600; }
+.filter-query-error { white-space: pre-wrap; }
+.filter-error-mark { background: color-mix(in srgb, var(--danger) 22%, transparent); color: inherit; border-radius: 2px; text-decoration: underline wavy var(--danger); text-underline-offset: 3px; }
+.filter-error-end { padding: 0 5px; }
+.filter-state { min-height: 1.4em; }
+.filter-ok { color: var(--ok); }
+.filter-input { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; font-size: 0.95rem; }
+.dialog-filter { gap: 10px; }
+
+/* ---------- de uitleg van de filtertaal ---------- */
+.filter-help { border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+.filter-help > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.filter-help[open] > summary { border-bottom: 1px solid var(--line); }
+.filter-help-body { display: flex; flex-direction: column; gap: 6px; padding: 8px 0 12px; }
+.filter-help-heading { font-size: 0.95rem; margin-top: 10px; }
+.filter-help-subheading { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-soft); margin: 8px 0 0; }
+.filter-help-list { margin: 0; display: flex; flex-direction: column; }
+.filter-help-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 4px 16px; padding: 7px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.filter-help-row dt, .filter-help-row dd { margin: 0; min-width: 0; }
+.filter-help-row dd { color: var(--text-soft); font-size: 0.9rem; }
+.filter-help-other { display: block; font-size: 0.78rem; color: var(--text-soft); margin-top: 3px; }
+.filter-help-other code { font-family: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace; }
+.filter-code { display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--bg-soft); color: var(--text); text-align: left; }
+.filter-code-button { cursor: pointer; min-height: 30px; }
+.filter-code-button:hover { background: var(--bg-hover); }
+.dialog-filter-help { width: min(760px, calc(100vw - 24px)); }
+
+/* ---------- telefoon ---------- */
+@media (max-width: 760px) {
+  .icon-button.topbar-search { display: inline-flex; }
+  .dialog-search { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .search-box { padding-top: calc(6px + env(safe-area-inset-top)); }
+  .search-close { display: inline-flex; }
+  .search-input { font-size: 1rem; min-height: 48px; }
+  .search-hit { grid-template-columns: 28px minmax(0, 1fr); min-height: 52px; }
+  .search-kind { grid-column: 2; justify-self: start; }
+  .search-keys { display: none; }
+  .search-field { min-height: 46px; }
+  .search-field-key { display: none; }
+  .nav-heading-find { padding-top: 10px; }
+  .nav-heading-find .nav-toggle { height: 46px; width: 32px; }
+  .nav-heading-link { min-height: 46px; }
+  .nav-heading-find .icon-button { width: 44px; height: 44px; }
+  .task-meta button.chip-label { min-height: 28px; display: inline-flex; align-items: center; }
+  .manage-open { min-height: 56px; }
+  .filter-help-row { grid-template-columns: minmax(0, 1fr); }
+  .filter-code-button { min-height: 44px; }
+}
+@media (hover: none) {
+  .search-keys, .search-field-key { display: none; }
+}
+@media (forced-colors: active) {
+  .search-hit.search-active { outline: 2px solid Highlight; }
+  .search-mark, .filter-error-mark { forced-color-adjust: none; background: Mark; color: MarkText; }
+}
