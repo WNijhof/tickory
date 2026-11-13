@@ -8,6 +8,7 @@ import { RESOURCES } from './reducer.js';
 import { MemoryAdapter, Store } from './store.js';
 import { AuthError, HttpError, SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
+import { planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey } from './dnd.js';
 
 /** Een server met één account ("tester") dat de Inbox "inbox-project" heeft; de client logt daar impliciet mee in. */
 const makeServer = mkdb;
@@ -444,6 +445,17 @@ function rng(seed) {
   };
 }
 
+/** Een betere reeks dan rng() (die kijkt naar de lage bits, wat bij kleine bereiken in patronen vervalt); alleen voor de verplaatsingen. */
+function rngMixed(seed) {
+  let a = seed >>> 0;
+  return (n) => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return (((t ^ (t >>> 14)) >>> 0) / 4294967296 * n) | 0;
+  };
+}
+
 // Dezelfde labels in verschillende schrijfwijzen: hoofdletters, accenten en de ontleedde "é"; client en server moeten ze als één label zien
 const LABEL_NAMES = ['label0', 'Café', 'CAFÉ', 'café', 'één', 'ÉÉN', 'Zoë', 'zoë'];
 
@@ -565,21 +577,77 @@ async function randomAction(c, rnd) {
   }
 }
 
-for (const { seed, every } of [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }]) {
-  test(`differentieel (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
+
+/**
+ * Slepen en verplaatsen zoals de interface het doet (de plannen uit core/dnd.js), en soms twee taken met dezelfde volgordesleutel.
+ * Eigen reeks willekeurige getallen, zodat de reeks van randomAction hierboven dezelfde blijft.
+ */
+async function randomDndAction(c, rnd) {
+  const v = c.store.view;
+  const pick = (map, pred = () => true) => {
+    const list = [...map.values()].filter(pred).sort((a, b) => (a.id < b.id ? -1 : 1));
+    return list.length ? list[rnd(list.length)] : null;
+  };
+  const project = pick(v.projects);
+  const task = pick(v.tasks);
+  // slepen en verplaatsen zoals de interface het doet (plannen uit core/dnd.js), en soms twee taken met dezelfde volgordesleutel
+  const what = rnd(6) + 1;
+  const zone = ['before', 'child', 'after'][rnd(3)];
+  const userId = c.store.userId;
+  if (what === 1 || what === 2) {
+    const over = pick(v.tasks);
+    if (!task || !over) return 'skip';
+    const plan = what === 1 ? planTaskDrop(v, { dragId: task.id, overId: over.id, zone, overExpanded: Boolean(rnd(2)) }) : planTaskKey(v, task.id, ['up', 'down', 'indent', 'outdent'][rnd(4)], { isVisible: () => true }).plan;
+    if (!plan) return 'skip';
+    await c.actions.moveTask(task.id, plan);
+    return what === 1 ? 'dragTask' : 'keyTask';
+  }
+  if (what === 3) {
+    const target = pick(v.projects, (p) => !p.is_archived);
+    const plan = rnd(2) && task ? planTaskDropOnProject(v, { dragId: task.id, projectId: target.id }) : task ? planTaskDropOnGroup(v, { dragId: task.id, projectId: project.id, sectionId: pick(v.sections, (x) => x.project_id === project.id)?.id ?? null, edge: rnd(2) ? 'start' : 'end' }) : null;
+    if (!plan) return 'skip';
+    await c.actions.moveTask(task.id, plan);
+    return 'dropTask';
+  }
+  if (what === 4 || what === 5) {
+    const over = pick(v.projects);
+    const plan = what === 4
+      ? planProjectDrop(v, { dragId: project.id, overId: over.id, zone, userId, overExpanded: Boolean(rnd(2)) })
+      : (rnd(2) ? planProjectDropToTop(v, { dragId: project.id, userId }) : planProjectKey(v, project.id, ['up', 'down', 'indent', 'outdent'][rnd(4)], { userId }).plan);
+    if (!plan) return 'skip';
+    await c.actions.moveProject(project.id, plan);
+    return 'dragProject';
+  }
+  // twee taken met dezelfde sleutel in één lijst (zoals twee apparaten offline achteraan toevoegen)
+  for (const n of [1, 2]) {
+    await c.store.enqueue([{ type: 'task_add', uuid: `uuid-${String(++counter).padStart(10, '0')}`, args: { id: `id${String(++counter).padStart(10, '0')}`, project_id: project.id, content: `Gelijk ${n}`, order_key: 'V' } }]);
+  }
+  return 'tieTasks';
+}
+
+// De eerste vier reeksen zijn ongewijzigd; de volgende drie voegen slepen en verplaatsen toe (met eigen reeks getallen, zodat de
+// eerste reeksen precies hetzelfde blijven doen) en eisen daarvoor andere handelingen.
+const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }];
+const BASE_KINDS = ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject'];
+const DND_KINDS = ['dragTask', 'keyTask', 'dropTask', 'dragProject', 'tieTasks'];
+
+for (const { seed, every, dnd = false } of RUNS) {
+  test(`differentieel${dnd ? ' met slepen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
     const db = makeServer();
     const c = makeClient(db);
     await c.store.init();
     await c.sync.syncNow();
     const rnd = rng(seed);
+    const rndDnd = rngMixed(seed + 999);
     const log = [];
     for (let i = 1; i <= 400; i++) {
       log.push(await randomAction(c, rnd));
+      if (dnd && rndDnd(2) === 0) log.push(await randomDndAction(c, rndDnd));
       if (i % every !== 0) continue;
       const optimistic = snapshot(c.store.view);
       assert.equal(await c.sync.syncNow(), true);
-      assert.deepEqual(c.errors, [], `de server weigerde iets na: ${log.slice(-every).join(', ')}`);
-      assert.deepEqual(snapshot(c.store.view), optimistic, `verschil na stap ${i}: ${log.slice(-every).join(', ')}`);
+      assert.deepEqual(c.errors, [], `de server weigerde iets na: ${log.slice(-every * 2).join(', ')}`);
+      assert.deepEqual(snapshot(c.store.view), optimistic, `verschil na stap ${i}: ${log.slice(-every * 2).join(', ')}`);
     }
     await c.sync.syncNow();
     const fresh = makeClient(db);
@@ -587,8 +655,7 @@ for (const { seed, every } of [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { s
     await fresh.sync.syncNow();
     assert.deepEqual(snapshot(fresh.store.view), snapshot(c.store.view), 'een nieuw apparaat ziet hetzelfde');
     const kinds = new Set(log);
-    for (const k of ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject']) {
-      assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
-    }
+    for (const k of dnd ? DND_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
+    if (dnd) assert.ok(log.filter((k) => DND_KINDS.includes(k)).length >= 60, 'genoeg verplaatsingen in de reeks');
   });
 }

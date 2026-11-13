@@ -25,6 +25,7 @@ import { quickDates } from '../client/core/quickDates.js';
 import { setLanguage } from '../client/core/i18n.js';
 import dutchTexts from '../client/i18n/nl.js';
 import en from '../client/i18n/en.js';
+import { dragAndDropScenario } from './e2e-dnd.ts';
 
 const BROWSERS = [
   process.argv[2],
@@ -392,6 +393,14 @@ try {
 
   // ---- 6. een ander apparaat wijzigt iets: komt vanzelf binnen ----
   const otherToken = createSession(db, alice.id, 'Telefoon').token;
+  // slepen en verplaatsen (scripts/e2e-dnd.ts); met E2E_DND_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
+  const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
+  if (process.env.E2E_DND_ONLY) {
+    try { await dndScenario(); console.log('ALLEEN SLEPEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-slepen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   const other = await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-ander-apparaat-1', args: { project_id: serverTask('Planten water geven').project_id, content: 'Van mijn telefoon' } }]);
   assert.equal(other.status, 200);
   await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Van mijn telefoon')`, 'taak van ander apparaat verschijnt zonder herladen', 6000);
@@ -1591,6 +1600,9 @@ try {
   await press('Escape');
   await noDialog();
   step(`toetsenbord: Tab laat overal een zichtbare focusring zien (${ringed.length} keer gecontroleerd), Enter op een taak opent het venster, Esc sluit`);
+
+  // ---- 9c. slepen en verplaatsen van taken en projecten: muis, aanraking en toetsenbord ----
+  await dndScenario();
 
   // ---- 10. installeerbaar als app ----
   try {
