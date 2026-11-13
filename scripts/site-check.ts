@@ -5,7 +5,8 @@
 //   bestanden  alle interne links, ankers en afbeeldingen; geen absolute paden en geen bronnen van buiten; elke pagina in
 //              twee talen; de datumvoorbeelden uit de handleiding tegen de echte datumherkenner; pictogrammen en afbeeldingen
 //   demo       de "server in de browser" van de demo: het sync-protocol, en dezelfde uitkomsten en foutmeldingen als de
-//              echte server (server/sync.ts) voor een reeks commando's
+//              echte server (server/sync.ts) voor een reeks commando's; zoeken, filters en labels tegen de voorbeeldgegevens,
+//              met de filtervoorbeelden uit de handleiding
 //   browser    de site wordt lokaal geserveerd onder /tickory/ en in een browser zonder venster geopend: de demo start
 //              zonder inlogscherm en werkt (toevoegen, afvinken, bewerken, delen), geen fouten in de console, geen
 //              verzoeken naar /api/ of naar andere herkomsten; elke pagina laadt, past op een telefoon, de zoekfunctie werkt
@@ -317,6 +318,8 @@ if (wants('bestanden')) {
             else if (got[key] !== value) problems.push(`${where}: ${key} is "${got[key]}", de pagina zegt "${value}"`);
           }
           if (Object.keys(data).length === 0) problems.push(`${where}: geen verwachtingen bij dit voorbeeld`);
+        } else if (m[1] === 'ex-filter') {
+          // filtervoorbeelden worden gecontroleerd tegen de voorbeeldgegevens, in het onderdeel over de demo
         } else {
           problems.push(`${where}: onbekende soort voorbeeld (${m[1]})`);
         }
@@ -700,6 +703,104 @@ if (wants('demo')) {
     await sync.syncNow();
     assert.equal(errors.length, 2, 'met een in de demo aangemaakt account kun je delen');
     assert.equal(store.userName([...store.users].find((u: any) => u.username === 'oma').id), 'Oma Truus');
+  });
+
+  await check('zoeken, filters en labels tegen de demo-backend: de voorbeelden uit de handleiding, en een filter of label maken, wijzigen en verwijderen', async () => {
+    const { evaluateFilter, compileFilter } = await load('demo/core/filter.js');
+    const { search } = await load('demo/core/search.js');
+    const { labelNameProblem } = await load('demo/core/labelManage.js');
+    const { FILTER_TERM_GROUPS } = await load('demo/core/filterText.js');
+    const backend = createBackend();
+    const store = new Store(new MemoryAdapter());
+    await store.init();
+    const errors: any[] = [];
+    const sync = new SyncClient({ store, transport: backend.transport, onCommandErrors: (e: any[]) => errors.push(...e) });
+    const actions = createActions(store);
+    assert.equal(await sync.syncNow(), true);
+    const ctx = () => ({ view: store.view, now: new Date(), userId: store.userId, users: store.users });
+    const taskIdOf = (content: string) => [...store.view.tasks.values()].find((t: any) => t.content === content).id;
+    const decode = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // 1. elk filtervoorbeeld in de handleiding (beide talen) geeft bij de echte filtertaal wat erbij staat, op de voorbeeldgegevens van de demo
+    const problems: string[] = [];
+    let examples = 0;
+    for (const page of htmlPages.filter((p) => /^(nl|en)\//.test(p))) {
+      for (const m of read(page).matchAll(/<code class="ex-filter"((?:\s+data-[a-z]+="[^"]*")*)>([^<]*)<\/code>/g)) {
+        const text = decode(m[2]);
+        const data: Record<string, string> = {};
+        for (const a of m[1].matchAll(/data-([a-z]+)="([^"]*)"/g)) data[a[1]] = decode(a[2]);
+        const where = `${page}: "${text}"`;
+        examples += 1;
+        if (Object.keys(data).length === 0) problems.push(`${where}: geen verwachtingen`);
+        if (data.error !== undefined) {
+          const r = compileFilter(text, ctx());
+          if (r.ok) problems.push(`${where} klopt, de pagina zegt dat er een fout (${data.error}) hoort te komen`);
+          else if (r.error.code !== data.error) problems.push(`${where} geeft fout ${r.error.code}, de pagina zegt ${data.error}`);
+          continue;
+        }
+        const r = evaluateFilter(text, ctx());
+        if (!r.ok) { problems.push(`${where} geeft een fout (${r.error.code}), maar zou moeten werken`); continue; }
+        const titles = new Set(r.tasks.map((t: any) => t.content));
+        for (const t of (data.has ?? '').split('|').filter(Boolean)) if (!titles.has(t)) problems.push(`${where}: "${t}" ontbreekt in de uitkomst`);
+        for (const t of (data.hasnot ?? '').split('|').filter(Boolean)) if (titles.has(t)) problems.push(`${where}: "${t}" hoort er niet in te staan`);
+        if (data.groups !== undefined && r.groups.map((g: any) => g.name).join(',') !== data.groups) problems.push(`${where}: de lijsten heten ${r.groups.map((g: any) => g.name).join(',')}, de pagina zegt ${data.groups}`);
+      }
+    }
+    assert.deepEqual(problems, [], problems.join('\n'));
+    assert.ok(examples >= 2 * 15, `te weinig gecontroleerde filtervoorbeelden: ${examples}`);
+
+    // 2. elke term van de filtertaal staat in de handleiding, in de vorm van de taal van de pagina
+    const termProblems: string[] = [];
+    for (const [page, lang] of [['nl/handleiding/filters.html', 'nl'], ['en/guide/filters.html', 'en']] as const) {
+      const html = read(page);
+      for (const group of FILTER_TERM_GROUPS) for (const term of group.terms) {
+        if (!html.includes(`<code>${esc(term[lang])}</code>`)) termProblems.push(`${page}: de term "${term[lang]}" ontbreekt`);
+        compileFilter(term[lang], ctx()); // moet kunnen (zie ook de unit-test)
+      }
+    }
+    assert.deepEqual(termProblems, [], termProblems.join('\n'));
+
+    // 3. zoeken in de voorbeeldgegevens: elke soort treffer, zonder letter- of accentverschil
+    const kinds = new Set(search(store.view, 'BOODSCHAP', { userId: store.userId }).map((h: any) => h.kind));
+    assert.deepEqual([...kinds].sort(), ['comment', 'label', 'section', 'task']);
+    assert.ok(search(store.view, 'tandarts', { userId: store.userId }).some((h: any) => h.title === 'Tandarts bellen voor controle'));
+    assert.deepEqual(search(store.view, 'nietsdergelijks', { userId: store.userId }), []);
+
+    // 4. een filter maken, wijzigen en verwijderen: de demo bewaart het zoals de echte server
+    const filterId = await actions.addFilter({ name: 'Nu of morgen', query: '(vandaag | morgen) & @bellen', color: 'blue' });
+    await actions.updateFilter(filterId, { query: 'p1 & !subtaak' });
+    await actions.updateFilter(filterId, { is_favorite: true });
+    assert.equal(await sync.syncNow(), true);
+    const filter = store.base.filters.get(filterId);
+    assert.deepEqual([filter.name, filter.query, filter.color, filter.is_favorite, filter.owner_id], ['Nu of morgen', 'p1 & !subtaak', 'blue', true, 'user-anna']);
+    assert.ok(evaluateFilter(filter.query, ctx()).tasks.some((t: any) => t.content === 'Boot reserveren'));
+    await actions.addFilter({ name: 'Kapot', query: '#Bestaatniet' }); // een filter dat niet klopt wordt bewaard zoals getypt
+    await actions.deleteFilter(filterId);
+    assert.equal(await sync.syncNow(), true);
+    assert.equal(store.base.filters.has(filterId), false);
+    assert.equal([...store.base.filters.values()].filter((f: any) => f.name === 'Kapot').length, 1);
+    assert.equal(compileFilter('#Bestaatniet', ctx()).error.code, 'unknown_project');
+
+    // 5. labels: aanmaken (ook met spaties), dubbele namen, hernoemen, kleur, verwijderen haalt het van de taken, een label van een ander is alleen te lezen
+    assert.equal(labelNameProblem(store.view, store.userId, 'BELLEN'), 'duplicate');
+    const label = await actions.addLabel('Uitgaan met Zoë');
+    assert.equal(labelNameProblem(store.view, store.userId, `uitgaan met zoe${String.fromCharCode(0x308)}`), 'duplicate', 'e met een los trema is hetzelfde als ë');
+    await actions.setTaskLabels(taskIdOf('Fietsband plakken'), ['Uitgaan met Zoë']);
+    assert.equal(await sync.syncNow(), true);
+    assert.deepEqual(store.base.tasks.get(taskIdOf('Fietsband plakken')).labels, [label]);
+    assert.deepEqual(await actions.renameLabel(label, 'bellen'), { ok: false, code: 'DUPLICATE', message: 'Er bestaat al een label met die naam.' });
+    assert.deepEqual(await actions.renameLabel(label, 'Uitgaan'), { ok: true });
+    await actions.updateLabel(label, { color: 'green' });
+    assert.equal(await sync.syncNow(), true);
+    assert.deepEqual([store.base.labels.get(label).name, store.base.labels.get(label).color], ['Uitgaan', 'green']);
+    const buurt = [...store.view.labels.values()].find((l: any) => l.name === 'buurt');
+    assert.equal((await actions.renameLabel(buurt.id, 'wijk')).code, 'READONLY', 'het label van iemand anders kun je niet hernoemen');
+    await actions.deleteLabel(label);
+    assert.equal(await sync.syncNow(), true);
+    assert.equal(store.base.labels.has(label), false);
+    assert.deepEqual(store.base.tasks.get(taskIdOf('Fietsband plakken')).labels ?? [], [], 'het label is van de taak gehaald');
+    assert.deepEqual(errors, []);
   });
 
   await check('de demo-backend biedt precies hetzelfde als de echte backend (client/core/backend.js)', async () => {
@@ -1235,6 +1336,95 @@ if (wants('browser')) {
         assert.deepEqual([...afterDrag].sort(), [...beforeDrag].sort(), 'er is niets verdwenen of verdubbeld');
         assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false, 'het taakvenster is niet opengegaan');
         assertClean('opmerkingen, projecten en sneltoetsen');
+      });
+
+      await check('demo: zoeken (/ en de zijbalk), een filter maken met fout en uitleg, labels beheren; ook in het Engels', async () => {
+        b.reset();
+        const press = async (key: string, ctrl = false) => {
+          const named: Record<string, [string, number, string]> = { '/': ['Slash', 191, '/'], Enter: ['Enter', 13, String.fromCharCode(13)] };
+          const [code, vk, text] = named[key] ?? [`Key${key.toUpperCase()}`, key.toUpperCase().charCodeAt(0), key];
+          const base = { key, code, text: ctrl ? undefined : text, windowsVirtualKeyCode: vk, modifiers: ctrl ? 2 : 0 };
+          await b.send('Input.dispatchKeyEvent', { type: 'keyDown', ...base });
+          await b.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+        };
+        const closeSearch = () => evaluate(`document.querySelector('#search-dialog').close()`);
+        for (const lang of ['en', 'nl'] as const) { // eindigt in het Nederlands, zoals de controles hierna verwachten
+          const nl = lang === 'nl';
+          await b.viewport(1280, 860);
+          await openDemo(`?lang=${lang}`);
+          assert.equal(await evaluate(`document.querySelector('.search-field-text').textContent`), nl ? 'Zoeken' : 'Search');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-section-link')].map((e) => e.textContent)`), ['Filters', 'Labels']);
+          // zoeken: / opent het venster, hoofdletters en accenten tellen niet, Enter opent de eerste treffer
+          await evaluate(`document.activeElement?.blur(); document.body.focus()`);
+          await press('/');
+          await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster');
+          await typeInto('#search-dialog .search-input', 'BOODSCHAP');
+          await waitFor(`document.querySelectorAll('#search-dialog .search-hit').length >= 4`, 'treffers');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('#search-dialog .search-kind')].map((e) => e.textContent)`), nl ? ['Label', 'Sectie', 'Taak', 'Opmerking'] : ['Label', 'Section', 'Task', 'Comment']);
+          assert.ok(await evaluate(`document.querySelectorAll('#search-dialog mark').length >= 4`), 'de gevonden woorden zijn gemarkeerd');
+          await typeInto('#search-dialog .search-input', 'tandarts');
+          await waitFor(`document.querySelector('#search-dialog .search-title')?.textContent === 'Tandarts bellen voor controle'`, 'taak gevonden');
+          await press('Enter');
+          await waitFor(`document.querySelector('#task-dialog[open]')`, 'Enter opent de taak');
+          assert.equal(await evaluate(`document.querySelector('#task-dialog textarea').value`), 'Tandarts bellen voor controle');
+          await evaluate(`document.querySelector('#task-dialog').close()`);
+          await waitFor(`!document.querySelector('dialog')`, 'taakvenster dicht');
+          await press('k', true);
+          await waitFor(`document.querySelector('#search-dialog[open]')`, 'Ctrl+K');
+          await closeSearch();
+          await waitFor(`!document.querySelector('dialog')`, 'zoekvenster dicht');
+          // een filter: eerst met een fout, dan goed; het staat daarna in de zijbalk en toont zijn taken
+          await evaluate(`document.querySelector('.nav-section-head .icon-button').click()`);
+          await waitFor(`document.querySelector('dialog[open] .filter-input')`, 'filtervenster');
+          await typeInto('dialog[open] input[autocomplete=off]', nl ? 'Dringend' : 'Urgent');
+          await typeInto('dialog[open] .filter-input', nl ? 'vandaag & #Keuken' : 'today & #Kitchen');
+          await waitFor(`document.querySelector('dialog[open] .filter-error-text')`, 'foutmelding');
+          assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), nl ? 'Onbekend project: "Keuken".' : 'Unknown project: "Kitchen".');
+          await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+          assert.ok(await evaluate(`Boolean(document.querySelector('dialog[open] .filter-input'))`), 'een filter met een fout wordt niet bewaard');
+          await evaluate(`document.querySelector('dialog[open] .filter-help > summary').click()`);
+          assert.ok(await evaluate(`document.querySelectorAll('dialog[open] .filter-help-row').length > 30`), 'de uitleg staat in het venster');
+          await typeInto('dialog[open] .filter-input', nl ? '(vandaag | morgen | te laat) & !subtaak' : '(today | tomorrow | overdue) & !subtask');
+          await waitFor(`document.querySelector('dialog[open] .filter-ok')`, 'filter klopt');
+          await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+          await viewTitle(nl ? 'Dringend' : 'Urgent');
+          assert.ok((await titles()).length >= 5, 'het filter toont taken');
+          assert.ok((await titles()).includes('Tandarts bellen voor controle'));
+          assert.equal(await evaluate(`document.querySelector('.find-item.active .find-label').textContent`), nl ? 'Dringend' : 'Urgent');
+          // labels: overzicht, toevoegen met spaties, hernoemen, verwijderen; het label van een ander is alleen te lezen
+          await evaluate(`[...document.querySelectorAll('.nav-section-link')].at(-1).click()`);
+          await viewTitle('Labels');
+          const rows = () => evaluate<string[]>(`[...document.querySelectorAll('.manage-name')].map((e) => e.textContent)`);
+          assert.deepEqual((await rows()).sort(), ['@bellen', '@boodschappen', '@buiten', '@buurt']);
+          assert.equal(await evaluate(`document.querySelectorAll('.manage-row .manage-buttons .icon-button').length`), 9, 'drie knoppen bij elk eigen label en geen bij dat van een ander');
+          await evaluate(`document.querySelector('.btn-add').click()`);
+          await waitFor(`document.querySelector('dialog[open] input[aria-label]')`, 'labelvenster');
+          await typeInto('dialog[open] input[aria-label]', 'BELLEN');
+          await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+          assert.equal(await evaluate(`document.querySelector('dialog[open] .error').textContent`), nl ? 'Er bestaat al een label met deze naam.' : 'A label with this name already exists.');
+          await typeInto('dialog[open] input[aria-label]', 'Uitgaan met Zoë');
+          await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+          await waitFor(`[...document.querySelectorAll('.manage-name')].some((e) => e.textContent === '@Uitgaan met Zoë')`, 'label toegevoegd');
+          await typeInto('#quick-input', 'Taxi regelen @Uitgaan met Zoë');
+          await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 2`, 'voorbeeld met het label');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('#quick-preview .chip')].map((c) => c.textContent)`), ['Taxi regelen', '@Uitgaan met Zoë'], 'een bestaand label met spaties wordt herkend');
+          await typeInto('#quick-input', '');
+          await evaluate(`document.querySelector('[aria-label*="Uitgaan met Zoë"]:not([aria-pressed])').click()`);
+          await waitFor(`document.querySelector('dialog[open] input[aria-label]')`, 'label bewerken');
+          await typeInto('dialog[open] input[aria-label]', 'Uitgaan');
+          await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+          await waitFor(`[...document.querySelectorAll('.manage-name')].some((e) => e.textContent === '@Uitgaan')`, 'label hernoemd');
+          await evaluate(`[...document.querySelectorAll('button[aria-label]')].find((x) => x.getAttribute('aria-label').includes('@Uitgaan') && x.querySelector('.icon-trash')).click()`);
+          await waitFor(`document.querySelector('dialog[open] .button-danger')`, 'bevestiging');
+          await evaluate(`document.querySelector('dialog[open] .button-danger').click()`);
+          await waitFor(`![...document.querySelectorAll('.manage-name')].some((e) => e.textContent === '@Uitgaan')`, 'label verwijderd');
+          // een label in een taakregel opent het label
+          await nav(nl ? 'Inbox' : 'Inbox');
+          await viewTitle('Inbox');
+          await taskDo('Tandarts bellen voor controle', '.chip-label');
+          await viewTitle('@bellen');
+          assertClean(`zoeken, filters en labels (${lang})`);
+        }
       });
 
       await check('demo: bewaart niets: na herladen zijn de voorbeeldgegevens terug; geen service worker, geen opslag, geen aanmelding', async () => {
