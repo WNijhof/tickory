@@ -100,7 +100,8 @@ class ApiClientTest {
             assertEquals("/api/v1/sync", request.path)
             assertEquals("Bearer tky_test-token_123", request.headers["authorization"])
             assertEquals("application/json", request.headers["content-type"])
-            assertEquals(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders")), Json.parse(request.body))
+            // behalve taken en herinneringen vraagt de app ook projecten, secties en labels, voor de widgets
+            assertEquals(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders", "projects", "sections", "labels")), Json.parse(request.body))
         }
     }
 

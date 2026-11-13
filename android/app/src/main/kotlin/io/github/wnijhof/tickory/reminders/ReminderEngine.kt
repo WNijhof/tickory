@@ -90,6 +90,18 @@ object ReminderEngine {
         }
     }
 
+    /** Taken zijn in een widget afgevinkt: hun herinneringen, uitstel en meldingen vervallen meteen, ook zonder internet. */
+    fun onCompletedLocally(context: Context, taskIds: Set<String>) {
+        if (taskIds.isEmpty()) return
+        val app = context.applicationContext
+        synchronized(lock) {
+            val (state, droppedSnoozes) = ReminderLogic.completedLocally(ReminderStore.load(app), taskIds)
+            for (id in droppedSnoozes) AlarmScheduler.cancel(app, AlarmScheduler.Kind.SNOOZE, id)
+            Notifications.cancelWhere(app) { it !in taskIds }
+            apply(app, ReminderLogic.replan(state, AppClock.now(), ZoneId.systemDefault()))
+        }
+    }
+
     /**
      * Afmelden, een andere gebruiker of een andere server: alle alarmen en meldingen weg.
      *
