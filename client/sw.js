@@ -36,6 +36,7 @@ const SHELL = [
   '/ui/searchDialog.js',
   '/ui/shareDialog.js',
   '/ui/taskDialog.js',
+  '/ui/viewPrefs.js',
   '/ui/viewSwitch.js',
   '/core/actions.js',
   '/core/android.js',

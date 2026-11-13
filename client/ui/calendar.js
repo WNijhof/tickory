@@ -24,19 +24,14 @@ import { getLocale, t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
+import { readPref, writePref } from './viewPrefs.js';
 
 const MODE_KEY = 'tickory.calendarMode';
 
 /** Per kalender (project of Binnenkort) wat je er op dit scherm van hebt gekozen; blijft staan zolang de pagina open is. */
 const states = new Map();
 
-function readMode() {
-  try {
-    return globalThis.localStorage?.getItem(MODE_KEY) === 'week' ? 'week' : 'month';
-  } catch {
-    return 'month';
-  }
-}
+const readMode = () => (readPref(MODE_KEY) === 'week' ? 'week' : 'month');
 
 function stateOf(key) {
   if (!states.has(key)) states.set(key, { mode: readMode(), anchor: null, focus: null });
@@ -75,7 +70,7 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
   const setMode = (mode) => {
     if (mode === state.mode) return;
     state.mode = mode;
-    try { globalThis.localStorage?.setItem(MODE_KEY, mode); } catch { /* alleen voor deze pagina */ }
+    writePref(MODE_KEY, mode);
     refresh();
   };
 

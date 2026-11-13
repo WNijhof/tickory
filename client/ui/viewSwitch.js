@@ -4,6 +4,7 @@
 import { t } from '../core/i18n.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
+import { readPref, writePref } from './viewPrefs.js';
 
 /** Onder deze sleutel bewaart dit apparaat de keuze voor Binnenkort (die hoort bij geen enkel project, dus ook niet op de server). */
 export const UPCOMING_STYLE_KEY = 'tickory.upcomingView';
@@ -12,17 +13,11 @@ const ICONS = { list: 'list', board: 'board', calendar: 'calendar' };
 
 /** De weergave van Binnenkort op dit apparaat: 'list' of 'calendar'. */
 export function upcomingStyle() {
-  try {
-    return globalThis.localStorage?.getItem(UPCOMING_STYLE_KEY) === 'calendar' ? 'calendar' : 'list';
-  } catch {
-    return 'list'; // opslag geblokkeerd
-  }
+  return readPref(UPCOMING_STYLE_KEY) === 'calendar' ? 'calendar' : 'list';
 }
 
 export function setUpcomingStyle(style) {
-  try {
-    globalThis.localStorage?.setItem(UPCOMING_STYLE_KEY, style === 'calendar' ? 'calendar' : 'list');
-  } catch { /* de keuze geldt dan niet langer dan deze pagina */ }
+  writePref(UPCOMING_STYLE_KEY, style === 'calendar' ? 'calendar' : 'list');
 }
 
 /**

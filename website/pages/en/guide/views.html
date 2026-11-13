@@ -1,0 +1,92 @@
+<!--
+title: List, board and calendar
+description: A project as a list, as a board with a column per section or as a calendar by month or week, and Upcoming as a calendar: dragging cards and tasks, the keyboard, the phone, and what is not possible yet.
+-->
+<h1>List, board and calendar</h1>
+<p class="intro">You can look at a project in three ways: as a <strong>list</strong>, as a <strong>board</strong> with a column per section, or as a <strong>calendar</strong> in which every task sits on its day. The data is the same; only the view differs.</p>
+
+<h2 id="choosing">Choosing a view</h2>
+<p>At the top right of a project are three buttons: <x-ui k="viewStyle.list"></x-ui>, <x-ui k="viewStyle.board"></x-ui> and <x-ui k="viewStyle.calendar"></x-ui>. The pressed button is the view you see now. On a phone they form a bar under the title.</p>
+<ul>
+  <li>The choice belongs to the <strong>project</strong>, not to you: it applies on all your devices and to everyone you share the project with. If someone puts the project on a board, you see a board.</li>
+  <li><x-ui k="nav.upcoming"></x-ui> only has <x-ui k="viewStyle.list"></x-ui> and <x-ui k="viewStyle.calendar"></x-ui> (tasks from all your projects). That choice, and whether the calendar shows a month or a week, is remembered only by the device where you make it.</li>
+  <li>An older version of the app does not know the choice and always shows the list. No data is lost there.</li>
+</ul>
+
+<h2 id="the-board">The board</h2>
+<x-shot name="bord" alt="The project Huishouden as a board: a column No section and the columns Boodschappen, Klusjes and Vaste prik, each with cards showing a circle, the name of the task and the date or label below it and an Add task button under every column.">A project as a board: a column per section, with the tasks as cards.</x-shot>
+<p>The columns are the sections of the project, preceded by <x-ui k="board.noSection"></x-ui> for tasks that are in no section. A card is a task with the same parts as a row in the list: the circle, the name, and below it the date, the number of subtasks, the labels, a bell and who it is for. Subtasks show as a counter on the card of their task; open the task to see them.</p>
+<ul>
+  <li><strong>Completing:</strong> click the circle, just like in the list. <strong>Opening:</strong> click the card.</li>
+  <li><strong>Adding a task:</strong> choose <x-ui k="quick.addTask"></x-ui> under a column; the task goes into the section of that column.</li>
+  <li><strong>Sections:</strong> choose <x-ui k="section.add"></x-ui> (the dashed column on the right) for a new column. With the <strong>⋯</strong> next to the name of a column you rename it or delete it (with all the tasks in it).</li>
+  <li><strong>Completed tasks</strong> are not on the board. At the bottom is <x-ui k="view.showCompleted" n="3"></x-ui> to show them.</li>
+  <li>A section you collapsed in the list is simply open on the board.</li>
+</ul>
+
+<h3 id="moving-a-card">Moving a card</h3>
+<ul>
+  <li><strong>Dragging with the mouse:</strong> grab a card and drag. Drop it on the top or bottom edge of another card and it goes before or after it, also in another column; drop it on the heading or in the empty space of a column and it goes to the top or bottom of that column. A line or frame shows where it will land. <kbd>Esc</kbd> cancels. Dropping on a card does not make the task a subtask: do that in the list. Drag a card onto a project in the sidebar and the task moves to that project.</li>
+  <li><strong>With a finger:</strong> press and hold a card, then drag. Keep your finger near the left or right edge of the board and the board scrolls by itself to the next column.</li>
+  <li><strong>With the keyboard:</strong> <kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> move the card one place up or down in the column; <kbd>Alt</kbd>+<kbd>←</kbd> and <kbd>Alt</kbd>+<kbd>→</kbd> put it in the column next to it, at the same height (or at the bottom if that column is shorter). A screen reader announces where the card is now.</li>
+  <li><strong>Without dragging:</strong> every card has a button with an arrow, <x-ui k="board.move"></x-ui>. It opens a list of all the columns of the project; choose one and the card moves, to the end of that column. On a phone that button is always visible.</li>
+</ul>
+<p>Subtasks always move with their task. Moving also works without a connection and is sent later, like any other change.</p>
+
+<h3 id="the-board-on-a-phone">The board on a phone</h3>
+<x-shot name="telefoon-bord" alt="The board of Huishouden on a phone: the first column No section fills almost the whole screen, with cards and an arrow on the right of every card; to the right of the column a bit of the next column is visible.">On a phone one column is almost as wide as the screen; swipe sideways for the next one.</x-shot>
+<p>A column is almost as wide as the screen and a bit of the next column sticks out behind it. Swipe sideways and the board snaps exactly to the next column. The board scrolls within itself; the page does not scroll sideways.</p>
+
+<h2 id="the-calendar">The calendar</h2>
+<x-shot name="kalender" alt="The project Huishouden as a calendar for November 2026: at the top the buttons previous, Today and next, the month and the choice Month or Week, below that a grid of weeks with week numbers and the days Monday to Sunday. Today, Tuesday 17 November, has a colored number; the tasks are bars on their day, repeats with a dashed edge.">A project as a calendar: a month with the tasks on their day.</x-shot>
+<p>The calendar shows a <strong>month</strong> or a <strong>week</strong> (choose <x-ui k="calendar.month"></x-ui> or <x-ui k="calendar.week"></x-ui> at the top right; the app remembers what you chose). The week starts on <strong>Monday</strong>. On the left of every row is the <strong>week number</strong> by the ISO rule: week 1 is the week with the first Thursday of the year, so 1 January can still fall in week 52 or 53 of the previous year. The names of days and months follow the language of the app. You browse with the arrows next to <x-ui k="calendar.today"></x-ui>; that button takes you back to today.</p>
+<ul>
+  <li><strong>Tasks sit on their date.</strong> A task with a time shows that time and sits at the top of the day in order of time; tasks without a time come first. Today has a colored day number.</li>
+  <li><strong>Overdue is separate.</strong> Tasks whose date has passed are not on their old day but in an <x-ui k="view.overdue"></x-ui> block above the calendar, with their date. Move them or complete them and they leave the block.</li>
+  <li><strong>Repeating tasks</strong> also sit on their coming occurrences in the range shown, with a dashed edge and a repeat icon. That is only a preview: nothing is stored, and an occurrence that is not due yet cannot be completed or dragged. Complete the task itself (on its first date) and it moves on to the next time.</li>
+  <li><strong>Completing and opening:</strong> the circle on the left of the bar completes, a click on the name opens the task window.</li>
+  <li><strong>Adding a task on a day:</strong> click the <strong>+</strong> on the right of a day (it appears when you point at the day). The <x-ui k="quick.addTask"></x-ui> window opens with that date already filled in; you only type the name. In a project the task goes into that project, in Upcoming into your Inbox.</li>
+  <li><strong>Many tasks on one day:</strong> the month view shows four; the rest are behind <strong>+N more</strong>, which opens the week of that day.</li>
+  <li><strong>Completed tasks</strong> are not in the calendar, and only the date counts: a deadline without a date gets no place.</li>
+</ul>
+
+<h3 id="moving-a-task-to-another-day">Moving a task to another day</h3>
+<ul>
+  <li><strong>Dragging:</strong> grab a task and drop it on another day; the day lights up. The date changes, <strong>the time stays</strong> and a <strong>repeat stays</strong> as it was: for a repeating task only the current date moves. So completing remains different from moving. After dropping there is a message with <x-ui k="task.undo"></x-ui>. Tasks from the <x-ui k="view.overdue"></x-ui> block can be dragged to today or another day in the same way. On a phone you press and hold the task first.</li>
+  <li><strong>With the keyboard:</strong> put the focus on a task and press <kbd>Alt</kbd>+<kbd>←</kbd> or <kbd>Alt</kbd>+<kbd>→</kbd> for a day earlier or later, and <kbd>Alt</kbd>+<kbd>↑</kbd> or <kbd>Alt</kbd>+<kbd>↓</kbd> for a week. The focus stays on the task.</li>
+  <li>It also works without dragging: open the task and choose another date, or use the calendar button on the row in the list.</li>
+</ul>
+
+<h3 id="the-calendar-with-the-keyboard">The calendar with the keyboard</h3>
+<p>With <kbd>Tab</kbd> you reach one day of the calendar (the chosen day); the tasks and buttons in it are ordinary buttons.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Key</th><th>What happens</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td class="wrap-ok">One day back or forward.</td></tr>
+      <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td class="wrap-ok">One week back or forward.</td></tr>
+      <tr><td><kbd>Page Up</kbd> <kbd>Page Down</kbd></td><td class="wrap-ok">One month (or in the week view one week) back or forward.</td></tr>
+      <tr><td><kbd>Home</kbd></td><td class="wrap-ok">To today.</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td class="wrap-ok">Add a task on the chosen day.</td></tr>
+      <tr><td><kbd>Alt</kbd>+arrow on a task</td><td class="wrap-ok">Move the task one day (left, right) or one week (up, down).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="the-calendar-on-a-phone">The calendar on a phone</h3>
+<x-shot name="telefoon-kalender" alt="The calendar of Huishouden on a phone as a list per day: at the top the month with the buttons previous, Today and next and the choice Month or Week, below that a heading Week 47 and then every day with its name, its number, a plus button and the tasks below it as large bars.">On a phone the month becomes a list per day, with a plus on every day.</x-shot>
+<p>A table with seven columns is too tight for a phone. There the calendar shows a <strong>list per day</strong>: a heading per week, and under it every day with its name, its number, a plus to add a task and its tasks as large bars. In the month view only the days from today on remain, and not the days of another month. Choose <x-ui k="calendar.week"></x-ui> to see all seven days of a week.</p>
+
+<h2 id="upcoming-as-a-calendar">Upcoming as a calendar</h2>
+<p>In <x-ui k="nav.upcoming"></x-ui> choose <x-ui k="viewStyle.calendar"></x-ui> at the top right: you see the tasks of all your projects in the calendar, with the name of the project next to them. Everything above applies there too; a task you add goes into your Inbox. <x-ui k="nav.today"></x-ui> has no calendar: a single day has no use for one.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li><strong>Dragging a column (section).</strong> Sections stay in the order they were made, on the board and in the list.</li>
+  <li>Dropping a card on another card <strong>to make it a subtask</strong>: that is only possible in the list.</li>
+  <li><strong>Completed tasks</strong> in the calendar, deadlines as an item of their own, and a calendar of a filter.</li>
+  <li><strong>Giving a task a time by dragging</strong> in the calendar (there is no day grid with hours).</li>
+  <li>A repeating task that started more than about eleven years (daily) or 4000 occurrences ago shows no coming occurrences any more.</li>
+</ul>

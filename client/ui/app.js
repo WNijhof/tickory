@@ -27,6 +27,7 @@ import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
+import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 
 const ROUTE_KEY = 'tickory.route';
@@ -512,6 +513,7 @@ async function boot() {
     adapter = new MemoryAdapter();
     toast(t('boot.noStorage'), { kind: 'error', timeout: 0 });
   }
+  viewPrefs.persist = !backend.demo; // de demo bewaart niets, ook geen voorkeuren
   store = new Store(adapter);
   await store.init();
 
