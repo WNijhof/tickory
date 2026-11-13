@@ -23,6 +23,7 @@ import { deepNormalize, nameKey } from '../shared/text.js';
 import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
+import { LIMITS } from './limits.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -108,7 +109,13 @@ function collect(ctx: Ctx, e: Entity, args: Args, mode: 'add' | 'update'): Row {
     if (given && mode === 'update' && c.immutable) fail('IMMUTABLE', `"${c.name}" kan hiermee niet worden gewijzigd`);
     if (given) {
       // Alle tekst in NFC: een ontleed getypte "é" (e + los accent) wordt dezelfde "é" als elke andere (zie shared/text.js).
-      const v = deepNormalize(args[c.name]);
+      let v: unknown;
+      try {
+        v = deepNormalize(args[c.name]);
+      } catch (error) {
+        if (error instanceof RangeError) fail('INVALID_ARG', `${e.name}.${c.name}: te diep genest`);
+        throw error;
+      }
       const err = validateValue(c, v);
       if (err) fail('INVALID_ARG', `${e.name}.${c.name}: ${err}`);
       if (c.ref && v !== null) requireLive(ctx, c.ref, v, `${e.name}.${c.name}`);
@@ -252,6 +259,53 @@ function addMembersForNewProject(ctx: Ctx, projectId: string, parentId: string |
   for (const [user_id, role] of members) insertRow(ctx, ENTITIES.member, newId(), { project_id: projectId, user_id, role });
 }
 
+/**
+ * Controleert een grens uit limits.ts en telt de nieuwe rij alvast mee. Het aantal wordt per verzoek één keer uit de database
+ * gehaald (`count`) en daarna bijgehouden, zodat honderd toevoegingen in één verzoek niet honderd keer tellen.
+ */
+function quota(ctx: Ctx, key: string, limit: number, what: string, count: () => number): void {
+  ctx.counts ??= new Map();
+  const have = ctx.counts.get(key) ?? count();
+  if (have >= limit) fail('LIMIT_REACHED', `${what}: de grens van ${limit} is bereikt`);
+  ctx.counts.set(key, have + 1);
+}
+const countOf = (db: DatabaseSync, sql: string, ...params: string[]): number => Number((db.prepare(sql).get(...params) as Row).n);
+
+/** De grenzen voor een nieuwe rij (zie limits.ts). `v` is de rij zoals hij bewaard gaat worden. */
+function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
+  const db = ctx.db;
+  switch (e.name) {
+    case 'project':
+      quota(ctx, `projects:${ctx.userId}`, LIMITS.projectsPerUser, 'projecten per gebruiker', () => countOf(db, "SELECT COUNT(*) AS n FROM project_members WHERE user_id = ? AND role = 'owner' AND is_deleted = 0", ctx.userId));
+      break;
+    case 'section':
+      quota(ctx, `sections:${v.project_id}`, LIMITS.sectionsPerProject, 'secties per project', () => countOf(db, 'SELECT COUNT(*) AS n FROM sections WHERE project_id = ? AND is_deleted = 0', v.project_id as string));
+      break;
+    case 'task':
+      quota(ctx, `tasks:p:${v.project_id}`, LIMITS.tasksPerProject, 'taken per project', () => countOf(db, 'SELECT COUNT(*) AS n FROM tasks WHERE project_id = ? AND is_deleted = 0', v.project_id as string));
+      quota(ctx, `tasks:u:${ctx.userId}`, LIMITS.tasksPerUser, 'taken per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM tasks WHERE creator_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'label':
+      quota(ctx, `labels:${ctx.userId}`, LIMITS.labelsPerUser, 'labels per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM labels WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'filter':
+      quota(ctx, `filters:${ctx.userId}`, LIMITS.filtersPerUser, 'filters per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM filters WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'comment': {
+      const byTask = v.task_id !== null && v.task_id !== undefined;
+      const parent = (byTask ? v.task_id : v.project_id) as string;
+      quota(ctx, `comments:${parent}`, LIMITS.commentsPerParent, 'opmerkingen per taak of project', () => countOf(db, `SELECT COUNT(*) AS n FROM comments WHERE ${byTask ? 'task_id' : 'project_id'} = ? AND is_deleted = 0`, parent));
+      break;
+    }
+    case 'reminder':
+      quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
+      quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    default:
+      break;
+  }
+}
+
 function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   const id = args.id === undefined ? newId() : args.id;
   if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
@@ -259,6 +313,7 @@ function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   if (getRow(ctx.db, e, id)) fail('ID_EXISTS', `${e.name} met dit id bestaat al`);
   const v = collect(ctx, e, args, 'add');
   verify(ctx, e, id, v, 'add', v);
+  checkLimits(ctx, e, v);
   const oc = e.cols.find((c) => c.orderKey);
   if (oc && v[oc.name] === undefined) v[oc.name] = nextKey(ctx, e, v);
   insertRow(ctx, e, id, v);
@@ -471,6 +526,7 @@ function projectShare(ctx: Ctx, args: Args): void {
   // het project en de subprojecten waar de eigenaar ook eigenaar van is
   for (const p of projectTree(ctx.db, id)) {
     if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || isMember(ctx.db, target.id, p)) continue;
+    quota(ctx, `members:${p}`, LIMITS.membersPerProject, 'leden per project', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM project_members WHERE project_id = ? AND is_deleted = 0', p));
     insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role: 'member' });
   }
 }
@@ -518,6 +574,43 @@ HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
+
+// ---------- wie hoort dat er iets veranderd is ----------
+
+/**
+ * De gebruikers die iets te zien krijgen van wat er na versienummer `since` is veranderd, plus `actor`. Alleen zij krijgen het
+ * live-signaal (SSE) dat ze moeten synchroniseren; een ander hoort niet eens dát er iets gebeurde, laat staan hoe vaak.
+ * Gebruikers die uit een project zijn gehaald tellen mee: zij moeten horen dat het project voor hen verdween.
+ */
+export function audienceSince(db: DatabaseSync, since: number, actor: string): Set<string> {
+  const users = new Set<string>([actor]);
+  const collect = (sql: string, ...params: number[]): void => { for (const r of db.prepare(sql).all(...params) as Row[]) if (typeof r.user_id === 'string') users.add(r.user_id); };
+  // leden (ook oud-leden, in dezelfde ronde verwijderd) van elk project waarin iets is veranderd
+  collect(
+    `SELECT DISTINCT user_id FROM project_members WHERE project_id IN (
+       SELECT id FROM projects WHERE rev > ?
+       UNION SELECT project_id FROM sections WHERE rev > ?
+       UNION SELECT project_id FROM tasks WHERE rev > ?
+       UNION SELECT project_id FROM project_members WHERE rev > ?
+       UNION SELECT project_id FROM comments WHERE rev > ? AND project_id IS NOT NULL
+       UNION SELECT t.project_id FROM comments c JOIN tasks t ON t.id = c.task_id WHERE c.rev > ?
+       UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
+    since, since, since, since, since, since, since,
+  );
+  // wat van één persoon is: labels, filters, herinneringen en instellingen
+  collect(
+    `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
+     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?`,
+    since, since, since, since,
+  );
+  // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
+  for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
+    for (const r of db
+      .prepare(`SELECT DISTINCT m.user_id FROM tasks t JOIN project_members m ON m.project_id = t.project_id AND m.is_deleted = 0 WHERE t.is_deleted = 0 AND t.labels LIKE ?`)
+      .all(`%${l.id as string}%`) as Row[]) users.add(r.user_id as string);
+  }
+  return users;
+}
 
 // ---------- het sync-verzoek ----------
 
@@ -695,6 +788,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
       pruneTaskMoves(db);
     }
+    const counts = new Map<string, number>(); // tellingen voor de limieten, gedeeld door de commando's van dit verzoek
     for (const cmd of commands) {
       const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
       if (seen) {
@@ -708,7 +802,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
         const handler = Object.hasOwn(HANDLERS, cmd.type) ? HANDLERS[cmd.type] : undefined;
         if (!handler) fail('UNKNOWN_COMMAND', `onbekend commando "${cmd.type}"`);
         rev = bumpRev(db);
-        handler({ db, rev, now, userId }, cmd.args ?? {});
+        handler({ db, rev, now, userId, counts }, cmd.args ?? {});
         result = 'ok';
         db.exec('RELEASE cmd');
       } catch (err) {

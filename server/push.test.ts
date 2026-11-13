@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { LATE_WINDOW_MS, createPush } from './push.ts';
+import { LATE_WINDOW_MS, MAX_DUE_PER_OWNER_PER_ROUND, createPush } from './push.ts';
 import { handleSync } from './sync.ts';
 import type { Command } from './sync.ts';
 import { addUser, freshDb, pushDevice } from './testutil.ts';
@@ -353,6 +353,50 @@ test('een knop werkt alleen met een echt, niet verlopen bewijsje, en alleen voor
   addUser(w.db, 'reserve');
   w.db.prepare('UPDATE users SET is_disabled = 1 WHERE id = ?').run(w.alice.id);
   assert.equal(w.push.handleAction(token).ok, false);
+});
+
+/** Zet in één keer veel herinneringen bij één taak (rechtstreeks in de database; via de API mag dat niet vanwege de grenzen). */
+function bulkReminders(w: ReturnType<typeof world>, user: UserRow, taskId: string, count: number, offsetOf: (i: number) => number): void {
+  const ins = w.db.prepare(
+    `INSERT INTO reminders (id, task_id, type, minute_offset, due, owner_id, rev, is_deleted, created_at, updated_at)
+     VALUES (?, ?, 'relative', ?, NULL, ?, 1, 0, 't', 't')`,
+  );
+  w.db.exec('BEGIN');
+  for (let i = 0; i < count; i++) ins.run(`bulk${String(i).padStart(8, '0')}`, taskId, offsetOf(i), user.id);
+  w.db.exec('COMMIT');
+}
+
+test('veel herinneringen die nog niet aan de beurt zijn, houden een ronde niet op en vertragen geen ander', async () => {
+  const w = world();
+  const a = w.device(w.alice, 'telefoon');
+  const b = w.device(w.bob, 'bob-telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-ver', project_id: w.alice.inbox_project_id, content: 'ver weg', due: { date: '2026-12-25T09:00' } })]);
+  bulkReminders(w, w.alice, 'task-ver', 40_000, (i) => i % 5_000); // allemaal ruim twee weken vooruit
+  w.taskWithReminder(w.bob, 'bbb1', '2026-12-01T09:00', 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  const t0 = performance.now();
+  const r = await w.push.tick();
+  const ms = performance.now() - t0;
+  assert.equal(r.due, 1, 'alleen de herinnering van bob is aan de beurt');
+  assert.equal(b.received().length, 1);
+  assert.equal(a.received().length, 0);
+  assert.ok(ms < 1500, `een ronde met 40000 herinneringen die niet aan de beurt zijn kostte ${ms.toFixed(0)} ms`);
+});
+
+test('een gebruiker met meer herinneringen tegelijk dan één ronde aankan, krijgt de rest in de volgende ronde', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-druk', project_id: w.alice.inbox_project_id, content: 'druk', due: { date: '2026-12-01T09:00' } })]);
+  const total = MAX_DUE_PER_OWNER_PER_ROUND + 50;
+  bulkReminders(w, w.alice, 'task-druk', total, () => 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  const first = await w.push.tick();
+  assert.equal(first.due, MAX_DUE_PER_OWNER_PER_ROUND, 'een ronde pakt hooguit zoveel op');
+  const second = await w.push.tick();
+  assert.equal(second.due, 50, 'de rest volgt de volgende ronde');
+  const third = await w.push.tick();
+  assert.equal(third.due, 0, 'en niets wordt dubbel verstuurd');
+  assert.equal(d.received().length, total);
 });
 
 test('een knop is een handeling: een vervormde maar gelijkwaardige tekst van hetzelfde bewijsje telt niet als een nieuwe', async () => {

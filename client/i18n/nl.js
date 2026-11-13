@@ -309,6 +309,7 @@ export default {
   // Ook hier: in het Nederlands tonen we de tekst van de server; deze teksten zijn de eigen vertaling voor de andere talen.
   'error.forbidden': 'Je hebt hier geen rechten voor.',
   'error.unknown': 'Onbekende fout.',
+  'error.limitReached': 'De grens is bereikt: verwijder eerst iets anders.',
   'error.shareUserNotFound': 'Deze gebruiker bestaat niet.',
   'error.shareOwnerOnly': 'Alleen de eigenaar kan een project delen.',
   'error.shareInbox': 'De Inbox kan niet worden gedeeld.',

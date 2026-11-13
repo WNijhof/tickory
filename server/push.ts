@@ -24,6 +24,9 @@ export const LATE_WINDOW_MS = 60 * 60_000;
 const SNOOZE_MS = 10 * 60_000;
 const ACTION_VALID_S = 24 * 3600;
 const MAX_SUBSCRIPTIONS_PER_USER = 20;
+/** Hoeveel herinneringen één gebruiker per ronde krijgt, en hoe lang een ronde hooguit werk begint (de rest volgt de volgende ronde). */
+export const MAX_DUE_PER_OWNER_PER_ROUND = 200;
+const TICK_BUDGET_MS = 20_000;
 
 export interface PushConfig {
   db: DatabaseSync;
@@ -224,43 +227,62 @@ export function createPush(cfg: PushConfig) {
     try {
       out.removed = prune();
       const at = now();
+      const started = Date.now();
       db.prepare('DELETE FROM reminder_deliveries WHERE sent_at < ?').run(new Date(at - 7 * 86_400_000).toISOString());
-      // Alleen herinneringen van gebruikers met een aangemeld apparaat, bij taken die open zijn en die ze (nog) mogen zien.
-      const rows = db.prepare(
-        `SELECT r.id, r.type, r.minute_offset, r.due, r.owner_id, t.id AS task_id, t.content, t.due AS task_due
-         FROM reminders r JOIN tasks t ON t.id = r.task_id
-         WHERE r.is_deleted = 0 AND t.is_deleted = 0 AND t.checked = 0
-           AND r.owner_id IN (SELECT user_id FROM push_subscriptions)
-           AND t.project_id IN (SELECT project_id FROM project_members m WHERE m.user_id = r.owner_id AND m.is_deleted = 0)`,
-      ).all() as Row[];
-      const zones = new Map<string, string>();
-      for (const r of rows) {
-        const owner = r.owner_id as string;
-        const taskDue = r.task_due ? (JSON.parse(r.task_due as string) as { date: string }) : null;
-        const moment = reminderMoment(
-          { type: r.type as string, minute_offset: r.minute_offset as number | null, due: r.due ? (JSON.parse(r.due as string) as { date: string }) : null },
-          { due: taskDue, checked: false, is_deleted: false },
-        );
-        if (!moment) continue;
-        if (!zones.has(owner)) zones.set(owner, zoneOf(owner));
-        const epoch = floatingToEpoch(moment, zones.get(owner)!);
-        if (epoch === null || epoch > at || at - epoch > LATE_WINDOW_MS) continue;
-        if (db.prepare('SELECT 1 FROM reminder_deliveries WHERE reminder_id = ? AND moment = ?').get(r.id as string, moment)) continue;
-        out.due += 1;
-        const exp = Math.floor(at / 1000) + ACTION_VALID_S;
-        const base = { u: owner, t: r.task_id as string, r: r.id as string, m: moment, e: exp };
-        const payload = {
-          v: 1, type: 'reminder', id: r.id, task_id: r.task_id, title: String(r.content).slice(0, 300), time: taskDue?.date ?? null, moment,
-          complete: sign({ ...base, a: 'complete' }), snooze: sign({ ...base, a: 'snooze' }),
-        };
-        const topic = createHash('sha256').update(`${r.id as string}|${moment}`).digest('base64url').slice(0, 32);
-        const results = await Promise.all(subscriptionsOf(owner).map((s) => deliver(s, payload, topic)));
-        out.sent += results.filter((x) => x.ok).length;
-        out.failed += results.filter((x) => !x.ok).length;
-        // Klaar als het ergens is aangekomen, of als opnieuw proberen geen zin heeft. Anders (alleen tijdelijke fouten)
-        // proberen we het de volgende ronde nog eens, tot het venster voorbij is.
-        if (results.some((x) => x.ok) || !results.some((x) => x.retryable)) {
-          db.prepare('INSERT OR IGNORE INTO reminder_deliveries (reminder_id, moment, user_id, sent_at) VALUES (?, ?, ?, ?)').run(r.id as string, moment, owner, new Date(at).toISOString());
+      // Per gebruiker met een aangemeld apparaat. Het werk per ronde is begrensd: een gebruiker met heel veel herinneringen
+      // vertraagt zo niemand anders. De database selecteert alleen wat rond dit moment aan de beurt kan zijn en nog niet is
+      // verstuurd (op de zwevende tijd, met ruim genoeg speling voor zomer- en wintertijd); de precieze controle met de tijdzone
+      // volgt hieronder. Wat een ronde niet meer haalt (grens van het aantal, of van de tijd), komt de volgende ronde aan de beurt.
+      const owners = (db.prepare('SELECT DISTINCT user_id FROM push_subscriptions').all() as Row[]).map((r) => r.user_id as string);
+      const pick = db.prepare(
+        `SELECT * FROM (
+           SELECT r.id, r.type, r.minute_offset, r.due, r.owner_id, t.id AS task_id, t.content, t.due AS task_due,
+             CASE r.type
+               WHEN 'absolute' THEN substr(json_extract(r.due, '$.date'), 1, 16)
+               ELSE strftime('%Y-%m-%dT%H:%M', replace(substr(json_extract(t.due, '$.date'), 1, 16), 'T', ' '), '-' || r.minute_offset || ' minutes')
+             END AS moment
+           FROM reminders r JOIN tasks t ON t.id = r.task_id
+           WHERE r.owner_id = ? AND r.is_deleted = 0 AND t.is_deleted = 0 AND t.checked = 0
+             AND t.project_id IN (SELECT project_id FROM project_members m WHERE m.user_id = r.owner_id AND m.is_deleted = 0)
+         ) c
+         WHERE c.moment BETWEEN ? AND ?
+           AND NOT EXISTS (SELECT 1 FROM reminder_deliveries d WHERE d.reminder_id = c.id AND d.moment = c.moment)
+         ORDER BY c.moment DESC LIMIT ?`,
+      );
+      for (const owner of owners) {
+        if (Date.now() - started > TICK_BUDGET_MS) break;
+        const zone = zoneOf(owner);
+        // een tijd in het "gat" van de zomertijd schuift naar voren, dus de ondergrens heeft een uur speling extra
+        const hi = epochToFloating(at, zone);
+        const lo = epochToFloating(at - LATE_WINDOW_MS - 2 * 3600_000, zone);
+        const rows = pick.all(owner, lo, hi, MAX_DUE_PER_OWNER_PER_ROUND) as Row[];
+        for (const r of rows) {
+          if (Date.now() - started > TICK_BUDGET_MS) break;
+          const taskDue = r.task_due ? (JSON.parse(r.task_due as string) as { date: string }) : null;
+          const moment = reminderMoment(
+            { type: r.type as string, minute_offset: r.minute_offset as number | null, due: r.due ? (JSON.parse(r.due as string) as { date: string }) : null },
+            { due: taskDue, checked: false, is_deleted: false },
+          );
+          if (!moment) continue;
+          const epoch = floatingToEpoch(moment, zone);
+          if (epoch === null || epoch > at || at - epoch > LATE_WINDOW_MS) continue;
+          if (db.prepare('SELECT 1 FROM reminder_deliveries WHERE reminder_id = ? AND moment = ?').get(r.id as string, moment)) continue;
+          out.due += 1;
+          const exp = Math.floor(at / 1000) + ACTION_VALID_S;
+          const base = { u: owner, t: r.task_id as string, r: r.id as string, m: moment, e: exp };
+          const payload = {
+            v: 1, type: 'reminder', id: r.id, task_id: r.task_id, title: String(r.content).slice(0, 300), time: taskDue?.date ?? null, moment,
+            complete: sign({ ...base, a: 'complete' }), snooze: sign({ ...base, a: 'snooze' }),
+          };
+          const topic = createHash('sha256').update(`${r.id as string}|${moment}`).digest('base64url').slice(0, 32);
+          const results = await Promise.all(subscriptionsOf(owner).map((s) => deliver(s, payload, topic)));
+          out.sent += results.filter((x) => x.ok).length;
+          out.failed += results.filter((x) => !x.ok).length;
+          // Klaar als het ergens is aangekomen, of als opnieuw proberen geen zin heeft. Anders (alleen tijdelijke fouten)
+          // proberen we het de volgende ronde nog eens, tot het venster voorbij is.
+          if (results.some((x) => x.ok) || !results.some((x) => x.retryable)) {
+            db.prepare('INSERT OR IGNORE INTO reminder_deliveries (reminder_id, moment, user_id, sent_at) VALUES (?, ?, ?, ?)').run(r.id as string, moment, owner, new Date(at).toISOString());
+          }
         }
       }
       return out;

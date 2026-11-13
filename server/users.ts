@@ -16,6 +16,7 @@ import { bumpRev, fail, getRow, insertRow, newId } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { keyAfter } from '../shared/orderKey.js';
 import { nameKey } from '../shared/text.js';
+import { LIMITS } from './limits.ts';
 
 // ---------- wachtwoorden ----------
 
@@ -266,6 +267,13 @@ export function createSession(db: DatabaseSync, userId: string, deviceName: stri
   const now = new Date().toISOString();
   const name = deviceName.normalize('NFC').replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, 100) || 'Onbekend apparaat';
   db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, userId, sha256(token), name, now, now);
+  // Het aantal aangemelde apparaten is begrensd (zie limits.ts): bij het volgende inloggen wordt het langst ongebruikte afgemeld.
+  const surplus = db
+    .prepare('SELECT id FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND id <> ? ORDER BY last_used_at DESC, created_at DESC, rowid DESC LIMIT -1 OFFSET ?')
+    .all(userId, id, LIMITS.sessionsPerUser - 1) as { id: string }[];
+  for (const old of surplus) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(now, old.id);
+  // Ingetrokken sessies hoeven niet eeuwig in de database te blijven staan.
+  db.prepare('DELETE FROM sessions WHERE revoked_at IS NOT NULL AND revoked_at < ?').run(new Date(Date.parse(now) - 30 * 86_400_000).toISOString());
   return { token, id };
 }
 

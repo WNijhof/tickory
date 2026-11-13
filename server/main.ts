@@ -27,7 +27,8 @@ import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
-import { currentRev, handleSync, SyncError } from './sync.ts';
+import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
+import { LIMITS } from './limits.ts';
 import {
   countUsers, createSession, createUser, findSession, getUserById, getUserByName, hashPassword, listSessions, listUsers, LoginLimiter,
   publicMe, revokeSession, revokeSessions, setPasswordHash, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
@@ -142,7 +143,7 @@ export async function staticResponse(
 }
 
 const STATUS_FOR: Record<string, number> = {
-  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
+  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
 };
 
 interface Caller { user: UserRow; sessionId: string }
@@ -226,9 +227,17 @@ export function createApp(opts: AppOptions): App {
     return payload as Record<string, unknown>;
   };
 
-  const broadcast = (clientId: string | null, rev: number): void => {
-    const msg = `event: sync_needed\ndata: ${JSON.stringify({ client_id: clientId, rev })}\n\n`;
-    for (const s of streams) s.res.write(msg);
+  /**
+   * Meldt `audience` (de gebruikers die iets van de wijziging zien, zie audienceSince) dat ze moeten synchroniseren. Het signaal
+   * draagt geen versienummer: dat telt over alle gebruikers samen en zou verraden hoeveel anderen doen. Alleen de apparaten van
+   * de gebruiker die de wijziging deed krijgen het id van de client mee, zodat die zijn eigen wijziging negeert.
+   */
+  const broadcast = (actorId: string | null, clientId: string | null, audience: Set<string>): void => {
+    const own = `event: sync_needed\ndata: ${JSON.stringify({ client_id: clientId })}\n\n`;
+    const other = 'event: sync_needed\ndata: {}\n\n';
+    for (const s of streams) {
+      if (audience.has(s.userId)) s.res.write(s.userId === actorId ? own : other);
+    }
   };
 
   /** Sluit de live-verbindingen van een gebruiker (of één sessie), bijvoorbeeld na uitloggen of blokkeren. */
@@ -354,8 +363,9 @@ export function createApp(opts: AppOptions): App {
       // Een knop uit een melding: de browser is op dat moment niet ingelogd; het ondertekende token is het bewijs.
       if (path === '/api/v1/push/action' && push) {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        const before = currentRev(db);
         const outcome = push.handleAction((await readJson(req)).token);
-        if (outcome.userId) broadcast(null, currentRev(db));
+        if (outcome.userId) broadcast(outcome.userId, null, audienceSince(db, before, outcome.userId));
         return outcome.ok ? send(res, 200, { ok: true }) : send(res, 400, { error_code: 'INVALID_REQUEST', error: outcome.error ?? 'niet gelukt' });
       }
 
@@ -419,6 +429,11 @@ export function createApp(opts: AppOptions): App {
 
       if (path === '/api/v1/events') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        let mine = 0;
+        for (const s of streams) if (s.userId === caller.user.id) mine++;
+        if (mine >= LIMITS.sseConnectionsPerUser) {
+          return send(res, 429, { error_code: 'TOO_MANY_CONNECTIONS', error: `te veel live-verbindingen tegelijk (maximaal ${LIMITS.sseConnectionsPerUser}); sluit een tabblad of apparaat dat je niet gebruikt` });
+        }
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-store',
@@ -426,7 +441,7 @@ export function createApp(opts: AppOptions): App {
           'X-Accel-Buffering': 'no',
           ...cors,
         });
-        res.write(`event: hello\ndata: ${JSON.stringify({ rev: currentRev(db) })}\n\n`);
+        res.write('event: hello\ndata: {}\n\n'); // geen versienummer: dat telt over alle gebruikers samen
         const stream: Stream = { res, userId: caller.user.id, sessionId: caller.sessionId };
         streams.add(stream);
         const ping = setInterval(() => {
@@ -453,7 +468,7 @@ export function createApp(opts: AppOptions): App {
       const result = handleSync(db, payload, caller.user.id);
       const after = currentRev(db);
       send(res, 200, result);
-      if (after !== before) broadcast(clientId, after);
+      if (after !== before) broadcast(caller.user.id, clientId, audienceSince(db, before, caller.user.id));
     } catch (err) {
       if (err instanceof SyncError) {
         // De body is op dit punt volledig weggelezen, dus de verbinding kan gewoon open blijven.

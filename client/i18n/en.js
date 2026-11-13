@@ -312,6 +312,7 @@ export default {
   // De eigen vertaling per foutcode en soort handeling: de server stuurt alleen een Nederlandse tekst mee.
   'error.forbidden': "You don't have permission to do this.",
   'error.unknown': 'Unknown error.',
+  'error.limitReached': 'The limit has been reached: remove something else first.',
   'error.shareUserNotFound': "There's no user with that username.",
   'error.shareOwnerOnly': 'Only the owner can share a project.',
   'error.shareInbox': "The Inbox can't be shared.",

@@ -127,6 +127,14 @@ export function createSchema(db: DatabaseSync): void {
     db.exec(`CREATE INDEX IF NOT EXISTS ${e.table}_rev ON ${e.table} (rev)`);
   }
   db.exec('CREATE INDEX IF NOT EXISTS tasks_project ON tasks (project_id, is_deleted)');
+  // De volgordesleutel van een nieuwe rij is "de hoogste van de lijst + 1" (nextKey in sync.ts). Met deze indexen is dat een
+  // opzoeking in plaats van een scan van alle taken van het project, waardoor toevoegen niet langzamer wordt naarmate een lijst groeit.
+  db.exec('CREATE INDEX IF NOT EXISTS tasks_order ON tasks (project_id, section_id, parent_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS sections_order ON sections (project_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS labels_order ON labels (owner_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS filters_order ON filters (owner_id, is_deleted, order_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS tasks_creator ON tasks (creator_id, is_deleted)'); // voor de limiet per gebruiker
+  db.exec('CREATE INDEX IF NOT EXISTS comments_project ON comments (project_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS tasks_parent ON tasks (parent_id)');
   db.exec('CREATE INDEX IF NOT EXISTS comments_task ON comments (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_task ON reminders (task_id)');

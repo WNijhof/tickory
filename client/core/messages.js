@@ -59,6 +59,7 @@ const BY_COMMAND_AND_CODE = {
 /** Codes zonder algemene Nederlandse tekst (daar staat de tekst van de server), met een eigen vertaling voor de andere talen. */
 const BY_CODE_TRANSLATED = {
   FORBIDDEN: () => t('error.forbidden'),
+  LIMIT_REACHED: () => t('error.limitReached'), // in het Nederlands staat de precieze tekst van de server (welke grens, hoeveel)
   UNKNOWN: () => t('error.unknown'), // de client zelf meldt deze code als de server geen reden gaf (core/store.js)
 };
 

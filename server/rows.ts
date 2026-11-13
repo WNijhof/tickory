@@ -7,7 +7,11 @@ import type { Col, Entity } from './schema.ts';
 export type Row = Record<string, unknown>;
 
 /** De context van één commando: de database, het versienummer dat het commando krijgt, het tijdstip en wie het uitvoert. */
-export interface Ctx { db: DatabaseSync; rev: number; now: string; userId: string }
+export interface Ctx {
+  db: DatabaseSync; rev: number; now: string; userId: string;
+  /** Tellingen voor de limieten (limits.ts), gedeeld door de commando's van één verzoek zodat ze niet steeds opnieuw tellen. */
+  counts?: Map<string, number>;
+}
 
 export class SyncError extends Error {
   code: string;
