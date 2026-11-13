@@ -28,6 +28,7 @@ function ownMessage(action, code) {
   switch (code) {
     case 'INVALID_CREDENTIALS': return t('api.invalidCredentials');
     case 'TOO_MANY_ATTEMPTS': return t('api.tooManyAttempts');
+    case 'BUSY': return t('api.busy');
     case 'UNAUTHORIZED': return t('error.unauthorized');
     case 'INTERNAL': return t('error.internal');
     case 'FORBIDDEN': return action === 'changePassword' ? t('api.wrongCurrentPassword') : admin ? t('api.adminOnly') : t('error.forbidden');

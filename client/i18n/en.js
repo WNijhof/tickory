@@ -277,6 +277,7 @@ export default {
   // De eigen vertaling per foutcode: de server stuurt alleen een Nederlandse tekst mee.
   'api.invalidCredentials': 'Incorrect username or password.',
   'api.tooManyAttempts': 'Too many failed attempts. Try again later.',
+  'api.busy': 'The server is busy. Try again in a few seconds.',
   'api.wrongCurrentPassword': 'The current password is incorrect.',
   'api.adminOnly': 'Only an admin can do this.',
   'api.sessionGone': 'This device was already signed out.',

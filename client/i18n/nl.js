@@ -274,6 +274,7 @@ export default {
   // eigen vertaling per foutcode voor de andere talen; in het Nederlands staan ze er voor de volledigheid.
   'api.invalidCredentials': 'Gebruikersnaam of wachtwoord klopt niet.',
   'api.tooManyAttempts': 'Te veel mislukte pogingen. Probeer het later opnieuw.',
+  'api.busy': 'De server is druk. Probeer het over een paar seconden opnieuw.',
   'api.wrongCurrentPassword': 'Het huidige wachtwoord klopt niet.',
   'api.adminOnly': 'Dit kan alleen een beheerder.',
   'api.sessionGone': 'Dit apparaat was al afgemeld.',
