@@ -435,6 +435,28 @@ test('opnieuw laden terwijl een nieuw commando nog niet bewaard is: het commando
   assert.equal((await c.adapter.load()).queue.length, 1);
 });
 
+test('een opmerking die wordt verwijderd in dezelfde ronde waarin je een nieuw project maakt, verdwijnt ook uit je bevestigde toestand', async () => {
+  const db = makeServer();
+  const c = makeClient(db);
+  await c.store.init();
+  await c.sync.syncNow();
+  const task = await c.actions.addTask({ content: 'Met opmerking', project_id: INBOX_ID });
+  const onTask = await c.actions.addComment({ taskId: task }, 'bij de taak');
+  const onProject = await c.actions.addComment({ projectId: INBOX_ID }, 'bij het project');
+  await c.sync.syncNow();
+  assert.equal(c.store.view.comments.size, 2);
+  await c.actions.deleteComment(onTask);
+  await c.actions.deleteComment(onProject);
+  await c.actions.addProject({ name: 'Nieuw in dezelfde ronde' }); // het lidmaatschap van het nieuwe project heeft een versie na het token
+  await c.sync.syncNow();
+  assert.deepEqual(c.errors, []);
+  assert.equal(c.store.view.comments.size, 0, 'beide opmerkingen zijn weg, ook uit de bevestigde toestand');
+  const fresh = makeClient(db);
+  await fresh.store.init();
+  await fresh.sync.syncNow();
+  assert.equal(fresh.store.view.comments.size, 0);
+});
+
 // ---------- differentieel: honderden willekeurige handelingen, client versus server ----------
 
 function rng(seed) {
