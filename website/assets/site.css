@@ -209,8 +209,8 @@ td.wrap-ok { white-space: normal; }
 .note-label { display: block; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 4px; }
 .note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
 .note.warn .note-label { color: var(--warn); }
-.note.wip { border-left-color: var(--warn); border-style: dashed; border-left-style: solid; }
-.note.wip .note-label { color: var(--warn); }
+/* een knop, menu of tekst uit de app zelf (de bouw haalt ze uit de woordenlijst van de app, zie <x-ui> in scripts/build-site.ts) */
+.ui { font-weight: 600; }
 
 .cards { list-style: none; padding: 0 !important; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .cards li { margin: 0 !important; }

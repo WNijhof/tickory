@@ -13,13 +13,14 @@
 //
 // Bron: website/ (pagina's in website/pages/<taal>/, opmaak in layout.html, menu en teksten in site.json).
 // Een pagina is een stuk HTML met bovenaan een commentaar met `title:` en `description:`. Drie eigen elementen:
-//   <x-shot name="vandaag" alt="…">onderschrift</x-shot>   schermafbeelding (licht en donker) uit assets/shots/
+//   <x-shot name="vandaag" alt="…">onderschrift</x-shot>   schermafbeelding (licht en donker) uit assets/shots/ (Engelse pagina's: assets/shots/en/)
+//   <x-ui k="settings.account"></x-ui>                       een knop of menutekst uit de app, in de taal van de pagina (client/i18n)
 //   <x-compose></x-compose>                                  de inhoud van docker-compose.yml, zonder de toelichting
 //   {{root}}, {{version}}, {{repo}}, {{image}}               pad naar de hoofdmap van de site, versie uit package.json, adressen
 
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const SRC = join(ROOT, 'website');
@@ -137,27 +138,54 @@ export function composeExample(): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-function expandElements(html: string, root: string, where: string): string {
+/**
+ * De teksten van de interface van de app, per taal (client/i18n). De handleiding noemt knoppen en menu's met
+ * <x-ui k="sleutel"></x-ui>: de bouw zet daar de tekst uit de app zelf neer, in de taal van de pagina. Een sleutel die
+ * niet (meer) bestaat, laat de bouw mislukken; zo blijft de handleiding kloppen als een tekst in de app verandert.
+ */
+type Dictionary = Record<string, string | { one: string; other: string }>;
+const loadDictionary = async (lang: Lang): Promise<Dictionary> => (await import(pathToFileURL(join(ROOT, 'client', 'i18n', `${lang}.js`)).href)).default;
+const dictionaries: Record<Lang, Dictionary> = { nl: await loadDictionary('nl'), en: await loadDictionary('en') };
+// De paar woorden van een melding zelf ("Voltooien", "Over 10 minuten") staan in client/sw.js (PUSH_TEXT): de service worker kan
+// de woordenlijsten van de app niet laden. <x-ui k="sw.complete"> haalt ze daar vandaan.
+const pushText: Record<Lang, Record<string, string>> = (() => {
+  const literal = /const PUSH_TEXT = (\{[\s\S]*?\n\});/.exec(read(join(ROOT, 'client', 'sw.js')))?.[1];
+  if (!literal) throw new Error('client/sw.js: PUSH_TEXT niet gevonden');
+  return new Function(`return (${literal});`)();
+})();
+
+function expandElements(html: string, root: string, where: string, lang: Lang): string {
   const shotsDir = join(SRC, 'assets', 'shots');
   // De afmetingen (in beeldpunten) schrijft scripts/site-shots.ts erbij; zo hoeft de browser de pagina niet te verspringen.
   const sizes = existsSync(join(shotsDir, 'shots.json')) ? (JSON.parse(read(join(shotsDir, 'shots.json'))) as Record<string, { width: number; height: number }>) : {};
+  // De Engelse pagina's tonen de app in het Engels: die afbeeldingen staan in shots/en/ en heten daar net zo.
+  const folder = lang === 'en' ? 'en/' : '';
   let out = html.replace(/<x-shot\s+name="([a-z0-9-]+)"(?:\s+class="([a-z -]+)")?\s+alt="([^"]*)">([\s\S]*?)<\/x-shot>/g, (_, name: string, cls: string | undefined, alt: string, caption: string) => {
-    const missing = [`${name}-light.webp`, `${name}-dark.webp`].filter((f) => !existsSync(join(shotsDir, f)));
-    if (missing.length > 0 || !sizes[name]) throw new Error(`${where}: schermafbeelding "${name}" ontbreekt (maak ze met: node scripts/site-shots.ts)`);
+    const key = `${folder}${name}`;
+    const missing = [`${key}-light.webp`, `${key}-dark.webp`].filter((f) => !existsSync(join(shotsDir, f)));
+    if (missing.length > 0 || !sizes[key]) throw new Error(`${where}: schermafbeelding "${key}" ontbreekt (maak ze met: node scripts/site-shots.ts)`);
     if (!alt.trim()) throw new Error(`${where}: schermafbeelding "${name}" heeft geen beschrijving (alt)`);
     // De afbeeldingen zijn op dubbele scherpte vastgelegd: de helft van de beeldpunten is de grootte op het scherm.
-    const w = Math.round(sizes[name].width / 2), h = Math.round(sizes[name].height / 2);
+    const w = Math.round(sizes[key].width / 2), h = Math.round(sizes[key].height / 2);
     const kind = w < 500 ? 'shot-phone' : 'shot-wide';
     const first = cls?.split(' ').includes('first'); // staat bovenaan de pagina: meteen laden
     return [
       `<figure class="shot ${kind}${cls ? ` ${cls}` : ''}">`,
       '  <picture>',
-      `    <source srcset="${root}assets/shots/${name}-dark.webp" media="(prefers-color-scheme: dark)">`,
-      `    <img src="${root}assets/shots/${name}-light.webp" alt="${alt}" width="${w}" height="${h}"${first ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async">`,
+      `    <source srcset="${root}assets/shots/${key}-dark.webp" media="(prefers-color-scheme: dark)">`,
+      `    <img src="${root}assets/shots/${key}-light.webp" alt="${alt}" width="${w}" height="${h}"${first ? ' fetchpriority="high"' : ' loading="lazy"'} decoding="async">`,
       '  </picture>',
       caption.trim() ? `  <figcaption>${caption.trim()}</figcaption>` : '',
       '</figure>',
     ].filter(Boolean).join('\n');
+  });
+  out = out.replace(/<x-ui\s+k="([A-Za-z.]+)"(?:\s+n="(\d+)")?><\/x-ui>/g, (_, key: string, n: string | undefined) => {
+    const value = key.startsWith('sw.') ? pushText[lang][key.slice(3)] : dictionaries[lang][key];
+    if (value === undefined) throw new Error(`${where}: de app kent de tekst "${key}" niet (in client/i18n/${lang}.js)`);
+    // n="3" vult {count} in (en kiest bij een meervoud tussen enkelvoud en meervoud)
+    const text = (typeof value === 'string' ? value : Number(n ?? 2) === 1 ? value.one : value.other).replace(/\{count\}/g, n ?? '2');
+    if (/\{\w+\}/.test(text)) throw new Error(`${where}: de tekst "${key}" heeft invulvelden; schrijf hem zelf uit`);
+    return `<span class="ui">${escapeHtml(text)}</span>`;
   });
   out = out.replace(/<x-compose><\/x-compose>/g, () => `<pre><code>${escapeHtml(composeExample())}</code></pre>`);
   const left = /<x-[a-z]+/.exec(out);
@@ -300,6 +328,7 @@ function renderPage(config: SiteConfig, pages: Page[], page: Page, layout: strin
 
 // ---------- de demo: de echte app met een andere backend ----------
 
+// De namen van knoppen in de tips komen uit de app zelf; de Engelse versie van de balk staat in website/demo/demo.js.
 const DEMO_BAR = `  <div class="demo-bar" id="demo-bar" role="note">
     <span class="demo-bar-text"><span class="demo-bar-long">Dit is een demo: wijzigingen worden niet bewaard.</span><span class="demo-bar-short">Demo: niets wordt bewaard.</span></span>
     <details class="demo-tips">
@@ -307,9 +336,11 @@ const DEMO_BAR = `  <div class="demo-bar" id="demo-bar" role="note">
       <div class="demo-tips-body">
         <p>Om te proberen:</p>
         <ul>
-          <li>Typ in het veld bovenaan: <code>Tandarts bellen morgen om 9 uur p1</code></li>
-          <li>Open <strong>Huishouden</strong>, kies <strong>Gedeeld</strong> en voeg de gebruikersnaam <code>kees</code> toe.</li>
+          <li>Typ in het veld bovenaan: <code>Tandarts bellen morgen om 9 uur p1</code>. Een taak met een tijd krijgt vanzelf een herinnering (🔔).</li>
+          <li>Open de taak <strong>Tandarts bellen voor controle</strong> om haar herinneringen te zien en te wijzigen.</li>
+          <li>Open <strong>Huishouden</strong>, kies <strong>${escapeHtml(String(dictionaries.nl['project.shared']))}</strong> en voeg de gebruikersnaam <code>kees</code> toe.</li>
           <li>Vink een taak met een herhaling (↻) af: de datum schuift door naar de volgende keer.</li>
+          <li>Meldingen komen alleen van je eigen server. In de demo zie je de herinneringen en de instellingen (<strong>${escapeHtml(String(dictionaries.nl['settings.notifications']))}</strong>), maar er gaat niets af.</li>
           <li>Herlaad je de pagina, dan begint de demo opnieuw met de voorbeeldgegevens.</li>
         </ul>
       </div>
@@ -462,7 +493,7 @@ export function buildSite(options: BuildOptions = {}): { out: string; files: num
       const where = `website/pages/${page.lang}/${page.path}`;
       const root = '../'.repeat(page.path.split('/').length);
       const filled = fill(page.html, { root, version, repo: config.repo, image: config.image }, where);
-      page.html = addHeadingIds(expandElements(filled, root, where), where);
+      page.html = addHeadingIds(expandElements(filled, root, where, page.lang), where);
     }
     for (const page of pages) writeOut(opts.out, `${page.lang}/${page.path}`, renderPage(config, pages, page, layout, opts, version));
     for (const lang of LANGS) {
