@@ -150,7 +150,29 @@ test('de klok: een herinnering gaat op het juiste moment naar alle apparaten van
   assert.equal(h.TTL, String(LATE_WINDOW_MS / 1000));
   assert.equal(h.Topic.length, 32);
   assert.match(h.Authorization, /^vapid t=.+, k=.+$/);
+  const claims = (auth: string) => JSON.parse(Buffer.from(/t=[\w-]+\.([\w-]+)\./.exec(auth)![1], 'base64url').toString());
+  assert.equal(claims(h.Authorization).sub, undefined, 'zonder ingesteld contactadres gaat er geen mee');
+  assert.ok(!JSON.stringify(claims(h.Authorization)).includes('github'), 'en zeker niet het adres van het project');
   assert.ok(w.push.list(w.alice.id, phone.session.id).every((s) => s.last_success_at === '2026-12-01T07:30:00.000Z'));
+});
+
+test('het contactadres voor de pushdienst komt uit de instelling van de beheerder, en alleen in een geldige vorm', async () => {
+  const sub = async (subject: string | undefined) => {
+    const db = freshDb();
+    const user = addUser(db, 'anna');
+    const seen: string[] = [];
+    const fetchFn = (async (_url: string, init: any) => { seen.push(init.headers.Authorization); return new Response(null, { status: 201 }); }) as unknown as typeof fetch;
+    const p = createPush({ db, fetch: fetchFn, subject });
+    const d = pushDevice('telefoon');
+    p.subscribe(user.id, createSession(db, user.id, 'telefoon').id, d.subscription);
+    await p.sendTest(user.id);
+    return JSON.parse(Buffer.from(/t=[\w-]+\.([\w-]+)\./.exec(seen[0])![1], 'base64url').toString()).sub;
+  };
+  assert.equal(await sub('mailto:beheer@voorbeeld.nl'), 'mailto:beheer@voorbeeld.nl');
+  assert.equal(await sub('https://taken.voorbeeld.nl/contact'), 'https://taken.voorbeeld.nl/contact');
+  for (const bad of [undefined, '', 'beheer@voorbeeld.nl', 'http://onveilig.voorbeeld.nl', 'mailto:geen-adres', 'zomaar tekst']) {
+    assert.equal(await sub(bad), undefined, String(bad));
+  }
 });
 
 test('de tijdzone uit de instellingen bepaalt het moment; zonder instelling geldt die van de server', async () => {

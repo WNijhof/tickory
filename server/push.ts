@@ -27,7 +27,11 @@ const MAX_SUBSCRIPTIONS_PER_USER = 20;
 
 export interface PushConfig {
   db: DatabaseSync;
-  /** Contact voor de pushdienst: "mailto:…" of een https-adres (VAPID_SUBJECT). */
+  /**
+   * Contactadres van de beheerder van déze server voor de pushdienst: "mailto:…" of een https-adres (VAPID_SUBJECT).
+   * Niet ingesteld of in een andere vorm: er gaat geen contactadres mee. Er is bewust geen standaardwaarde: het adres
+   * van het project zou dan het contact zijn voor de servers van iedereen die Tickory installeert.
+   */
   subject?: string;
   /** Tijdzone voor gebruikers die er (nog) geen hebben ingesteld. */
   defaultTimeZone?: string;
@@ -52,7 +56,7 @@ function meta(db: DatabaseSync, key: string, make: () => string): string {
 export function createPush(cfg: PushConfig) {
   const db = cfg.db;
   const now = cfg.now ?? Date.now;
-  const subject = cfg.subject || 'https://github.com/WNijhof/tickory';
+  const subject = cfg.subject && /^(mailto:[^\s@]+@[^\s@]+|https:\/\/[^\s]+)$/.test(cfg.subject) ? cfg.subject : null;
   const defaultZone = cfg.defaultTimeZone || 'Europe/Amsterdam';
 
   // De sleutels van deze server: één keer aangemaakt, daarna uit de database (ze horen bij de aanmeldingen van de apparaten).

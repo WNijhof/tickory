@@ -125,6 +125,11 @@ test('VAPID-handtekening: de JWT is te controleren met de publieke sleutel en be
   const pub = createPublicKey({ key: { kty: 'EC', crv: 'P-256', x: b64u(raw.subarray(1, 33)), y: b64u(raw.subarray(33)) }, format: 'jwk' });
   assert.equal(verify('sha256', Buffer.from(`${h}.${c}`), { key: pub, dsaEncoding: 'ieee-p1363' }, fromB64u(s)), true);
   assert.equal(verify('sha256', Buffer.from(`${h}.${c}x`), { key: pub, dsaEncoding: 'ieee-p1363' }, fromB64u(s)), false, 'gewijzigde inhoud valt door de mand');
+  // zonder contactadres gaat er geen "sub" mee (er is geen standaardadres)
+  for (const none of [null, undefined, '']) {
+    const bare = vapidAuthorization('https://fcm.googleapis.com/x', k, none, now);
+    assert.deepEqual(Object.keys(JSON.parse(fromB64u(/t=[\w-]+\.([\w-]+)\./.exec(bare)![1]).toString())).sort(), ['aud', 'exp']);
+  }
   // nooit langer dan 24 uur geldig, wat je ook vraagt
   const long = vapidAuthorization('https://fcm.googleapis.com/x', k, 'mailto:a@b.nl', now, 30 * 24 * 3600);
   assert.equal(JSON.parse(fromB64u(/t=[\w-]+\.([\w-]+)\./.exec(long)![1]).toString()).exp, Math.floor(now / 1000) + 24 * 3600);

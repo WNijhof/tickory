@@ -47,12 +47,16 @@ export function isValidVapid(keys: VapidKeys): boolean {
 
 // ---------- VAPID-handtekening ----------
 
-/** De waarde voor de Authorization-header (RFC 8292): "vapid t=<jwt>, k=<publieke sleutel>". */
-export function vapidAuthorization(endpoint: string, keys: VapidKeys, subject: string, nowMs: number, lifetimeSeconds = 12 * 3600): string {
+/**
+ * De waarde voor de Authorization-header (RFC 8292): "vapid t=<jwt>, k=<publieke sleutel>".
+ * `subject` is het contactadres van wie deze server beheert ("mailto:…" of een https-adres). Het is optioneel: zonder
+ * gaat er geen contactadres mee (sommige pushdiensten, met name die van Apple, vragen er wel om).
+ */
+export function vapidAuthorization(endpoint: string, keys: VapidKeys, subject: string | null | undefined, nowMs: number, lifetimeSeconds = 12 * 3600): string {
   const aud = new URL(endpoint).origin;
   const exp = Math.floor(nowMs / 1000) + Math.min(lifetimeSeconds, 24 * 3600); // meer dan 24 uur is niet toegestaan
   const header = b64u(Buffer.from(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
-  const claims = b64u(Buffer.from(JSON.stringify({ aud, exp, sub: subject })));
+  const claims = b64u(Buffer.from(JSON.stringify({ aud, exp, ...(subject ? { sub: subject } : {}) })));
   const input = `${header}.${claims}`;
   const key: KeyObject = createPrivateKey({ key: fromB64u(keys.privateKey), format: 'der', type: 'pkcs8' });
   const signature = sign('sha256', Buffer.from(input), { key, dsaEncoding: 'ieee-p1363' }); // r || s, zoals JWT het wil
@@ -128,8 +132,8 @@ export interface PushSubscriptionData {
 
 export interface SendOptions {
   vapid: VapidKeys;
-  /** mailto: of https-adres van wie deze server beheert; sommige pushdiensten (Apple) eisen een geldige waarde. */
-  subject: string;
+  /** mailto: of https-adres van wie deze server beheert; optioneel, maar sommige pushdiensten (Apple) eisen een geldige waarde. */
+  subject?: string | null;
   /** Hoe lang de pushdienst het bericht mag bewaren als het apparaat onbereikbaar is. */
   ttlSeconds?: number;
   /** "high" doorbreekt de Doze-stand van Android; voor herinneringen is dat precies de bedoeling. */
