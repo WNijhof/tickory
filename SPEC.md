@@ -151,6 +151,8 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Herkennen van een teruggezette database | Het token is nu alleen een versienummer. Een `epoch` (willekeurige waarde, per database) in het token zou een teruggezette of vervangen database altijd een volledige sync laten afdwingen, ook als het versienummer toevallig weer voorbij de stand van een apparaat is gegroeid |
 | Filtertaal | Evaluator voor `filter.query` (start: `today`, `overdue`, `p1`–`p4`, `@label`, `#project`, `&`, `\|`, `!`, haakjes) |
 | Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
-| Herinneringen afleveren | De server verstuurt niets; clients plannen lokale notificaties uit `reminders` |
+| Herinneringen: aanmaken in de app én afleveren | De server kan herinneringen opslaan en synchroniseren (`reminder_*`, relatief of absoluut), maar de app heeft er geen scherm voor en niets verstuurt ze. Afleveren vraagt een planner op de server (hij kent alle herinneringen en due-datums), een tijdzone-instelling (`due` is zwevend, zonder tijdzone), onthouden wat al verstuurd is, en een kanaal naar de telefoon: bijvoorbeeld ntfy (eenvoudig, werkt met de app dicht), Web Push (vereist HTTPS en een eigen implementatie van VAPID en berichtversleuteling) of een Android-schil met exacte alarmen |
+| Opmerkingen, favorieten, archiveren, duur, bord- en kalenderweergave | Staan als velden of entiteiten in het datamodel en worden gesynchroniseerd; de app heeft er geen scherm voor |
+| De volgorde van taken wijzigen (slepen), zoeken, labels beheren | Ontbreken in de app; `order_key` (de volgordesleutel) en de commando's voor labels zijn er wel |
 | Bijlagen, activiteitenlog, voltooide taken met paginering | Voltooide taken blijven nu in `tasks` met `checked: true` |
 | Meerdere apparaten met eigen tokens, snelheidsbeperking | Nu één gedeeld token |

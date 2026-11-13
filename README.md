@@ -158,7 +158,23 @@ scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1
 
 ## Status
 
-Werkt voor eigen gebruik: taken, projecten (met subprojecten), secties, subtaken, labels, prioriteiten, deadlines, herhalingen, Vandaag en Binnenkort, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app. Nog te bouwen: filtertaal, herinneringen als meldingen, een Android-schil, Vandaag-volgorde (zie SPEC.md hoofdstuk 10).
+Eerste versie voor eigen gebruik. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
+
+**Wat de app kan:** taken met subtaken, projecten met subprojecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, en installeren als app.
+
+**Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
+- **Herinneringen.** De server kan ze opslaan en synchroniseren (relatief, bijvoorbeeld 30 minuten vooraf, en op een vast tijdstip), maar je kunt er in de app geen aanmaken, en er wordt **nergens een melding verstuurd**.
+- **Opmerkingen** bij taken en projecten.
+- **Filters** (opgeslagen zoekopdrachten): er is geen filtertaal en geen scherm.
+- Favorieten, **archiveren** van projecten en secties, de **duur** van een taak, en bord- of kalenderweergave.
+
+**Ontbreekt helemaal:**
+- **Slepen of anderszins de volgorde van taken wijzigen.** Een nieuwe taak komt altijd achteraan.
+- **Zoeken.**
+- **Labels beheren** (hernoemen, verwijderen, op een label filteren).
+- Bijlagen, delen met anderen, statistieken, sjablonen, import en export, een iCal-feed, sneltoetsen, widgets, en een eigen volgorde voor Vandaag.
+
+Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. Zie ook SPEC.md hoofdstuk 10.
 
 ## Licentie
 
