@@ -156,16 +156,23 @@ export function createPush(cfg: PushConfig) {
     return `${body}.${b64u(createHmac('sha256', secret).update(body).digest())}`;
   }
 
-  function verify(token: unknown): Record<string, unknown> | null {
+  /**
+   * Controleert een token en geeft zijn inhoud en handtekening terug. Strikt: alleen exact de tekst die `sign` maakt. Een
+   * base64-lezer die spaties, regeleinden, '=' of losse staartbits negeert, laat van één token duizenden tekstvarianten toe
+   * die allemaal dezelfde handtekening hebben; elke variant zou als een nieuwe handeling tellen.
+   */
+  function verify(token: unknown): { data: Record<string, unknown>; mac: string } | null {
     if (typeof token !== 'string' || token.length > 1000) return null;
     const [body, mac, ...rest] = token.split('.');
     if (!body || !mac || rest.length > 0) return null;
-    const expected = createHmac('sha256', secret).update(body).digest();
+    if (!/^[A-Za-z0-9_-]+$/.test(body) || !/^[A-Za-z0-9_-]+$/.test(mac)) return null;
     const given = fromB64u(mac);
+    if (b64u(given) !== mac || b64u(fromB64u(body)) !== body) return null; // niet-canoniek base64url (staartbits)
+    const expected = createHmac('sha256', secret).update(body).digest();
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) return null;
     try {
       const data = JSON.parse(fromB64u(body).toString('utf8')) as Record<string, unknown>;
-      return typeof data.e === 'number' && data.e * 1000 >= now() ? data : null;
+      return typeof data.e === 'number' && data.e * 1000 >= now() ? { data, mac } : null;
     } catch {
       return null;
     }
@@ -181,9 +188,15 @@ export function createPush(cfg: PushConfig) {
    * @returns het id van de gebruiker (om diens apparaten te laten bijwerken) of null als het bewijsje niet klopt
    */
   function handleAction(token: unknown): { ok: boolean; userId: string | null; error?: string } {
-    const data = verify(token);
-    if (!data || typeof data.u !== 'string' || typeof data.t !== 'string') return { ok: false, userId: null, error: 'deze knop is verlopen of ongeldig' };
-    const uuid = `push-${createHash('sha256').update(token as string).digest('base64url').slice(0, 40)}`;
+    const checked = verify(token);
+    if (!checked || typeof checked.data.u !== 'string' || typeof checked.data.t !== 'string') return { ok: false, userId: null, error: 'deze knop is verlopen of ongeldig' };
+    const { data, mac } = checked;
+    // Een bewijsje is bedoeld voor een apparaat dat meldingen krijgt. Is de aanmelding weg (uitgelogd, afgemeld, sessie
+    // ingetrokken na een nieuw wachtwoord, account geblokkeerd), dan werkt het bewijsje niet meer, ook al is het een dag geldig.
+    prune();
+    if (!db.prepare('SELECT 1 FROM push_subscriptions WHERE user_id = ?').get(data.u as string)) return { ok: false, userId: null, error: 'deze knop is verlopen of ongeldig' };
+    // Het uuid komt van de handtekening (de MAC), niet van de tekst van het token: dezelfde knop is daardoor altijd dezelfde handeling.
+    const uuid = `push-${createHash('sha256').update(mac).digest('base64url').slice(0, 40)}`;
     const command = data.a === 'complete'
       ? { type: 'task_complete', uuid, args: { id: data.t } }
       : data.a === 'snooze'

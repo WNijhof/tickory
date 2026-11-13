@@ -355,6 +355,48 @@ test('een knop werkt alleen met een echt, niet verlopen bewijsje, en alleen voor
   assert.equal(w.push.handleAction(token).ok, false);
 });
 
+test('een knop is een handeling: een vervormde maar gelijkwaardige tekst van hetzelfde bewijsje telt niet als een nieuwe', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.run(w.alice, [cmd('task_add', { id: 'task-herhaal1', project_id: w.alice.inbox_project_id, content: 'Dagelijks', due: { date: '2026-12-01T09:00', recurrence: { freq: 'daily' } } }),
+    cmd('reminder_add', { id: 'remind-herhaal1', task_id: 'task-herhaal1', type: 'relative', minute_offset: 0 })]);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  await w.push.tick();
+  const [message] = d.received();
+  const due = () => ((handleSync(w.db, {}, w.alice.id).tasks as Row[]).find((t) => t.id === 'task-herhaal1')!.due as Row).date;
+  const token: string = message.complete;
+  assert.equal(w.push.handleAction(token).ok, true);
+  assert.equal(due(), '2026-12-02T09:00');
+  const [body, mac] = token.split('.');
+  // alles wat een tolerante base64-lezer zou negeren of toestaan: spaties, regeleinden, '=', een ander laatste teken (staartbits)
+  const lastIndex = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.indexOf(mac.slice(-1));
+  const tailVariants = Array.from({ length: 4 }, (_, i) => `${mac.slice(0, -1)}${'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'[(lastIndex & ~3) | i]}`).filter((m) => m !== mac);
+  const variants = [`${token} `, ` ${token}`, `${token}\n`, `${body}.${mac}=`, `${body}=.${mac}`, `${body}.${mac.slice(0, 10)}\n${mac.slice(10)}`, `${body}\n.${mac}`, ...tailVariants.map((m) => `${body}.${m}`)];
+  for (const v of variants) {
+    assert.equal(w.push.handleAction(v).ok, false, JSON.stringify(v).slice(0, 60));
+  }
+  assert.equal(due(), '2026-12-02T09:00', 'geen enkele variant heeft de taak verder geschoven');
+  assert.equal(w.push.handleAction(token).ok, true, 'het echte bewijsje blijft gewoon werken (en doet niets nieuws)');
+  assert.equal(due(), '2026-12-02T09:00');
+  // het uitstellen: één bewijsje maakt één herinnering, ook als het vaak (en vervormd) wordt aangeboden
+  const snooze: string = message.snooze;
+  for (const v of [snooze, snooze, `${snooze} `, `${snooze}\n`, `${snooze}=`]) w.push.handleAction(v);
+  const extra = (handleSync(w.db, {}, w.alice.id).reminders as Row[]).filter((r) => r.task_id === 'task-herhaal1' && r.type === 'absolute');
+  assert.equal(extra.length, 1);
+});
+
+test('een knop werkt niet meer zodra het apparaat is afgemeld of de sessie is ingetrokken', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  w.taskWithReminder(w.alice, 'aaa1', '2026-12-01T09:00', 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  await w.push.tick();
+  const token: string = d.received()[0].complete;
+  revokeSession(w.db, w.alice.id, d.session.id); // uitgelogd, of het wachtwoord is gewijzigd
+  assert.equal(w.push.handleAction(token).ok, false);
+  assert.equal((handleSync(w.db, {}, w.alice.id).tasks as Row[])[0].checked, false, 'er is niets afgevinkt');
+});
+
 test('een proefmelding gaat naar alle eigen apparaten en meldt wat niet lukte', async () => {
   const w = world();
   const a = w.device(w.alice, 'telefoon');
