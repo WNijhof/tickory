@@ -33,7 +33,27 @@
   },
   "sneltoetsen": {
     "width": 976,
-    "height": 1098
+    "height": 1276
+  },
+  "zoeken": {
+    "width": 1456,
+    "height": 772
+  },
+  "filter-fout": {
+    "width": 1296,
+    "height": 1252
+  },
+  "filter-venster": {
+    "width": 1296,
+    "height": 1154
+  },
+  "filter": {
+    "width": 2240,
+    "height": 1440
+  },
+  "labels": {
+    "width": 2240,
+    "height": 1440
   },
   "herinneringen": {
     "width": 558,
@@ -71,6 +91,10 @@
     "width": 780,
     "height": 1560
   },
+  "telefoon-zoeken": {
+    "width": 780,
+    "height": 1560
+  },
   "en/vandaag": {
     "width": 2240,
     "height": 1440
@@ -105,7 +129,27 @@
   },
   "en/sneltoetsen": {
     "width": 976,
-    "height": 1098
+    "height": 1276
+  },
+  "en/zoeken": {
+    "width": 1456,
+    "height": 772
+  },
+  "en/filter-fout": {
+    "width": 1296,
+    "height": 1252
+  },
+  "en/filter-venster": {
+    "width": 1296,
+    "height": 1154
+  },
+  "en/filter": {
+    "width": 2240,
+    "height": 1440
+  },
+  "en/labels": {
+    "width": 2240,
+    "height": 1440
   },
   "en/herinneringen": {
     "width": 558,
@@ -140,6 +184,10 @@
     "height": 1560
   },
   "en/telefoon-menu": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/telefoon-zoeken": {
     "width": 780,
     "height": 1560
   }

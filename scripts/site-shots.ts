@@ -182,6 +182,43 @@ async function shootAll() {
   await clickText(T('common.close'), `document.querySelector('dialog[open]')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
 
+  // zoeken: het zoekvenster met een paar woorden, hoofdletter- en accentongevoelig
+  await evaluate(`document.querySelector('.search-field').click()`);
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster');
+  await typeInto('#search-dialog .search-input', 'boodschap');
+  await waitFor(`document.querySelectorAll('#search-dialog .search-hit').length >= 3`, 'treffers');
+  await settle();
+  await capture('zoeken', TALL, await around('#search-dialog', 24));
+  await evaluate(`document.querySelector('#search-dialog').close()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'zoekvenster gesloten');
+
+  // een filter maken: eerst met een fout (een project dat niet bestaat), dan goed
+  const filterName = lang === 'nl' ? 'Nu of te laat' : 'Now or overdue';
+  const filterQuery = lang === 'nl' ? '(vandaag | morgen | te laat) & !subtaak' : '(today | tomorrow | overdue) & !subtask';
+  const addFilter = T('filter.add');
+  await evaluate(`[...document.querySelectorAll('button[aria-label]')].find((b) => b.getAttribute('aria-label') === ${js(addFilter)}).click()`);
+  await waitFor(`document.querySelector('dialog[open] .filter-input')`, 'filtervenster');
+  await typeInto('dialog[open] input[autocomplete=off]', filterName);
+  await typeInto('dialog[open] .filter-input', lang === 'nl' ? 'vandaag & #Keuken' : 'today & #Kitchen');
+  await waitFor(`document.querySelector('dialog[open] .filter-error-text')`, 'foutmelding');
+  await evaluate(`document.activeElement?.blur()`);
+  await capture('filter-fout', TALL, await around('dialog[open]', 24));
+  await typeInto('dialog[open] .filter-input', filterQuery);
+  await waitFor(`document.querySelector('dialog[open] .filter-ok')`, 'filter klopt');
+  await evaluate(`document.querySelector('dialog[open] .swatch input[value="blue"]').click()`);
+  await evaluate(`document.activeElement?.blur()`);
+  await capture('filter-venster', TALL, await around('dialog[open]', 24));
+  await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+  await title(filterName);
+  await settle();
+  await capture('filter', DESKTOP);
+
+  // de labels: het overzicht met het aantal open taken, en het label van iemand anders dat alleen te lezen is
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await title(T('labels.title'));
+  await settle();
+  await capture('labels', DESKTOP);
+
   await nav('Inbox');
   await title('Inbox');
   await openTask('Tandarts bellen voor controle');
@@ -236,6 +273,14 @@ async function shootAll() {
   await evaluate(`document.getElementById('menu-button').click()`);
   await sleep(350); // het menu schuift in beeld
   await capture('telefoon-menu', PHONE);
+  await evaluate(`document.getElementById('scrim').click()`);
+  await evaluate(`document.querySelector('.topbar-search').click()`);
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster op een telefoon');
+  await typeInto('#search-dialog .search-input', 'boodschap');
+  await waitFor(`document.querySelectorAll('#search-dialog .search-hit').length >= 3`, 'treffers');
+  await evaluate(`document.activeElement?.blur()`);
+  await settle();
+  await capture('telefoon-zoeken', PHONE);
 }
 
 let failed: unknown = null;

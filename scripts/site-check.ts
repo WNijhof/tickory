@@ -1203,7 +1203,7 @@ if (wants('browser')) {
         await go('i', 'Inbox');
         await press('?', true);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sneltoetsen')`, 'overzicht van sneltoetsen');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
         await clickText('Sluiten', `document.querySelector('dialog[open]')`);
         await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
         // in een invoerveld doen de toetsen niets

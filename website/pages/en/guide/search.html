@@ -1,0 +1,66 @@
+<!--
+title: Search
+description: Searching in Tickory with / or Ctrl+K: tasks, comments, projects, sections, labels and filters, ignoring capitals and accents, with the found words highlighted and full keyboard control.
+-->
+<h1>Search</h1>
+<p class="intro">You know you wrote something about the dentist somewhere, but not where? Search for it: in all your tasks, comments, projects, labels and filters at once, while you type.</p>
+
+<x-shot name="zoeken" alt="The search window with the text 'boodschap' in the search field. Below it four results with the matching letters highlighted in yellow: the label boodschappen, the section Boodschappen of the project Huishouden, the task Boodschappen doen with its project and date, and a comment on that task with a piece of its text. On the right of each result it says what it is.">The search window: results of different kinds, with the words found highlighted.</x-shot>
+
+<h2 id="opening-search">Opening the search window</h2>
+<ul>
+  <li>Press <kbd>/</kbd>, or <kbd>Ctrl</kbd>+<kbd>K</kbd> (<kbd>Cmd</kbd>+<kbd>K</kbd> on a Mac).</li>
+  <li>Or click <x-ui k="search.fieldText"></x-ui> at the top of the sidebar. On a phone there is a magnifying glass in the bar at the top of the screen.</li>
+</ul>
+<p>A <kbd>/</kbd> is only a shortcut when you are not typing in a field and no window is open; otherwise it is just a slash. <kbd>Ctrl</kbd>+<kbd>K</kbd> always works. See also <a href="shortcuts.html">Keyboard shortcuts</a>.</p>
+
+<h2 id="what-is-searched">What is searched</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Kind</th><th>What is searched</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><x-ui k="search.kind.task"></x-ui></td><td class="wrap-ok">The title, the description and the names of the labels. A match in the description or a label shows the piece of text where the word is.</td></tr>
+      <tr><td><x-ui k="search.kind.comment"></x-ui></td><td class="wrap-ok">The text of comments on tasks and projects. All words must be in the same comment.</td></tr>
+      <tr><td><x-ui k="search.kind.project"></x-ui>, <x-ui k="search.kind.section"></x-ui></td><td class="wrap-ok">The name, and for a project the description too.</td></tr>
+      <tr><td><x-ui k="search.kind.label"></x-ui></td><td class="wrap-ok">The name. Also labels that someone else put on a task in a shared project.</td></tr>
+      <tr><td><x-ui k="search.kind.filter"></x-ui></td><td class="wrap-ok">The name and the filter text.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Archived projects and sections, and everything in them, are left out. Completed tasks are included, but they come last.</p>
+
+<h2 id="how-it-searches">How it searches</h2>
+<ul>
+  <li><strong>Capitals and accents do not matter.</strong> <code>cafe</code> finds “Café”, <code>zoe</code> finds “Zoë” and <code>ijs</code> finds “IJs kopen”. That also holds when your keyboard delivers an accent as a separate character.</li>
+  <li><strong>All words, in any order.</strong> <code>bellen tandarts</code> finds “Tandarts bellen voor controle”.</li>
+  <li><strong>Part of a word is enough.</strong> <code>boodschap</code> finds “boodschappen”; the letters found are highlighted.</li>
+  <li><strong>The order of the results.</strong> First what starts with your word, then what has it in the title, then what has it only in the description, a label or a comment. Within those groups projects, labels, filters and sections come before tasks, and shorter titles before longer ones.</li>
+</ul>
+<p>At most 50 results are shown. A change from another device appears in the list by itself.</p>
+
+<h2 id="keyboard">Using the keyboard</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Key</th><th>What happens</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><kbd>↓</kbd> and <kbd>↑</kbd></td><td class="wrap-ok">Choose the next or previous result; after the last one you are back at the first. <kbd>Page Up</kbd> and <kbd>Page Down</kbd> jump five results.</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td class="wrap-ok">Open the chosen result. The first result is already chosen as soon as there are results.</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td class="wrap-ok">Close the search window.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>With the mouse you click a result. Screen readers hear how many results there are and which one is chosen.</p>
+
+<h2 id="what-a-result-opens">What a result opens</h2>
+<ul>
+  <li><strong>A task:</strong> the <a href="task-window.html">task window</a> of that task, on top of the screen you were on.</li>
+  <li><strong>A comment:</strong> the task window of the task it belongs to, or for a comment on a project that project with its comments.</li>
+  <li><strong>A project or a section:</strong> that project.</li>
+  <li><strong>A label or a filter:</strong> the screen with the tasks, see <a href="labels.html">Labels</a> and <a href="filters.html">Filters</a>.</li>
+</ul>
+
+<x-shot name="telefoon-zoeken" alt="The search window on a phone, over the whole screen: at the top the search field with the text 'boodschap' and a cross to close it, below it the same results as on the computer.">On a phone the search window fills the whole screen.</x-shot>

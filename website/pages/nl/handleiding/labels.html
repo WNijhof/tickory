@@ -1,0 +1,46 @@
+<!--
+title: Labels
+description: Labels in Tickory: trefwoorden bij taken zoals @bellen, de lijst in de zijbalk met het aantal open taken, alle taken met een label bekijken, en labels maken, hernoemen, kleuren, favoriet maken en verwijderen.
+-->
+<h1>Labels</h1>
+<p class="intro">Een label is een trefwoord bij een taak, zoals <code>@bellen</code> of <code>@buiten</code>. Eén taak kan meer labels hebben, en met één klik zie je alle taken met een bepaald label bij elkaar, uit al je projecten.</p>
+
+<x-shot name="labels" alt="Het scherm Labels: de eigen labels bellen, boodschappen en buiten, elk met een kleurbolletje, het aantal open taken en knoppen voor favoriet, bewerken en verwijderen. Daaronder staat 'Labels van anderen' met het label buurt, zonder knoppen, omdat dat alleen te lezen is. In de zijbalk staan dezelfde labels onder Labels.">Het overzicht van labels. Het label van een ander (onderaan) kun je alleen bekijken.</x-shot>
+
+<h2 id="een-label-geven">Een label op een taak zetten</h2>
+<ul>
+  <li><strong>Bij het toevoegen:</strong> typ <code>@naam</code> in de regel, bijvoorbeeld <code>Tandarts bellen morgen @bellen</code>. Een label dat nog niet bestaat, wordt aangemaakt. Een bestaand label met spaties of leestekens in de naam, zoals <code>Uitgaan met Zoë</code>, typ je gewoon helemaal uit: <code>@Uitgaan met Zoë</code>. Als er twee labels passen, wint de langste naam.</li>
+  <li><strong>In het taakvenster:</strong> typ in het veld <x-ui k="task.labels"></x-ui> een naam, gescheiden door komma's, en kies er eventueel een uit de lijst.</li>
+</ul>
+<p>Bij een taak in de lijst staan de labels als <code>@naam</code>. Tik erop en je ziet alle taken met dat label.</p>
+
+<h2 id="de-lijst-in-de-zijbalk">De lijst in de zijbalk</h2>
+<p>Onder <x-ui k="labels.title"></x-ui> in de zijbalk staan je labels met het aantal open taken. Een favoriet label staat bovenaan, met een sterretje. Met het pijltje voor het kopje klap je de lijst in of uit, en klik je op het kopje zelf, dan opent het overzicht om labels te beheren.</p>
+
+<h2 id="alle-taken-met-een-label">Alle taken met een label</h2>
+<p>Kies een label in de zijbalk, tik op een label bij een taak, of kies het in <a href="zoeken.html">Zoeken</a>. Je ziet de open taken met dat label uit al je projecten, in de volgorde van de andere overzichten: eerst op datum, dan op prioriteit. Onderaan kun je de afgevinkte taken tonen. Taken in een gearchiveerd project doen niet mee.</p>
+<p>Onder de lijst staat <x-ui k="quick.addTask"></x-ui>: het venster begint al met <code>@label</code> ingevuld.</p>
+
+<h2 id="labels-beheren">Labels beheren</h2>
+<p>Klik in de zijbalk op het kopje <x-ui k="labels.title"></x-ui>. Daar staat elk label met het aantal open taken en drie knoppen: een sterretje (favoriet), een potlood (bewerken) en een prullenbakje (verwijderen). Bewerken en verwijderen kan ook op het scherm van het label zelf, onder <x-ui k="label.more"></x-ui>.</p>
+<ul>
+  <li><strong>Toevoegen:</strong> de <strong>+</strong> naast het kopje in de zijbalk, of <x-ui k="label.add"></x-ui> in het overzicht. Geef een naam, kies een kleur uit zestien, en zet eventueel een vinkje bij <x-ui k="label.favorite"></x-ui>.</li>
+  <li><strong>Hernoemen:</strong> het potlood, en dan een nieuwe naam. Het is hetzelfde label: alle taken houden het, met de nieuwe naam.</li>
+  <li><strong>Kleur:</strong> het bolletje in de zijbalk, in het overzicht en voor <code>@naam</code> bij een taak.</li>
+  <li><strong>Verwijderen:</strong> het prullenbakje. Het venster zegt van hoeveel taken het label wordt gehaald; de taken zelf blijven staan. Dit is niet terug te draaien.</li>
+</ul>
+
+<h3 id="namen">Wat een naam mag zijn</h3>
+<ul>
+  <li>Geen komma en geen stuurtekens, en niet langer dan 100 tekens. Spaties en accenten mogen.</li>
+  <li>Een naam is uniek, zonder letter-, accent- of spatieverschil: als <code>één</code> bestaat, kun je <code>ÉÉN</code> niet ook maken. De app zegt het meteen, in je eigen taal.</li>
+</ul>
+
+<h2 id="labels-van-anderen">Labels van anderen</h2>
+<p>Labels zijn persoonlijk. Zet iemand een label op een taak in een project dat jullie delen, dan zie je dat label bij die taak, en ook in het overzicht onder <x-ui k="labels.othersTitle"></x-ui>. Je kunt de taken ermee bekijken, maar het label niet hernoemen, een kleur geven of verwijderen. Zie <a href="delen.html#wat-persoonlijk-blijft">Delen en samenwerken</a>.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Geen aanvulling van <code>@</code>-namen terwijl je typt in de regel om taken toe te voegen; wel in het taakvenster, waar je uit de lijst kiest.</li>
+  <li>Labels slepen of een eigen volgorde geven: ze staan in de volgorde waarin ze zijn gemaakt, favorieten eerst.</li>
+</ul>
