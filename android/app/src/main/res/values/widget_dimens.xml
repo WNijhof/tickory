@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Hoeken van de widget; op Android 12 en nieuwer die van het systeem (values-v31). -->
+    <dimen name="widget_radius">16dp</dimen>
+    <!-- Een regel is minstens 48dp hoog en de cirkel om af te vinken is 48dp breed: het kleinste tikvlak dat Android aanraadt. -->
+    <dimen name="widget_row_min">48dp</dimen>
+    <dimen name="widget_indent">16dp</dimen>
+    <dimen name="widget_item_start">4dp</dimen>
+    <dimen name="widget_config_start">16dp</dimen>
+</resources>

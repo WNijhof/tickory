@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De cirkel om een taak af te vinken, in de kleur van prioriteit 2 (P2). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <size android:width="22dp" android:height="22dp" />
+    <solid android:color="@color/widget_p2_fill" />
+    <stroke android:width="2dp" android:color="@color/widget_p2" />
+</shape>

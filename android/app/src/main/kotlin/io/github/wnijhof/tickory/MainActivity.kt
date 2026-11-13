@@ -40,7 +40,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
-import io.github.wnijhof.tickory.core.Ids
+import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
@@ -77,8 +77,8 @@ class MainActivity : ComponentActivity() {
     private var notificationRationaleBefore = false
     private var localNetworkAsked = false
 
-    /** De taak uit een melding, als de app eerst nog iets moet vragen voordat hij kan laden. */
-    private var pendingTaskId: String? = null
+    /** Waar een melding of widget naartoe wil (zie DeepLink), als de app eerst nog iets moet vragen voordat hij kan laden. */
+    private var pendingFragment: String? = null
 
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         onNotificationPermissionResult(granted)
@@ -137,21 +137,21 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        val taskId = taskIdFrom(intent)
+        val fragment = fragmentFrom(intent)
         if (needsLocalNetworkPermission()) {
             // Zonder deze toestemming loopt elk verzoek naar een server op het thuisnetwerk dood: eerst vragen, dan laden.
-            pendingTaskId = taskId
+            pendingFragment = fragment
             askLocalNetworkPermission()
         } else {
-            loadStart(taskId)
+            loadStart(fragment)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val taskId = taskIdFrom(intent) ?: return
-        openTask(taskId)
+        val fragment = fragmentFrom(intent) ?: return
+        openFragment(fragment)
     }
 
     override fun onStart() {
@@ -237,32 +237,34 @@ class MainActivity : ComponentActivity() {
         view.destroy()
     }
 
-    /** Laadt de web-app, eventueel meteen bij een taak. */
-    private fun loadStart(taskId: String?) {
+    /** Laadt de web-app, eventueel meteen bij een taak of het venster Taak toevoegen (zie DeepLink). */
+    private fun loadStart(fragment: String?) {
         val view = webView ?: return
-        val task = taskId ?: pendingTaskId
-        pendingTaskId = null
+        val target = fragment ?: pendingFragment
+        pendingFragment = null
         hideError()
         pageReady = false
-        view.loadUrl(if (task != null) "$origin/#task=$task" else "$origin/")
+        view.loadUrl(if (target != null) "$origin/#$target" else "$origin/")
     }
 
-    /** Opent een taak (vanuit een melding). Staat de web-app al open, dan verandert alleen het fragment van het adres. */
-    private fun openTask(taskId: String) {
+    /** Opent een taak of Taak toevoegen (vanuit een melding of widget). Staat de web-app al open, dan verandert alleen het fragment van het adres. */
+    private fun openFragment(fragment: String) {
         val view = webView ?: return
         if (!pageReady || errorView.isVisible) {
-            loadStart(taskId)
+            loadStart(fragment)
             return
         }
-        // Het id bestaat alleen uit letters, cijfers, "-" en "_" (gecontroleerd in taskIdFrom), dus dit is veilig in te voegen.
+        // Het fragment bestaat alleen uit letters, cijfers, "-", "_" en "=" (gebouwd door DeepLink), dus dit is veilig in te voegen.
         // Staat hetzelfde fragment er al, dan eerst leegmaken: anders merkt de web-app geen verandering op.
-        val script = "(function(){var h='#task=$taskId';" +
+        val script = "(function(){var h='#$fragment';" +
             "if(location.hash===h){history.replaceState(null,'',location.pathname+location.search);}" +
             "location.hash=h;})();"
         view.evaluateJavascript(script, null)
     }
 
-    private fun taskIdFrom(intent: Intent?): String? = intent?.getStringExtra(Notifications.EXTRA_TASK_ID)?.takeIf(Ids::isSafeId)
+    private fun fragmentFrom(intent: Intent?): String? = intent?.let {
+        DeepLink.fromExtras(it.getStringExtra(Notifications.EXTRA_TASK_ID), it.hasExtra(DeepLink.EXTRA_ADD), it.getStringExtra(DeepLink.EXTRA_ADD))
+    }
 
     /**
      * Hoort de pagina die nu geladen is bij de ingestelde server? De brug vraagt dit bij elke aanroep. Wordt op de

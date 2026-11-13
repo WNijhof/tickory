@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Een taak in een lijstwidget: links de cirkel om af te vinken (48dp), rechts de titel; tikken op de titel opent de taak. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/item_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="@dimen/widget_row_min"
+    android:orientation="horizontal"
+    android:paddingStart="4dp">
+
+    <ImageView
+        android:id="@+id/check"
+        android:layout_width="@dimen/widget_row_min"
+        android:layout_height="@dimen/widget_row_min"
+        android:background="@drawable/widget_ripple"
+        android:importantForAccessibility="yes"
+        android:scaleType="center"
+        android:src="@drawable/widget_check_p4" />
+
+    <LinearLayout
+        android:id="@+id/text_area"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/widget_ripple"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/widget_row_min"
+        android:orientation="vertical"
+        android:paddingStart="4dp"
+        android:paddingEnd="12dp">
+
+        <TextView
+            android:id="@+id/item_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="@color/widget_text"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:id="@+id/item_line2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/item_due"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:textColor="@color/widget_text_soft"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/item_meta"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/widget_text_soft"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
