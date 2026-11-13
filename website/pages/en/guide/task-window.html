@@ -1,0 +1,69 @@
+<!--
+title: The task window
+description: Viewing and editing a task in Tickory: name and description, date with quick choices, priority, labels, assigning, deadline, reminders, subtasks and comments, and saving with Ctrl+Enter.
+-->
+<h1>The task window</h1>
+<p class="intro">Click the name of a task and the task window opens: on the left the task itself with its subtasks and comments, on the right its properties. This is where you change everything that belongs to a task.</p>
+
+<x-shot name="taak-bewerken" alt="The task window of Boodschappen doen in two columns. On the left the title, the description, four subtasks of which one is ticked, and two comments by Bram and Anna with a field to write a comment. On the right project, section, due date with quick choices, priority P1 to P4, labels, assigned to, deadline and one reminder.">The task window. On the left what belongs to the task itself, on the right its properties. The Assigned to field is only there for a project you share with others.</x-shot>
+
+<h2 id="opening-saving-and-closing">Opening, saving and closing</h2>
+<ul>
+  <li><strong>Opening:</strong> click the name of a task, or the pencil that appears on a row. If you tap the notification of a reminder, Tickory opens at that task.</li>
+  <li><strong>Saving:</strong> choose <x-ui k="common.save"></x-ui>, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (on a Mac <kbd>Cmd</kbd>+<kbd>Enter</kbd>). What you changed in the properties and in the name and description is then kept.</li>
+  <li><strong>Closing without saving:</strong> choose <x-ui k="common.cancel"></x-ui>, the cross at the top right, or press <kbd>Esc</kbd>.</li>
+  <li><strong>Kept right away</strong> is what you add or remove: subtasks, comments and reminders. You do not need to click <x-ui k="common.save"></x-ui> for those.</li>
+</ul>
+<p>The circle to the left of the title ticks the task off; whatever you had already changed is saved first. At the bottom right of the window is the tip <x-ui k="task.saveTip"></x-ui>. On a phone the window takes up the whole screen.</p>
+
+<h2 id="name-and-description">Name and description</h2>
+<p>The title is one line: Enter does not add a new line. The description can be longer; its first line appears in grey under the name of the task in the list.</p>
+
+<h2 id="the-properties">The properties</h2>
+<dl>
+  <dt>Project and section</dt>
+  <dd>Choose another project or another section to move the task; subtasks go along. The task ends up at the bottom there. Subprojects are indented in the list. For a subtask these two fields are not shown: a subtask stays with its task.</dd>
+  <dt>Due date</dt>
+  <dd>In plain language, recurrences too: <code>morgen om 14 uur</code>, <code>elke maandag</code> (the language you type dates in is Dutch for now; see <a href="dates-and-recurrence.html">Dates and recurrences</a>). Below the field you see what it becomes. Below that are quick choices: <x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui> and <x-ui k="task.quickNone"></x-ui>. A time that was already there stays.</dd>
+  <dt>Priority</dt>
+  <dd>Four buttons, <strong>P1</strong> (highest) to <strong>P4</strong> (none). The color is also the color of the circle in the list: red, orange, blue or grey.</dd>
+  <dt>Labels</dt>
+  <dd>Type a name and press Enter or type a comma; the label appears as a block with a cross. Existing labels are offered while you type, and a new label is created. Backspace in the empty field removes the last label.</dd>
+  <dt>Assigned to</dt>
+  <dd>Only in a shared project. See <a href="sharing.html#assigning-tasks">assigning tasks</a>.</dd>
+  <dt>Deadline</dt>
+  <dd>The last day, separate from the date on which you want to work on it.</dd>
+  <dt>Reminders</dt>
+  <dd>Your own reminders on this task. See <a href="reminders.html">Reminders</a>.</dd>
+</dl>
+<p>At the bottom of the properties is who made the task and when (“Created by Anna, Sat 14 Nov”).</p>
+
+<h2 id="subtasks">Subtasks</h2>
+<p>Below the description are the subtasks, with at the top how many are done (“Subtasks (1/4)”). Type a name in <x-ui k="task.addSubtask"></x-ui> and press Enter to add one; that is how you add a few in a row.</p>
+<ul>
+  <li>Click the circle to tick a subtask off. Click in the name to change it: Enter or clicking elsewhere saves, Escape puts the old name back. The trash can deletes the subtask.</li>
+  <li>A subtask is a task in its own right: click its name in the list to give it a date, labels or subtasks of its own. The window is then called “Subtask of …”.</li>
+  <li>A subtask is always in the same project and section as the task it hangs under.</li>
+  <li>If you tick off a task, its subtasks are ticked off too. If you delete a task, its subtasks are gone too.</li>
+  <li>Turning an existing task into a subtask of another (or the other way round) is not possible in the app yet.</li>
+</ul>
+
+<h2 id="comments">Comments</h2>
+<p>Below the subtasks are the comments on the task: who wrote what and how long ago (“2 hours ago”; hold the mouse over it for the exact time). That way you can talk about a task with the others in a shared project, or make a note for yourself.</p>
+<ul>
+  <li><strong>Posting:</strong> write in the field <x-ui k="comment.placeholder"></x-ui> and choose <x-ui k="comment.post"></x-ui>, or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. The comment is there right away, offline too; it goes to the server as soon as it can.</li>
+  <li><strong>Editing and deleting:</strong> only your own comments, with the pencil and the trash can behind the name. A comment that you changed later gets <x-ui k="comment.edited"></x-ui> behind the name. Deleting asks for confirmation first and applies to everyone.</li>
+  <li><strong>Who sees them:</strong> everyone who is a member of the project. A comment is plain text: there is no formatting. A web address becomes a link that opens in a new tab.</li>
+  <li><strong>On the whole project:</strong> the <x-ui k="comment.projectButton"></x-ui> button at the top of a project opens the same list for the project itself.</li>
+</ul>
+<p>In the list, a task with comments has a speech bubble with their number behind it.</p>
+
+<h2 id="deleting-a-task">Deleting a task</h2>
+<p>Choose <x-ui k="common.delete"></x-ui> at the bottom left (or the trash can on the row in the list). After confirmation the task is gone, with its subtasks, comments and reminders. There is no recycle bin: what you delete does not come back. If you only want a task out of sight, tick it off instead.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li>Dragging tasks to change their order. Moving to another project or section goes through the drop-down lists.</li>
+  <li>Attachments on a task, and the duration of a task.</li>
+  <li>Renaming or deleting labels.</li>
+</ul>

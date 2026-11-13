@@ -216,7 +216,7 @@ description: All dates and recurrences Tickory understands in plain Dutch, with 
 <p>This works for the first (eerste) to the fourth (vierde), and for the last (laatste). Mind the difference: <code>elke tweede dinsdag</code> is once a month, <code>elke andere dinsdag</code> or <code>om de week</code> is every fourteen days.</p>
 
 <h3>What happens when you tick off a recurrence</h3>
-<p>A recurring task does not disappear when you tick it off: the date moves on to the next occurrence and the task stays open. A message at the bottom tells you when that is (“Volgende keer: …”, next time). The next occurrence is counted from the date the task had, not from the day you tick it off. If you left a daily task for three days, ticking it off moves it one day and it is still listed as overdue; tick it off again until the date is right, or type a new date in the edit window.</p>
+<p>A recurring task does not disappear when you tick it off: the date moves on to the next occurrence and the task stays open. A message at the bottom tells you when that is (“Next due: …”). The next occurrence is counted from the date the task had, not from the day you tick it off. If you left a daily task for three days, ticking it off moves it one day and it is still listed as overdue; tick it off again until the date is right, or type a new date in the edit window.</p>
 
 <h2>In a line with a task</h2>
 <p>When <a href="adding-tasks.html">adding</a> a task, the app takes the date out of the line; what remains is the name of the task. The date can be at the start, at the end or in the middle.</p>
@@ -262,9 +262,9 @@ description: All dates and recurrences Tickory understands in plain Dutch, with 
   <li>Dates in the past, and English or other languages.</li>
 </ul>
 
-<h2>The Due date field in the edit window</h2>
+<h2>The Due date field in the task window</h2>
 <p>Click a task and you find the field <x-ui k="task.due"></x-ui>. There you type the same language as above. Right below the field the app shows what it makes of it (<em>Will be: Thu 26 Nov</em>), so that with a phrase like “volgende week donderdag” you can see which day it will be. If the app does not recognise the text, it says so and the task is not saved until you correct it. Empty the field to remove the date. If the task already has a date, the English interface shows it in the field as <code>2026-11-17T17:30</code> (a recurrence as you typed it); the Dutch interface shows <code>17-11-2026 om 17:30</code>.</p>
-<p>The <strong>deadline</strong> is chosen there with your browser's date picker.</p>
+<p>Below the field are quick choices too (<x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui>, <x-ui k="task.quickNone"></x-ui>); see <a href="task-window.html">The task window</a>. The <strong>deadline</strong> is chosen with your browser's date picker.</p>
 
 <h2>How dates are shown in the list</h2>
 <ul>
