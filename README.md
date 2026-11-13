@@ -62,6 +62,9 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - Tasks with subtasks, projects, sections, labels, priorities P1 to P4, date and time, deadlines.
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
 - Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`.
+- **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
+- **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
+- **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).
 - **Reminders**: several per task, relative to the time of the task (10 minutes before, 1 day before, ...) or at a fixed time; an automatic reminder for every task with a time (30 minutes before unless you change it); your own time zone. They are personal, also in shared projects.
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app.
 - The interface in English and Dutch.
@@ -78,7 +81,6 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 **Coming (built or partly built, not usable yet):**
 
 - **The first Android APK.** The app exists and is tested on a computer, but there is no release yet and the maker has not tried it on a real phone. The first APK comes with the next version; until then use the web app in your phone's browser, or build it yourself from [android/README.md](android/README.md).
-- **Filters and search.** The logic is in the code (a filter language in Dutch and English, and searching tasks, projects, sections, labels and filters), but the app has no screen, search field or button for it. You cannot use it yet.
 - **English date language.** The interface is English, but what you type as a date is only recognised in Dutch.
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
@@ -89,7 +91,6 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 **Missing entirely:**
 
 - **Dragging or otherwise changing the order of tasks.** A new task always goes to the end.
-- **Managing labels** (renaming, deleting, filtering by label) in the app.
 - Attachments, statistics, templates, import and export, an iCal feed, keyboard shortcuts, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.

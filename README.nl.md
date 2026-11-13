@@ -264,11 +264,10 @@ scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
 
 Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen en een interface in het Nederlands en het Engels. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
 
-**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
+**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen en taken toewijzen, taken met subtaken, projecten, secties, labels (via snel toevoegen en het bewerkvenster, met een eigen scherm per label en beheer), **zoeken** (`/` of Ctrl+K, ook in opmerkingen, hoofdletter- en accentongevoelig, met markering), **filters** (een eigen filtertaal in Nederlands en Engels door elkaar, met controle tijdens het typen en uitleg), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, de overzichten Vandaag en Binnenkort, voltooide taken tonen of verbergen, afvinken met ongedaan maken, offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
 
 **Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
 - **De eerste Android-APK.** De app bestaat en is op een computer getest, maar er is nog geen release en de maker heeft hem niet op een echte telefoon geprobeerd. De eerste APK komt met de eerstvolgende versie; tot die tijd gebruik je de web-app in de browser van je telefoon, of bouw je hem zelf (zie [android/README.md](android/README.md)).
-- **Filters en zoeken.** De logica zit in de code (een filtertaal in het Nederlands en het Engels, en zoeken in taken, projecten, secties, labels en filters), maar de app heeft er geen scherm, zoekveld of knop voor. Je kunt het dus nog niet gebruiken.
 - **Engelse datumtaal.** De interface is Engels, maar wat je als datum intypt, wordt alleen in het Nederlands herkend.
 
 **Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
@@ -277,7 +276,6 @@ Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen
 
 **Ontbreekt helemaal:**
 - **Slepen of anderszins de volgorde van taken wijzigen.** Een nieuwe taak komt altijd achteraan.
-- **Labels beheren** (hernoemen, verwijderen, op een label filteren) in de app.
 - Bijlagen, statistieken, sjablonen, import en export, een iCal-feed, sneltoetsen, widgets, een eigen volgorde voor Vandaag, uitnodigen via een link of e-mail, en overdragen van de eigenaar van een project.
 
 Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. SPEC.md hoofdstuk 10 is ouder dan deze lijst en niet bijgewerkt; deze lijst klopt.
