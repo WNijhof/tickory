@@ -48,6 +48,7 @@ function dueCheck(v) {
   return null;
 }
 
+const labelName = (v) => (/[,\u0000-\u001f]|^\s|\s$/u.test(v) ? 'mag geen komma, omringende spaties of stuurtekens bevatten' : null);
 const dateOnly = (v) => (isValidDate(v) && String(v).length === 10 ? null : 'moet YYYY-MM-DD zijn');
 const key = () => ({ name: 'order_key', type: 'text', orderKey: true, check: (v) => (isValidKey(v) ? null : 'ongeldige volgordesleutel') });
 const color = () => ({ name: 'color', type: 'text', default: 'charcoal', maxLen: 32 });
@@ -101,7 +102,8 @@ export const ENTITIES = {
   },
   label: {
     name: 'label', table: 'labels', resource: 'labels',
-    cols: [{ name: 'name', type: 'text', required: true, maxLen: 100 }, color(), key(), fav()],
+    // geen komma (in het bewerkvenster scheidt een komma labels), geen omringende spaties en geen stuurtekens
+    cols: [{ name: 'name', type: 'text', required: true, maxLen: 100, check: labelName }, color(), key(), fav()],
   },
   comment: {
     name: 'comment', table: 'comments', resource: 'comments',

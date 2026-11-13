@@ -3,6 +3,7 @@
 
 import { keyAfter, keyBetween } from '../../shared/orderKey.js';
 import { maxKey, scopeOf } from './reducer.js';
+import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -21,7 +22,8 @@ const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.orde
  */
 export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = () => crypto.randomUUID() } = {}) {
   const send = async (commands) => {
-    await store.enqueue(commands.map((c) => ({ type: c.type, uuid: makeUuid(), args: c.args })));
+    // Alle tekst in NFC (zie shared/text.js), zodat wat hier optimistisch wordt getoond exact gelijk is aan wat de server bewaart.
+    await store.enqueue(commands.map((c) => ({ type: c.type, uuid: makeUuid(), args: deepNormalize(c.args) })));
     requestSync();
   };
   const endKey = (resource, entity, scope, exceptId = null) => keyAfter(maxKey(store.view[resource], scopeOf(entity, scope), exceptId));
@@ -41,16 +43,18 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     const ids = [];
     const commands = [];
     let last = maxKey(store.view.labels, () => true);
-    const known = new Map([...store.view.labels.values()].map((l) => [l.name.toLowerCase(), l.id]));
+    // Namen vergelijken via nameKey: hoofdletterongevoelig voor alle Unicode-letters ("Café" = "CAFÉ") en gelijk voor
+    // de gewone en de ontleedde schrijfwijze van "é".
+    const known = new Map([...store.view.labels.values()].map((l) => [nameKey(l.name), l.id]));
     for (const raw of names) {
-      const name = raw.trim();
+      const name = normalizeText(raw).trim();
       if (!name) continue;
-      let id = known.get(name.toLowerCase());
+      let id = known.get(nameKey(name));
       if (!id) {
         id = makeId();
         last = keyAfter(last);
         commands.push({ type: 'label_add', args: { id, name, order_key: last } });
-        known.set(name.toLowerCase(), id);
+        known.set(nameKey(name), id);
       }
       if (!ids.includes(id)) ids.push(id);
     }

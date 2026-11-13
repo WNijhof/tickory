@@ -8,8 +8,9 @@
  * @typedef {{
  *   freq: 'daily' | 'weekly' | 'monthly' | 'yearly',
  *   interval?: number,      // elke n-de dag/week/maand/jaar; standaard 1
- *   byweekday?: number[],   // alleen weekly: ISO-weekdagen, 1 = maandag … 7 = zondag
+ *   byweekday?: number[],   // weekly: ISO-weekdagen, 1 = maandag … 7 = zondag; monthly met nth: precies één weekdag
  *   bymonthday?: number,    // alleen monthly/yearly: vaste dag van de maand (1-31), ingekort op korte maanden
+ *   nth?: number,           // alleen monthly, met één weekdag: 1-4 = "elke eerste … vierde dinsdag van de maand", -1 = de laatste
  * }} Recurrence
  */
 
@@ -31,13 +32,18 @@ export function isValidDate(s) {
 
 export function isValidRecurrence(r) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false;
-  for (const k of Object.keys(r)) if (!['freq', 'interval', 'byweekday', 'bymonthday'].includes(k)) return false;
+  for (const k of Object.keys(r)) if (!['freq', 'interval', 'byweekday', 'bymonthday', 'nth'].includes(k)) return false;
   if (!['daily', 'weekly', 'monthly', 'yearly'].includes(r.freq)) return false;
   if (r.interval !== undefined && !(Number.isInteger(r.interval) && r.interval >= 1 && r.interval <= 1000)) return false;
   if (r.byweekday !== undefined) {
-    if (r.freq !== 'weekly') return false;
+    if (r.freq !== 'weekly' && !(r.freq === 'monthly' && r.nth !== undefined)) return false;
     if (!Array.isArray(r.byweekday) || r.byweekday.length === 0 || r.byweekday.length > 7) return false;
     if (!r.byweekday.every((d) => Number.isInteger(d) && d >= 1 && d <= 7)) return false;
+  }
+  if (r.nth !== undefined) {
+    if (r.freq !== 'monthly' || r.bymonthday !== undefined) return false;
+    if (![1, 2, 3, 4, -1].includes(r.nth)) return false;
+    if (!Array.isArray(r.byweekday) || r.byweekday.length !== 1) return false; // "de tweede dinsdag": één weekdag
   }
   if (r.bymonthday !== undefined) {
     if (r.freq !== 'monthly' && r.freq !== 'yearly') return false;
@@ -48,6 +54,19 @@ export function isValidRecurrence(r) {
 
 const daysInMonth = (y, m0) => new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
 const isoWeekday = (d) => d.getUTCDay() || 7;
+
+/**
+ * De dag van de maand waarop de `nth`-e weekdag `wd` (ISO, 1 = maandag) valt: nth 1-4 = eerste tot vierde, -1 = de laatste.
+ * (Een vijfde bestaat niet altijd, daarom kent het model alleen 1-4 en "laatste".)
+ */
+export function nthWeekdayOfMonth(y, m0, wd, nth) {
+  if (nth > 0) {
+    const offset = (wd - isoWeekday(new Date(Date.UTC(y, m0, 1))) + 7) % 7;
+    return 1 + offset + 7 * (nth - 1);
+  }
+  const last = daysInMonth(y, m0);
+  return last - ((isoWeekday(new Date(Date.UTC(y, m0, last))) - wd + 7) % 7);
+}
 const fmt = (d) => d.toISOString().slice(0, 10);
 
 /**
@@ -88,6 +107,16 @@ export function nextOccurrence(date, rec) {
       return fmt(cur) + time;
     }
     case 'monthly': {
+      if (rec.nth !== undefined) {
+        // "elke tweede dinsdag van de maand": eerst kijken of die dag nog later in deze maand valt, anders `n` maanden verder
+        const wd = rec.byweekday[0];
+        const later = nthWeekdayOfMonth(y, mo0, wd, rec.nth);
+        if (later > day) return fmt(new Date(Date.UTC(y, mo0, later))) + time;
+        const total = y * 12 + mo0 + n;
+        const ny = Math.floor(total / 12);
+        const nm = total % 12;
+        return fmt(new Date(Date.UTC(ny, nm, nthWeekdayOfMonth(ny, nm, wd, rec.nth)))) + time;
+      }
       // bymonthday houdt "elke 31e" stabiel: 31 jan -> 28 feb -> 31 mrt (zonder zou het op de 28e blijven hangen)
       const want = rec.bymonthday ?? day;
       const total = y * 12 + mo0 + n;

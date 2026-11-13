@@ -12,13 +12,15 @@
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
 
 import { parseDateText, parseDue } from './dateNl.js';
+import { nameKey, normalizeText } from '../../shared/text.js';
 
 const START = '(?<![^\\s])'; // begin van de tekst of na witruimte
 const END = '(?![\\p{L}\\p{N}_-])';
 
 /** Zoekt na elk `trigger`-teken de langste naam uit `items` die erop volgt. */
 function matchNamed(text, trigger, items) {
-  const names = items.map((item) => ({ item, name: item.name.trim() })).filter((x) => x.name).sort((a, b) => b.name.length - a.name.length);
+  // namen in dezelfde NFC-vorm als de tekst (de invoer wordt hieronder ook genormaliseerd), anders valt "é" soms niet samen
+  const names = items.map((item) => ({ item, name: normalizeText(item.name).trim().replace(/\s+/g, ' ') })).filter((x) => x.name).sort((a, b) => b.name.length - a.name.length);
   const re = new RegExp(`${START}[${trigger}]`, 'gu'); // trigger is '#' of '/', veilig binnen een tekenklasse
   for (let m = re.exec(text); m; m = re.exec(text)) {
     const after = text.slice(m.index + 1);
@@ -48,7 +50,7 @@ const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.r
  * }}
  */
 export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null }) {
-  let rest = text.replace(/\s+/g, ' ').trim();
+  let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null };
 
   // prioriteit
@@ -74,13 +76,14 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }
 
   // labels
-  const known = new Map([...view.labels.values()].map((l) => [l.name.toLowerCase(), l.id]));
+  // via nameKey: "@ÉÉN" is het label "één", en "@Zoë" ook als de ë ontleed is getypt
+  const known = new Map([...view.labels.values()].map((l) => [nameKey(l.name), l.id]));
   const labelRe = new RegExp(`${START}@([\\p{L}\\p{N}_-]+)`, 'gu');
   rest = rest.replace(labelRe, (_, name) => {
-    const id = known.get(name.toLowerCase());
+    const id = known.get(nameKey(name));
     if (id) {
       if (!out.labels.includes(id)) out.labels.push(id);
-    } else if (!out.newLabels.some((n) => n.toLowerCase() === name.toLowerCase())) {
+    } else if (!out.newLabels.some((n) => nameKey(n) === nameKey(name))) {
       out.newLabels.push(name);
     }
     return '';

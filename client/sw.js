@@ -22,6 +22,7 @@ const SHELL = [
   '/core/events.js',
   '/core/format.js',
   '/core/idb.js',
+  '/core/messages.js',
   '/core/quickadd.js',
   '/core/reducer.js',
   '/core/selectors.js',
@@ -31,6 +32,7 @@ const SHELL = [
   '/shared/orderKey.js',
   '/shared/recurrence.js',
   '/shared/schema.js',
+  '/shared/text.js',
 ];
 
 self.addEventListener('install', (event) => {

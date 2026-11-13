@@ -266,6 +266,42 @@ try {
   assert.equal(serverTask('Glazen apart').checked, false);
   step('afvinken met ongedaan maken; een terugkerende taak schuift door naar morgen en blijft open');
 
+  // ---- 5b. Nederlands: accenten, hoofdletters, IJ, ontleed getypte tekens, feestdagen en "de tweede dinsdag" ----
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  const nextFixed = (month: number, day: number): string => {
+    const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+    const y = t0.getFullYear();
+    return `${new Date(y, month - 1, day) >= t0 ? y : y + 1}-${pad2(month)}-${pad2(day)}`;
+  };
+  await nav('Inbox');
+  await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'scherm Inbox');
+  await quickAdd('Morgen ijs kopen');
+  await quickAdd('Café reserveren @één voor Sinterklaas');
+  await quickAdd('Zoë bellen @ÉÉN'); // de ë als e + los trema, zoals sommige toetsenborden het opleveren
+  await quickAdd('Oud papier elke tweede dinsdag');
+  await quickAdd('Kerstdiner reserveren 25 december');
+  await waitFor(`document.querySelectorAll('.task').length >= 5`, 'vijf Nederlandse taken in de Inbox');
+  const nlTitles = await taskTitles();
+  for (const t of ['IJs kopen', 'Café reserveren', 'Zoë bellen', 'Oud papier', 'Kerstdiner reserveren']) assert.ok(nlTitles.includes(t), `"${t}" ontbreekt in ${JSON.stringify(nlTitles)}`);
+  assert.ok(nlTitles.every((t) => t === t.normalize('NFC')), `alle titels horen al in NFC te staan: ${JSON.stringify(nlTitles)}`);
+  assert.ok(!nlTitles.some((t) => /Ijs/.test(t)), 'geen "Ijs": in het Nederlands is het "IJs"');
+  await shot('nederlands');
+  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'gesynchroniseerd');
+  const nl = serverState();
+  const labelNames = (nl.labels as any[]).map((l) => l.name);
+  assert.deepEqual(labelNames.filter((n) => n.normalize('NFC').toLowerCase() === 'één').length, 1, `één label "één" (en niet ook "ÉÉN"): ${JSON.stringify(labelNames)}`);
+  const een = (nl.labels as any[]).find((l) => l.name.toLowerCase() === 'één').id;
+  assert.equal(serverTask('IJs kopen').due.date, tomorrow);
+  assert.equal(serverTask('Café reserveren').due.date, nextFixed(12, 5));
+  assert.deepEqual(serverTask('Café reserveren').labels, [een]);
+  assert.equal(serverTask('Zoë bellen').content, 'Zoë bellen', 'op de server als NFC');
+  assert.deepEqual(serverTask('Zoë bellen').labels, [een], 'het label in hoofdletters is hetzelfde label');
+  assert.deepEqual(serverTask('Oud papier').due.recurrence, { freq: 'monthly', byweekday: [2], nth: 2 });
+  assert.equal(serverTask('Kerstdiner reserveren').due.date, nextFixed(12, 25));
+  step('Nederlands: "ijs" wordt "IJs", "é" en een los getypte "ë" kloppen, "@ÉÉN" is het label "één", "voor Sinterklaas" en "25 december" geven de juiste datum, "elke tweede dinsdag" is een echte herhaling');
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'terug naar Thuis');
+
   // ---- 6. een ander apparaat wijzigt iets: komt vanzelf binnen ----
   const other = await fetch(`${BASE}/api/v1/sync`, {
     method: 'POST',

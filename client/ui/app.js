@@ -7,6 +7,7 @@ import { SyncClient, httpTransport } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
 import { listenForChanges } from '../core/events.js';
 import { parseQuickAdd } from '../core/quickadd.js';
+import { describeCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { mainView, sidebar } from './render.js';
@@ -265,7 +266,7 @@ async function boot() {
       if (s === 'unauthorized') askToken();
     },
     onCommandErrors: (errors) => {
-      for (const e of errors) toast(`Een wijziging is niet doorgevoerd: ${e.error}`, { kind: 'error', timeout: 10_000 });
+      for (const e of errors) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
     },
   });
 

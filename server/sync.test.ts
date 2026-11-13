@@ -300,6 +300,54 @@ test('labels: unieke naam, taak koppelt via id, verwijderen haalt het label van 
   assert.equal(rows(res3, 'labels')[0].is_deleted, true);
 });
 
+test('Nederlands: labelnamen zijn uniek ongeacht hoofdletters, accenten-vorm en spaties', () => {
+  const db = mkdb();
+  const l1 = cmd('label_add', { id: 'label-nl-000001', name: 'Café' });
+  const res1 = run(db, [l1]);
+  ok(res1, l1);
+  const variants = ['CAFÉ', 'café', 'Café', 'CAFÉ']; // hoofdletters, kleine letters en de ontleedde schrijfwijze
+  const cmds = variants.map((name) => cmd('label_add', { name }));
+  const res2 = run(db, cmds, res1.sync_token);
+  cmds.forEach((c, i) => err(res2, c, 'DUPLICATE'));
+  // zonder accent is het een andere naam, en "één" en "een" blijven verschillend
+  const other = [cmd('label_add', { name: 'Cafe' }), cmd('label_add', { name: 'één' }), cmd('label_add', { name: 'een' }), cmd('label_add', { name: 'Zoë' })];
+  const res3 = run(db, other, res2.sync_token);
+  other.forEach((c) => ok(res3, c));
+  const dup = cmd('label_add', { name: 'ZOË' });
+  err(run(db, [dup], res3.sync_token), dup, 'DUPLICATE');
+  // hernoemen naar een bestaande naam in andere hoofdletters mag niet; naar de eigen naam in andere hoofdletters wel
+  const rename = cmd('label_update', { id: 'label-nl-000001', name: 'ZOË' });
+  const own = cmd('label_update', { id: 'label-nl-000001', name: 'CAFÉ' });
+  const res4 = run(db, [rename, own], res3.sync_token);
+  err(res4, rename, 'DUPLICATE');
+  ok(res4, own);
+});
+
+test('Nederlands: alle tekst wordt als NFC opgeslagen, ook in het JSON-veld due', () => {
+  const db = mkdb();
+  const NFD = 'Café reserveren';
+  const add = cmd('task_add', {
+    id: 'task-nl-0000001', project_id: 'inbox-project', content: NFD, description: 'Zoë komt ook',
+    due: { date: '2026-12-05', string: 'voor Sinterklaas Café', lang: 'nl' },
+  });
+  const res = run(db, [add]);
+  ok(res, add);
+  const t = rows(res, 'tasks')[0];
+  assert.equal(t.content, 'Café reserveren');
+  assert.equal(t.content.length, 'Café reserveren'.length);
+  assert.equal(t.description, 'Zoë komt ook');
+  assert.equal(t.due.string, 'voor Sinterklaas Café');
+});
+
+test('labelnamen: geen komma, geen omringende spaties, geen stuurtekens', () => {
+  const db = mkdb();
+  const bad = ['a,b', ' spatie voor', 'spatie na ', 'tab\there'].map((name) => cmd('label_add', { name }));
+  const res = run(db, bad);
+  bad.forEach((c) => err(res, c, 'INVALID_ARG'));
+  const good = cmd('label_add', { name: 'boodschappen doen' }); // spaties binnenin zijn gewoon toegestaan
+  ok(run(db, [good], res.sync_token), good);
+});
+
 test('herinneringen en opmerkingen: kruisvelden worden gecontroleerd', () => {
   const db = mkdb();
   const { P, T } = seed(db);

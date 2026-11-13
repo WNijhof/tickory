@@ -100,12 +100,28 @@ Typ één regel in het invoerveld; onder het veld zie je wat er herkend is.
 
 ```
 Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1
-Planten water geven elke vrijdag
+Oud papier elke tweede dinsdag
+Verjaardag Jan elk jaar op 5 december
+Cadeau kopen voor Sinterklaas
+Belasting regelen eind januari
+Hardlopen elke ochtend om 7 uur
 Aangifte doen {31-12} !!2
 ~Mei bellen          (het ~ zet de datumherkenning voor de hele regel uit)
 ```
 
-`#project`, `/sectie` (binnen dat project), `@label` (onbekende labels worden aangemaakt), `p1` tot `p4` of `!!1` tot `!!4` (1 is de hoogste), `{deadline}`, en een datum of herhaling in gewone taal ("volgende week donderdag", "elke ma en do", "om de week", "elke laatste dag van de maand").
+`#project`, `/sectie` (binnen dat project), `@label` (onbekende labels worden aangemaakt), `p1` tot `p4` of `!!1` tot `!!4` (1 is de hoogste), `{deadline}`, en een datum of herhaling in gewone taal.
+
+## Nederlands
+
+Nederlands is de hoofdtaal van de app: de interface, de datumtaal en de foutmeldingen zijn Nederlands en er is geen Engelse terugval. Wat werkt:
+
+- **Datums:** `morgen`, `overmorgen`, `vanavond`, `volgende week donderdag`, `aanstaande vrijdag`, `over twee weken`, `eind van de week`, `deze week` (= vrijdag), `25 december`, `3 maart 2027`, `begin december`, `midden mei`, `eind januari`, en tijden als `om 9 uur`, `om half 3`, `kwart over 2`, `14u30`, `2 uur 's middags`, `over een kwartier`.
+- **Herhalingen:** `elke dag`, `elke maandag`, `elke ma en do`, `elke werkdag`, `doordeweeks`, `elke 2 weken`, `om de week`, `elke ochtend/middag/avond` (met een standaardtijd van 9, 15 en 20 uur, tenzij je er een tijd bij zet), `elke maand op de 15e`, `elke laatste dag van de maand`, `elk jaar op 5 december`, en de **n-de weekdag van de maand**: `elke eerste maandag`, `elke tweede dinsdag`, `elke laatste vrijdag` (eerste tot en met vierde, en laatste).
+- **Feestdagen**, met een voorzetsel (`voor`, `tegen`, `op`, `uiterlijk`, `per`): Kerst en de eerste en tweede kerstdag, Oud en nieuw, Nieuwjaar, Sinterklaas en pakjesavond, Koningsdag, Bevrijdingsdag, Dodenherdenking, Goede Vrijdag, Pasen en tweede paasdag, Hemelvaart, Pinksteren en tweede pinksterdag. De datum van Pasen wordt voor elk jaar berekend.
+- **Letters:** `é`, `ë`, `ï`, `ö` en dergelijke werken overal, hoofdletterongevoelig (`@ÉÉN` is het label `één`) en ook als een toetsenbord ze als losse tekens aflevert. Alle tekst wordt in dezelfde Unicode-vorm (NFC) bewaard. Na het weghalen van een datum wordt `ijs` correct `IJs` (in het Nederlands is IJ één letter).
+- **Meldingen** als de server een wijziging weigert, zijn begrijpelijk Nederlands, met wat je probeerde te doen.
+
+Bewust niet aangeraakt, om geen verkeerde datum te raden: een titel met **twee** datums, een feestdag zonder voorzetsel (`Kerst inkopen doen` blijft een gewone taak), `Mei bellen`, `Zo snel mogelijk`, `Hoofdstuk 3`. Typ `~` voor een woord om de herkenning daar uit te zetten. Niet ondersteund: `elke vijfde dinsdag` (een vijfde bestaat niet altijd; gebruik `elke laatste dinsdag`) en `elke tweede week van de maand`.
 
 ## Lokaal draaien zonder Docker
 

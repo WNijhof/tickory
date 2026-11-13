@@ -94,6 +94,59 @@ test('quick-add: standaarddatum (overzicht Vandaag) geldt tenzij er zelf een dat
   assert.equal(parseQuickAdd('Afwas morgen', ctx(v, { defaultDue: d })).due.date, '2026-11-12');
 });
 
+test('quick-add: Nederlandse namen met accenten, hoofdletters en de ontleedde schrijfwijze', () => {
+  const { v, put } = sampleView();
+  put('projects', { id: 'p-cafe', name: 'Café', order_key: 'n' });
+  put('projects', { id: 'p-ijs', name: 'IJsselmeer', order_key: 'o' });
+  put('labels', { id: 'l-een', name: 'één', order_key: 'k' });
+  put('labels', { id: 'l-zoe', name: 'Zoë', order_key: 'n' });
+  const ontleed = (s) => s.normalize('NFD'); // zoals sommige toetsenborden het opleveren
+  assert.notEqual(ontleed('café'), 'café');
+
+  assert.equal(parseQuickAdd('Taart halen #CAFÉ', ctx(v)).project_id, 'p-cafe');
+  assert.equal(parseQuickAdd(`Taart halen #${ontleed('café')}`, ctx(v)).project_id, 'p-cafe');
+  assert.equal(parseQuickAdd('Zeilen #ijsselmeer', ctx(v)).project_id, 'p-ijs');
+  assert.equal(parseQuickAdd('Zeilen #IJSSELMEER', ctx(v)).project_id, 'p-ijs');
+  assert.deepEqual(parseQuickAdd('Appels kopen @ÉÉN', ctx(v)).labels, ['l-een']);
+  assert.deepEqual(parseQuickAdd('Appels kopen @één', ctx(v)).labels, ['l-een']);
+  assert.deepEqual(parseQuickAdd(`Appels kopen @${ontleed('zoë')}`, ctx(v)).labels, ['l-zoe']);
+
+  // een nieuw label in verschillende schrijfwijzen is één label
+  const r = parseQuickAdd('Iets doen @Ömer @ömer @ÖMER', ctx(v));
+  assert.deepEqual(r.newLabels, ['Ömer']);
+  assert.deepEqual(r.labels, []);
+
+  // de titel komt altijd in NFC uit
+  const t = parseQuickAdd(`${ontleed('Café')} bezoeken`, ctx(v));
+  assert.equal(t.content, 'Café bezoeken');
+  assert.equal(t.content.length, 'Café bezoeken'.length);
+});
+
+test('quick-add: datum, project en "IJ" in één regel', () => {
+  const { v } = sampleView();
+  const r = parseQuickAdd('Morgen ijs kopen #Thuis p2', ctx(v));
+  assert.equal(r.content, 'IJs kopen');
+  assert.equal(r.project_id, 'p-thuis');
+  assert.equal(r.priority, 2);
+  assert.equal(r.due.date, '2026-11-12');
+});
+
+test('quick-add: Nederlandse datums zonder voorzetsel, herhalingen en feestdagen', () => {
+  const { v } = sampleView();
+  const a = parseQuickAdd('Kerstdiner reserveren 25 december #Thuis', ctx(v));
+  assert.deepEqual([a.content, a.due.date, a.project_id], ['Kerstdiner reserveren', '2026-12-25', 'p-thuis']);
+  const b = parseQuickAdd('Oud papier elke tweede dinsdag @bellen', ctx(v));
+  assert.equal(b.content, 'Oud papier');
+  assert.deepEqual(b.due.recurrence, { freq: 'monthly', byweekday: [2], nth: 2 });
+  assert.deepEqual(b.labels, ['l-bellen']);
+  const c = parseQuickAdd('Cadeau kopen voor Sinterklaas {4 december}', ctx(v));
+  assert.equal(c.content, 'Cadeau kopen');
+  assert.equal(c.due.date, '2026-12-05');
+  assert.equal(c.deadline, '2026-12-04');
+  const d = parseQuickAdd('Eind januari belasting regelen p1', ctx(v));
+  assert.deepEqual([d.content, d.due.date, d.priority], ['Belasting regelen', '2027-01-31', 1]);
+});
+
 test('quick-add: alleen tekens zonder titel levert een lege titel (de app weigert die)', () => {
   const { v } = sampleView();
   assert.equal(parseQuickAdd('#Thuis p1 @bellen', ctx(v)).content, '');

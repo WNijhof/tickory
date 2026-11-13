@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidDate, isValidRecurrence, nextOccurrence } from './recurrence.js';
+import { isValidDate, isValidRecurrence, nextOccurrence, nthWeekdayOfMonth } from './recurrence.js';
 
 test('dagelijks, met interval', () => {
   assert.equal(nextOccurrence('2026-11-13', { freq: 'daily' }), '2026-11-14');
@@ -45,6 +45,57 @@ test('jaarlijks: 29 februari wordt 28 februari in een gewoon jaar, en met bymont
   const r = { freq: 'yearly', bymonthday: 29 };
   assert.equal(nextOccurrence('2028-02-29', r), '2029-02-28');
   assert.equal(nextOccurrence('2031-02-28', r), '2032-02-29');
+});
+
+test('de n-de weekdag van de maand: "elke eerste maandag", "elke tweede dinsdag", "elke laatste vrijdag"', () => {
+  const eerste = { freq: 'monthly', byweekday: [1], nth: 1 };
+  // november 2026: 1 nov is een zondag, dus de eerste maandag is 2 nov; december 2026: eerste maandag is 7 dec
+  assert.equal(nthWeekdayOfMonth(2026, 10, 1, 1), 2);
+  assert.equal(nthWeekdayOfMonth(2026, 11, 1, 1), 7);
+  assert.equal(nextOccurrence('2026-11-02', eerste), '2026-12-07');
+  assert.equal(nextOccurrence('2026-11-11', eerste), '2026-12-07', 'vanaf een willekeurige datum: de eerstvolgende');
+  assert.equal(nextOccurrence('2026-10-20', eerste), '2026-11-02', 'de eerste maandag van oktober (5 okt) is al geweest, dus die van november');
+  const tweede = { freq: 'monthly', byweekday: [2], nth: 2 };
+  assert.equal(nthWeekdayOfMonth(2026, 10, 2, 2), 10);
+  assert.equal(nextOccurrence('2026-11-10', tweede), '2026-12-08');
+  assert.equal(nextOccurrence('2026-11-03', tweede), '2026-11-10', 'later in dezelfde maand eerst');
+  const laatste = { freq: 'monthly', byweekday: [5], nth: -1 };
+  assert.equal(nthWeekdayOfMonth(2026, 10, 5, -1), 27);
+  assert.equal(nextOccurrence('2026-11-27', laatste), '2026-12-25');
+  assert.equal(nextOccurrence('2027-01-29', laatste), '2027-02-26');
+  assert.equal(nextOccurrence('2026-11-02T08:30', { ...eerste }), '2026-12-07T08:30', 'tijdstip blijft behouden');
+  // elke 2 maanden de eerste maandag
+  assert.equal(nextOccurrence('2026-11-02', { ...eerste, interval: 2 }), '2027-01-04');
+});
+
+test('de n-de weekdag valt voor elke maand en weekdag binnen de maand, ook rond jaarwisselingen', () => {
+  for (let y = 2026; y <= 2030; y++) {
+    for (let m0 = 0; m0 < 12; m0++) {
+      for (let wd = 1; wd <= 7; wd++) {
+        const days = new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
+        let prev = 0;
+        for (const nth of [1, 2, 3, 4, -1]) {
+          const d = nthWeekdayOfMonth(y, m0, wd, nth);
+          assert.ok(d >= 1 && d <= days, `${y}-${m0 + 1} wd ${wd} nth ${nth} gaf ${d}`);
+          assert.equal(new Date(Date.UTC(y, m0, d)).getUTCDay() || 7, wd, 'juiste weekdag');
+          if (nth > 0) { assert.ok(d > prev); prev = d; }
+        }
+        assert.ok(nthWeekdayOfMonth(y, m0, wd, -1) > days - 7, 'de laatste valt in de laatste 7 dagen');
+      }
+    }
+  }
+});
+
+test('validatie van nth', () => {
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [2], nth: 2 }), true);
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [5], nth: -1 }), true);
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [2], nth: 5 }), false, 'een vijfde bestaat niet altijd');
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [2], nth: 0 }), false);
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [1, 2], nth: 1 }), false, 'één weekdag');
+  assert.equal(isValidRecurrence({ freq: 'monthly', nth: 1 }), false, 'weekdag ontbreekt');
+  assert.equal(isValidRecurrence({ freq: 'weekly', byweekday: [2], nth: 1 }), false);
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [2], nth: 1, bymonthday: 3 }), false);
+  assert.equal(isValidRecurrence({ freq: 'monthly', byweekday: [2] }), false, 'weekdagen zonder nth horen bij weekly');
 });
 
 test('het tijdgedeelte blijft behouden', () => {

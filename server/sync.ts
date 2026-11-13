@@ -13,6 +13,7 @@ import { ENTITIES, ENTITY_LIST, ID_RE, INBOX_ID, RESOURCE_NAMES, toApi, validate
 import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { nextOccurrence } from '../shared/recurrence.js';
+import { deepNormalize, nameKey } from '../shared/text.js';
 
 type Recurrence = { freq: 'daily' | 'weekly' | 'monthly' | 'yearly'; interval?: number; byweekday?: number[]; bymonthday?: number };
 type Row = Record<string, unknown>;
@@ -76,7 +77,8 @@ function collect(ctx: Ctx, e: Entity, args: Args, mode: 'add' | 'update'): Row {
     if (given && c.serverManaged) fail('READONLY', `"${c.name}" wordt door de server beheerd`);
     if (given && mode === 'update' && c.immutable) fail('IMMUTABLE', `"${c.name}" kan hiermee niet worden gewijzigd`);
     if (given) {
-      const v = args[c.name];
+      // Alle tekst in NFC: een ontleed getypte "é" (e + los accent) wordt dezelfde "é" als elke andere (zie shared/text.js).
+      const v = deepNormalize(args[c.name]);
       const err = validateValue(c, v);
       if (err) fail('INVALID_ARG', `${e.name}.${c.name}: ${err}`);
       if (c.ref && v !== null) requireLive(ctx.db, c.ref, v, `${e.name}.${c.name}`);
@@ -155,8 +157,10 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update')
       break;
     }
     case 'label': {
-      const dup = db.prepare('SELECT 1 FROM labels WHERE is_deleted = 0 AND lower(name) = lower(?) AND id <> ?').get(v.name as string, id);
-      if (dup) fail('DUPLICATE', 'er bestaat al een label met deze naam');
+      // Vergelijken in JavaScript, niet met SQLite's lower(): dat kent alleen ASCII, dus "Café" en "CAFÉ" waren twee labels.
+      const key = nameKey(v.name as string);
+      const others = db.prepare('SELECT name FROM labels WHERE is_deleted = 0 AND id <> ?').all(id) as Row[];
+      if (others.some((o) => nameKey(o.name as string) === key)) fail('DUPLICATE', 'er bestaat al een label met deze naam');
       break;
     }
     case 'task': {

@@ -339,6 +339,48 @@ test('requestSync: aanvragen worden samengevoegd; na een netwerkfout volgt een n
   assert.equal(scheduled.filter((s) => !s.cancelled).length, 3, 'na succes geen nieuwe poging gepland');
 });
 
+test('Nederlands: hetzelfde label in andere hoofdletters of accentvorm wordt hergebruikt, niet dubbel aangemaakt', async () => {
+  const db = makeServer();
+  const c = makeClient(db);
+  await c.store.init();
+  await c.actions.addTask({ content: 'Eerste', project_id: INBOX_ID, newLabels: ['Café'] });
+  await c.actions.addTask({ content: 'Tweede', project_id: INBOX_ID, newLabels: ['CAFÉ', 'café', 'café'] });
+  assert.equal(c.store.view.labels.size, 1, 'optimistisch: één label');
+  assert.equal(await c.sync.syncNow(), true);
+  assert.deepEqual(c.errors, [], 'de server weigerde niets');
+  const fresh = makeClient(db);
+  await fresh.store.init();
+  await fresh.sync.syncNow();
+  assert.deepEqual([...fresh.store.view.labels.values()].map((l) => l.name), ['Café']);
+  const tasks = [...fresh.store.view.tasks.values()];
+  assert.equal(tasks.length, 2);
+  assert.ok(tasks.every((t) => t.labels.length === 1 && t.labels[0] === [...fresh.store.view.labels.keys()][0]));
+  // en een taak met een ontleed getypte naam komt als NFC aan
+  await c.actions.addTask({ content: 'Café bezoeken', project_id: INBOX_ID });
+  await c.sync.syncNow();
+  assert.ok([...c.store.view.tasks.values()].some((t) => t.content === 'Café bezoeken'));
+  assert.deepEqual(c.errors, []);
+});
+
+test('Nederlands: wat optimistisch in beeld staat is al in NFC, precies zoals de server het bewaart', async () => {
+  const c = makeClient(makeServer());
+  await c.store.init();
+  await c.sync.syncNow(); // eerst de Inbox ophalen
+  c.net.online = false; // daarna: alleen de lokale toestand telt
+  const id = await c.actions.addTask({ content: 'Café bezoeken', project_id: INBOX_ID, description: 'Zoë komt ook' });
+  let t = c.store.view.tasks.get(id);
+  assert.equal(t.content, 'Café bezoeken');
+  assert.equal(t.content.length, 'Café bezoeken'.length, 'één teken voor é, niet twee');
+  assert.equal(t.description, 'Zoë komt ook');
+  await c.actions.updateTask(id, { description: 'Noël' });
+  assert.equal(c.store.view.tasks.get(id).description, 'Noël');
+  const optimistic = snapshot(c.store.view);
+  c.net.online = true;
+  assert.equal(await c.sync.syncNow(), true);
+  assert.deepEqual(snapshot(c.store.view), optimistic, 'na de sync is er niets veranderd: client en server gaven hetzelfde antwoord');
+  assert.deepEqual(c.errors, []);
+});
+
 test('twee tabbladen delen één opslag zonder elkaars wachtende commando\'s te overschrijven', async () => {
   const db = makeServer();
   const adapter = new MemoryAdapter();
@@ -399,6 +441,9 @@ function rng(seed) {
   };
 }
 
+// Dezelfde labels in verschillende schrijfwijzen: hoofdletters, accenten en de ontleedde "é"; client en server moeten ze als één label zien
+const LABEL_NAMES = ['label0', 'Café', 'CAFÉ', 'café', 'één', 'ÉÉN', 'Zoë', 'zoë'];
+
 /** Voert één willekeurige, geldige handeling uit. Geeft een korte omschrijving terug voor foutmeldingen. */
 async function randomAction(c, rnd) {
   const v = c.store.view;
@@ -422,6 +467,9 @@ async function randomAction(c, rnd) {
     { date: '2026-11-13', string: 'elke vrijdag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [5] } },
     { date: '2026-01-31', string: 'elke maand', lang: 'nl', recurrence: { freq: 'monthly', bymonthday: 31 } },
     { date: '2026-11-13T08:00', string: 'elke dag om 8 uur', lang: 'nl', recurrence: { freq: 'daily' } },
+    { date: '2026-11-10', string: 'elke tweede dinsdag', lang: 'nl', recurrence: { freq: 'monthly', byweekday: [2], nth: 2 } },
+    { date: '2026-11-27', string: 'elke laatste vrijdag', lang: 'nl', recurrence: { freq: 'monthly', byweekday: [5], nth: -1 } },
+    { date: '2026-12-05', string: 'elk jaar op 5 december', lang: 'nl', recurrence: { freq: 'yearly', bymonthday: 5 } },
   ];
   const project = pick(v.projects);
   const task = pick(v.tasks);
@@ -436,7 +484,7 @@ async function randomAction(c, rnd) {
       const section = rnd(2) ? pick(v.sections, (s) => s.project_id === project.id) : null;
       await c.actions.addTask({
         content: `Taak ${rnd(100000)}`, project_id: project.id, section_id: section?.id ?? null,
-        priority: 1 + rnd(4), due: dues[rnd(dues.length)], ...(rnd(5) === 0 ? { newLabels: [`label${rnd(6)}`] } : {}),
+        priority: 1 + rnd(4), due: dues[rnd(dues.length)], ...(rnd(5) === 0 ? { newLabels: [LABEL_NAMES[rnd(LABEL_NAMES.length)]] } : {}),
       });
       return 'addTask';
     }
@@ -481,7 +529,8 @@ async function randomAction(c, rnd) {
     }
     case 14: {
       if (!task) return 'skip';
-      await c.actions.setTaskLabels(task.id, [`label${rnd(6)}`, `label${rnd(6)}`].slice(0, 1 + rnd(2)));
+      const pickName = () => LABEL_NAMES[rnd(LABEL_NAMES.length)];
+      await c.actions.setTaskLabels(task.id, [pickName(), pickName()].slice(0, 1 + rnd(2)));
       return 'setTaskLabels';
     }
     case 15: {
