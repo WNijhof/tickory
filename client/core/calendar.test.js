@@ -198,6 +198,8 @@ test('kalendermodel: alleen openstaande taken, te late taken apart, vandaag en l
       task('a-tandarts', { date: '2026-11-13T14:00' }),
       task('b-vroeg', { date: '2026-11-13T08:30' }, { priority: 3 }),
       task('c-heledag', { date: '2026-11-13' }),
+      task('k-prio1', { date: '2026-11-13' }, { priority: 1 }),
+      task('l-zelfde', { date: '2026-11-13' }, { order_key: 'a-eerder' }),
       task('d-te-laat', { date: '2026-11-10' }),
       task('e-eerder', { date: '2026-11-02' }),
       task('f-klaar', { date: '2026-11-14' }, { checked: true }),
@@ -211,7 +213,7 @@ test('kalendermodel: alleen openstaande taken, te late taken apart, vandaag en l
   assert.equal(m.to, '2026-12-06');
   assert.equal(m.days.length, 42);
   const ids = (date) => m.days.find((d) => d.date === date).entries.map((e) => `${e.task.id}${e.real ? '' : '~'}`);
-  assert.deepEqual(ids('2026-11-13'), ['c-heledag', 'b-vroeg', 'a-tandarts'], 'dag zonder tijd eerst, dan op tijd');
+  assert.deepEqual(ids('2026-11-13'), ['k-prio1', 'l-zelfde', 'c-heledag', 'b-vroeg', 'a-tandarts'], 'dag zonder tijd eerst (hoogste prioriteit eerst, dan eigen volgorde), dan op tijd');
   assert.deepEqual(ids('2026-11-10'), [], 'wat te laat is staat niet op zijn oude dag');
   assert.deepEqual(m.overdue.map((x) => x.id), ['e-eerder', 'j-wekelijks-te-laat', 'd-te-laat'], 'oudste eerst');
   assert.deepEqual(ids('2026-11-16'), ['j-wekelijks-te-laat~'], 'een te late herhaling staat ook op haar komende voorkomens');
@@ -268,4 +270,67 @@ test('Engelse namen volgen de taal van de interface', () => {
   assert.match(dayLabel('en-GB', '2026-11-19', 'full'), /^Thursday,? 19 November 2026$/);
   assert.equal(periodTitle('month', '2026-11-13', 'en-GB'), 'November 2026');
   assert.equal(periodTitle('month', '2027-03-31', 'en-GB'), 'March 2027');
+});
+
+// ---------- andere tijdzones ----------
+// Node op Windows leest de omgevingsvariabele TZ niet bij het starten, dus `TZ=America/Los_Angeles npm test` doet daar niets.
+// Daarom zet deze test de tijdzone zelf, tijdens het draaien (dat werkt op elk systeem), controleert dat de zone echt gewijzigd
+// is, en eist dat alle uitkomsten in elke zone gelijk zijn aan die in UTC.
+
+/** [zone, UTC-verschil in januari, UTC-verschil in juli] zoals `getTimezoneOffset()` ze meldt (minuten, west is positief). */
+const ZONES = [['UTC', 0, 0], ['Europe/Amsterdam', -60, -120], ['America/Los_Angeles', 480, 420], ['Pacific/Auckland', -780, -720]];
+
+function inZone(zone, fn) {
+  const before = process.env.TZ;
+  process.env.TZ = zone;
+  try {
+    return fn();
+  } finally {
+    if (before === undefined) Reflect.deleteProperty(process.env, 'TZ');
+    else process.env.TZ = before;
+  }
+}
+
+/** Alles wat de kalender uitrekent voor een reeks lastige dagen, als één tekst. */
+function snapshot() {
+  const out = {};
+  const dstDays = ['2026-03-08', '2026-03-29', '2026-04-05', '2026-09-27', '2026-10-25', '2026-11-01', '2026-12-31', '2027-01-01', '2024-02-29'];
+  out.weeks = dstDays.map((d) => weekDays(d));
+  out.grids = ['2024-02-10', '2026-03-10', '2026-04-10', '2026-09-10', '2026-10-10', '2026-11-10', '2027-01-15'].map((d) => monthGrid(d));
+  out.isoWeeks = [];
+  for (let day = '2026-12-20'; day <= '2027-01-10'; day = addDaysForTest(day)) out.isoWeeks.push([day, isoWeek(day), isoWeekday(day), startOfWeek(day)]);
+  const daily = { due: { date: '2026-03-28T02:30', recurrence: { freq: 'daily' } } };
+  out.daily = occurrences(daily, '2026-03-25', '2026-04-08');
+  const monthly = { due: { date: '2026-01-31', recurrence: { freq: 'monthly', bymonthday: 31 } } };
+  out.monthly = occurrences(monthly, '2026-01-01', '2026-12-31');
+  const tasks = [
+    { id: 'a', content: 'a', due: { date: '2026-03-29T02:30', recurrence: { freq: 'weekly', byweekday: [7] } }, checked: false, priority: 2, order_key: 'a' },
+    { id: 'b', content: 'b', due: { date: '2026-03-08' }, checked: false, priority: 4, order_key: 'b' },
+  ];
+  out.model = calendarModel({ tasks, mode: 'month', anchor: '2026-03-15', today: '2026-03-08' });
+  out.names = [];
+  for (const locale of ['nl-NL', 'en-GB']) {
+    for (const d of dstDays) out.names.push(dayLabel(locale, d, 'full'), dayLabel(locale, d, 'dm'), periodTitle('week', d, locale), periodTitle('month', d, locale));
+    out.names.push(weekdayNames(locale, 'long'), monthName(locale, 3));
+  }
+  return JSON.stringify(out);
+}
+const addDaysForTest = (day) => new Date(Date.parse(`${day}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+
+test('in elke tijdzone (ook rond een zomertijdwissel) zijn alle uitkomsten gelijk aan die in UTC', () => {
+  const baseline = inZone('UTC', snapshot);
+  assert.ok(baseline.length > 5000, 'de momentopname is niet leeg');
+  for (const [zone, january, july] of ZONES) {
+    const offsets = inZone(zone, () => [new Date(2026, 0, 15, 12).getTimezoneOffset(), new Date(2026, 6, 15, 12).getTimezoneOffset()]);
+    assert.deepEqual(offsets, [january, july], `${zone}: de tijdzone is echt veranderd (anders test dit niets)`);
+    assert.equal(inZone(zone, snapshot), baseline, `${zone}: andere uitkomsten dan in UTC`);
+  }
+  // en de basis klopt in elke zone: dagen en namen
+  for (const [zone] of ZONES) {
+    inZone(zone, () => {
+      assert.equal(dayLabel('nl-NL', '2026-11-19', 'full'), 'donderdag 19 november 2026', zone);
+      assert.deepEqual(weekDays('2026-03-29'), ['2026-03-23', '2026-03-24', '2026-03-25', '2026-03-26', '2026-03-27', '2026-03-28', '2026-03-29'], zone);
+      assert.equal(monthGrid('2026-03-10').weeks.length, 6, zone);
+    });
+  }
 });

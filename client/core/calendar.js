@@ -40,7 +40,7 @@ export function addMonths(day, n) {
   const d = Number(day.slice(8, 10));
   const total = y * 12 + m + n;
   const ny = Math.floor(total / 12);
-  const nm = ((total % 12) + 12) % 12;
+  const nm = total % 12;
   const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
   return `${String(ny).padStart(4, '0')}-${pad(nm + 1)}-${pad(Math.min(d, last))}`;
 }
