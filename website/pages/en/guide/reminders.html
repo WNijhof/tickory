@@ -1,0 +1,36 @@
+<!--
+title: Reminders
+description: Reminders with a notification are still in development in Tickory. What is and is not there today, and what you can do until then.
+-->
+<h1>Reminders</h1>
+<p class="intro">A reminder is a notification at the moment you need to do something. This part is not finished yet.</p>
+
+<div class="note wip">
+  <span class="note-label">In development</span>
+  <p>In version {{version}} you <strong>cannot set reminders</strong> in the app and <strong>no notification is sent anywhere</strong>. This page will be completed once reminders are part of a released version.</p>
+</div>
+
+<h2>What is there now</h2>
+<ul>
+  <li>The server can already store reminders and sync them between your devices. The data model knows two kinds: a number of minutes before the time of the task, or a fixed date and time.</li>
+  <li>Reminders are personal: in a shared project everyone will set their own reminders.</li>
+  <li>The app has no screen for them yet, and nothing delivers a notification yet.</li>
+</ul>
+
+<h2>What you can do until then</h2>
+<ul>
+  <li>Give a task a <strong>date with a time</strong>, for example <code>morgen om 9 uur</code> (tomorrow at 9). The task is then listed on that day in <a href="projects.html#today-and-upcoming">Vandaag</a> and turns red as soon as the time has passed.</li>
+  <li>Open <strong>Vandaag</strong> as the fixed start of your day. The number next to it counts what is due today and what is overdue.</li>
+  <li>For something that really must not go wrong, set an alarm or an appointment in your phone's calendar.</li>
+</ul>
+
+<!-- TO FILL IN LATER (once reminders have been released). Replace the "In development" block above and fill these headings:
+<h2>Setting a reminder</h2>            where in the app, relative (so many minutes before) and at a fixed time
+<h2>Receiving notifications</h2>       per kind of device: what you have to allow or install
+<h2>For administrators</h2>            what has to be configured on the server (time zone, notification channel)
+<h2>When a notification does not arrive</h2>
+Also update: the Dutch page (nl/handleiding/herinneringen.html), the list "What it cannot do (yet)" on both home pages,
+the menu in site.json (this page then belongs under "For users"), and README.md / README.nl.md.
+-->
+<h2>What is coming</h2>
+<p>The plan is that you can set one or more reminders on a task, and that you get a notification for them on your phone or computer. How exactly that will work will be described here once it is finished; until then we promise nothing that does not exist yet. You can follow the state of the work on <a href="{{repo}}">GitHub</a>.</p>

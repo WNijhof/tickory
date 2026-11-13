@@ -1,0 +1,48 @@
+<!--
+title: Back-up en terugzetten
+description: Een back-up maken van Tickory terwijl de app draait, de kopie van de server halen, automatisch inplannen, en een back-up weer terugzetten.
+-->
+<h1>Back-up en terugzetten</h1>
+<p class="intro">Alles staat in één SQLite-bestand in het Docker-volume. Een back-up is een kopie van dat bestand, gemaakt met een opdracht die ook werkt terwijl de app in gebruik is.</p>
+
+<h2>Een back-up maken</h2>
+<pre><code>docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db</code></pre>
+<p>Dit maakt een complete, consistente kopie met de datum van vandaag in de naam, bijvoorbeeld <code>todo-2026-11-17.db</code>.</p>
+<ul>
+  <li>De opdracht <strong>overschrijft nooit</strong> een bestaand bestand. Draai je haar twee keer op één dag, dan mislukt de tweede keer; geef dan een andere naam op.</li>
+  <li>De naam moet op <code>.db</code> eindigen.</li>
+  <li>Kopieer het databasebestand niet gewoon met <code>cp</code> terwijl de app draait: zo'n kopie kan onvolledig zijn. Gebruik de opdracht hierboven.</li>
+</ul>
+
+<h2>De kopie van de server halen</h2>
+<p>De kopieën staan in hetzelfde volume als de database zelf. Gaat de schijf stuk, dan ben je beide kwijt. Haal ze daarom regelmatig van de server af:</p>
+<pre><code>docker cp tickory:/data/backups ./backups</code></pre>
+<p>en zet de map <code>backups</code> ergens anders neer: op een andere computer, een externe schijf of versleuteld bij een opslagdienst. Oude kopieën ruim je zelf op; ze worden niet automatisch verwijderd.</p>
+<div class="note warn">
+  <span class="note-label">Bewaar een back-up zoals de database zelf</span>
+  <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes en de (gehashte) aanmeldingen. Leg haar niet neer waar anderen bij kunnen.</p>
+</div>
+
+<h2>Automatisch, elke nacht</h2>
+<p>Plan de opdracht in met <code>cron</code> op de server (<code>crontab -e</code>). Dit voorbeeld maakt elke nacht om 3 uur een kopie; pas het pad aan naar de map waar je <code>docker-compose.yml</code> staat. In een crontab schrijf je een procentteken als <code>\%</code>.</p>
+<pre><code>0 3 * * * cd /pad/naar/tickory &amp;&amp; docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +\%F).db</code></pre>
+
+<h2>Een back-up terugzetten</h2>
+<p>De app moet daarbij stilstaan. Zet het bestand dat je wilt terugzetten als <code>backup.db</code> in de map waar je de opdrachten draait.</p>
+<pre><code>docker compose down
+docker run --rm -v tickory_tickory-data:/data -v "$PWD":/backup alpine sh -c \
+  "rm -f /data/todo.db-wal /data/todo.db-shm &amp;&amp; cp /backup/backup.db /data/todo.db &amp;&amp; chown 1000:1000 /data/todo.db"
+docker compose up -d</code></pre>
+<ul>
+  <li><strong>De naam van het volume</strong> begint met de naam van de map waarin je <code>docker compose</code> draait; hier is dat <code>tickory</code>, dus <code>tickory_tickory-data</code>. Controleer de naam met <code>docker volume ls</code>.</li>
+  <li>De opdracht vervangt de database door je kopie en zet de eigenaar goed, zodat de app erin kan schrijven.</li>
+</ul>
+
+<h3>Daarna: op elk apparaat opnieuw aanmelden</h3>
+<p>Meld na het terugzetten op elk apparaat af en weer aan (<strong>Instellingen</strong>, dan <strong>Afmelden en lokale gegevens wissen</strong>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>
+<p>Wat na het maken van de back-up is toegevoegd of gewijzigd, is na het terugzetten weg.</p>
+
+<h2>Zonder Docker</h2>
+<p>De opdracht is dezelfde, zonder het Docker-deel:</p>
+<pre><code>node server/backup.ts ./backups/todo-$(date +%F).db</code></pre>
+<p>De bron is het bestand uit <code>DB_PATH</code> (standaard <code>./data/todo.db</code>). Terugzetten doe je door de server te stoppen, de bestanden <code>todo.db-wal</code> en <code>todo.db-shm</code> naast de database te verwijderen, je kopie op de plek van <code>todo.db</code> te zetten en de server weer te starten.</p>

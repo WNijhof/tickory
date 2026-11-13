@@ -1,0 +1,110 @@
+{
+  "repo": "https://github.com/WNijhof/tickory",
+  "image": "ghcr.io/wnijhof/tickory",
+  "languages": {
+    "nl": {
+      "name": "Nederlands",
+      "switch_to": "English",
+      "switch_label": "Read this page in English",
+      "skip": "Naar de inhoud",
+      "nav_label": "Hoofdmenu",
+      "home": "Start",
+      "guide": "Handleiding",
+      "guide_index": "handleiding/index.html",
+      "demo": "Demo",
+      "github": "GitHub",
+      "guide_nav_label": "Inhoud van de handleiding",
+      "guide_nav_summary": "Alle pagina's van de handleiding",
+      "search_label": "Zoeken in de handleiding",
+      "search_placeholder": "Zoek, bv. herhaling of back-up",
+      "search_none": "Niets gevonden. Probeer een ander woord.",
+      "search_count_one": "1 resultaat",
+      "search_count_many": "{n} resultaten",
+      "search_failed": "Zoeken lukt nu niet. Gebruik de lijst met pagina's hieronder.",
+      "previous": "Vorige",
+      "next": "Volgende",
+      "copy": "Kopieer",
+      "copied": "Gekopieerd",
+      "wip": "In ontwikkeling",
+      "footer_tagline": "Tickory is vrije software onder de AGPL-3.0.",
+      "footer_source": "Broncode op GitHub",
+      "footer_license": "Licentie",
+      "footer_third_party": "Software van derden",
+      "footer_privacy": "Deze website gebruikt geen cookies, geen trackers en geen externe diensten.",
+      "footer_version": "Handleiding bij versie",
+      "site_description": "Tickory is een takenlijst die je zelf host: voor jezelf, je gezin of een klein team."
+    },
+    "en": {
+      "name": "English",
+      "switch_to": "Nederlands",
+      "switch_label": "Lees deze pagina in het Nederlands",
+      "skip": "Skip to content",
+      "nav_label": "Main menu",
+      "home": "Home",
+      "guide": "Guide",
+      "guide_index": "guide/index.html",
+      "demo": "Demo",
+      "github": "GitHub",
+      "guide_nav_label": "Guide contents",
+      "guide_nav_summary": "All pages of the guide",
+      "search_label": "Search the guide",
+      "search_placeholder": "Search, e.g. recurring or backup",
+      "search_none": "Nothing found. Try a different word.",
+      "search_count_one": "1 result",
+      "search_count_many": "{n} results",
+      "search_failed": "Search is not available right now. Use the list of pages below.",
+      "previous": "Previous",
+      "next": "Next",
+      "copy": "Copy",
+      "copied": "Copied",
+      "wip": "In development",
+      "footer_tagline": "Tickory is free software under the AGPL-3.0.",
+      "footer_source": "Source code on GitHub",
+      "footer_license": "License",
+      "footer_third_party": "Third-party software",
+      "footer_privacy": "This website uses no cookies, no trackers and no external services.",
+      "footer_version": "Guide for version",
+      "site_description": "Tickory is a to-do list you host yourself: for you, your family or a small team."
+    }
+  },
+  "home": { "nl": "index.html", "en": "index.html" },
+  "guide": [
+    {
+      "group": { "nl": "Handleiding", "en": "Guide" },
+      "pages": [
+        { "nl": "handleiding/index.html", "en": "guide/index.html" }
+      ]
+    },
+    {
+      "group": { "nl": "Voor gebruikers", "en": "For users" },
+      "pages": [
+        { "nl": "handleiding/inloggen.html", "en": "guide/signing-in.html" },
+        { "nl": "handleiding/taken-toevoegen.html", "en": "guide/adding-tasks.html" },
+        { "nl": "handleiding/datums-en-herhalingen.html", "en": "guide/dates-and-recurrence.html" },
+        { "nl": "handleiding/projecten.html", "en": "guide/projects.html" },
+        { "nl": "handleiding/delen.html", "en": "guide/sharing.html" },
+        { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
+        { "nl": "handleiding/installeren-als-app.html", "en": "guide/install-as-app.html" },
+        { "nl": "handleiding/account.html", "en": "guide/account.html" }
+      ]
+    },
+    {
+      "group": { "nl": "Voor beheerders", "en": "For administrators" },
+      "pages": [
+        { "nl": "handleiding/installeren.html", "en": "guide/installing.html" },
+        { "nl": "handleiding/gebruikers-beheren.html", "en": "guide/managing-users.html" },
+        { "nl": "handleiding/https.html", "en": "guide/https.html" },
+        { "nl": "handleiding/bijwerken.html", "en": "guide/updating.html" },
+        { "nl": "handleiding/back-up.html", "en": "guide/backup.html" },
+        { "nl": "handleiding/problemen-oplossen.html", "en": "guide/troubleshooting.html" }
+      ]
+    },
+    {
+      "group": { "nl": "In ontwikkeling", "en": "In development" },
+      "pages": [
+        { "nl": "handleiding/herinneringen.html", "en": "guide/reminders.html" },
+        { "nl": "handleiding/android-app.html", "en": "guide/android-app.html" }
+      ]
+    }
+  ]
+}

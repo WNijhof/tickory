@@ -1,0 +1,46 @@
+{
+  "vandaag": {
+    "width": 2240,
+    "height": 1440
+  },
+  "binnenkort": {
+    "width": 2240,
+    "height": 1440
+  },
+  "project": {
+    "width": 2240,
+    "height": 1440
+  },
+  "snel-toevoegen": {
+    "width": 1696,
+    "height": 622
+  },
+  "taak-bewerken": {
+    "width": 2240,
+    "height": 1440
+  },
+  "delen": {
+    "width": 2240,
+    "height": 1440
+  },
+  "account": {
+    "width": 2240,
+    "height": 1440
+  },
+  "gebruikersbeheer": {
+    "width": 2240,
+    "height": 1440
+  },
+  "telefoon-vandaag": {
+    "width": 780,
+    "height": 1560
+  },
+  "telefoon-project": {
+    "width": 780,
+    "height": 1560
+  },
+  "telefoon-menu": {
+    "width": 780,
+    "height": 1560
+  }
+}

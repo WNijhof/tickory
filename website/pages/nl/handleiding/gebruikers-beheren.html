@@ -1,0 +1,80 @@
+<!--
+title: Gebruikers beheren
+description: Accounts beheren in Tickory: in de app onder Gebruikersbeheer, of vanaf de server met user add, passwd, list, disable en enable. Regels voor namen en wachtwoorden.
+-->
+<h1>Gebruikers beheren</h1>
+<p class="intro">Een beheerder maakt de accounts aan en herstelt wachtwoorden. Dat kan in de app, en ook vanaf de server als je er in de app niet meer in komt.</p>
+
+<h2>Hoe accounts werken</h2>
+<ul>
+  <li>Er is <strong>geen open registratie</strong> en geen wachtwoordherstel per e-mail. Tickory verstuurt geen e-mail.</li>
+  <li>Het eerste account (uit <code>.env</code>, zie <a href="installeren.html">Installeren</a>) is beheerder. Je kunt meer beheerders aanwijzen.</li>
+  <li>Elk account heeft een eigen Inbox en ziet alleen de projecten waar het lid van is.</li>
+  <li><strong>Een beheerder beheert accounts, geen taken.</strong> Ook een beheerder ziet alleen de projecten waar die zelf lid van is.</li>
+  <li>Er blijft altijd minstens één actieve beheerder: de laatste kun je niet blokkeren of zijn beheerdersrechten afnemen.</li>
+</ul>
+
+<h2>In de app</h2>
+<p>Klik onderaan de zijbalk op je naam, kies <strong>Account, wachtwoord en apparaten</strong> en dan <strong>Gebruikersbeheer</strong>. Die knop staat er alleen als je beheerder bent.</p>
+<x-shot name="gebruikersbeheer" alt="Het venster Gebruikersbeheer met de lijst Accounts: Anna (beheerder), Bram, Joost, Opa Kees, Mila en Sanne, elk met een knop Beheren. Daaronder het inklapbare deel Nieuw account.">Gebruikersbeheer: alle accounts op de server, en daaronder het formulier voor een nieuw account.</x-shot>
+
+<h3>Een account aanmaken</h3>
+<ol>
+  <li>Klap <strong>Nieuw account</strong> open.</li>
+  <li>Vul een gebruikersnaam, een naam en een beginwachtwoord in. Vink <strong>Beheerder</strong> aan als dit account ook accounts mag beheren.</li>
+  <li>Kies <strong>Account aanmaken</strong> en geef de gebruikersnaam en het beginwachtwoord door aan de persoon. Die kan het wachtwoord daarna zelf wijzigen.</li>
+</ol>
+
+<h3>Een account beheren</h3>
+<p>Kies <strong>Beheren</strong> achter een account:</p>
+<dl>
+  <dt>Wachtwoord herstellen</dt>
+  <dd>Je stelt een nieuw wachtwoord in. De persoon wordt op alle apparaten afgemeld en logt opnieuw in met het nieuwe wachtwoord.</dd>
+  <dt>Account blokkeren</dt>
+  <dd>De persoon kan niet meer inloggen en is direct overal afgemeld. De gegevens blijven bewaard, en taken in gedeelde projecten blijven staan. Met <strong>Account weer activeren</strong> draai je het terug.</dd>
+  <dt>Beheerder maken of Beheerdersrechten afnemen</dt>
+  <dd>Maakt van een gewone gebruiker een beheerder, of andersom.</dd>
+</dl>
+<p>Jezelf blokkeren of je eigen beheerdersrechten afnemen kan niet. Een account helemaal verwijderen kan ook niet; blokkeren is het alternatief.</p>
+
+<h2>Vanaf de server</h2>
+<p>Dezelfde handelingen als opdracht, bijvoorbeeld als je het wachtwoord van de enige beheerder kwijt bent. Voer ze uit in de map met <code>docker-compose.yml</code>, terwijl de container draait.</p>
+<pre><code>docker compose exec tickory node server/main.ts user list
+docker compose exec -e TODO_PASSWORD='een-goed-wachtwoord' tickory node server/main.ts user add anna --name "Anna de Vries"
+docker compose exec -it tickory node server/main.ts user passwd anna        # vraagt om het wachtwoord, ongezien
+docker compose exec tickory node server/main.ts user disable anna
+docker compose exec tickory node server/main.ts user enable anna
+docker compose exec tickory node server/main.ts user logout-all anna</code></pre>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Opdracht</th><th>Wat het doet</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>user list</code></td><td class="wrap-ok">Toont alle accounts: gebruikersnaam, naam, beheerder of gebruiker, en of het account geblokkeerd is.</td></tr>
+      <tr><td><code>user add &lt;naam&gt;</code></td><td class="wrap-ok">Maakt een account. Met <code>--name "Volledige naam"</code> geef je de naam die anderen zien, met <code>--admin</code> maak je een beheerder.</td></tr>
+      <tr><td><code>user passwd &lt;naam&gt;</code></td><td class="wrap-ok">Zet een nieuw wachtwoord en meldt alle apparaten van die gebruiker af.</td></tr>
+      <tr><td><code>user disable &lt;naam&gt;</code></td><td class="wrap-ok">Blokkeert het account en meldt het overal af.</td></tr>
+      <tr><td><code>user enable &lt;naam&gt;</code></td><td class="wrap-ok">Maakt een geblokkeerd account weer actief.</td></tr>
+      <tr><td><code>user logout-all &lt;naam&gt;</code></td><td class="wrap-ok">Meldt alle apparaten van die gebruiker af, zonder het wachtwoord te wijzigen.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p><strong>Het wachtwoord meegeven.</strong> <code>user add</code> en <code>user passwd</code> hebben een wachtwoord nodig. Dat geef je op een van twee manieren:</p>
+<ul>
+  <li>met <code>-e TODO_PASSWORD='…'</code>, zoals in het voorbeeld bij <code>user add</code>;</li>
+  <li>of met <code>-it</code>, zoals bij <code>user passwd</code>: de opdracht vraagt dan twee keer om het wachtwoord, zonder het te tonen.</li>
+</ul>
+<p>Zonder <code>TODO_PASSWORD</code> en zonder <code>-it</code> kan er geen wachtwoord worden gevraagd en stopt de opdracht met een foutmelding.</p>
+<p>Draai je zonder Docker, dan laat je <code>docker compose exec tickory</code> weg: <code>node server/main.ts user list</code>.</p>
+
+<h2>Regels voor namen en wachtwoorden</h2>
+<ul>
+  <li><strong>Gebruikersnaam:</strong> 2 tot 40 tekens; letters, cijfers, punt, streepje en underscore; het eerste teken is een letter of cijfer. Hoofdletters maken geen verschil: <code>Anna</code> en <code>anna</code> zijn hetzelfde account. Een gebruikersnaam is achteraf niet te wijzigen.</li>
+  <li><strong>Naam:</strong> 1 tot 100 tekens. Dit is wat anderen zien in gedeelde projecten.</li>
+  <li><strong>Wachtwoord:</strong> minimaal 10 tekens, en niet gelijk aan de gebruikersnaam. Verdere eisen zijn er niet; een lange zin werkt goed.</li>
+</ul>
+
+<h2>Bescherming tegen raden</h2>
+<p>Na acht mislukte inlogpogingen binnen een kwartier voor dezelfde gebruikersnaam, of veertig vanaf hetzelfde adres, weigert de server verdere pogingen tot dat kwartier voorbij is. De tellers staan in het geheugen: een herstart van de server wist ze.</p>
+<p>Staat er een reverse proxy voor Tickory, zet dan <code>TRUST_PROXY=1</code>. Anders lijken alle bezoekers van hetzelfde adres te komen (dat van de proxy) en kan één persoon met veel foute pogingen het inloggen voor iedereen blokkeren. Zie <a href="https.html#trust-proxy">HTTPS</a>.</p>

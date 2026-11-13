@@ -1,0 +1,57 @@
+<!--
+title: HTTPS
+description: Tickory via HTTPS bereikbaar maken: met Tailscale, met een reverse proxy zoals Caddy en de instelling TRUST_PROXY, of met een Cloudflare Tunnel.
+-->
+<h1>HTTPS</h1>
+<p class="intro">Voor telefoons heb je HTTPS nodig. Er zijn drie gangbare manieren; kies wat bij je netwerk past.</p>
+
+<h2>Waarom</h2>
+<ul>
+  <li>Browsers staan <strong>offline gebruik</strong> en <strong>installeren als app</strong> alleen toe op een beveiligd adres. De enige uitzondering is <code>localhost</code>, en dat is op een telefoon de telefoon zelf.</li>
+  <li>Zonder HTTPS gaan je wachtwoord en je aanmelding onversleuteld over het netwerk.</li>
+</ul>
+<p>Zonder HTTPS werkt Tickory op je telefoon dus wel in de browser, zolang er verbinding is, maar niet offline en niet als geïnstalleerde app.</p>
+
+<h2>Tailscale</h2>
+<p>Het eenvoudigst, en er komt niets op het open internet. Je apparaten vormen samen een eigen, afgeschermd netwerk.</p>
+<ol>
+  <li>Installeer Tailscale op de server en op je telefoon, en meld beide aan bij hetzelfde tailnet.</li>
+  <li>Schakel HTTPS in voor je tailnet (in het beheerpaneel van Tailscale).</li>
+  <li>Draai op de server:
+    <pre><code>tailscale serve --bg 8787</code></pre>
+  </li>
+</ol>
+<p>Je krijgt een adres dat op <code>.ts.net</code> eindigt, met een geldig certificaat, dat alleen je eigen apparaten kunnen bereiken. De poort in <code>docker-compose.yml</code> kan op <code>127.0.0.1:8787</code> blijven staan.</p>
+
+<h2>Reverse proxy met een eigen domein</h2>
+<p>Heb je een domeinnaam en staat er al een reverse proxy (Caddy, Traefik, Nginx Proxy Manager), laat die dan naar <code>127.0.0.1:8787</code> wijzen en het certificaat regelen. Met Caddy is dit de hele configuratie:</p>
+<pre><code>taken.voorbeeld.nl {
+    reverse_proxy 127.0.0.1:8787
+}</code></pre>
+<p>Draait de proxy zelf in een container, dan is <code>127.0.0.1</code> voor de proxy die container en niet je server. Zet beide dan bijvoorbeeld in hetzelfde Docker-netwerk en laat de proxy naar <code>tickory:8787</code> wijzen.</p>
+
+<h3 id="trust-proxy">TRUST_PROXY</h3>
+<p>Zet achter een eigen reverse proxy in <code>.env</code>:</p>
+<pre><code>TRUST_PROXY=1</code></pre>
+<p>en herstart met <code>docker compose up -d</code>. De server telt dan het adres van de bezoeker (uit de kopregel <code>X-Forwarded-For</code> die de proxy toevoegt) bij het beperken van inlogpogingen, in plaats van het adres van de proxy.</p>
+<div class="note warn">
+  <span class="note-label">Let op</span>
+  <p>Zet <code>TRUST_PROXY</code> <strong>alleen</strong> aan als er echt een proxy voor staat en Tickory niet rechtstreeks bereikbaar is. Anders kan een bezoeker zelf een adres opgeven en zo de beperking op inlogpogingen omzeilen.</p>
+</div>
+
+<h2>Cloudflare Tunnel</h2>
+<p>Handig als je geen poorten wilt openzetten op je router. De tunnel maakt van binnenuit verbinding met Cloudflare, en Cloudflare verzorgt HTTPS op je domein. Laat de tunnel naar <code>http://127.0.0.1:8787</code> wijzen. Je verkeer loopt dan wel via Cloudflare.</p>
+
+<h2>Controleren</h2>
+<ol>
+  <li>Open het <code>https://</code>-adres op je telefoon en log in.</li>
+  <li>Zet de telefoon in vliegtuigmodus en open het adres opnieuw: de app hoort te starten en je taken te tonen, met rechtsboven <strong>Offline</strong>.</li>
+  <li>Kijk of je browser aanbiedt om de app te installeren; zie <a href="installeren-als-app.html">Installeren als app</a>.</li>
+</ol>
+
+<h2>Goed om te weten</h2>
+<ul>
+  <li>De app houdt een verbinding open waarover de server meldt dat er iets veranderd is. Een proxy die antwoorden opspaart, vertraagt dat; de server vraagt daarom zelf om dat niet te doen. Werkt het bijwerken tussen apparaten pas na een halve minuut of langer, kijk dan naar de instellingen van je proxy voor lange verbindingen.</li>
+  <li>Het wachtwoord en de aanmelding staan nooit in een adres, dus ook niet in het logboek van je proxy.</li>
+  <li>Een certificaat regelt de proxy, Tailscale of de tunnel. Tickory zelf spreekt alleen gewoon HTTP op poort 8787.</li>
+</ul>

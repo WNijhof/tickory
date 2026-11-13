@@ -1,0 +1,46 @@
+<!--
+title: Inloggen
+description: Inloggen bij Tickory: wat je nodig hebt, wat er gebeurt bij een fout wachtwoord, hoe je afmeldt en wat je doet als je je wachtwoord kwijt bent.
+-->
+<h1>Inloggen</h1>
+<p class="intro">Je logt in met een gebruikersnaam en een wachtwoord die je van de beheerder van jullie server hebt gekregen.</p>
+
+<h2>Wat je nodig hebt</h2>
+<ul>
+  <li><strong>Het adres van jullie Tickory.</strong> Dat is het adres van de server waarop Tickory draait, bijvoorbeeld <code>https://taken.voorbeeld.nl</code>. Er is geen centrale Tickory-dienst: elke installatie heeft een eigen adres.</li>
+  <li><strong>Een gebruikersnaam en een wachtwoord.</strong> Je kunt niet zelf een account aanmaken; dat doet een beheerder. Ben je zelf degene die Tickory installeert, lees dan <a href="installeren.html">Installeren met Docker</a>.</li>
+</ul>
+
+<h2>Inloggen</h2>
+<ol>
+  <li>Open het adres in je browser. Je ziet het venster <strong>Inloggen</strong>.</li>
+  <li>Vul je gebruikersnaam en wachtwoord in en kies <strong>Inloggen</strong>. Bij de gebruikersnaam maken hoofdletters niet uit.</li>
+  <li>De app haalt je taken op. Rechtsboven staat <strong>Bijgewerkt</strong> zodra alles binnen is.</li>
+</ol>
+<p>Je blijft op dit apparaat aangemeld tot je zelf afmeldt of iemand de aanmelding intrekt. Elk apparaat en elke browser krijgt een eigen aanmelding; in <a href="account.html">je account</a> zie je ze allemaal.</p>
+
+<h2>Als inloggen niet lukt</h2>
+<dl>
+  <dt>“Gebruikersnaam of wachtwoord klopt niet”</dt>
+  <dd>Een van de twee is onjuist. Je krijgt dezelfde melding als het account niet bestaat of geblokkeerd is: de server verklapt niet welke gebruikersnamen er zijn.</dd>
+  <dt>“Te veel mislukte pogingen”</dt>
+  <dd>Na acht mislukte pogingen binnen een kwartier voor dezelfde gebruikersnaam (of veertig vanaf hetzelfde adres) kun je even niet inloggen. In de melding staat hoe lang je moet wachten; dat is hooguit een kwartier.</dd>
+  <dt>“Geen verbinding met de server”</dt>
+  <dd>De app kan de server niet bereiken. Controleer je internetverbinding en of het adres klopt.</dd>
+</dl>
+
+<h2>Wachtwoord vergeten</h2>
+<p>Er is geen “wachtwoord vergeten”-link en er wordt geen e-mail verstuurd. Vraag een beheerder om een nieuw wachtwoord; die stelt het in via <a href="gebruikers-beheren.html">Gebruikersbeheer</a>. Daarna kun je het zelf weer wijzigen in <a href="account.html#wachtwoord-wijzigen">je account</a>.</p>
+
+<h2>Afmelden</h2>
+<p>Klik onderaan de zijbalk op je naam (<strong>Instellingen</strong>) en kies <strong>Afmelden en lokale gegevens wissen</strong>. De kopie van je taken wordt dan van dit apparaat gewist; op de server blijft alles staan.</p>
+<div class="note warn">
+  <span class="note-label">Let op</span>
+  <p>Staan er nog wijzigingen te wachten die niet naar de server zijn gestuurd (bijvoorbeeld omdat je offline was), dan gaan die bij afmelden verloren. De app waarschuwt je daarvoor.</p>
+</div>
+
+<h2>Opnieuw moeten inloggen</h2>
+<p>Verschijnt het inlogvenster vanzelf en staat er rechtsboven <strong>Inloggen nodig</strong>, dan is je aanmelding op dit apparaat ingetrokken. Dat gebeurt als je je wachtwoord op een ander apparaat hebt gewijzigd, als jij of een beheerder dit apparaat heeft afgemeld, of als je account is geblokkeerd. Je gebruikersnaam is al ingevuld; log opnieuw in om verder te gaan. Wijzigingen die nog stonden te wachten, worden daarna alsnog verstuurd.</p>
+
+<h2>Met een ander account op hetzelfde apparaat</h2>
+<p>Logt er iemand anders in op een apparaat waar nog jouw gegevens staan, dan vraagt de app eerst om bevestiging en wist daarna jouw lokale kopie. Zo komen de taken van de één nooit bij de ander terecht.</p>

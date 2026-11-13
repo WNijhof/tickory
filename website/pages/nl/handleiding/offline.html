@@ -1,0 +1,54 @@
+<!--
+title: Offline werken
+description: Tickory werkt ook zonder verbinding: wat je offline kunt doen, wat de status rechtsboven betekent en wat er gebeurt als de verbinding terugkomt.
+-->
+<h1>Offline werken</h1>
+<p class="intro">De app bewaart een kopie van je taken op je apparaat. Zonder verbinding werk je daarin gewoon door; zodra de server weer bereikbaar is, wordt alles bijgewerkt.</p>
+
+<h2>Wat je nodig hebt</h2>
+<ul>
+  <li>Je hebt de app op dit apparaat minstens één keer met verbinding geopend en bent ingelogd.</li>
+  <li>De app is bereikbaar via <strong>HTTPS</strong>. Browsers staan het bewaren van een app voor offline gebruik alleen toe op een beveiligd adres (de enige uitzondering is <code>localhost</code>). Zonder HTTPS werkt de app zolang er verbinding is, maar hij opent niet zonder. Voor beheerders: zie <a href="https.html">HTTPS</a>.</li>
+</ul>
+
+<h2>Wat je offline kunt doen</h2>
+<p>Alles wat met je taken te maken heeft: toevoegen, bewerken, afvinken, verplaatsen, projecten en secties maken. Je ziet het resultaat meteen; de wijziging wacht op je apparaat tot ze naar de server kan.</p>
+<p>Wat wel verbinding nodig heeft: inloggen, je wachtwoord wijzigen, de lijst met apparaten en het gebruikersbeheer. Deel je offline een project, dan wordt dat pas uitgevoerd als er weer verbinding is, en zie je de ander dan pas in de lijst.</p>
+
+<h2>De status rechtsboven</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Er staat</th><th>Betekenis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Bijgewerkt</td><td class="wrap-ok">Alles staat op de server en je hebt de laatste stand.</td></tr>
+      <tr><td>Bezig…</td><td class="wrap-ok">De app wisselt nu gegevens uit met de server.</td></tr>
+      <tr><td>2 wachtend</td><td class="wrap-ok">Er staan wijzigingen klaar die zo worden verstuurd.</td></tr>
+      <tr><td>Offline · 2 wachtend</td><td class="wrap-ok">De server is niet bereikbaar. Je wijzigingen worden bewaard en later verstuurd.</td></tr>
+      <tr><td>Bijwerken mislukt</td><td class="wrap-ok">De server is wel bereikbaar, maar gaf een fout. Zie <a href="problemen-oplossen.html">Problemen oplossen</a>.</td></tr>
+      <tr><td>Inloggen nodig</td><td class="wrap-ok">Je bent op dit apparaat niet (meer) aangemeld. Zie <a href="inloggen.html">Inloggen</a>.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Klik op de status om meteen bij te werken. Dat kan ook via <strong>Instellingen</strong> (je naam onderaan de zijbalk) en dan <strong>Nu bijwerken</strong>.</p>
+
+<h2>Als de verbinding terugkomt</h2>
+<ul>
+  <li>De app probeert het vanzelf opnieuw, eerst na een paar seconden en daarna met steeds langere tussenpozen, tot hooguit een minuut. Ook als je naar de app terugkeert of je apparaat weer online komt, wordt er meteen bijgewerkt.</li>
+  <li>Je wachtende wijzigingen gaan in de volgorde waarin je ze maakte naar de server. Elke wijziging wordt hooguit één keer uitgevoerd, ook als de verbinding halverwege wegvalt.</li>
+  <li>Wat anderen intussen hebben gewijzigd, komt binnen. Jouw wachtende wijzigingen blijven daarbij staan.</li>
+  <li>Hebben jij en iemand anders hetzelfde veld van dezelfde taak gewijzigd, dan wint wie het laatst bij de server aankwam.</li>
+  <li>Kan een wijziging niet meer worden doorgevoerd, bijvoorbeeld omdat de taak intussen is verwijderd, dan krijg je daar een melding van (“Niet gelukt …”) en toont de app weer de werkelijke stand.</li>
+</ul>
+
+<h2>Meer apparaten en tabbladen</h2>
+<p>Je kunt op meerdere apparaten tegelijk aangemeld zijn. Elk apparaat heeft een eigen kopie en een eigen wachtrij. Een wijziging op het ene apparaat verschijnt binnen een paar seconden op het andere, als beide verbinding hebben. Twee tabbladen in dezelfde browser delen één kopie.</p>
+
+<h2>Waar je op moet letten</h2>
+<ul>
+  <li><strong>Afmelden wist de kopie op dat apparaat</strong>, inclusief wijzigingen die nog stonden te wachten. De app waarschuwt als dat zo is. Werk dus eerst bij voordat je afmeldt.</li>
+  <li><strong>De browser beheert de opslag.</strong> Wis je de gegevens van de website in je browser, of gebruik je een privévenster, dan is de kopie weg; alles wat al op de server stond, komt bij de volgende keer openen terug.</li>
+  <li>Kan de browser helemaal niets bewaren, dan meldt de app dat: “Lokale opslag is niet beschikbaar”. De app werkt dan wel, maar alleen zolang het venster open is en er verbinding is.</li>
+  <li><strong>Een nieuwe versie van de app</strong> wordt op de achtergrond opgehaald en is actief als je de app daarna opnieuw opent.</li>
+</ul>

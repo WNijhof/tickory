@@ -1,0 +1,97 @@
+<!--
+title: Installeren met Docker
+description: Tickory op je eigen server zetten met Docker Compose: wat je nodig hebt, het eerste account, starten, de instellingen, en draaien zonder Docker.
+-->
+<h1>Installeren met Docker</h1>
+<p class="intro">Tickory draait als één container: de server en de web-app samen. De gegevens staan in één SQLite-bestand in een Docker-volume.</p>
+
+<h2>Wat je nodig hebt</h2>
+<ul>
+  <li>Een computer die aan blijft staan: een mini-pc, een NAS, een Raspberry Pi of een server.</li>
+  <li>Docker met <code>docker compose</code>, en <code>git</code> om de bestanden op te halen.</li>
+  <li>Een processor waarvoor de image bestaat: <strong>amd64</strong> (gewone pc, mini-pc, de meeste NAS-systemen) of <strong>arm64</strong> (Raspberry Pi met een 64-bit systeem). Een 32-bit systeem wordt niet ondersteund.</li>
+</ul>
+
+<h2>Installeren</h2>
+<h3>1. Haal de bestanden op</h3>
+<pre><code>git clone {{repo}}.git
+cd tickory
+cp .env.example .env</code></pre>
+
+<h3>2. Kies het eerste account</h3>
+<p>Open <code>.env</code> en vul een gebruikersnaam en een wachtwoord in:</p>
+<pre><code>TODO_ADMIN_USER=anna
+TODO_ADMIN_PASSWORD=kies-hier-een-lang-wachtwoord
+# De naam zoals anderen die zien (optioneel; anders de gebruikersnaam):
+TODO_ADMIN_NAME=Anna de Vries</code></pre>
+<ul>
+  <li>Het wachtwoord heeft minimaal 10 tekens en mag niet gelijk zijn aan de gebruikersnaam.</li>
+  <li>Dit account wordt bij de allereerste start aangemaakt en is <strong>beheerder</strong>. Daarmee maak je daarna in de app de andere accounts aan; zie <a href="gebruikers-beheren.html">Gebruikers beheren</a>.</li>
+  <li>Bestaat er al een account, dan doen deze regels niets meer. Na de eerste start kun je het wachtwoord dus uit <code>.env</code> halen.</li>
+  <li>Zet <code>.env</code> nooit in git. Het staat al in <code>.gitignore</code>.</li>
+</ul>
+
+<h3>3. Start</h3>
+<pre><code>docker compose up -d
+docker compose ps          # na enkele seconden: (healthy)
+docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
+<p>In het logboek staat “Eerste account … (beheerder) aangemaakt” en daarna op welk adres Tickory luistert. Open <code>http://127.0.0.1:8787</code> in een browser op de server zelf en log in.</p>
+
+<h2>Bereikbaar maken voor andere apparaten</h2>
+<p>Zoals het in <code>docker-compose.yml</code> staat, is Tickory alleen bereikbaar vanaf de server zelf (<code>127.0.0.1:8787</code>). Dat is met opzet: zo zet je er eerst HTTPS voor.</p>
+<ul>
+  <li><strong>Aanbevolen: HTTPS.</strong> Nodig voor telefoons (offline werken en installeren als app). Zie <a href="https.html">HTTPS</a>: met Tailscale hoeft er niets openbaar te worden.</li>
+  <li><strong>Alleen thuis, zonder HTTPS:</strong> verander in <code>docker-compose.yml</code> de regel <code>"127.0.0.1:8787:8787"</code> in <code>"8787:8787"</code>, draai <code>docker compose up -d</code> en open <code>http://&lt;ip-van-de-server&gt;:8787</code>. De app werkt dan in de browser van elk apparaat in huis, maar niet offline en niet als geïnstalleerde app.</li>
+</ul>
+<div class="note warn">
+  <span class="note-label">Niet doen</span>
+  <p>Zet Tickory niet zonder HTTPS op het open internet. Je wachtwoord en je aanmelding gaan dan onversleuteld over de lijn.</p>
+</div>
+
+<h2>Het compose-bestand</h2>
+<p>Dit is het <code>docker-compose.yml</code> uit de repo, hier zonder de toelichting die erin staat:</p>
+<x-compose></x-compose>
+<dl>
+  <dt>image of build</dt>
+  <dd>Standaard haalt Docker de kant-en-klare image <code>{{image}}:latest</code> op. Bouw je liever zelf op de server, haal dan de regel <code>image:</code> weg en zet er <code>build: .</code> voor in de plaats.</dd>
+  <dt>volumes</dt>
+  <dd>De database staat in het volume <code>tickory-data</code>, in de container onder <code>/data</code>. Je gegevens blijven dus bewaard als je de container vervangt.</dd>
+  <dt>read_only, cap_drop, no-new-privileges</dt>
+  <dd>Extra afscherming: de container kan alleen in <code>/data</code> schrijven, draait als een gewone gebruiker en heeft geen bijzondere rechten.</dd>
+</dl>
+
+<h2>Instellingen</h2>
+<p>Instellingen geef je mee als omgevingsvariabelen. Met Docker zet je ze in <code>.env</code>.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Variabele</th><th>Betekenis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>TODO_ADMIN_USER</code><br><code>TODO_ADMIN_PASSWORD</code><br><code>TODO_ADMIN_NAME</code></td><td class="wrap-ok">Het eerste account. Alleen gebruikt zolang er nog geen enkel account bestaat.</td></tr>
+      <tr><td><code>TRUST_PROXY</code></td><td class="wrap-ok">Zet op <code>1</code> als er een eigen reverse proxy voor staat. Zie <a href="https.html#trust-proxy">HTTPS</a>.</td></tr>
+      <tr><td><code>PORT</code></td><td class="wrap-ok">De poort waarop de server luistert; standaard 8787.</td></tr>
+      <tr><td><code>HOST</code></td><td class="wrap-ok">Het adres waarop de server luistert; standaard <code>127.0.0.1</code>, in de container <code>0.0.0.0</code>.</td></tr>
+      <tr><td><code>DB_PATH</code></td><td class="wrap-ok">Waar de database staat; standaard <code>./data/todo.db</code>, in de container <code>/data/todo.db</code>.</td></tr>
+      <tr><td><code>CORS_ORIGIN</code></td><td class="wrap-ok">Optioneel: één exact adres dat de server vanaf een andere herkomst mag aanroepen. Normaal niet nodig.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Het meegeleverde <code>docker-compose.yml</code> geeft alleen het eerste account en <code>TRUST_PROXY</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
+
+<h2>De image is nog privé</h2>
+<p>Zolang de repo en de image op GitHub privé staan, moet je server één keer inloggen om ze te kunnen ophalen:</p>
+<pre><code>docker login ghcr.io -u &lt;jouw-github-naam&gt;     # wachtwoord: een token met alleen "read:packages"</code></pre>
+<p>Staan ze openbaar, dan is dit niet nodig.</p>
+
+<h2>Zonder Docker</h2>
+<p>Handig om te proberen of mee te ontwikkelen. Je hebt alleen Node 26 nodig; er zijn geen pakketten om te installeren en er is geen build-stap.</p>
+<pre><code>TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.ts</code></pre>
+<p>Open daarna <code>http://127.0.0.1:8787</code>. Op Windows dubbelklik je op <code>start.cmd</code> (of draai <code>.\start.cmd</code> in PowerShell): bij de eerste keer vraagt dat om een gebruikersnaam en een wachtwoord voor het eerste account, en daarna start de server.</p>
+
+<h2>En daarna</h2>
+<ul>
+  <li><a href="https.html">HTTPS</a> regelen, zodat het ook op telefoons werkt.</li>
+  <li><a href="gebruikers-beheren.html">Accounts aanmaken</a> voor de anderen.</li>
+  <li>Een <a href="back-up.html">back-up</a> inplannen.</li>
+</ul>

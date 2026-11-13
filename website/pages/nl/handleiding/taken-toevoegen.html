@@ -1,0 +1,107 @@
+<!--
+title: Taken toevoegen
+description: Snel taken toevoegen in Tickory: typ één regel met #project, /sectie, @label, p1 tot p4, een {deadline} en een datum in gewoon Nederlands.
+-->
+<h1>Taken toevoegen</h1>
+<p class="intro">Bovenaan elk scherm staat één invoerveld. Typ een regel, druk op Enter, en de taak staat erin: met datum, project, sectie, labels en prioriteit als je die erbij typt.</p>
+
+<x-shot name="snel-toevoegen" alt="Het invoerveld met de regel 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1'. Eronder staat wat er herkend is: de naam Loodgieter bellen, morgen 09:00, de sectie Klusjes, het label bellen en prioriteit P1.">Onder het veld zie je tijdens het typen wat er herkend is. Wat daar niet staat, blijft gewoon in de naam van de taak.</x-shot>
+
+<h2>De tekens in één oogopslag</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Betekenis</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>#Thuis</code></td><td class="wrap-ok">Zet de taak in het project Thuis.</td></tr>
+      <tr><td><code>/Keuken</code></td><td class="wrap-ok">Zet de taak in de sectie Keuken van dat project.</td></tr>
+      <tr><td><code>@bellen</code></td><td class="wrap-ok">Geeft de taak het label bellen. Een label dat nog niet bestaat, wordt aangemaakt.</td></tr>
+      <tr><td><code>p1</code> tot <code>p4</code></td><td class="wrap-ok">De prioriteit; 1 is de hoogste. Je mag ook <code>!!1</code> tot <code>!!4</code> typen.</td></tr>
+      <tr><td><code>{vrijdag}</code></td><td class="wrap-ok">Een deadline: de uiterste dag, los van de datum waarop je eraan wilt werken.</td></tr>
+      <tr><td><code>morgen om 9 uur</code></td><td class="wrap-ok">Een datum of herhaling in gewone taal. Zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>.</td></tr>
+      <tr><td><code>~</code></td><td class="wrap-ok">Zet de datumherkenning uit, voor als een woord toevallig op een datum lijkt.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>De volgorde maakt niet uit, en je hoeft niets van dit alles te gebruiken: <code>Melk kopen</code> is ook een taak.</p>
+
+<h2>Voorbeelden</h2>
+<p>De voorbeelden gaan uit van dinsdag 17 november 2026, een project Thuis met een sectie Keuken, en een bestaand label bellen.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Dat wordt</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-project="Thuis" data-section="Keuken" data-labels="bellen" data-prio="1">Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1</code></td>
+        <td class="wrap-ok">“Tandarts bellen”, woensdag 18 november om 9:00, in Thuis / Keuken, label bellen, prioriteit 1</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Aangifte doen" data-date="" data-deadline="2026-12-31" data-prio="2" data-project="Inbox">Aangifte doen {31-12} !!2</code></td>
+        <td class="wrap-ok">“Aangifte doen”, zonder datum, met deadline 31 december en prioriteit 2</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Offerte nakijken" data-date="2026-11-19" data-deadline="2026-11-20" data-prio="2">Offerte nakijken donderdag {vrijdag} p2</code></td>
+        <td class="wrap-ok">“Offerte nakijken”, donderdag doen, uiterlijk vrijdag af</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Melk kopen" data-labels="boodschappen*" data-prio="4">Melk kopen @boodschappen</code></td>
+        <td class="wrap-ok">“Melk kopen” met het nieuwe label boodschappen (in het voorbeeld onder het veld staat er “nieuw” bij)</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Oud papier" data-date="2026-12-08" data-project="Thuis">Oud papier elke tweede dinsdag #thuis</code></td>
+        <td class="wrap-ok">“Oud papier” in Thuis, elke tweede dinsdag van de maand; de eerste keer op 8 december</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Mail naar jan@voorbeeld.nl sturen" data-labels="" data-date="">Mail naar jan@voorbeeld.nl sturen</code></td>
+        <td class="wrap-ok">Blijft precies zo: een teken telt alleen aan het begin van een woord, dus een e-mailadres is geen label</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>Waar de taak terechtkomt</h2>
+<ul>
+  <li>Sta je in een <strong>project</strong>, dan komt de taak in dat project.</li>
+  <li>Sta je in <strong>Vandaag</strong>, dan komt de taak in je Inbox en krijgt ze de datum van vandaag, tenzij je zelf een andere datum typt.</li>
+  <li>Sta je in <strong>Binnenkort</strong>, dan komt de taak in je Inbox, zonder datum als je er geen typt.</li>
+  <li>Met <code>#project</code> kies je altijd zelf een ander project.</li>
+</ul>
+<p>Een nieuwe taak komt onderaan de lijst. De volgorde van taken wijzigen kan nog niet.</p>
+
+<h2>De onderdelen één voor één</h2>
+
+<h3>Project: #</h3>
+<p>Typ <code>#</code> met de naam van een bestaand project. Hoofdletters maken niet uit, en een naam met spaties mag ook: bij <code>#Vakantie Texel</code> wint de langste naam die past. Een project dat niet bestaat, wordt niet aangemaakt; de tekst blijft dan in de naam van de taak staan. Een nieuw project maak je met de <strong>+</strong> in de zijbalk.</p>
+
+<h3>Sectie: /</h3>
+<p>Typ <code>/</code> met de naam van een sectie in het gekozen project. Bestaat de sectie niet in dat project, dan blijft de tekst staan. Een woord als <code>en/of</code> wordt met rust gelaten.</p>
+
+<h3>Label: @</h3>
+<p>Typ <code>@</code> met de naam van het label. Een labelnaam bestaat hier uit letters, cijfers, <code>-</code> en <code>_</code>, zonder spaties. Hoofdletters en accenten maken niet uit: <code>@ÉÉN</code> is hetzelfde label als <code>@één</code>. Je kunt meer labels in één regel zetten. Labels zijn persoonlijk; zie <a href="delen.html#wat-persoonlijk-blijft">wat persoonlijk blijft</a>.</p>
+
+<h3>Prioriteit: p1 tot p4</h3>
+<p><code>p1</code> is de hoogste prioriteit, <code>p4</code> is “geen” en dat is ook wat een taak krijgt als je niets typt. De prioriteit zie je aan de kleur van het rondje voor de taak: rood voor P1, oranje voor P2, blauw voor P3.</p>
+
+<h3>Deadline: { }</h3>
+<p>Een taak heeft een <strong>datum</strong> (wanneer wil je eraan werken) en kan daarnaast een <strong>deadline</strong> hebben (wanneer moet het uiterlijk af zijn). De deadline zet je tussen accolades: <code>{31-12}</code>, <code>{vrijdag}</code>, <code>{voor Sinterklaas}</code>. Tussen de accolades zet je één dag: een herhaling kan daar niet, en een tijdstip telt niet mee.</p>
+
+<h3>Datumherkenning uitzetten: ~</h3>
+<p>Soms lijkt een woord op een datum terwijl het dat niet is. Typ dan een <code>~</code>:</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Dat wordt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex-none" data-title="Bellen morgen">~Bellen morgen</code></td><td class="wrap-ok">“Bellen morgen”, zonder datum: een <code>~</code> aan het begin geldt voor de hele regel</td></tr>
+      <tr><td><code class="ex-none" data-title="Vergadering elke maandag voorbereiden">Vergadering ~elke maandag voorbereiden</code></td><td class="wrap-ok">“Vergadering elke maandag voorbereiden”, zonder herhaling: een <code>~</code> voor een woord geldt voor de datum die daar begint</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Vaak is dat niet nodig: de app laat bewust met rust wat geen duidelijke datum is. Zie <a href="datums-en-herhalingen.html#wat-bewust-geen-datum-wordt">wat bewust geen datum wordt</a>.</p>
+
+<h2>Daarna: de taak aanvullen</h2>
+<p>Klik op een taak om haar te bewerken. Daar voeg je een beschrijving en subtaken toe, verplaats je de taak naar een ander project of een andere sectie, en wijs je haar toe aan iemand. Zie <a href="projecten.html#een-taak-bewerken">een taak bewerken</a>.</p>

@@ -1,0 +1,80 @@
+<!--
+title: Managing users
+description: Managing accounts in Tickory: in the app under Gebruikersbeheer, or from the server with user add, passwd, list, disable and enable. Rules for names and passwords.
+-->
+<h1>Managing users</h1>
+<p class="intro">An administrator creates the accounts and resets passwords. That can be done in the app, and also from the server when you can no longer get into the app.</p>
+
+<h2>How accounts work</h2>
+<ul>
+  <li>There is <strong>no open sign-up</strong> and no password reset by e-mail. Tickory does not send e-mail.</li>
+  <li>The first account (from <code>.env</code>, see <a href="installing.html">Installing</a>) is an administrator. You can appoint more administrators.</li>
+  <li>Every account has its own Inbox and only sees the projects it is a member of.</li>
+  <li><strong>An administrator manages accounts, not tasks.</strong> An administrator, too, only sees the projects they are a member of themselves.</li>
+  <li>There is always at least one active administrator: you cannot block the last one or take away their administrator rights.</li>
+</ul>
+
+<h2>In the app</h2>
+<p>Click your name at the bottom of the sidebar, choose <strong>Account, wachtwoord en apparaten</strong> and then <strong>Gebruikersbeheer</strong> (user management). That button is only there when you are an administrator.</p>
+<x-shot name="gebruikersbeheer" alt="The Gebruikersbeheer (user management) window with the list Accounts: Anna (beheerder, administrator), Bram, Joost, Opa Kees, Mila and Sanne, each with a Beheren (manage) button. Below it the collapsible part Nieuw account (new account).">User management: all accounts on the server, and below them the form for a new account.</x-shot>
+
+<h3>Creating an account</h3>
+<ol>
+  <li>Open <strong>Nieuw account</strong> (new account).</li>
+  <li>Fill in a username (Gebruikersnaam), a name (Naam) and an initial password (Beginwachtwoord). Tick <strong>Beheerder</strong> if this account may manage accounts as well.</li>
+  <li>Choose <strong>Account aanmaken</strong> (create account) and pass the username and the initial password on to the person. They can change the password themselves afterwards.</li>
+</ol>
+
+<h3>Managing an account</h3>
+<p>Choose <strong>Beheren</strong> (manage) next to an account:</p>
+<dl>
+  <dt>Wachtwoord herstellen (reset password)</dt>
+  <dd>You set a new password. The person is signed out on all devices and signs in again with the new password.</dd>
+  <dt>Account blokkeren (block account)</dt>
+  <dd>The person can no longer sign in and is signed out everywhere immediately. The data is kept, and tasks in shared projects stay. <strong>Account weer activeren</strong> (reactivate account) reverses it.</dd>
+  <dt>Beheerder maken or Beheerdersrechten afnemen (make administrator, or take away administrator rights)</dt>
+  <dd>Turns an ordinary user into an administrator, or the other way round.</dd>
+</dl>
+<p>You cannot block yourself or take away your own administrator rights. Deleting an account completely is not possible either; blocking is the alternative.</p>
+
+<h2>From the server</h2>
+<p>The same actions as commands, for example when you have lost the password of the only administrator. Run them in the directory with <code>docker-compose.yml</code>, while the container is running.</p>
+<pre><code>docker compose exec tickory node server/main.ts user list
+docker compose exec -e TODO_PASSWORD='a-good-password' tickory node server/main.ts user add anna --name "Anna de Vries"
+docker compose exec -it tickory node server/main.ts user passwd anna        # asks for the password, hidden
+docker compose exec tickory node server/main.ts user disable anna
+docker compose exec tickory node server/main.ts user enable anna
+docker compose exec tickory node server/main.ts user logout-all anna</code></pre>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Command</th><th>What it does</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>user list</code></td><td class="wrap-ok">Shows all accounts: username, name, administrator (beheerder) or user (gebruiker), and whether the account is blocked (geblokkeerd).</td></tr>
+      <tr><td><code>user add &lt;name&gt;</code></td><td class="wrap-ok">Creates an account. With <code>--name "Full name"</code> you give the name others see, with <code>--admin</code> you create an administrator.</td></tr>
+      <tr><td><code>user passwd &lt;name&gt;</code></td><td class="wrap-ok">Sets a new password and signs out all devices of that user.</td></tr>
+      <tr><td><code>user disable &lt;name&gt;</code></td><td class="wrap-ok">Blocks the account and signs it out everywhere.</td></tr>
+      <tr><td><code>user enable &lt;name&gt;</code></td><td class="wrap-ok">Makes a blocked account active again.</td></tr>
+      <tr><td><code>user logout-all &lt;name&gt;</code></td><td class="wrap-ok">Signs out all devices of that user, without changing the password.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p><strong>Passing the password.</strong> <code>user add</code> and <code>user passwd</code> need a password. You give it in one of two ways:</p>
+<ul>
+  <li>with <code>-e TODO_PASSWORD='…'</code>, as in the example for <code>user add</code>;</li>
+  <li>or with <code>-it</code>, as for <code>user passwd</code>: the command then asks for the password twice, without showing it.</li>
+</ul>
+<p>Without <code>TODO_PASSWORD</code> and without <code>-it</code> no password can be asked for, and the command stops with an error. The messages of these commands are in Dutch.</p>
+<p>If you run without Docker, leave out <code>docker compose exec tickory</code>: <code>node server/main.ts user list</code>.</p>
+
+<h2>Rules for names and passwords</h2>
+<ul>
+  <li><strong>Username:</strong> 2 to 40 characters; letters, digits, dot, hyphen and underscore; the first character is a letter or digit. Capitals make no difference: <code>Anna</code> and <code>anna</code> are the same account. A username cannot be changed afterwards.</li>
+  <li><strong>Name:</strong> 1 to 100 characters. This is what others see in shared projects.</li>
+  <li><strong>Password:</strong> at least 10 characters, and not the same as the username. There are no further requirements; a long phrase works well.</li>
+</ul>
+
+<h2>Protection against guessing</h2>
+<p>After eight failed sign-in attempts within fifteen minutes for the same username, or forty from the same address, the server refuses further attempts until those fifteen minutes have passed. The counters are kept in memory: restarting the server clears them.</p>
+<p>If there is a reverse proxy in front of Tickory, set <code>TRUST_PROXY=1</code>. Otherwise all visitors seem to come from the same address (that of the proxy) and one person with many wrong attempts can block signing in for everyone. See <a href="https.html#trust-proxy">HTTPS</a>.</p>

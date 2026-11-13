@@ -1,0 +1,57 @@
+<!--
+title: HTTPS
+description: Making Tickory reachable over HTTPS: with Tailscale, with a reverse proxy such as Caddy and the TRUST_PROXY setting, or with a Cloudflare Tunnel.
+-->
+<h1>HTTPS</h1>
+<p class="intro">For phones you need HTTPS. There are three common ways; choose what fits your network.</p>
+
+<h2>Why</h2>
+<ul>
+  <li>Browsers only allow <strong>offline use</strong> and <strong>installing as an app</strong> on a secure address. The only exception is <code>localhost</code>, and on a phone that is the phone itself.</li>
+  <li>Without HTTPS your password and your session travel over the network unencrypted.</li>
+</ul>
+<p>So without HTTPS Tickory does work in your phone's browser, as long as there is a connection, but not offline and not as an installed app.</p>
+
+<h2>Tailscale</h2>
+<p>The simplest, and nothing ends up on the open internet. Your devices together form a private, shielded network.</p>
+<ol>
+  <li>Install Tailscale on the server and on your phone, and sign both in to the same tailnet.</li>
+  <li>Enable HTTPS for your tailnet (in the Tailscale admin console).</li>
+  <li>On the server, run:
+    <pre><code>tailscale serve --bg 8787</code></pre>
+  </li>
+</ol>
+<p>You get an address ending in <code>.ts.net</code>, with a valid certificate, that only your own devices can reach. The port in <code>docker-compose.yml</code> can stay at <code>127.0.0.1:8787</code>.</p>
+
+<h2>Reverse proxy with your own domain</h2>
+<p>If you have a domain name and already run a reverse proxy (Caddy, Traefik, Nginx Proxy Manager), point it at <code>127.0.0.1:8787</code> and let it take care of the certificate. With Caddy this is the entire configuration:</p>
+<pre><code>tasks.example.org {
+    reverse_proxy 127.0.0.1:8787
+}</code></pre>
+<p>If the proxy itself runs in a container, <code>127.0.0.1</code> is that container for the proxy and not your server. In that case put both in the same Docker network, for example, and point the proxy at <code>tickory:8787</code>.</p>
+
+<h3 id="trust-proxy">TRUST_PROXY</h3>
+<p>Behind your own reverse proxy, put this in <code>.env</code>:</p>
+<pre><code>TRUST_PROXY=1</code></pre>
+<p>and restart with <code>docker compose up -d</code>. The server then counts the visitor's address (from the <code>X-Forwarded-For</code> header the proxy adds) when limiting sign-in attempts, instead of the address of the proxy.</p>
+<div class="note warn">
+  <span class="note-label">Careful</span>
+  <p><strong>Only</strong> switch <code>TRUST_PROXY</code> on when there really is a proxy in front and Tickory cannot be reached directly. Otherwise a visitor can supply an address themselves and get around the limit on sign-in attempts that way.</p>
+</div>
+
+<h2>Cloudflare Tunnel</h2>
+<p>Useful when you do not want to open ports on your router. The tunnel connects to Cloudflare from the inside, and Cloudflare provides HTTPS on your domain. Point the tunnel at <code>http://127.0.0.1:8787</code>. Your traffic does pass through Cloudflare then.</p>
+
+<h2>Checking</h2>
+<ol>
+  <li>Open the <code>https://</code> address on your phone and sign in.</li>
+  <li>Put the phone in flight mode and open the address again: the app should start and show your tasks, with <strong>Offline</strong> in the top right.</li>
+  <li>See whether your browser offers to install the app; see <a href="install-as-app.html">Install as an app</a>.</li>
+</ol>
+
+<h2>Good to know</h2>
+<ul>
+  <li>The app keeps a connection open over which the server signals that something changed. A proxy that buffers responses delays that; the server therefore asks proxies not to. If syncing between devices only happens after half a minute or more, look at your proxy's settings for long-lived connections.</li>
+  <li>The password and the session are never part of an address, so they do not end up in your proxy's log either.</li>
+  <li>A certificate is handled by the proxy, Tailscale or the tunnel. Tickory itself only speaks plain HTTP on port 8787.</li>
+</ul>
