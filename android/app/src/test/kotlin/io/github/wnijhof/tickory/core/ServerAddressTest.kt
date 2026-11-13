@@ -190,4 +190,18 @@ class ServerAddressTest {
         assertNull(ServerAddress.httpsUpgradeOf("http://a.nl", null))
         assertNull(ServerAddress.httpsUpgradeOf("http://a.nl", ""))
     }
+
+    @Test
+    fun `http is alleen toegestaan op het eigen netwerk of op het toestel zelf, https altijd`() {
+        assertTrue(ServerAddress.cleartextAllowed(ok("https://taken.voorbeeld.nl"), local = false))
+        assertTrue(ServerAddress.cleartextAllowed(ok("http://192.168.1.10:8787"), local = true))
+        assertTrue(ServerAddress.cleartextAllowed(ok("http://nas.local"), local = true))
+        assertFalse("een naam op internet", ServerAddress.cleartextAllowed(ok("http://taken.voorbeeld.nl"), local = false))
+        assertFalse("een openbaar IP-adres", ServerAddress.cleartextAllowed(ok("http://203.0.113.9:8787"), local = false))
+        assertTrue("het toestel zelf (de tests)", ServerAddress.cleartextAllowed(ok("http://127.0.0.1:8795"), local = false))
+        assertTrue(ServerAddress.cleartextAllowed(ok("http://localhost:8787"), local = false))
+        assertTrue(ServerAddress.cleartextAllowed(ok("http://[::1]:8787"), local = false))
+        assertFalse("een naam die er alleen op lijkt", ServerAddress.cleartextAllowed(ok("http://127.0.0.1.voorbeeld.nl"), local = false))
+        assertFalse(ServerAddress.cleartextAllowed(ok("http://localhost.voorbeeld.nl"), local = false))
+    }
 }

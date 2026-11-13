@@ -6,14 +6,18 @@ name: Android-app
 # Handmatig starten (Actions > Android-app > Run workflow) bouwt alleen de APK en bewaart hem bij de run.
 #
 # Ondertekening:
-#   Met de vier secrets hieronder wordt de APK getekend met je eigen sleutel. Alleen zulke APK's kunnen elkaar op een
-#   telefoon opvolgen (updaten zonder gegevens te verliezen).
+#   De APK van een release wordt altijd getekend met je eigen sleutel. Zijn de vier secrets hieronder niet (allemaal) ingesteld,
+#   dan mislukt de bouw bij een tag, zodat er nooit een debug-APK (debugbaar, met een wegwerpsleutel) in een openbare Release komt.
+#   Alleen getekende APK's kunnen elkaar op een telefoon opvolgen (updaten zonder gegevens te verliezen).
 #     ANDROID_KEYSTORE_BASE64     het sleutelbestand, als base64 (base64 -w0 tickory.jks)
 #     ANDROID_KEYSTORE_PASSWORD   wachtwoord van het sleutelbestand
 #     ANDROID_KEY_ALIAS           naam van de sleutel in het bestand
 #     ANDROID_KEY_PASSWORD        wachtwoord van de sleutel
-#   Ontbreken ze, dan komt er een debug-APK: prima om te proberen, maar elke run tekent die met een andere wegwerpsleutel,
-#   dus zo'n APK kan een eerder geïnstalleerde versie niet bijwerken (eerst verwijderen, dan installeren).
+#   Bij handmatig starten zonder die secrets komt er een debug-APK bij de run (alleen om te proberen; nooit in een Release).
+#
+# Rechten: de bouw leest alleen (contents: read) en draait dus zonder schrijfrechten tot de repo, ook al haalt hij pakketten van
+# derden op. Alleen de aparte job "release" mag schrijven (contents: write), en die draait geen code uit de repo.
+# Acties staan vast op een commit (met de versie als commentaar); Dependabot werkt ze bij (.github/dependabot.yml).
 
 on:
   push:
@@ -21,7 +25,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # alleen nodig om de APK aan de GitHub Release te hangen
+  contents: read
 
 concurrency:
   group: android-${{ github.ref }}
@@ -30,13 +34,18 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      signed: ${{ steps.signing.outputs.signed }}
     defaults:
       run:
         working-directory: android
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false # het token blijft niet in de werkmap staan, waar bouwscripts en afhankelijkheden het zouden lezen
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: '21'
@@ -77,7 +86,7 @@ jobs:
           "$sdkmanager" "platforms;android-37.0" "build-tools;36.0.0"
 
       # De tests bootsen Android na met Robolectric; dat haalt eenmalig een groot bestand op (ongeveer 150 MB).
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.m2/repository/org/robolectric
           key: robolectric-${{ hashFiles('android/gradle/libs.versions.toml', 'android/app/src/test/resources/robolectric.properties') }}
@@ -90,7 +99,7 @@ jobs:
 
       - name: Testrapport bewaren als er iets misging
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: android-rapporten
           path: |
@@ -98,7 +107,8 @@ jobs:
             android/app/build/test-results/
           if-no-files-found: ignore
 
-      # Secrets zijn niet rechtstreeks in een "if" te gebruiken; deze stap kijkt of ze er alle vier zijn.
+      # Secrets zijn niet rechtstreeks in een "if" te gebruiken; deze stap kijkt of ze er alle vier zijn. Bij een tag
+      # (een release) zijn ze verplicht: zonder sleutel geen openbare APK.
       - name: Sleutel klaarzetten
         id: signing
         env:
@@ -106,10 +116,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
             printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tickory-release.jks"
             echo "signed=true" >> "$GITHUB_OUTPUT"
+          elif [ "$IS_TAG" = "true" ]; then
+            echo "::error::De ondertekeningssleutel ontbreekt (of is niet volledig): stel de vier ANDROID_-secrets in. Een release krijgt nooit een debug-APK."
+            exit 1
           else
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
@@ -128,15 +142,15 @@ jobs:
           rm -f "$RUNNER_TEMP/tickory-release.jks"
           echo "Getekend met de eigen sleutel: deze APK kan eerdere getekende versies bijwerken." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: APK bouwen, debug (geen sleutel ingesteld)
+      - name: APK bouwen, debug (geen sleutel ingesteld; alleen bij handmatig starten)
         if: steps.signing.outputs.signed != 'true'
         env:
           APK: ${{ steps.version.outputs.apk }}
         run: |
           ./gradlew assembleDebug
           cp app/build/outputs/apk/debug/tickory-debug.apk "$APK"
-          echo "::warning::Geen sleutel ingesteld: dit is een debug-APK met een wegwerpsleutel. Die kan een eerder geïnstalleerde versie niet bijwerken."
-          echo "Debug-APK (wegwerpsleutel): om te proberen. Stel de vier ANDROID_-secrets in voor een APK die kan bijwerken." >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Geen sleutel ingesteld: dit is een debug-APK met een wegwerpsleutel. Die kan een eerder geïnstalleerde versie niet bijwerken en komt nooit in een Release."
+          echo "Debug-APK (wegwerpsleutel): alleen om te proberen, niet verspreiden. Stel de vier ANDROID_-secrets in voor een APK die kan bijwerken." >> "$GITHUB_STEP_SUMMARY"
 
       # Staat in de APK wat we verwachten? (naam van het pakket en versie)
       - name: APK nakijken
@@ -148,22 +162,36 @@ jobs:
           echo "$badging" | grep -E "^package:|^minSdkVersion|^targetSdkVersion|^uses-permission" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "$badging" | grep -q "^package: name='io.github.wnijhof.tickory' .*versionName='$VERSION'"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tickory-${{ steps.version.outputs.version }}-apk
           path: ${{ steps.version.outputs.apk }}
           if-no-files-found: error
 
+  # Alleen deze job mag schrijven. Hij haalt de gebouwde APK op en hangt hem aan de Release; er draait geen code uit de repo.
+  release:
+    name: APK aan de GitHub Release hangen
+    needs: apk
+    if: startsWith(github.ref, 'refs/tags/v') && needs.apk.outputs.signed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tickory-${{ needs.apk.outputs.version }}-apk
+          path: apk
+
       - name: APK aan de GitHub Release hangen
-        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          APK: ${{ steps.version.outputs.apk }}
+          VERSION: ${{ needs.apk.outputs.version }}
         run: |
+          apk="apk/tickory-$VERSION.apk"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" "$APK" --clobber
+            gh release upload "$TAG" "$apk" --clobber
           else
-            gh release create "$TAG" "$APK" --title "$TAG" --generate-notes --verify-tag
+            gh release create "$TAG" "$apk" --title "$TAG" --generate-notes --verify-tag
           fi
