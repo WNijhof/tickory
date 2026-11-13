@@ -62,7 +62,7 @@ class WidgetListService : RemoteViewsService() {
             val title = row.title.ifBlank { context.getString(R.string.task_untitled) }
             views.setTextViewText(R.id.item_title, title)
             views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, if (size == WidgetSize.LARGE) 16f else 14f)
-            views.setImageViewResource(R.id.check, CHECK_ICONS[(row.priority.coerceIn(1, 4)) - 1])
+            views.setImageViewResource(R.id.check, checkIcon(row.priority))
 
             // De tweede regel (datum en project) alleen als er plek is: in een klein formaat telt elke regel.
             val showSecondLine = size != WidgetSize.SMALL && (row.due != null || row.meta != null)
@@ -79,10 +79,15 @@ class WidgetListService : RemoteViewsService() {
             // Voor TalkBack: wat een tik doet, met de naam van de taak erbij.
             views.setContentDescription(R.id.check, context.getString(R.string.widget_complete_task, title))
             views.setContentDescription(R.id.text_area, context.getString(R.string.widget_open_task, title))
-            views.setOnClickFillInIntent(R.id.check, WidgetIntents.fillIn(WidgetIntents.KIND_COMPLETE, row.id))
-            views.setOnClickFillInIntent(R.id.text_area, WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id))
+            val (complete, open) = clickIntents(row)
+            views.setOnClickFillInIntent(R.id.check, complete)
+            views.setOnClickFillInIntent(R.id.text_area, open)
             return views
         }
+
+        /** Wat de twee tikvlakken van een regel aan het sjabloon toevoegen: eerst de cirkel (afvinken), dan de tekst (openen). */
+        internal fun clickIntents(row: WidgetRow.Item): Pair<Intent, Intent> =
+            WidgetIntents.fillIn(WidgetIntents.KIND_COMPLETE, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)
 
         override fun getLoadingView(): RemoteViews? = null
 
@@ -92,8 +97,11 @@ class WidgetListService : RemoteViewsService() {
 
         override fun hasStableIds(): Boolean = true
 
-        private companion object {
-            val CHECK_ICONS = intArrayOf(R.drawable.widget_check_p1, R.drawable.widget_check_p2, R.drawable.widget_check_p3, R.drawable.widget_check_p4)
+        companion object {
+            private val CHECK_ICONS = intArrayOf(R.drawable.widget_check_p1, R.drawable.widget_check_p2, R.drawable.widget_check_p3, R.drawable.widget_check_p4)
+
+            /** De cirkel in de kleur van de prioriteit (1 = hoogst … 4 = geen); iets anders wordt 4. */
+            internal fun checkIcon(priority: Int): Int = CHECK_ICONS[(if (priority in 1..4) priority else 4) - 1]
         }
     }
 }
