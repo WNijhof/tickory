@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v2';
+const CACHE = 'tickory-v3';
 const SHELL = [
   '/',
   '/app.css',
@@ -15,7 +15,12 @@ const SHELL = [
   '/icon-512.png',
   '/ui/app.js',
   '/ui/accountDialogs.js',
+  '/ui/comments.js',
   '/ui/dom.js',
+  '/ui/icons.js',
+  '/ui/miscDialogs.js',
+  '/ui/projectDialog.js',
+  '/ui/quickAdd.js',
   '/ui/reminderUi.js',
   '/ui/render.js',
   '/ui/shareDialog.js',
@@ -24,6 +29,8 @@ const SHELL = [
   '/core/android.js',
   '/core/auth.js',
   '/core/backend.js',
+  '/core/colors.js',
+  '/core/commentText.js',
   '/core/dateHint.js',
   '/core/dateNl.js',
   '/core/events.js',
@@ -32,12 +39,16 @@ const SHELL = [
   '/core/idb.js',
   '/core/messages.js',
   '/core/push.js',
+  '/core/quickDates.js',
   '/core/reminderText.js',
   '/core/quickadd.js',
   '/core/reducer.js',
+  '/core/rowModel.js',
   '/core/selectors.js',
+  '/core/shortcuts.js',
   '/core/store.js',
   '/core/syncClient.js',
+  '/core/timeAgo.js',
   '/i18n/en.js',
   '/i18n/nl.js',
   '/vendor/nlDatum.generated.js',

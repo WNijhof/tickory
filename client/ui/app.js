@@ -8,16 +8,19 @@ import { androidBridge, taskIdFromHash, watchReminders } from '../core/android.j
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
-import { roleIn } from '../core/selectors.js';
+import { isArchivedProject, roleIn } from '../core/selectors.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
-import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
-import { offsetText } from '../core/reminderText.js';
-import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
+import { formatDue, nowString, todayString } from '../core/format.js';
+import { reschedule } from '../core/quickDates.js';
+import { createShortcuts } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
-import { mainView, sidebar } from './render.js';
+import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { openTaskDialog } from './taskDialog.js';
+import { openProjectDialog } from './projectDialog.js';
+import { openQuickAddDialog, previewChips } from './quickAdd.js';
+import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
@@ -87,15 +90,22 @@ function render() {
   if (ui.route.type === 'project' && store.ready && store.view.projects.size > 0 && !store.view.projects.has(ui.route.id)) {
     ui.route = { type: 'today' }; // het project is verwijderd (bijvoorbeeld op een ander apparaat)
   }
+  // Het scherm wordt helemaal opnieuw opgebouwd; waar de toetsenbordfocus stond, zetten we hem daarna terug (via data-fk).
+  const focused = document.activeElement?.dataset?.fk ?? null;
   replace($('sidebar'), sidebar({ view: store.view, today, route: ui.route, handlers, me: store.me }));
+  for (const hook of sidebarHooks) hook({ search: $('sidebar-search'), extra: $('sidebar-extra') });
   const main = mainView({
     view: store.view, route: ui.route, today, now: nowString(),
     showCompleted: ui.route.type === 'project' && ui.showCompleted.has(ui.route.id), handlers,
     me: store.me, userName: (id) => store.userName(id),
   });
   $('view-title').textContent = main.title;
+  $('view-count').textContent = main.count === null ? '' : t('view.count', { count: main.count });
+  replace($('view-lead'), main.lead);
+  replace($('view-actions'), main.actions);
   document.title = `${main.title} · Tickory`;
   replace($('content'), main.nodes);
+  if (focused && document.activeElement === document.body) document.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
   renderStatus();
   renderPreview();
 }
@@ -127,29 +137,9 @@ function quickContext() {
 }
 
 function renderPreview() {
-  const text = $('quick-input').value;
   const host = $('quick-preview');
-  if (!text.trim() || !quickContext().defaultProjectId) return replace(host);
-  const ctx = quickContext();
-  const p = parseQuickAdd(text, { view: store.view, now: new Date(), ...ctx });
-  const today = todayString();
-  const chip = (kind, label) => h('span', { class: `chip chip-${kind}` }, label);
-  const view = store.view;
-  // Typt iemand een Engelse datum ("tomorrow") die niet is herkend, dan zeggen we erbij dat datums in gewone taal nu alleen
-  // in het Nederlands werken. In het Nederlands is die uitleg leeg en verandert er niets.
-  const dateNote = (!p.due || p.due === ctx.defaultDue) && mentionsEnglishDate(p.content) ? dateLanguageNote() : '';
-  return replace(host,
-    chip('title', p.content || t('quick.noName')),
-    p.due && p.due !== ctx.defaultDue && chip('due', formatDue(p.due, today)),
-    p.deadline && chip('deadline', t('task.deadlineChip', { date: formatDate(p.deadline, today) })),
-    p.project_id !== ctx.defaultProjectId && chip('project', `#${view.projects.get(p.project_id)?.name ?? ''}`),
-    p.section_id && chip('project', `/${view.sections.get(p.section_id)?.name ?? ''}`),
-    p.labels.map((id) => chip('label', `@${view.labels.get(id)?.name ?? ''}`)),
-    p.newLabels.map((name) => chip('label', t('quick.newLabel', { name }))),
-    p.priority < 4 && chip(`prio prio-${p.priority}`, `P${p.priority}`),
-    p.reminders.map((r) => chip('bell', `🔔 ${r.type === 'absolute' ? formatDue({ date: r.due.date }, today) : offsetText(r.minute_offset)}`)),
-    dateNote && h('p', { class: 'hint preview-note' }, dateNote),
-  );
+  const context = quickContext();
+  return replace(host, context.defaultProjectId ? previewChips($('quick-input').value, { view: store.view, context }) : []);
 }
 
 async function submitQuickAdd(e) {
@@ -192,15 +182,61 @@ const handlers = {
   },
 
   open(task) {
-    return openTaskDialog({ task, store, actions, today: todayString });
+    return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle });
   },
 
-  async addProject() {
-    const name = await promptDialog({ title: t('project.new'), label: t('common.name') });
-    if (!name) return;
-    const id = await actions.addProject({ name });
+  /** Het venster "Taak toevoegen"; `target` zegt waar de taak standaard komt (project, sectie, of vandaag), anders het huidige scherm. */
+  quickAdd(target = null) {
+    const context = target ?? (ui.route.type === 'project' ? { projectId: ui.route.id } : ui.route.type === 'today' ? { due: 'today' } : {});
+    return openQuickAddDialog({ store, actions, context });
+  },
+
+  async removeTask(task) {
+    const ok = await confirmDialog({ title: t('task.deleteTitle'), text: t('task.deleteText', { name: task.content }) });
+    if (ok) await actions.deleteTask(task.id);
+  },
+
+  /** Een andere dag kiezen voor een taak, zonder het taakvenster. */
+  async reschedule(task) {
+    const picked = await pickDay({ today: todayString(), hasDue: Boolean(task.due) });
+    if (picked) await actions.updateTask(task.id, { due: reschedule(task.due, picked.date) });
+  },
+
+  toggleProject: (project) => actions.updateProject(project.id, { is_collapsed: !project.is_collapsed }),
+  toggleSection: (section) => actions.updateSection(section.id, { is_collapsed: !section.is_collapsed }),
+  toggleTask: (task) => actions.updateTask(task.id, { is_collapsed: !task.is_collapsed }),
+
+  async addProject(parentId = null) {
+    const made = await openProjectDialog({ view: store.view, parentId });
+    if (!made) return;
+    const id = await actions.addProject(made);
     navigate({ type: 'project', id });
   },
+
+  async editProject(project) {
+    const edited = await openProjectDialog({ view: store.view, project });
+    if (!edited) return;
+    const changes = {};
+    if (edited.name !== project.name) changes.name = edited.name;
+    if (edited.color !== project.color) changes.color = edited.color;
+    if (edited.is_favorite !== Boolean(project.is_favorite)) changes.is_favorite = edited.is_favorite;
+    if (Object.keys(changes).length > 0) await actions.updateProject(project.id, changes);
+  },
+
+  projectComments: (project) => projectCommentsDialog({ store, actions, project }),
+
+  showArchive: () => archiveDialog({
+    store,
+    onOpen: (project) => navigate({ type: 'project', id: project.id }),
+    onRestore: (project) => handlers.restoreProject(project),
+  }),
+
+  async restoreProject(project) {
+    await actions.unarchiveProject(project.id);
+    toast(t('project.restored', { name: project.name }));
+  },
+
+  shortcuts: () => shortcutsDialog(),
 
   async addSection(project) {
     const name = await promptDialog({ title: t('section.newIn', { name: project.name }), label: t('common.name') });
@@ -212,16 +248,26 @@ const handlers = {
     const choice = await menuDialog({
       title: project.name,
       items: [
-        { value: 'rename', label: t('common.rename') },
+        { value: 'edit', label: t('project.editMenu') },
+        { value: 'sub', label: t('project.addSub') },
+        { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
         { value: 'share', label: mine === 'member' ? t('project.members') : t('project.shareMenu') },
+        mine === 'owner' && !isArchivedProject(store.view, project.id) && { value: 'archive', label: t('project.archive') }, // een gearchiveerd project zet je terug (de balk bovenaan)
         mine === 'member'
           ? { value: 'leave', label: t('project.leave'), danger: true }
           : { value: 'delete', label: t('project.delete'), danger: true },
-      ],
+      ].filter(Boolean),
     });
-    if (choice === 'rename') {
-      const name = await promptDialog({ title: t('common.rename'), label: t('common.name'), value: project.name });
-      if (name && name !== project.name) await actions.updateProject(project.id, { name });
+    if (choice === 'edit') {
+      await handlers.editProject(project);
+    } else if (choice === 'sub') {
+      await handlers.addProject(project.id);
+    } else if (choice === 'favorite') {
+      await actions.updateProject(project.id, { is_favorite: !project.is_favorite });
+    } else if (choice === 'archive') {
+      await actions.archiveProject(project.id);
+      navigate({ type: 'project', id: inboxId() });
+      toast(t('project.archived', { name: project.name }), { action: { label: t('task.undo'), run: () => actions.unarchiveProject(project.id) } });
     } else if (choice === 'share') {
       await handlers.shareProject(project);
     } else if (choice === 'leave') {
@@ -475,11 +521,27 @@ async function boot() {
   });
   setInterval(invalidate, 60_000); // "te laat" en de datum van vandaag schuiven mee met de klok
 
+  bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
   $('menu-button').addEventListener('click', () => document.body.classList.toggle('nav-open'));
   $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));
   $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' || !getToken() ? askLogin() : sync.requestSync(0)));
+
+  // Sneltoetsen (zie core/shortcuts.js): alleen buiten invoervelden en zonder open venster. `/` en Ctrl+K blijven vrij voor zoeken.
+  const shortcuts = createShortcuts({
+    addTask: () => handlers.quickAdd(),
+    goToday: () => navigate({ type: 'today' }),
+    goUpcoming: () => navigate({ type: 'upcoming' }),
+    goInbox: () => inboxId() && navigate({ type: 'project', id: inboxId() }),
+    showHelp: () => handlers.shortcuts(),
+    blocked: () => Boolean(document.querySelector('dialog[open]')) || !store.ready,
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.defaultPrevented) return;
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) document.body.classList.remove('nav-open');
+    else if (shortcuts.handle(e)) e.preventDefault();
+  });
 
   render();
   document.body.classList.add('ready');

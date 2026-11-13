@@ -11,12 +11,25 @@ const dueDay = (t) => t.due.date.slice(0, 10);
 /** Volgorde in datumoverzichten: eerst op tijdstip, dan op prioriteit (1 = hoogst), dan op eigen volgorde. */
 const byDue = (a, b) => (a.due.date < b.due.date ? -1 : a.due.date > b.due.date ? 1 : a.priority - b.priority || byOrder(a, b));
 
-/** Projecten als platte lijst met inspringniveau: de Inbox eerst, daarna op volgorde; gearchiveerde projecten niet. */
-export function projectList(view) {
+/**
+ * Is dit project gearchiveerd, of staat het onder een gearchiveerd project? Zo'n project verdwijnt uit de zijbalk
+ * (bij archiveren gaat de hele tak mee; dit vangt ook een subproject af dat op een ander apparaat is gemaakt).
+ */
+export function isArchivedProject(view, projectId) {
+  let p = view.projects.get(projectId);
+  for (let i = 0; p && i < 1000; i++) {
+    if (p.is_archived) return true;
+    p = p.parent_id ? view.projects.get(p.parent_id) : undefined;
+  }
+  return false;
+}
+
+/** Projecten als boom, platgeslagen met inspringniveau: de Inbox eerst, daarna op volgorde. `include` kiest welke projecten meedoen. */
+function projectTreeList(view, include) {
   const children = new Map();
   for (const p of view.projects.values()) {
-    if (p.is_archived) continue;
-    const key = p.parent_id && view.projects.has(p.parent_id) ? p.parent_id : null;
+    if (!include(p)) continue;
+    const key = p.parent_id && view.projects.has(p.parent_id) && include(view.projects.get(p.parent_id)) ? p.parent_id : null;
     if (!children.has(key)) children.set(key, []);
     children.get(key).push(p);
   }
@@ -31,6 +44,61 @@ export function projectList(view) {
   walk(null, 0);
   return out;
 }
+
+/** Projecten als platte lijst met inspringniveau: de Inbox eerst, daarna op volgorde; gearchiveerde projecten (met hun subprojecten) niet. */
+export function projectList(view) {
+  const memo = new Map();
+  const hidden = (p) => {
+    if (!memo.has(p.id)) memo.set(p.id, isArchivedProject(view, p.id));
+    return memo.get(p.id);
+  };
+  return projectTreeList(view, (p) => !hidden(p));
+}
+
+/** De gearchiveerde projecten (en wat eronder hangt) als lijst met inspringniveau, om terug te zetten. */
+export function archivedList(view) {
+  return projectTreeList(view, (p) => isArchivedProject(view, p.id)).filter(({ project }) => !isInboxId(project.id));
+}
+
+/** Alle subprojecten (alle niveaus) van een project, zonder het project zelf. */
+export function projectDescendantIds(view, projectId) {
+  const out = [];
+  const todo = [projectId];
+  while (todo.length > 0) {
+    const id = todo.pop();
+    for (const p of view.projects.values()) {
+      if (p.parent_id === id && p.id !== projectId && !out.includes(p.id)) {
+        out.push(p.id);
+        todo.push(p.id);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * De projecten voor de zijbalk onder "Projecten": zonder de Inbox (die staat bovenaan), met per project of er subprojecten
+ * zijn en of die ingeklapt zijn (`is_collapsed`); de subprojecten van een ingeklapt project staan er niet in.
+ * @returns {{ project: object, depth: number, hasChildren: boolean, collapsed: boolean }[]}
+ */
+export function navProjects(view) {
+  const all = projectList(view).filter(({ project }) => !isInboxId(project.id));
+  const out = [];
+  let hideBelow = null; // zolang gezet: rijen dieper dan dit niveau zijn verborgen
+  for (let i = 0; i < all.length; i++) {
+    const { project, depth } = all[i];
+    if (hideBelow !== null && depth > hideBelow) continue;
+    hideBelow = null;
+    const hasChildren = (all[i + 1]?.depth ?? 0) > depth;
+    const collapsed = hasChildren && Boolean(project.is_collapsed);
+    out.push({ project, depth, hasChildren, collapsed });
+    if (collapsed) hideBelow = depth;
+  }
+  return out;
+}
+
+/** Favoriete projecten (niet gearchiveerd) in de volgorde van de projectenboom. */
+export const favoriteProjects = (view) => projectList(view).map((x) => x.project).filter((p) => p.is_favorite && !isInboxId(p.id));
 
 /** Taken als boom, platgeslagen met inspringniveau. Een taak zonder zichtbare ouder in de lijst staat op het hoogste niveau. */
 function tree(tasks) {
@@ -103,6 +171,65 @@ export function counts(view, today) {
   return { today: dueToday, perProject };
 }
 
+// ---- opmerkingen en subtaken ----
+
+/** Oudste eerst; bij gelijke tijd op id, zodat de volgorde overal gelijk is. */
+const byCreated = (a, b) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/** De opmerkingen bij een taak (`{ taskId }`) of een project (`{ projectId }`), oudste eerst. */
+export function commentsOf(view, { taskId = null, projectId = null }) {
+  if (!taskId && !projectId) return [];
+  return [...view.comments.values()].filter((c) => (taskId ? c.task_id === taskId : c.project_id === projectId)).sort(byCreated);
+}
+
+/** Het aantal opmerkingen per taak, voor de tellers in de lijst. Taken zonder opmerkingen staan er niet in. */
+export function commentCounts(view) {
+  const out = new Map();
+  for (const c of view.comments.values()) if (c.task_id) out.set(c.task_id, (out.get(c.task_id) ?? 0) + 1);
+  return out;
+}
+
+/** Het aantal opmerkingen bij een project. */
+export const projectCommentCount = (view, projectId) => commentsOf(view, { projectId }).length;
+
+/** Per taak met subtaken: hoeveel directe subtaken er zijn en hoeveel daarvan af zijn (voor "1/3"). */
+export function subtaskCounts(view) {
+  const out = new Map();
+  for (const t of view.tasks.values()) {
+    if (!t.parent_id) continue;
+    const c = out.get(t.parent_id) ?? { done: 0, total: 0 };
+    c.total += 1;
+    if (t.checked) c.done += 1;
+    out.set(t.parent_id, c);
+  }
+  return out;
+}
+
+/** De directe subtaken van een taak, op volgorde (ook de afgeronde). */
+export const subtasksOf = (view, taskId) => [...view.tasks.values()].filter((t) => t.parent_id === taskId).sort(byOrder);
+
+/**
+ * Past het in- en uitklappen van taken toe op een lijst `{ task, depth }` (zoals projectView die geeft): de subtaken van een
+ * ingeklapte taak (`is_collapsed`) verdwijnen. Elke rij weet of ze subtaken heeft en of ze ingeklapt is.
+ * @template {{ task: object, depth: number }} T
+ * @param {T[]} rows
+ * @returns {(T & { hasChildren: boolean, collapsed: boolean })[]}
+ */
+export function foldRows(rows) {
+  const out = [];
+  let hideBelow = null;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (hideBelow !== null && row.depth > hideBelow) continue;
+    hideBelow = null;
+    const hasChildren = (rows[i + 1]?.depth ?? 0) > row.depth;
+    const collapsed = hasChildren && Boolean(row.task.is_collapsed);
+    out.push({ ...row, hasChildren, collapsed });
+    if (collapsed) hideBelow = row.depth;
+  }
+  return out;
+}
+
 // ---- delen ----
 
 /** De leden van een project (rijen uit `members`), eigenaren eerst. */
@@ -141,6 +268,16 @@ export function remindersOf(view, taskId, userId) {
 
 /** Heeft deze taak een herinnering van jou die nog gaat afgaan of kan afgaan? (voor het belletje in de lijst) */
 export const hasReminder = (view, taskId, userId) => remindersOf(view, taskId, userId).some((x) => x.moment !== null);
+
+/** De taken waar je een herinnering voor hebt die nog kan afgaan, in één keer voor de hele lijst (zelfde uitkomst als hasReminder, veel sneller). */
+export function tasksWithReminder(view, userId) {
+  const out = new Set();
+  for (const r of view.reminders.values()) {
+    if ((r.owner_id && userId && r.owner_id !== userId) || out.has(r.task_id)) continue;
+    if (reminderMoment(r, view.tasks.get(r.task_id)) !== null) out.add(r.task_id);
+  }
+  return out;
+}
 
 // ---- filters en labels beheren ----
 

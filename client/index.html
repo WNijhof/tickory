@@ -19,9 +19,16 @@
     <main class="main">
       <header class="topbar">
         <button id="menu-button" class="icon-button menu-button" type="button" aria-label="Menu">☰</button>
-        <h1 id="view-title">Tickory</h1>
+        <!-- Plek voor het zoekveld (komt later): hier haakt een ander onderdeel aan; zie het commentaar bovenaan ui/render.js -->
+        <div id="topbar-tools" class="topbar-tools"></div>
         <button id="sync-status" class="sync-status" type="button" title="Klik om nu bij te werken" aria-live="polite"></button>
       </header>
+      <div class="view-head">
+        <span id="view-lead" class="view-lead"></span>
+        <h1 id="view-title">Tickory</h1>
+        <span id="view-count" class="view-count"></span>
+        <div id="view-actions" class="view-actions"></div>
+      </div>
       <form id="quick-add" class="quick-add" autocomplete="off">
         <input id="quick-input" class="field quick-input" type="text" maxlength="4000" enterkeyhint="done"
           placeholder="Nieuwe taak, bv. Bellen morgen p1" aria-label="Taak toevoegen">
