@@ -53,6 +53,7 @@ const SHELL = [
   '/i18n/nl.js',
   '/vendor/nlDatum.generated.js',
   '/shared/orderKey.js',
+  '/shared/password.js',
   '/shared/recurrence.js',
   '/shared/reminders.js',
   '/shared/schema.js',

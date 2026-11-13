@@ -16,6 +16,7 @@ import { bumpRev, fail, getRow, insertRow, newId } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { keyAfter } from '../shared/orderKey.js';
 import { nameKey } from '../shared/text.js';
+import { WEAK_REASONS_NL, weakPasswordReason } from '../shared/password.js';
 import { LIMITS } from './limits.ts';
 
 // ---------- wachtwoorden ----------
@@ -108,6 +109,8 @@ export function validatePassword(raw: unknown, username?: string): string {
   if ([...raw].length < MIN_PASSWORD_LENGTH) fail('INVALID_ARG', `wachtwoord: minimaal ${MIN_PASSWORD_LENGTH} tekens`);
   if (raw.length > 200) fail('INVALID_ARG', 'wachtwoord: maximaal 200 tekens');
   if (username && nameKey(raw) === nameKey(username)) fail('INVALID_ARG', 'het wachtwoord mag niet gelijk zijn aan de gebruikersnaam');
+  const weak = weakPasswordReason(raw, username);
+  if (weak) fail('INVALID_ARG', `wachtwoord: te makkelijk te raden (${WEAK_REASONS_NL[weak]}); kies een langere zin of meer verschillende tekens`);
   return raw;
 }
 

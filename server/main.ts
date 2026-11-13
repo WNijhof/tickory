@@ -22,7 +22,7 @@ import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +75,8 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** Voor tests: eigen beperking van inlogpogingen. */
   limiter?: LoginLimiter;
+  /** Voor tests: eigen beperking van pogingen het huidige wachtwoord te raden bij een wachtwoordwijziging. */
+  passwordLimiter?: LoginLimiter;
   /** Meldingen in de browser (Web Push). Zonder: de eindpunten onder /api/v1/push/ bestaan niet. */
   push?: Push | null;
   /** Hoe vaak de server kijkt welke herinneringen aan de beurt zijn; 0 = niet vanzelf (tests roepen `push.tick()` zelf aan). */
@@ -100,7 +102,7 @@ export function resolveStatic(pathname: string, clientDir: string, sharedDir: st
   // geen lege stukken, geen "..", geen verborgen bestanden, geen vreemde tekens (dubbele punt, spaties) en geen Windows-apparaatnamen
   if (segments.length === 0 || !segments.every((s) => SAFE_SEGMENT.test(s) && !s.includes('..') && !WINDOWS_DEVICE.test(s.split('.')[0]))) return null;
   const name = segments[segments.length - 1];
-  if (name.endsWith('.test.js')) return null;
+  if (/\.test\.[a-z]+$/i.test(name)) return null; // ook met andere hoofdletters: op Windows en macOS is "AUTH.TEST.JS" hetzelfde bestand
   const type = MIME[extname(name).toLowerCase()];
   if (!type) return null;
   const shared = segments[0] === 'shared';
@@ -153,6 +155,8 @@ export function createApp(opts: AppOptions): App {
   const db = opts.db;
   const streams = new Set<Stream>();
   const limiter = opts.limiter ?? new LoginLimiter();
+  // eigen tellers voor het raden van het huidige wachtwoord bij een wachtwoordwijziging (met een geldig token), strenger dan inloggen
+  const passwordLimiter = opts.passwordLimiter ?? new LoginLimiter({ pair: 5, ip: 20, user: 20 }, limiter.windowMs, limiter.now);
   const clientDir = opts.clientDir === undefined ? DEFAULT_CLIENT_DIR : opts.clientDir;
   const sharedDir = opts.sharedDir ?? DEFAULT_SHARED_DIR;
   const cors: Record<string, string> = opts.corsOrigin ? { 'Access-Control-Allow-Origin': opts.corsOrigin, Vary: 'Origin' } : {};
@@ -292,10 +296,21 @@ export function createApp(opts: AppOptions): App {
 
   const changePassword = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
     const body = await readJson(req);
-    const current = getUserByName(db, caller.user.username);
-    if (!current || typeof body.current_password !== 'string' || !(await verifyPassword(body.current_password, current.password_hash))) {
-      return send(res, 403, { error_code: 'FORBIDDEN', error: 'het huidige wachtwoord klopt niet' });
+    // Het huidige wachtwoord raden kan met een gestolen sessietoken ook zonder in te loggen: dezelfde beperking als bij het inloggen.
+    const { wait, attempt } = passwordLimiter.begin(caller.user.username, clientIp(req));
+    if (!attempt) {
+      return send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
     }
+    let correct = false;
+    try {
+      const current = getUserByName(db, caller.user.username);
+      correct = Boolean(current) && typeof body.current_password === 'string' && (await verifyPassword(body.current_password, current!.password_hash));
+    } catch (err) {
+      passwordLimiter.cancel(attempt);
+      throw err;
+    }
+    if (!correct) return send(res, 403, { error_code: 'FORBIDDEN', error: 'het huidige wachtwoord klopt niet' });
+    passwordLimiter.succeed(attempt);
     const next = validatePassword(body.new_password, caller.user.username);
     setPasswordHash(db, caller.user.id, await hashPassword(next), caller.sessionId); // andere apparaten moeten opnieuw inloggen
     closeStreams(caller.user.id); // live-verbindingen van andere apparaten; dit apparaat verbindt vanzelf opnieuw
@@ -543,6 +558,34 @@ function openDatabase(): DatabaseSync {
   return db;
 }
 
+/**
+ * Het wachtwoord van het eerste account: uit TODO_ADMIN_PASSWORD, of uit het bestand dat TODO_ADMIN_PASSWORD_FILE aanwijst
+ * (bijvoorbeeld een Docker-secret onder /run/secrets). Met een bestand komt het wachtwoord niet in de omgeving van de container
+ * te staan, waar `docker inspect` het blijvend toont. Een eindregel aan het eind van het bestand hoort er niet bij.
+ */
+export function adminPasswordFrom(env: Record<string, string | undefined>): string | undefined {
+  if (env.TODO_ADMIN_PASSWORD) return env.TODO_ADMIN_PASSWORD;
+  const file = env.TODO_ADMIN_PASSWORD_FILE;
+  if (!file) return undefined;
+  try {
+    return readFileSync(file, 'utf8').replace(/\r?\n$/, '');
+  } catch (err) {
+    throw new Error(`TODO_ADMIN_PASSWORD_FILE (${file}) is niet te lezen: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}`);
+  }
+}
+
+/**
+ * Maakt het eerste account (beheerder) uit TODO_ADMIN_USER en het wachtwoord uit de omgeving, als er nog geen accounts zijn.
+ * Geeft het account terug, of null als er niets is ingesteld. Gooit bij een ongeldig wachtwoord of een onleesbaar bestand.
+ */
+export async function createFirstAccount(db: DatabaseSync, env: Record<string, string | undefined>): Promise<UserRow | null> {
+  if (countUsers(db) !== 0) return null;
+  const admin = env.TODO_ADMIN_USER;
+  const password = adminPasswordFrom(env);
+  if (!admin || !password) return null;
+  return createUser(db, { username: admin, name: env.TODO_ADMIN_NAME || admin, passwordHash: await hashPassword(validatePassword(password, admin)), isAdmin: true });
+}
+
 async function userCommand(args: string[]): Promise<void> {
   const [action, username, ...rest] = args;
   const db = openDatabase();
@@ -598,18 +641,17 @@ if (import.meta.main) {
   } else {
     const db = openDatabase();
     if (countUsers(db) === 0) {
-      const admin = process.env.TODO_ADMIN_USER;
-      const password = process.env.TODO_ADMIN_PASSWORD;
-      if (admin && password) {
-        try {
-          const u = createUser(db, { username: admin, name: process.env.TODO_ADMIN_NAME || admin, passwordHash: await hashPassword(validatePassword(password, admin)), isAdmin: true });
-          console.log(`Eerste account "${u.username}" (beheerder) aangemaakt. Je kunt TODO_ADMIN_PASSWORD nu uit je instellingen halen.`);
-        } catch (err) {
-          console.error(`Het eerste account kon niet worden aangemaakt: ${(err as Error).message}`);
-          process.exit(1);
+      try {
+        const u = await createFirstAccount(db, process.env);
+        if (u) {
+          console.log(`Eerste account "${u.username}" (beheerder) aangemaakt. Haal TODO_ADMIN_PASSWORD nu uit je instellingen en maak de container opnieuw aan; het wachtwoord blijft anders in de configuratie van de container staan.`);
+          delete process.env.TODO_ADMIN_PASSWORD; // het hoeft niet in de omgeving van dit proces te blijven
+        } else {
+          console.warn('Er zijn nog geen accounts. Zet TODO_ADMIN_USER en TODO_ADMIN_PASSWORD (of TODO_ADMIN_PASSWORD_FILE; minimaal 10 tekens) en start opnieuw, of gebruik: node server/main.ts user add <naam> --admin');
         }
-      } else {
-        console.warn('Er zijn nog geen accounts. Zet TODO_ADMIN_USER en TODO_ADMIN_PASSWORD (minimaal 10 tekens) en start opnieuw, of gebruik: node server/main.ts user add <naam> --admin');
+      } catch (err) {
+        console.error(`Het eerste account kon niet worden aangemaakt: ${(err as Error).message}`);
+        process.exit(1);
       }
     }
     const host = process.env.HOST ?? '127.0.0.1';

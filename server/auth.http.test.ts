@@ -123,6 +123,19 @@ test('wachtwoord wijzigen: het huidige wachtwoord is nodig, andere apparaten wor
   await json('/api/v1/auth/password', { current_password: 'nieuw-wachtwoord-1', new_password: PW }, mine);
 });
 
+test('het huidige wachtwoord raden bij een wachtwoordwijziging heeft een eigen limiet, ook met een geldig token', async () => {
+  const token = await tokenOf('alice');
+  for (let i = 0; i < 5; i++) assert.equal((await json('/api/v1/auth/password', { current_password: `fout-${i}-wachtwoord`, new_password: 'nieuw-wachtwoord-9' }, token)).status, 403);
+  const blocked = await json('/api/v1/auth/password', { current_password: PW, new_password: 'nieuw-wachtwoord-9' }, token);
+  assert.equal(blocked.status, 429, 'ook het goede wachtwoord wordt nu geweigerd');
+  assert.ok(Number(blocked.headers.get('retry-after')) > 0);
+  assert.equal((await login('alice', PW)).status, 200, 'inloggen heeft zijn eigen tellers en blijft kunnen');
+  clock += 61_000;
+  assert.equal((await json('/api/v1/auth/password', { current_password: PW, new_password: PW + '-nieuw' }, token)).status, 200, 'na het venster kan het weer');
+  assert.equal((await json('/api/v1/auth/password', { current_password: PW + '-nieuw', new_password: 'wachtwoord123' }, token)).status, 400, 'een te makkelijk nieuw wachtwoord wordt geweigerd');
+  await json('/api/v1/auth/password', { current_password: PW + '-nieuw', new_password: PW }, token);
+});
+
 test('beheer: alleen beheerders; aanmaken, blokkeren, wachtwoord herstellen', async () => {
   const admin = await tokenOf('alice');
   const user = await tokenOf('bob');

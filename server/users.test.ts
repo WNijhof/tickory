@@ -42,8 +42,12 @@ test('gebruikersnaam, naam en wachtwoord worden gecontroleerd', () => {
   assert.equal(validateDisplayName('  Jan   de Vries '), 'Jan de Vries');
   assert.equal(validateDisplayName('a\nb'), 'a b', 'een regeleinde wordt een spatie');
   for (const bad of ['', '   ', 'x'.repeat(101), 'a\u0007b', 7]) assert.throws(() => validateDisplayName(bad), /naam/);
-  assert.equal(validatePassword('abcdefghij'), 'abcdefghij');
-  assert.equal(validatePassword('éééééééééé'), 'éééééééééé', 'tekens tellen, niet bytes');
+  assert.equal(validatePassword('tandarts-bellen'), 'tandarts-bellen');
+  assert.equal(validatePassword('éàèùôîçëäö'), 'éàèùôîçëäö', 'tekens tellen, niet bytes');
+  assert.throws(() => validatePassword('qwertyuiop'), /te makkelijk te raden \(een veelgebruikt wachtwoord\)/);
+  assert.throws(() => validatePassword('Wachtwoord123'), /een veelgebruikt wachtwoord/);
+  assert.throws(() => validatePassword('éééééééééé'), /te weinig verschillende tekens/);
+  assert.throws(() => validatePassword('annadevries01', 'annadevries'), /lijkt op de gebruikersnaam/);
   assert.throws(() => validatePassword('abcdefghi'), /minimaal 10/);
   assert.throws(() => validatePassword('x'.repeat(201)), /maximaal 200/);
   assert.throws(() => validatePassword('Annaannaanna', 'annaannaanna'), /gelijk zijn aan de gebruikersnaam/);

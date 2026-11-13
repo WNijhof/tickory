@@ -243,6 +243,15 @@ test('resolveStatic: alleen paden binnen de eigen mappen', () => {
   assert.equal(resolveStatic('/core/a..b.js', client, shared), null);
 });
 
+test('testbestanden worden ook niet uitgeleverd met andere hoofdletters (hoofdletterongevoelige bestandssystemen: Windows, macOS)', () => {
+  const client = fileURLToPath(new URL('../client/', import.meta.url));
+  const shared = fileURLToPath(new URL('../shared/', import.meta.url));
+  for (const path of ['/core/AUTH.TEST.JS', '/core/auth.Test.js', '/core/Auth.test.JS', '/shared/TEXT.test.js', '/shared/orderKey.TEST.js', '/core/auth.test.js']) {
+    assert.equal(resolveStatic(path, client, shared), null, path);
+  }
+  assert.ok(resolveStatic('/ui/APP.JS', client, shared), 'gewone bestanden met hoofdletters zijn een zaak van het bestandssysteem');
+});
+
 test('zonder clientmap is er alleen een API', async () => {
   const db = new DatabaseSync(':memory:');
   createSchema(db);
