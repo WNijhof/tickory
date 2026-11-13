@@ -4,7 +4,7 @@
 // `/` en Ctrl+K. De knoppen van die schermen (aanmaken, bewerken, verwijderen) staan hier in `api`.
 
 import { DEFAULT_COLOR } from '../core/colors.js';
-import { filterOutcome } from '../core/filterViews.js';
+import { filterOutcome, labelCounts } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
 import { labelProblemText } from '../core/labelManage.js';
 import { searchKey } from '../core/searchKeys.js';
@@ -221,25 +221,25 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
   const navItem = ({ target, label, lead, count, extra = null, warning = false, fk }) => {
     const active = same(target);
     return h('button', {
-      class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk }, onclick: () => navigate(target),
-    }, lead, h('span', { class: 'nav-label' }, label), extra,
-    warning && h('span', { class: 'nav-count nav-bad', role: 'img', 'aria-label': t('filter.brokenShort'), title: t('filter.brokenShort') }, '!'),
-    count !== null && count !== undefined && h('span', { class: 'nav-count' }, String(count)));
+      class: `find-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk }, onclick: () => navigate(target),
+    }, lead, h('span', { class: 'find-label' }, label), extra,
+    warning && h('span', { class: 'find-count find-bad', role: 'img', 'aria-label': t('filter.brokenShort'), title: t('filter.brokenShort') }, '!'),
+    count !== null && count !== undefined && h('span', { class: 'find-count' }, String(count)));
   };
 
-  const star = () => h('span', { class: 'nav-star', role: 'img', 'aria-label': t('nav.favoriteMark') }, icon('star'));
+  const star = () => h('span', { class: 'find-star', role: 'img', 'aria-label': t('nav.favoriteMark') }, icon('star'));
 
   const heading = ({ key, title, target, addLabel: addText, onAdd }) => {
     const isCollapsed = collapsed.has(key);
     const active = same(target);
-    return h('div', { class: 'nav-heading nav-heading-find' },
+    return h('div', { class: 'nav-section-head' },
       h('button', {
-        class: 'nav-toggle', type: 'button', 'aria-expanded': String(!isCollapsed), dataset: { fk: `find-toggle:${key}` },
+        class: 'find-toggle', type: 'button', 'aria-expanded': String(!isCollapsed), dataset: { fk: `find-toggle:${key}` },
         'aria-label': isCollapsed ? t('nav.expandSection', { name: title }) : t('nav.collapseSection', { name: title }),
         onclick: () => toggleSection(key),
       }, icon(isCollapsed ? 'chevronRight' : 'chevronDown')),
       h('button', {
-        class: 'nav-heading-link', type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk: `find-head:${key}` }, title: t('nav.manageSection', { name: title }),
+        class: 'nav-section-link', type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk: `find-head:${key}` }, title: t('nav.manageSection', { name: title }),
         onclick: () => navigate(target),
       }, title),
       h('button', { class: 'icon-button', type: 'button', 'aria-label': addText, title: addText, onclick: onAdd }, icon('plus')));
@@ -251,6 +251,7 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
     const userId = store.userId;
     const view = store.view;
     const filters = favoritesFirst(filterList(view, userId), (f) => f.is_favorite);
+    const counts = labelCounts(view);
     const labels = favoritesFirst(labelList(view, userId).own, (x) => x.label.is_favorite);
     const ctx = filters.length > 0 ? filterContext(store) : null;
     const keepVisible = (target, isHidden) => isHidden && !same(target); // een ingeklapte lijst toont alleen de keuze die open staat
@@ -267,7 +268,8 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
         });
       }),
       heading({ key: 'labels', title: t('labels.title'), target: { type: 'labels' }, addLabel: t('label.add'), onAdd: () => addLabel({ open: true }) }),
-      labels.map(({ label, openCount }) => {
+      labels.map(({ label }) => {
+        const openCount = counts.get(label.id) ?? 0;
         const target = { type: 'label', id: label.id };
         if (keepVisible(target, collapsed.has('labels'))) return null;
         return navItem({ target, label: label.name, lead: dot(label.color), fk: `label:${label.id}`, extra: label.is_favorite && star(), count: openCount > 0 ? openCount : null });

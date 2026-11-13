@@ -64,18 +64,32 @@
 .search-keys { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line); color: var(--text-soft); font-size: 0.8rem; }
 
 /* ---------- Filters en Labels in de zijbalk ---------- */
-.nav-heading-find { justify-content: flex-start; padding: 14px 4px 2px 0; gap: 0; }
-.nav-heading-find .nav-toggle { height: 32px; }
-.nav-heading-link {
+.nav-section-head { display: flex; align-items: center; padding: 14px 4px 2px 0; min-height: 40px; }
+.find-toggle {
+  flex: none; width: 24px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none;
+  color: var(--text-soft); border-radius: 6px; padding: 0;
+}
+.find-toggle:hover { background: var(--bg-hover); color: var(--text); }
+.find-toggle .icon { width: 14px; height: 14px; }
+.nav-section-link {
   flex: 1; min-width: 0; min-height: 32px; border: 0; background: none; text-align: left; padding: 4px 6px; border-radius: 6px; color: var(--text-soft);
   font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.nav-heading-link:hover { background: var(--bg-hover); color: var(--text); }
-.nav-heading-link[aria-current="page"] { color: var(--accent); }
-.nav-heading-find .icon-button { width: 28px; height: 28px; }
-.nav-star { display: inline-flex; color: var(--text-soft); }
-.nav-star .icon { width: 12px; height: 12px; fill: currentColor; }
-.nav-bad { color: var(--danger); font-weight: 700; }
+.nav-section-link:hover { background: var(--bg-hover); color: var(--text); }
+.nav-section-link[aria-current="page"] { color: var(--accent); }
+.nav-section-head .icon-button { width: 28px; height: 28px; }
+/* een regel in de lijsten: dezelfde uitstraling als .nav-item (app.css), met eigen klassen zodat lijsten van projecten apart blijven */
+.find-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; text-align: left; border: 0; background: none;
+  padding: 7px 10px; border-radius: 8px; min-height: 38px; color: var(--text);
+}
+.find-item:hover { background: var(--bg-hover); }
+.find-item.active { background: var(--accent-soft); font-weight: 600; }
+.find-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-count { color: var(--text-soft); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.find-star { display: inline-flex; color: var(--text-soft); }
+.find-star .icon { width: 12px; height: 12px; fill: currentColor; }
+.find-bad { color: var(--danger); font-weight: 700; }
 
 /* ---------- een label in een taakregel is een knop ---------- */
 .task-meta button.chip-label {
@@ -148,12 +162,12 @@
   .search-hit { grid-template-columns: 28px minmax(0, 1fr); min-height: 52px; }
   .search-kind { grid-column: 2; justify-self: start; }
   .search-keys { display: none; }
-  .search-field { min-height: 46px; }
+  .search-field, .find-item { min-height: 46px; }
   .search-field-key { display: none; }
-  .nav-heading-find { padding-top: 10px; }
-  .nav-heading-find .nav-toggle { height: 46px; width: 32px; }
-  .nav-heading-link { min-height: 46px; }
-  .nav-heading-find .icon-button { width: 44px; height: 44px; }
+  .nav-section-head { padding-top: 10px; }
+  .find-toggle { height: 46px; width: 32px; }
+  .nav-section-link { min-height: 46px; }
+  .nav-section-head .icon-button { width: 44px; height: 44px; }
   .task-meta button.chip-label { min-height: 28px; display: inline-flex; align-items: center; }
   .manage-open { min-height: 56px; }
   .filter-help-row { grid-template-columns: minmax(0, 1fr); }

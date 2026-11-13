@@ -23,6 +23,7 @@ import { createSession, createUser, hashPassword, setPasswordCostForTests } from
 import { addDays, formatDate, formatDateInput, formatDueLong, todayString } from '../client/core/format.js';
 import { quickDates } from '../client/core/quickDates.js';
 import { setLanguage } from '../client/core/i18n.js';
+import { FILTER_EXAMPLES, FILTER_TERM_GROUPS } from '../client/core/filterText.js';
 import dutchTexts from '../client/i18n/nl.js';
 import en from '../client/i18n/en.js';
 
@@ -1044,7 +1045,7 @@ try {
   const closeToasts = () => evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
   /** Een toetsaanslag zoals een echt toetsenbord: via het DevTools-protocol, dus met dezelfde gevolgen als bij een mens. */
   const press = async (key: string, options: { ctrl?: boolean } = {}) => {
-    const named: Record<string, [string, number]> = { Enter: ['Enter', 13], Escape: ['Escape', 27], Tab: ['Tab', 9], '?': ['Slash', 191], '/': ['Slash', 191] };
+    const named: Record<string, [string, number]> = { Enter: ['Enter', 13], Escape: ['Escape', 27], Tab: ['Tab', 9], '?': ['Slash', 191], '/': ['Slash', 191], ArrowDown: ['ArrowDown', 40], ArrowUp: ['ArrowUp', 38] };
     const [code, vk] = named[key] ?? [`Key${key.toUpperCase()}`, key.toUpperCase().charCodeAt(0)];
     const modifiers = (options.ctrl ? 2 : 0) | (key === '?' ? 8 : 0);
     const text = key.length === 1 && !options.ctrl ? key : key === 'Enter' && !options.ctrl ? '\r' : undefined;
@@ -1352,11 +1353,14 @@ try {
   await press('/');
   await press('k', { ctrl: true });
   await sleep(150);
-  assert.deepEqual(await evaluate(`window.__keys`), [['/', false, false], ['k', true, false]], '/ en Ctrl+K blijven vrij voor zoeken: er gebeurt niets en de toets is niet opgeëist');
-  assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false);
+  assert.deepEqual(await evaluate(`window.__keys`), [['/', false, true], ['k', true, true]], '/ en Ctrl+K zijn voor zoeken (zie 9c): de toets is opgeëist');
+  assert.equal(await evaluate(`document.querySelectorAll('dialog[open]').length`), 1, 'het zoekvenster staat open (de tweede toets vindt het al open)');
+  await press('Escape');
+  await noDialog();
+  await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1412,7 +1416,7 @@ try {
     await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
     await waitFor(SYNCED, 'gesynchroniseerd');
   }
-  step('sneltoetsen: q (venster Taak toevoegen met voorvertoning, project en sectie als standaard), g t / g u / g i, ? (overzicht), in een invoerveld of bij een open venster niets, / en Ctrl+K blijven vrij; ook de knoppen in de zijbalk en onder een sectie');
+  step('sneltoetsen: q (venster Taak toevoegen met voorvertoning, project en sectie als standaard), g t / g u / g i, ? (overzicht), in een invoerveld of bij een open venster niets; ook de knoppen in de zijbalk en onder een sectie');
 
   // ---- 8j. prestaties: een lijst van 2000 taken ----
   const bigId = 'e2egrootproject01';
@@ -1469,8 +1473,8 @@ try {
   await shot('engels-nieuwe-lijst');
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Keyboard shortcuts'`, 'sneltoetsen (Engels)');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Close a window', 'Save the task in the task window']);
-  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Save the task in the task window']);
+  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+']);
   await noDutch('sneltoetsen', mine);
   await press('Escape');
   await noDialog();
@@ -1591,6 +1595,327 @@ try {
   await press('Escape');
   await noDialog();
   step(`toetsenbord: Tab laat overal een zichtbare focusring zien (${ringed.length} keer gecontroleerd), Enter op een taak opent het venster, Esc sluit`);
+
+  // ---- 9c. zoeken, filters en labels ----
+  const aliceToken = await evaluate<string>(`localStorage.getItem('tickory.token')`);
+  const inboxId = (serverState().me as any).inbox_project_id as string;
+  const serverFilters = () => (serverState().filters as any[]).filter((f) => !f.is_deleted);
+  const serverLabels = () => (serverState().labels as any[]).filter((l) => !l.is_deleted);
+  const serverLabel = (name: string) => serverLabels().find((l) => l.name === name);
+  // wat Alice zelf typte en wat Nederlands mag blijven in de Engelse schermen: de Nederlandse vormen van de filtertaal
+  const dutchForms = [...FILTER_EXAMPLES.map((e) => e.nl), ...FILTER_TERM_GROUPS.flatMap((g) => g.terms.map((x) => x.nl))].sort((a, b) => b.length - a.length);
+  const findItem = (label: string) => `[...document.querySelectorAll('.find-item')].find((b) => b.querySelector('.find-label')?.textContent === ${js(label)})`;
+  const searchInput = '#search-dialog .search-input';
+  const searchHits = () => evaluate<{ kind: string; title: string; marks: string[]; detail: string; active: boolean }[]>(`[...document.querySelectorAll('#search-dialog .search-hit')].map((li) => ({ kind: li.querySelector('.search-kind').textContent, title: li.querySelector('.search-title').textContent, marks: [...li.querySelectorAll('mark')].map((m) => m.textContent), detail: li.querySelector('.search-detail').textContent, active: li.getAttribute('aria-selected') === 'true' }))`);
+  const searchFor = async (text: string) => {
+    await typeInto(searchInput, text);
+    await waitFor(`document.querySelector('#search-dialog .search-status').textContent !== ''`, `zoekresultaat voor ${text}`);
+  };
+  const openSearchWithSlash = async () => {
+    await evaluate(`document.activeElement?.blur(); document.body.focus()`);
+    await press('/');
+    await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster');
+    assert.equal(await evaluate(`document.activeElement === document.querySelector(${js(searchInput)})`), true, 'het zoekveld heeft meteen de focus');
+  };
+  // gegevens om in te zoeken: een beschrijving met accenten, een opmerking bij een project, een taak met een Engelse en een Nederlandse term
+  const aliceSync = (uuid: string, commands: object[]) => syncAs(aliceToken, 'zoek-test', commands.map((c: any, i) => ({ ...c, uuid: `${uuid}-${i}` })));
+  assert.equal((await aliceSync('e2e-zoek-data', [
+    { type: 'task_add', args: { id: 'e2ezoektaak0001', project_id: inboxId, content: 'Dessert kiezen', description: 'Vergeet de Crème brûlée niet, en het bestek.' } },
+    { type: 'comment_add', args: { id: 'e2ezoekopm0001', project_id: thuisId, content: 'Het wachtwoord van de wifi staat op de koelkast' } },
+  ])).status, 200);
+
+  // `/` opent het zoekvenster, buiten invoervelden
+  await openSearchWithSlash();
+  await shot('zoeken-leeg');
+  assert.match(await evaluate(`document.querySelector('#search-dialog .search-empty').textContent`), /Zoek in alles wat je hebt/);
+  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).getAttribute('role')`), 'combobox');
+  // hoofdletters en accenten: "CAFE" vindt "Café reserveren", de markering ligt over de oorspronkelijke letters
+  await searchFor('CAFE');
+  let hits = await searchHits();
+  assert.deepEqual(hits.filter((x) => x.kind === 'Taak').map((x) => x.title), ['Café reserveren']);
+  assert.deepEqual(hits.find((x) => x.title === 'Café reserveren')!.marks, ['Café']);
+  // een los accent (zoals sommige toetsenborden het leveren) vindt hetzelfde
+  await searchFor('Cafe\u0301');
+  assert.deepEqual((await searchHits()).filter((x) => x.kind === 'Taak').map((x) => x.title), ['Café reserveren']);
+  await searchFor('zoe');
+  assert.deepEqual((await searchHits()).find((x) => x.title === 'Zoë bellen')?.marks, ['Zoë']);
+  await searchFor('ijs');
+  assert.deepEqual((await searchHits()).find((x) => x.title === 'IJs kopen')?.marks, ['IJs'], 'hoofdletter-IJ');
+  // beschrijving en opmerking: een stuk tekst rond de treffer, met markering
+  await searchFor('creme brulee');
+  hits = await searchHits();
+  const dessert = hits.find((x) => x.title === 'Dessert kiezen')!;
+  assert.deepEqual(dessert.marks, ['Crème', 'brûlée'], 'de woorden zijn gemarkeerd, met hun accenten, in de beschrijving');
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-title mark')`), null, 'de titel zelf is niet gemarkeerd');
+  assert.match(dessert.detail, /Crème brûlée/);
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-hit mark').textContent`), 'Crème');
+  await searchFor('wachtwoord wifi');
+  hits = await searchHits();
+  assert.deepEqual(hits.map((x) => x.kind), ['Opmerking']);
+  assert.deepEqual(hits[0].marks, ['wachtwoord', 'wifi']);
+  assert.equal(hits[0].title, 'Thuis', 'een opmerking bij een project toont het project als titel');
+  await searchFor('nietsdergelijks');
+  assert.match(await evaluate(`document.querySelector('#search-dialog .search-empty').textContent`), /Niets gevonden voor "nietsdergelijks"/);
+  assert.equal(await evaluate(`document.querySelector('#search-dialog .search-status').textContent`), 'Geen resultaten');
+  // alle woorden in elke volgorde, en pijltjestoetsen + Enter
+  await searchFor('bellen tandarts');
+  hits = await searchHits();
+  assert.equal(hits[0].title, 'Tandarts bellen');
+  assert.equal(hits[0].active, true, 'de eerste treffer is meteen gekozen');
+  await searchFor('bellen');
+  hits = await searchHits();
+  assert.ok(hits.length >= 4 && hits[0].kind === 'Label', `eerst het label, dan de taken: ${JSON.stringify(hits.map((x) => x.title))}`);
+  const target = hits.findIndex((x) => x.title === 'Tandarts bellen');
+  for (let i = 0; i < target; i++) await press('ArrowDown');
+  assert.deepEqual((await searchHits()).map((x) => x.active), hits.map((_, i) => i === target), 'pijltje omlaag kiest de volgende treffer');
+  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).getAttribute('aria-activedescendant') === document.querySelector('#search-dialog .search-hit[aria-selected=true]').id`), true);
+  await shot('zoeken-resultaten');
+  await press('ArrowUp');
+  assert.equal((await searchHits()).findIndex((x) => x.active), target - 1, 'pijltje omhoog kiest de vorige treffer');
+  await searchFor('bellen');
+  await press('ArrowUp');
+  assert.equal((await searchHits()).findIndex((x) => x.active), hits.length - 1, 'pijltje omhoog vanaf de eerste loopt rond naar de laatste');
+  await press('ArrowDown');
+  assert.equal((await searchHits()).findIndex((x) => x.active), 0, 'en pijltje omlaag vanaf de laatste naar de eerste');
+  await searchFor('bellen tandarts');
+  await press('Enter');
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'Enter opent de taak');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog textarea[aria-label="Taak"]').value`), 'Tandarts bellen');
+  assert.equal(await evaluate(`Boolean(document.querySelector('#search-dialog'))`), false, 'het zoekvenster is gesloten');
+  await press('Escape');
+  await noDialog();
+  // Esc sluit het zoekvenster
+  await openSearchWithSlash();
+  await press('Escape');
+  await noDialog();
+  // Ctrl+K werkt ook vanuit een invoerveld, `/` in een invoerveld is gewoon een teken
+  await evaluate(`document.getElementById('quick-input').focus()`);
+  await press('/');
+  assert.equal(await evaluate(`document.getElementById('quick-input').value`), '/');
+  assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false, '/ in een invoerveld opent niets');
+  await typeInto('#quick-input', '');
+  await evaluate(`document.getElementById('quick-input').focus()`);
+  await press('k', { ctrl: true });
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'Ctrl+K vanuit een invoerveld');
+  await press('Escape');
+  await noDialog();
+  // een open taakvenster: `/` doet niets, Ctrl+K opent zoeken erbovenop
+  await openTask('Planten water geven');
+  await press('/');
+  await sleep(150);
+  assert.equal(await evaluate(`Boolean(document.querySelector('#search-dialog'))`), false, '/ bij een open venster opent niets');
+  await press('Escape');
+  await noDialog();
+  // een opmerking vinden en de taak erbij openen; de knop in de zijbalk
+  await click('.search-field');
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekveld in de zijbalk');
+  await searchFor('bestek');
+  hits = await searchHits();
+  assert.deepEqual(hits.map((x) => x.kind).sort(), ['Opmerking', 'Taak'].sort(), 'de opmerking én de taak met het woord in de beschrijving');
+  const commentHit = hits.findIndex((x) => x.kind === 'Opmerking');
+  for (let i = 0; i < commentHit; i++) await press('ArrowDown');
+  await press('Enter');
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'taak bij de opmerking');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog textarea[aria-label="Taak"]').value`), 'Afwasmachine uitruimen');
+  await press('Escape');
+  await noDialog();
+  // een project vinden
+  await openSearchWithSlash();
+  await searchFor('thuis');
+  hits = await searchHits();
+  assert.equal(hits[0].kind, 'Project');
+  await press('Enter');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'het project geopend');
+  step('zoeken: / en Ctrl+K (ook vanuit een invoerveld), hoofdletters en accenten ("CAFE", losse accenten, IJ), treffers in titel, beschrijving en opmerkingen met markering, alle woorden in elke volgorde, pijltjes en Enter, Esc; niets gevonden geeft uitleg');
+
+  // ---- filters: aanmaken met controle, kleur, favoriet, hulp ----
+  const bellenId = serverLabel('bellen')!.id;
+  const expectedMatches = (serverState().tasks as any[]).filter((x) => !x.is_deleted && !x.checked && x.labels?.includes(bellenId) && [today, tomorrow].includes(String(x.due?.date ?? '').slice(0, 10))).length;
+  assert.ok(expectedMatches >= 1);
+  await click('button[aria-label="Filter toevoegen"]');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw filter'`, 'filtervenster');
+  assert.match(await evaluate(`document.querySelector('dialog[open] .filter-state').textContent`), /Typ een filter/);
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'Dringend bellen');
+  await typeInto('dialog[open] .filter-input', '(vandaag | morgen) & #Bestaatniet');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'Onbekend project: "Bestaatniet".');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-mark').textContent`), '#Bestaatniet', 'de plek van de fout is gemarkeerd');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-input').getAttribute('aria-invalid')`), 'true');
+  await submit('dialog[open] form');
+  await sleep(150);
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2')?.textContent`), 'Nieuw filter', 'een filter met een fout wordt niet bewaard');
+  assert.equal(serverFilters().length, 0);
+  await typeInto('dialog[open] .filter-input', '(vandaag | morgen) &');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'Hier ontbreekt een term.');
+  await typeInto('dialog[open] .filter-input', '(vandaag | morgen) & "@bellen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'Deze aanhalingstekens worden niet gesloten.');
+  await typeInto('dialog[open] .filter-input', 'vandaag morgen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-error-text').textContent`), 'Hier hoort & (en) of | (of) te staan.');
+  await typeInto('dialog[open] .filter-input', '');
+  // de uitleg: een voorbeeld aantikken zet het in het veld
+  await click('dialog[open] .filter-help > summary');
+  await waitFor(`document.querySelector('dialog[open] .filter-help[open] .filter-code-button')`, 'uitleg open');
+  await shot('filter-venster-hulp');
+  await evaluate(`[...document.querySelectorAll('dialog[open] .filter-code-button')].find((b) => b.textContent === '(vandaag | morgen) & @bellen').click()`);
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-input').value`), '(vandaag | morgen) & @bellen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-ok').textContent`), expectedMatches === 1 ? 'Dit klopt: nu voldoet 1 taak.' : `Dit klopt: nu voldoen ${expectedMatches} taken.`);
+  await click('dialog[open] .filter-help > summary');
+  await click('dialog[open] .swatch input[value="red"]');
+  await evaluate(`document.querySelector('dialog[open] .check-row input').click()`);
+  await shot('filter-venster');
+  await submit('dialog[open] form');
+  await waitFor(`document.getElementById('view-title').textContent === 'Dringend bellen'`, 'het filter geopend');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual(serverFilters().map((f) => [f.name, f.query, f.color, f.is_favorite]), [['Dringend bellen', '(vandaag | morgen) & @bellen', 'red', true]]);
+  assert.equal(await evaluate(`document.querySelectorAll('.task').length`), expectedMatches);
+  assert.ok((await taskTitles()).includes('Tandarts bellen'));
+  assert.equal(await evaluate(`document.getElementById('view-count').textContent`), expectedMatches === 1 ? '1 taak' : `${expectedMatches} taken`);
+  assert.equal(await evaluate(`${findItem('Dringend bellen')}.classList.contains('active')`), true, 'het filter is gekozen in de zijbalk');
+  assert.equal(await evaluate(`${findItem('Dringend bellen')}.querySelector('.find-count').textContent`), String(expectedMatches));
+  assert.equal(await evaluate(`Boolean(${findItem('Dringend bellen')}.querySelector('.find-star'))`), true, 'favoriet is gemarkeerd');
+  await shot('filter');
+  // bewerken: dezelfde zoekopdracht met Engelse woorden geeft hetzelfde
+  await click('.btn-edit');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Filter bewerken'`, 'bewerken');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-input').value`), '(vandaag | morgen) & @bellen');
+  await typeInto('dialog[open] .filter-input', '(today | tomorrow) & @bellen');
+  assert.match(await evaluate(`document.querySelector('dialog[open] .filter-ok').textContent`), new RegExp(`${expectedMatches} taa?k`));
+  await submit('dialog[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverFilters()[0].query, '(today | tomorrow) & @bellen');
+  assert.equal(await evaluate(`document.querySelectorAll('.task').length`), expectedMatches, 'Engelse woorden geven dezelfde taken als Nederlandse');
+  // meerdere lijsten in één filter
+  await click('button[aria-label="Filter toevoegen"]');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw filter'`, 'tweede filter');
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'Per plek');
+  await typeInto('dialog[open] .filter-input', 'Thuis: #Thuis, Inbox: #Inbox & p1');
+  await submit('dialog[open] form');
+  await waitFor(`document.getElementById('view-title').textContent === 'Per plek'`, 'filter met lijsten');
+  assert.deepEqual(await texts('.group-title'), ['Thuis', 'Inbox'], 'elke lijst heeft zijn eigen naam');
+  // een filter dat niet meer klopt (bewaard zoals getypt, bijvoorbeeld na het verwijderen van een project)
+  assert.equal((await aliceSync('e2e-kapot-filter', [{ type: 'filter_add', args: { id: 'e2efilterkapot01', name: 'Kapot', query: '#Verdwenen project & vandaag' } }])).status, 200);
+  await waitFor(findItem('Kapot'), 'het kapotte filter staat in de zijbalk');
+  assert.equal(await evaluate(`${findItem('Kapot')}.querySelector('.find-bad')?.textContent`), '!', 'een filter dat niet klopt heeft een uitroepteken');
+  await evaluate(`${findItem('Kapot')}.click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Kapot'`, 'kapot filter');
+  assert.equal(await evaluate(`document.querySelector('.filter-error-text').textContent`), 'Onbekend project: "Verdwenen project".');
+  assert.equal(await evaluate(`document.querySelector('.filter-error-mark').textContent`), '#Verdwenen project');
+  assert.equal(await evaluate(`document.querySelector('.filter-error').getAttribute('role')`), 'alert');
+  assert.equal(await evaluate(`document.querySelectorAll('.task').length`), 0);
+  await shot('filter-fout');
+  // het overzicht van filters, met hulp
+  await evaluate(`document.querySelector('[data-fk="find-head:filters"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Filters'`, 'overzicht van filters');
+  assert.deepEqual((await texts('.manage-name')).sort(), ['Dringend bellen', 'Kapot', 'Per plek']);
+  assert.match(await evaluate(`document.querySelector('.manage-bad').textContent`), /Filter klopt niet: Onbekend project/);
+  await shot('filters-overzicht');
+  await click('.btn-help');
+  await waitFor(`document.querySelector('dialog[open] .filter-help-body')`, 'hulp bij filters');
+  assert.ok((await evaluate<number>(`document.querySelectorAll('dialog[open] .filter-help-row').length`)) > 30);
+  await evaluate(`[...document.querySelectorAll('dialog[open] .filter-code-button')].find((b) => b.textContent === 'p1 & !subtaak').click()`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw filter'`, 'voorbeeld als nieuw filter');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .filter-input').value`), 'p1 & !subtaak');
+  await clickText('Annuleren', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  // het favorietsterretje, en verwijderen met bevestiging
+  await evaluate(`document.querySelector('[aria-label="Favoriet: Per plek"]').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverFilters().find((f) => f.name === 'Per plek').is_favorite, true);
+  assert.equal(await evaluate(`document.querySelector('[aria-label="Favoriet: Per plek"]').getAttribute('aria-pressed')`), 'true');
+  for (const name of ['Kapot', 'Per plek', 'Dringend bellen']) {
+    await evaluate(`[...document.querySelectorAll('button[aria-label]')].find((b) => b.getAttribute('aria-label') === ${js(`Filter "${name}" verwijderen`)}).click()`);
+    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Filter verwijderen?'`, 'bevestiging');
+    await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+    await waitFor(SYNCED, 'gesynchroniseerd');
+  }
+  assert.equal(serverFilters().length, 0);
+  assert.equal(await evaluate(`document.querySelectorAll('.manage-row').length`), 0);
+  step('filters: nieuw filter met directe controle (onbekend project, ontbrekende term, open aanhalingstekens, vergeten operator, plek gemarkeerd; niet bewaard bij een fout), uitleg met voorbeelden, kleur en favoriet, Engelse en Nederlandse woorden, lijsten met een eigen naam, een filter dat niet meer klopt, overzicht, verwijderen');
+
+  // ---- labels: zijbalk, openen via de taakregel, beheren ----
+  const countOf = (name: string) => (serverState().tasks as any[]).filter((x) => !x.is_deleted && !x.checked && x.labels?.includes(serverLabel(name)!.id)).length;
+  assert.equal(await evaluate(`${findItem('bellen')}.querySelector('.find-count').textContent`), String(countOf('bellen')), 'het aantal open taken staat bij het label');
+  await evaluate(`${findItem('bellen')}.click()`);
+  await waitFor(`document.getElementById('view-title').textContent === '@bellen'`, 'label geopend');
+  assert.equal(await evaluate(`document.querySelectorAll('.task').length`), countOf('bellen'));
+  assert.ok((await taskTitles()).includes('Tandarts bellen'));
+  await shot('label');
+  // het label in een taakregel is een knop die het label opent
+  await nav('Binnenkort');
+  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  await evaluate(`${row('Tandarts bellen')}.querySelector('.chip-label').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === '@bellen'`, 'label via de taakregel');
+  // overzicht van labels, toevoegen met controle op dubbele namen
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'overzicht van labels');
+  assert.ok((await texts('.manage-name')).includes('@bellen'));
+  assert.equal((await texts('.manage-detail'))[(await texts('.manage-name')).indexOf('@bellen')], countOf('bellen') === 1 ? '1 open taak' : `${countOf('bellen')} open taken`);
+  await click('.btn-add');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw label'`, 'labelvenster');
+  for (const [typed, message] of [['', 'Geef het label een naam.'], ['BELLEN', 'Er bestaat al een label met deze naam.'], ['één', 'Er bestaat al een label met deze naam.'], ['E\u0301E\u0301N', 'Er bestaat al een label met deze naam.'], ['a, b', 'Een labelnaam mag geen komma of stuurtekens bevatten.']]) {
+    await typeInto('dialog[open] input[aria-label="Naam"]', typed);
+    await submit('dialog[open] form');
+    assert.equal(await evaluate(`document.querySelector('dialog[open] .error').textContent`), message, `label "${typed}"`);
+  }
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'Uitgaan met Zoë');
+  await click('dialog[open] .swatch input[value="green"]');
+  await submit('dialog[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual([serverLabel('Uitgaan met Zoë')?.color, serverLabel('Uitgaan met Zoë')?.is_favorite], ['green', false]);
+  assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Labels', 'vanuit het overzicht blijf je in het overzicht');
+  // het nieuwe label is te kiezen in het taakvenster
+  await nav('Thuis');
+  await openTask('Planten water geven');
+  assert.ok((await evaluate<string[]>(`[...document.querySelectorAll('#task-dialog datalist option')].map((o) => o.value)`)).includes('Uitgaan met Zoë'));
+  await typeInto('#task-dialog .label-input', 'Uitgaan met Zoë');
+  await press('Enter');
+  await submit('#task-dialog form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual(serverTask('Planten water geven').labels, [serverLabel('Uitgaan met Zoë')!.id]);
+  // hernoemen: de taken houden het label; een bestaande naam wordt geweigerd; kleur wisselen
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'overzicht');
+  await evaluate(`document.querySelector('[aria-label="Label @bellen bewerken"]').click()`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Label bewerken'`, 'label bewerken');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] input[aria-label="Naam"]').value`), 'bellen');
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'uitgaan met zoë');
+  await submit('dialog[open] form');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .error').textContent`), 'Er bestaat al een label met deze naam.', 'ook zonder hoofdletters en accent-vorm');
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'telefoneren');
+  await click('dialog[open] .swatch input[value="violet"]');
+  await submit('dialog[open] form');
+  await noDialog();
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.deepEqual([serverLabel('telefoneren')?.id, serverLabel('telefoneren')?.color], [bellenId, 'violet'], 'hetzelfde label, nieuwe naam en kleur');
+  assert.equal(serverLabel('bellen'), undefined);
+  await nav('Binnenkort');
+  await waitFor(`${row('Tandarts bellen')}`, 'Tandarts bellen');
+  assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@telefoneren', '🔔', 'Inbox'], 'de taak toont de nieuwe naam');
+  await shot('labels-hernoemd');
+  // verwijderen met bevestiging, ook met taken eraan
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'overzicht');
+  await shot('labels-overzicht');
+  const bellenCount = (serverState().tasks as any[]).filter((x) => !x.is_deleted && x.labels?.includes(bellenId)).length;
+  await evaluate(`document.querySelector('[aria-label="Label @telefoneren verwijderen"]').click()`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Label verwijderen?'`, 'bevestiging');
+  assert.match(await evaluate(`document.querySelector('dialog[open] p').textContent`), new RegExp(`van ${bellenCount} taa?k`));
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverLabel('telefoneren'), undefined);
+  assert.equal((serverState().tasks as any[]).some((x) => !x.is_deleted && x.labels?.includes(bellenId)), false, 'het label is van alle taken gehaald');
+  assert.equal(await evaluate(`Boolean(${findItem('telefoneren')})`), false);
+  await evaluate(`document.querySelector('[aria-label="Label @Uitgaan met Zoë verwijderen"]').click()`);
+  await waitFor(`document.querySelector('dialog[open] .button-danger')`, 'bevestiging');
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await syncAs(aliceToken, 'zoek-test', [
+    { type: 'task_delete', uuid: 'e2e-zoek-opruimen-1', args: { id: 'e2ezoektaak0001' } },
+    { type: 'comment_delete', uuid: 'e2e-zoek-opruimen-2', args: { id: 'e2ezoekopm0001' } },
+  ]);
+  step('labels: aantal open taken in de zijbalk, openen (ook via het label in een taakregel), overzicht, toevoegen met controle (leeg, dubbel in hoofdletters en accenten, komma), kleur, in het taakvenster te kiezen, hernoemen (taken houden het label; bestaande naam geweigerd), kleur wisselen, verwijderen met bevestiging');
 
   // ---- 10. installeerbaar als app ----
   try {

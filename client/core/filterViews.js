@@ -21,6 +21,22 @@ export function labelTasks(view, labelId, { showCompleted = false } = {}) {
 }
 
 /**
+ * Het aantal open taken per label (zoals het scherm van het label ze toont: zonder taken in een gearchiveerd project).
+ * Labels zonder open taken staan er niet in.
+ * @returns {Map<string, number>}
+ */
+export function labelCounts(view) {
+  const archived = new Set();
+  for (const p of view.projects.values()) if (p.is_archived) archived.add(p.id);
+  const counts = new Map();
+  for (const t of view.tasks.values()) {
+    if (t.is_deleted || t.checked || archived.has(t.project_id)) continue;
+    for (const id of t.labels ?? []) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/**
  * Wat een opgeslagen filter nu oplevert (zie evaluateFilter): `{ ok: true, tasks, groups, includesCompleted, count }` of
  * `{ ok: false, error }`.
  * @param {{ query: string }} filter

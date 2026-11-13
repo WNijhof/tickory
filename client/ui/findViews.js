@@ -3,7 +3,7 @@
 // { title, count, lead, actions, nodes }. Wat een knop doet, zit in `api` (ui/find.js).
 
 import { filterErrorText } from '../core/filterText.js';
-import { filterOutcome, labelTasks } from '../core/filterViews.js';
+import { filterOutcome, labelCounts, labelTasks } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
 import { filterList, isForeignLabel, labelList } from '../core/selectors.js';
 import { h } from './dom.js';
@@ -25,7 +25,7 @@ export function filterView(ctx, api) {
   const outcome = filterOutcome(filter, filterContext(api.store));
   const actions = [
     headButton('btn-edit', 'pencil', t('filter.editButton'), () => api.editFilter(filter)),
-    headButton('btn-menu', 'more', t('project.menu'), () => api.filterMenu(filter)),
+    headButton('btn-menu', 'more', t('filter.more'), () => api.filterMenu(filter)),
   ];
   const summary = h('p', { class: 'filter-summary' }, icon('funnel'), h('code', { class: 'filter-query' }, filter.query));
   const lead = dot(filter.color, 'dot-large');
@@ -69,7 +69,7 @@ export function labelView(ctx, api) {
     title: `@${label.name}`, count: open, lead: dot(label.color, 'dot-large'),
     actions: foreign ? [] : [
       headButton('btn-edit', 'pencil', t('label.editButton'), () => api.editLabel(label)),
-      headButton('btn-menu', 'more', t('project.menu'), () => api.labelMenu(label)),
+      headButton('btn-menu', 'more', t('label.more'), () => api.labelMenu(label)),
     ],
     nodes: [
       foreign && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('label.foreignBanner'))),
@@ -98,11 +98,12 @@ const favoriteToggle = (on, label, onclick) => iconAction('star', label, onclick
 export function labelsPage(ctx, api) {
   const { view, emptyState, me } = ctx;
   const { own, others } = labelList(view, me?.id);
-  const rowOf = ({ label, openCount }, mine) => manageRow({
+  const counts = labelCounts(view);
+  const rowOf = ({ label }, mine) => manageRow({
     fk: `label-row:${label.id}`,
     lead: dot(label.color, 'dot-large'),
     name: `@${label.name}`,
-    detail: h('span', { class: 'manage-detail' }, t('label.openCount', { count: openCount })),
+    detail: h('span', { class: 'manage-detail' }, t('label.openCount', { count: counts.get(label.id) ?? 0 })),
     onOpen: () => api.navigate({ type: 'label', id: label.id }),
     buttons: mine ? [
       favoriteToggle(Boolean(label.is_favorite), t('label.favoriteLabel', { name: label.name }), () => api.toggleFavoriteLabel(label)),
@@ -111,7 +112,7 @@ export function labelsPage(ctx, api) {
     ] : [],
   });
   return {
-    title: t('labels.title'), count: own.length, lead: icon('tag'),
+    title: t('labels.title'), count: null, lead: icon('tag'),
     actions: [headButton('btn-add', 'plus', t('label.add'), () => api.addLabel({ open: false }))],
     nodes: [
       h('p', { class: 'hint manage-intro' }, t('labels.intro')),
@@ -150,7 +151,7 @@ export function filtersPage(ctx, api) {
     });
   };
   return {
-    title: t('filters.title'), count: list.length, lead: icon('funnel'),
+    title: t('filters.title'), count: null, lead: icon('funnel'),
     actions: [
       headButton('btn-help', 'help', t('filter.helpButton'), () => api.filterHelp({ onUse: true })),
       headButton('btn-add', 'plus', t('filter.add'), () => api.addFilter({ open: true })),
