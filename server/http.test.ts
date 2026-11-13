@@ -7,16 +7,20 @@ import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
 import { createApp, resolveStatic, staticResponse } from './main.ts';
 import type { App } from './main.ts';
+import { createSession, createUser, setPasswordCostForTests } from './users.ts';
 
-const TOKEN = 'test-token-0123456789-abcdefghij';
+let TOKEN = '';
 let app: App;
 let base = '';
 let port = 0;
 
 before(async () => {
+  setPasswordCostForTests(1024);
   const db = new DatabaseSync(':memory:');
   createSchema(db);
-  app = createApp({ db, token: TOKEN });
+  const user = createUser(db, { username: 'alice', name: 'Alice', passwordHash: 'x' });
+  TOKEN = createSession(db, user.id, 'test').token;
+  app = createApp({ db });
   await new Promise<void>((r) => app.server.listen(0, '127.0.0.1', r));
   port = (app.server.address() as AddressInfo).port;
   base = `http://127.0.0.1:${port}`;
@@ -121,10 +125,6 @@ test('SSE: een wijziging van client A wordt aan luisteraars gemeld, met het clie
   ac.abort();
 });
 
-test('een te kort token wordt bij het opstarten geweigerd', () => {
-  assert.throws(() => createApp({ db: new DatabaseSync(':memory:'), token: 'kort' }), /minimaal 24/);
-});
-
 // ---------- bestanden van de web-app ----------
 
 const CLIENT_DIR = fileURLToPath(new URL('../client/', import.meta.url));
@@ -186,7 +186,7 @@ test('buiten de toegestane mappen komen lukt niet', async () => {
   ]) {
     const r = await rawGet(path);
     assert.equal(r.status, 404, `${path} gaf ${r.status}`);
-    assert.ok(!/eigen-tool|"scripts"/.test(r.body), `${path} lekte inhoud`);
+    assert.ok(!/tickory|"scripts"/.test(r.body), `${path} lekte inhoud`);
   }
   // "/core/.." is na het wegwerken van de puntjes gewoon "/": de startpagina, niets daarbuiten
   const root = await rawGet('/core/..');
@@ -216,7 +216,7 @@ test('resolveStatic: alleen paden binnen de eigen mappen', () => {
 test('zonder clientmap is er alleen een API', async () => {
   const db = new DatabaseSync(':memory:');
   createSchema(db);
-  const apiOnly = createApp({ db, token: TOKEN, clientDir: null });
+  const apiOnly = createApp({ db, clientDir: null });
   await new Promise<void>((r) => apiOnly.server.listen(0, '127.0.0.1', r));
   const p = (apiOnly.server.address() as AddressInfo).port;
   assert.equal((await fetch(`http://127.0.0.1:${p}/`)).status, 404);

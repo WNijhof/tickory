@@ -38,11 +38,11 @@ jobs:
         with:
           context: .
           load: true
-          tags: eigen-tool:ci
+          tags: tickory:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Image testen zoals hij op een server draait
-        run: node scripts/docker-smoke.ts eigen-tool:ci
+        run: node scripts/docker-smoke.ts tickory:ci
 
       - uses: docker/login-action@v4
         with:

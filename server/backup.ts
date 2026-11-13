@@ -3,7 +3,7 @@
 //   node server/backup.ts <doelbestand.db>
 //
 // De bron is DB_PATH (standaard ./data/todo.db). In Docker:
-//   docker compose exec -T eigen-tool node server/backup.ts /data/backups/todo-$(date +%F).db
+//   docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
 //
 // Een gewone bestandskopie van een SQLite-database in WAL-modus kan onvolledig zijn; VACUUM INTO maakt in één
 // leesbewerking een compleet, consistent bestand. Een bestaand doelbestand wordt nooit overschreven.

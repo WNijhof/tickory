@@ -1,25 +1,34 @@
 # Starten:   docker compose up -d
-# Zet eerst een token in het bestand .env (zie .env.example).
+# Zet eerst de gegevens voor het eerste account in het bestand .env (zie .env.example).
 #
 # Kies één van de twee manieren om aan de image te komen:
-#   1. Uit het GitHub-register (snel, geen bouwtijd op je server). Vul hieronder je GitHub-naam in.
-#      Is de repo privé, log dan eenmalig in:  docker login ghcr.io
+#   1. Uit het GitHub-register (snel, geen bouwtijd op je server): de regel "image:" hieronder.
 #   2. Zelf bouwen uit deze map: haal de regel "image:" weg en zet "build: ." terug.
+#
+# Accounts beheren kan in de app (Instellingen > Account > Gebruikersbeheer) of vanaf de server:
+#   docker compose exec tickory node server/main.ts user list
+#   docker compose exec -e TODO_PASSWORD='een-goed-wachtwoord' tickory node server/main.ts user add anna --name "Anna"
 services:
-  eigen-tool:
-    image: ghcr.io/JOUW-GITHUB-NAAM/eigen-tool:latest
+  tickory:
+    image: ghcr.io/wnijhof/tickory:latest
     # build: .
-    container_name: eigen-tool
+    container_name: tickory
     restart: unless-stopped
     init: true
     environment:
-      TODO_TOKEN: ${TODO_TOKEN:?Zet TODO_TOKEN in het bestand .env (zie .env.example)}
+      # Alleen bij de allereerste start gebruikt: hiermee wordt het eerste account (de beheerder) aangemaakt.
+      # Bestaat er al een account, dan doen deze niets meer en kun je het wachtwoord uit .env halen.
+      TODO_ADMIN_USER: ${TODO_ADMIN_USER:-}
+      TODO_ADMIN_PASSWORD: ${TODO_ADMIN_PASSWORD:-}
+      TODO_ADMIN_NAME: ${TODO_ADMIN_NAME:-}
+      # Zet op 1 als er een eigen reverse proxy voor staat; dan telt het adres van de bezoeker bij het beperken van inlogpogingen.
+      TRUST_PROXY: ${TRUST_PROXY:-0}
     ports:
       # Alleen bereikbaar vanaf de server zelf: zet er een reverse proxy met HTTPS voor (zie README).
       # Wil je het zonder proxy op je thuisnetwerk gebruiken, maak er dan "8787:8787" van.
       - "127.0.0.1:8787:8787"
     volumes:
-      - eigen-tool-data:/data
+      - tickory-data:/data
     # Extra beveiliging: de container kan alleen in /data schrijven en heeft geen bijzondere rechten.
     read_only: true
     tmpfs:
@@ -30,4 +39,4 @@ services:
       - no-new-privileges:true
 
 volumes:
-  eigen-tool-data:
+  tickory-data:

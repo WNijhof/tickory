@@ -225,3 +225,22 @@ textarea.field { resize: vertical; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* ---- delen, account en beheer ---- */
+.nav-shared { font-size: 0.8rem; opacity: 0.75; }
+.sidebar-footer .nav-count { font-size: 0.75rem; }
+.chip-assignee { color: var(--text-soft); }
+.chip-mine { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); font-weight: 600; }
+.shared-with { margin: 2px 0 6px; }
+.section { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; }
+.section > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+.section[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.section-form { display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; }
+.device-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.device { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.device:last-child { border-bottom: 0; }
+.device-info { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--line); }
+.badge-bad { color: var(--danger); }
+.check-row { display: flex; align-items: center; gap: 8px; }
+.error:not(:empty) { color: var(--danger); }

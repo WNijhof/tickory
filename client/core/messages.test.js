@@ -27,7 +27,27 @@ test('elke foutcode geeft een Nederlandse melding zonder technische veldnamen', 
 });
 
 test('onbekende code: de tekst van de server blijft staan; zonder alles een nette standaardtekst', () => {
-  assert.equal(describeCommandError({ cmd: { type: 'task_add' }, error_code: 'RARE_CODE', error: 'iets bijzonders' }), 'Niet gelukt (taak toevoegen). iets bijzonders');
+  assert.equal(describeCommandError({ cmd: { type: 'task_add' }, error_code: 'RARE_CODE', error: 'iets bijzonders' }), 'Niet gelukt (taak toevoegen). Iets bijzonders');
   assert.equal(describeCommandError({ error_code: 'RARE_CODE' }), 'Niet gelukt. De wijziging is niet doorgevoerd.');
   assert.equal(describeCommandError({}), 'Niet gelukt. De wijziging is niet doorgevoerd.');
+});
+
+test('delen: eigen zinnen, en de duidelijke melding van de server blijft staan', () => {
+  assert.equal(describeCommand('project_share'), 'project delen');
+  assert.equal(describeCommand('project_unshare'), 'iemand uit een project halen');
+  assert.equal(describeCommand('project_leave'), 'project verlaten');
+  assert.equal(
+    describeCommandError({ cmd: { type: 'project_share' }, error_code: 'NOT_FOUND', error: 'deze gebruiker bestaat niet' }),
+    'Niet gelukt (project delen). Deze gebruiker bestaat niet.',
+  );
+  assert.equal(
+    describeCommandError({ cmd: { type: 'project_share' }, error_code: 'FORBIDDEN', error: 'alleen de eigenaar kan een project delen' }),
+    'Niet gelukt (project delen). Alleen de eigenaar kan een project delen.',
+  );
+  // zonder melding van de server valt het terug op de algemene tekst
+  assert.match(describeCommandError({ cmd: { type: 'project_leave' }, error_code: 'NOT_FOUND' }), /^Niet gelukt \(project verlaten\)\. Dit bestaat niet meer/);
+  assert.equal(
+    describeCommandError({ cmd: { type: 'label_update' }, error_code: 'FORBIDDEN', error: 'dit label is van iemand anders; je kunt het alleen lezen' }),
+    'Niet gelukt (label wijzigen). Dit label is van iemand anders; je kunt het alleen lezen',
+  );
 });

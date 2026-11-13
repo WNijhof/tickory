@@ -29,6 +29,6 @@ jobs:
         with:
           node-version: '26'
       - name: Image bouwen
-        run: docker build -t eigen-tool:ci .
+        run: docker build -t tickory:ci .
       - name: Image testen zoals hij op een server draait
-        run: node scripts/docker-smoke.ts eigen-tool:ci
+        run: node scripts/docker-smoke.ts tickory:ci

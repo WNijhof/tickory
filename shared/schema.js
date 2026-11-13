@@ -6,7 +6,7 @@ import { isValidKey } from './orderKey.js';
 import { isValidDate, isValidRecurrence } from './recurrence.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'bool' | 'json',
@@ -19,15 +19,23 @@ import { isValidDate, isValidRecurrence } from './recurrence.js';
  *   orderKey?: boolean,        // volgordesleutel (fractional indexing)
  *   immutable?: boolean,       // alleen bij aanmaken te zetten; wijzigen gaat via een eigen commando
  *   serverManaged?: boolean,   // door de server beheerd; clients sturen het nooit mee (bijv. `checked`)
+ *   stamp?: boolean,           // bij aanmaken door de server gevuld met het id van de gebruiker die het commando uitvoert
  *   check?: (v: unknown) => string | null,
  * }} Col
- * @typedef {{ name: EntityName, table: string, resource: string, cols: Col[] }} Entity
+ * @typedef {{ name: EntityName, table: string, resource: string, cols: Col[], commands?: boolean }} Entity
+ *   commands: false = geen algemene *_add/_update/_delete-commando's (deze entiteit wordt alleen via eigen commando's gewijzigd)
  */
 
 export const ID_RE = /^[A-Za-z0-9_-]{8,40}$/;
 
-/** Het vaste id van de Inbox. De server maakt dit project zelf aan; het kan niet worden verwijderd. */
+/**
+ * Elke gebruiker heeft een eigen Inbox; de server maakt die aan bij het aanmaken van het account. Het id begint altijd
+ * met "inbox-" en die voorvoegsels zijn gereserveerd: een gebruiker kan zelf geen project met zo'n id aanmaken.
+ * INBOX_ID is de Inbox van het allereerste account (en van een database uit versie 0.1, zodat die intact blijft).
+ */
 export const INBOX_ID = 'inbox-project';
+export const INBOX_PREFIX = 'inbox-';
+export const isInboxId = (id) => typeof id === 'string' && id.startsWith(INBOX_PREFIX);
 
 /** Prioriteit: 1 = hoogst … 4 = geen (standaard). Het getal is gelijk aan het label in de app (P1–P4). */
 export const PRIORITIES = [1, 2, 3, 4];
@@ -48,6 +56,8 @@ function dueCheck(v) {
   return null;
 }
 
+const userIdCheck = (v) => (typeof v === 'string' && ID_RE.test(v) ? null : 'ongeldig gebruikers-id');
+const owner = () => ({ name: 'owner_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true });
 const labelName = (v) => (/[,\u0000-\u001f]|^\s|\s$/u.test(v) ? 'mag geen komma, omringende spaties of stuurtekens bevatten' : null);
 const dateOnly = (v) => (isValidDate(v) && String(v).length === 10 ? null : 'moet YYYY-MM-DD zijn');
 const key = () => ({ name: 'order_key', type: 'text', orderKey: true, check: (v) => (isValidKey(v) ? null : 'ongeldige volgordesleutel') });
@@ -93,6 +103,9 @@ export const ENTITIES = {
       { name: 'due', type: 'json', nullable: true, default: null, check: dueCheck },
       { name: 'deadline', type: 'text', nullable: true, default: null, check: dateOnly },
       { name: 'duration', type: 'int', nullable: true, default: null, min: 1, max: 60 * 24 * 7 },
+      // wie de taak moet doen: moet lid van het project zijn (de server controleert dat)
+      { name: 'assignee_id', type: 'text', nullable: true, default: null, check: userIdCheck },
+      { name: 'creator_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
       { name: 'checked', type: 'bool', default: false, serverManaged: true },
       { name: 'completed_at', type: 'text', nullable: true, default: null, serverManaged: true },
       { name: 'completed_count', type: 'int', default: 0, serverManaged: true },
@@ -103,7 +116,9 @@ export const ENTITIES = {
   label: {
     name: 'label', table: 'labels', resource: 'labels',
     // geen komma (in het bewerkvenster scheidt een komma labels), geen omringende spaties en geen stuurtekens
-    cols: [{ name: 'name', type: 'text', required: true, maxLen: 100, check: labelName }, color(), key(), fav()],
+    // Labels zijn persoonlijk (van de gebruiker die ze maakte). Je ziet ook de labels die op taken in je gedeelde
+    // projecten staan, zodat je ze daar kunt lezen; wijzigen of verwijderen kan alleen de eigenaar.
+    cols: [{ name: 'name', type: 'text', required: true, maxLen: 100, check: labelName }, color(), key(), fav(), owner()],
   },
   comment: {
     name: 'comment', table: 'comments', resource: 'comments',
@@ -111,8 +126,10 @@ export const ENTITIES = {
       { name: 'task_id', type: 'text', nullable: true, default: null, ref: 'task', immutable: true },
       { name: 'project_id', type: 'text', nullable: true, default: null, ref: 'project', immutable: true },
       { name: 'content', type: 'text', required: true, maxLen: 16000 },
+      { name: 'author_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
     ],
   },
+  // Herinneringen zijn persoonlijk: ieder lid van een gedeeld project stelt zijn eigen herinneringen in.
   reminder: {
     name: 'reminder', table: 'reminders', resource: 'reminders',
     cols: [
@@ -120,11 +137,21 @@ export const ENTITIES = {
       { name: 'type', type: 'text', required: true, oneOf: ['relative', 'absolute'] },
       { name: 'minute_offset', type: 'int', nullable: true, default: null, min: 0, max: 60 * 24 * 365 },
       { name: 'due', type: 'json', nullable: true, default: null, check: dueCheck },
+      owner(),
     ],
   },
   filter: {
     name: 'filter', table: 'filters', resource: 'filters',
-    cols: [{ name: 'name', type: 'text', required: true, maxLen: 200 }, { name: 'query', type: 'text', required: true, maxLen: 2000 }, color(), key(), fav()],
+    cols: [{ name: 'name', type: 'text', required: true, maxLen: 200 }, { name: 'query', type: 'text', required: true, maxLen: 2000 }, color(), key(), fav(), owner()],
+  },
+  // Wie bij een project hoort. Alleen te wijzigen met project_share, project_unshare en project_leave.
+  member: {
+    name: 'member', table: 'project_members', resource: 'members', commands: false,
+    cols: [
+      { name: 'project_id', type: 'text', required: true, ref: 'project', immutable: true },
+      { name: 'user_id', type: 'text', required: true, immutable: true, check: userIdCheck },
+      { name: 'role', type: 'text', required: true, oneOf: ['owner', 'member'] },
+    ],
   },
 };
 

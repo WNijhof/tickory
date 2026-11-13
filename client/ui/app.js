@@ -1,23 +1,28 @@
 // Startpunt van de web-app: verbindt opslag, synchronisatie en scherm.
 
-import { INBOX_ID } from '../../shared/schema.js';
 import { IdbAdapter } from '../core/idb.js';
 import { MemoryAdapter, Store } from '../core/store.js';
-import { SyncClient, httpTransport } from '../core/syncClient.js';
+import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
-import { listenForChanges } from '../core/events.js';
+import { deviceName } from '../core/auth.js';
+import { createBackend } from '../core/backend.js';
+import { roleIn } from '../core/selectors.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { mainView, sidebar } from './render.js';
 import { openTaskDialog } from './taskDialog.js';
+import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
+import { openShareDialog } from './shareDialog.js';
 
-const TOKEN_KEY = 'eigen-tool.token';
-const ROUTE_KEY = 'eigen-tool.route';
+const ROUTE_KEY = 'tickory.route';
 
 const $ = (id) => document.getElementById(id);
-const getToken = () => localStorage.getItem(TOKEN_KEY);
+const clientId = newId();
+/** Alle communicatie met de server (zie core/backend.js). */
+const backend = createBackend({ clientId });
+const getToken = () => backend.getToken();
 
 function loadRoute() {
   try {
@@ -27,7 +32,10 @@ function loadRoute() {
   return { type: 'today' };
 }
 
-const ui = { route: loadRoute(), showCompleted: new Set(), syncState: 'idle', askingToken: false, scheduled: false };
+const ui = { route: loadRoute(), showCompleted: new Set(), syncState: 'idle', askingLogin: false, scheduled: false };
+const api = backend.api;
+/** De Inbox van de ingelogde gebruiker; null zolang de server nog niet heeft gezegd wie je bent. */
+const inboxId = () => store?.me?.inbox_project_id ?? null;
 let adapter;
 let store;
 let sync;
@@ -50,13 +58,14 @@ function render() {
   if (ui.route.type === 'project' && store.ready && store.view.projects.size > 0 && !store.view.projects.has(ui.route.id)) {
     ui.route = { type: 'today' }; // het project is verwijderd (bijvoorbeeld op een ander apparaat)
   }
-  replace($('sidebar'), sidebar({ view: store.view, today, route: ui.route, handlers }));
+  replace($('sidebar'), sidebar({ view: store.view, today, route: ui.route, handlers, me: store.me }));
   const main = mainView({
     view: store.view, route: ui.route, today, now: nowString(),
     showCompleted: ui.route.type === 'project' && ui.showCompleted.has(ui.route.id), handlers,
+    me: store.me, userName: (id) => store.userName(id),
   });
   $('view-title').textContent = main.title;
-  document.title = `${main.title} · Taken`;
+  document.title = `${main.title} · Tickory`;
   replace($('content'), main.nodes);
   renderStatus();
   renderPreview();
@@ -65,30 +74,32 @@ function render() {
 function renderStatus() {
   const n = store.queueLength;
   const waiting = n > 0 ? `${n} wachtend` : '';
+  // Zonder aanmelding is er niets bijgewerkt, ook al is er (nog) geen sync mislukt.
+  const state = getToken() ? ui.syncState : 'unauthorized';
   const text = {
     idle: waiting || 'Bijgewerkt',
     syncing: 'Bezig…',
     offline: ['Offline', waiting].filter(Boolean).join(' · '),
-    unauthorized: 'Token nodig',
+    unauthorized: 'Inloggen nodig',
     error: 'Bijwerken mislukt',
-  }[ui.syncState];
+  }[state];
   const el = $('sync-status');
   el.textContent = text;
-  el.dataset.state = ui.syncState === 'idle' && n > 0 ? 'pending' : ui.syncState;
+  el.dataset.state = state === 'idle' && n > 0 ? 'pending' : state;
 }
 
 // ---------- snel toevoegen ----------
 
 function quickContext() {
   if (ui.route.type === 'project' && store.view.projects.has(ui.route.id)) return { defaultProjectId: ui.route.id };
-  if (ui.route.type === 'today') return { defaultProjectId: INBOX_ID, defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' } };
-  return { defaultProjectId: INBOX_ID };
+  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' } };
+  return { defaultProjectId: inboxId() };
 }
 
 function renderPreview() {
   const text = $('quick-input').value;
   const host = $('quick-preview');
-  if (!text.trim()) return replace(host);
+  if (!text.trim() || !quickContext().defaultProjectId) return replace(host);
   const ctx = quickContext();
   const p = parseQuickAdd(text, { view: store.view, now: new Date(), ...ctx });
   const today = todayString();
@@ -109,6 +120,10 @@ function renderPreview() {
 async function submitQuickAdd(e) {
   e.preventDefault();
   const input = $('quick-input');
+  if (!quickContext().defaultProjectId) {
+    toast('Log eerst in om taken toe te voegen.');
+    return;
+  }
   const p = parseQuickAdd(input.value, { view: store.view, now: new Date(), ...quickContext() });
   if (!p.content) {
     toast('Geef de taak een naam.');
@@ -158,20 +173,44 @@ const handlers = {
   },
 
   async projectMenu(project) {
+    const mine = roleIn(store.view, project.id, store.userId);
     const choice = await menuDialog({
       title: project.name,
-      items: [{ value: 'rename', label: 'Naam wijzigen' }, { value: 'delete', label: 'Project verwijderen', danger: true }],
+      items: [
+        { value: 'rename', label: 'Naam wijzigen' },
+        { value: 'share', label: mine === 'member' ? 'Leden bekijken' : 'Delen…' },
+        mine === 'member'
+          ? { value: 'leave', label: 'Project verlaten', danger: true }
+          : { value: 'delete', label: 'Project verwijderen', danger: true },
+      ],
     });
     if (choice === 'rename') {
       const name = await promptDialog({ title: 'Naam wijzigen', label: 'Naam', value: project.name });
       if (name && name !== project.name) await actions.updateProject(project.id, { name });
+    } else if (choice === 'share') {
+      await handlers.shareProject(project);
+    } else if (choice === 'leave') {
+      const ok = await confirmDialog({ title: 'Project verlaten?', text: `Je ziet "${project.name}" daarna niet meer, tenzij de eigenaar je opnieuw uitnodigt.`, okText: 'Verlaten' });
+      if (ok) {
+        await actions.leaveProject(project.id);
+        navigate({ type: 'project', id: inboxId() });
+      }
     } else if (choice === 'delete') {
-      const ok = await confirmDialog({ title: 'Project verwijderen?', text: `"${project.name}" wordt verwijderd, met alle secties, taken en subprojecten erin.` });
+      const shared = [...store.view.members.values()].filter((m) => m.project_id === project.id).length > 1;
+      const ok = await confirmDialog({
+        title: 'Project verwijderen?',
+        text: `"${project.name}" wordt verwijderd, met alle secties, taken en subprojecten erin${shared ? ' — ook voor de mensen met wie je het deelt' : ''}.`,
+      });
       if (ok) {
         await actions.deleteProject(project.id);
-        navigate({ type: 'project', id: INBOX_ID });
+        navigate({ type: 'project', id: inboxId() });
       }
     }
+  },
+
+  async shareProject(project) {
+    const outcome = await openShareDialog({ store, actions, project });
+    if (outcome === 'left') navigate({ type: 'project', id: inboxId() });
   },
 
   async sectionMenu(section) {
@@ -194,34 +233,76 @@ const handlers = {
   },
 
   async settings() {
+    if (!store.me) return askLogin();
     const choice = await menuDialog({
       title: 'Instellingen',
       items: [
+        { value: 'account', label: 'Account, wachtwoord en apparaten' },
         { value: 'sync', label: 'Nu bijwerken' },
-        { value: 'token', label: 'Token wijzigen' },
         { value: 'logout', label: 'Afmelden en lokale gegevens wissen', danger: true },
       ],
     });
     if (choice === 'sync') sync.requestSync(0);
-    else if (choice === 'token') askToken();
+    else if (choice === 'account') await accountFlow();
     else if (choice === 'logout') logout();
+    return undefined;
   },
 };
 
-async function askToken() {
-  if (ui.askingToken) return;
-  ui.askingToken = true;
+/** Het accountscherm, met doorverwijzing naar gebruikersbeheer of afmelden. */
+async function accountFlow() {
+  const next = await accountDialog({ me: store.me, api });
+  if (next === 'admin') {
+    await adminDialog({ me: store.me, api });
+    return accountFlow();
+  }
+  if (next === 'logout') return logout();
+  if (next === 'relogin') return askLogin();
+  return undefined;
+}
+
+/**
+ * Het inlogscherm. Lukt het, dan bewaren we het token. Logt er iemand anders in dan wiens gegevens op dit apparaat staan,
+ * dan wissen we die eerst (na bevestiging als er nog wijzigingen wachten): gegevens van de één horen nooit bij de ander terecht te komen.
+ */
+async function askLogin(note = '') {
+  if (ui.askingLogin) return;
+  ui.askingLogin = true;
   try {
-    const token = await promptDialog({
-      title: 'Verbinden met je server', label: 'Token', type: 'password', okText: 'Verbinden',
-      hint: 'Het geheime token waarmee de server is gestart (TODO_TOKEN). Het wordt alleen op dit apparaat bewaard.',
+    await loginDialog({
+      username: store.me?.username ?? '',
+      note: note || (store.me ? 'Je bent niet meer aangemeld (afgemeld of het wachtwoord is gewijzigd). Log opnieuw in om verder te gaan.' : ''),
+      attempt: async (username, password) => {
+        const res = await api.login(username, password, deviceName(navigator.userAgent, { app: Boolean(window.TickoryAndroid) }));
+        const other = store.me && store.me.id !== res.me.id;
+        if (other) {
+          const waiting = store.queueLength;
+          const ok = await confirmDialog({
+            title: `Inloggen als ${res.me.name}?`,
+            text: `Op dit apparaat staan nog de gegevens van ${store.me.name}${waiting > 0 ? `, met ${waiting} wijziging${waiting === 1 ? '' : 'en'} die nog niet naar de server zijn gestuurd` : ''}. Die worden gewist.`,
+            okText: 'Wissen en inloggen',
+          });
+          if (!ok) {
+            api.logout(res.token).catch(() => {});
+            throw new Error('geannuleerd');
+          }
+          events.stop();
+          sync.stop();
+          localStorage.removeItem(ROUTE_KEY);
+          if (adapter.clear) await adapter.clear();
+        }
+        backend.setToken(res.token);
+        if (other) {
+          location.reload();
+          return res;
+        }
+        events.restart();
+        sync.requestSync(0);
+        return res;
+      },
     });
-    if (!token) return;
-    localStorage.setItem(TOKEN_KEY, token);
-    events.restart();
-    sync.requestSync(0);
   } finally {
-    ui.askingToken = false;
+    ui.askingLogin = false;
   }
 }
 
@@ -231,13 +312,14 @@ async function logout() {
     title: 'Afmelden?',
     text: waiting > 0
       ? `Er ${waiting === 1 ? 'staat nog 1 wijziging' : `staan nog ${waiting} wijzigingen`} te wachten die niet naar de server zijn gestuurd. Die gaan verloren.`
-      : 'Het token en de lokale kopie van je taken worden van dit apparaat gewist. Op de server blijft alles staan.',
+      : 'Je wordt afgemeld en de lokale kopie van je taken wordt van dit apparaat gewist. Op de server blijft alles staan.',
     okText: 'Afmelden',
   });
   if (!ok) return;
   events.stop();
   sync.stop();
-  localStorage.removeItem(TOKEN_KEY);
+  await api.logout().catch(() => { /* zonder verbinding: het token wordt hier toch gewist; intrekken kan later via Account */ });
+  backend.clearToken();
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
   location.reload();
@@ -256,14 +338,13 @@ async function boot() {
   store = new Store(adapter);
   await store.init();
 
-  const clientId = newId();
   sync = new SyncClient({
     store,
-    transport: httpTransport({ getToken, clientId }),
+    transport: backend.transport,
     onState: (s) => {
       ui.syncState = s;
       renderStatus();
-      if (s === 'unauthorized') askToken();
+      if (s === 'unauthorized') askLogin();
     },
     onCommandErrors: (errors) => {
       for (const e of errors) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
@@ -271,7 +352,7 @@ async function boot() {
   });
 
   // andere tabbladen op dit apparaat laten weten dat er lokaal iets is veranderd (ook zonder verbinding)
-  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('eigen-tool') : null;
+  const channel = 'BroadcastChannel' in window ? new BroadcastChannel('tickory') : null;
   channel?.addEventListener('message', () => store.init());
   actions = createActions(store, {
     requestSync: () => {
@@ -280,7 +361,7 @@ async function boot() {
     },
   });
 
-  events = listenForChanges({ getToken, clientId, onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
+  events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
   store.subscribe(invalidate);
   window.addEventListener('online', () => {
     events.restart();
@@ -295,12 +376,12 @@ async function boot() {
   $('quick-input').addEventListener('input', renderPreview);
   $('menu-button').addEventListener('click', () => document.body.classList.toggle('nav-open'));
   $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));
-  $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' ? askToken() : sync.requestSync(0)));
+  $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' || !getToken() ? askLogin() : sync.requestSync(0)));
 
   render();
   document.body.classList.add('ready');
   if (getToken()) sync.requestSync(0);
-  else askToken();
+  else askLogin();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* zonder service worker werkt de app alleen online */ });

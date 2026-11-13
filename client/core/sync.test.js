@@ -1,20 +1,16 @@
 // De client-kern tegen de echte server-engine (in het geheugen, zonder netwerk).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DatabaseSync } from 'node:sqlite';
-import { createSchema } from '../../server/schema.ts';
 import { handleSync } from '../../server/sync.ts';
+import { firstUser, mkdb } from '../../server/testutil.ts';
 import { INBOX_ID } from '../../shared/schema.js';
 import { RESOURCES } from './reducer.js';
 import { MemoryAdapter, Store } from './store.js';
 import { AuthError, HttpError, SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
 
-function makeServer() {
-  const db = new DatabaseSync(':memory:');
-  createSchema(db);
-  return db;
-}
+/** Een server met één account ("tester") dat de Inbox "inbox-project" heeft; de client logt daar impliciet mee in. */
+const makeServer = mkdb;
 
 let counter = 0;
 function makeClient(db, { adapter = new MemoryAdapter(), batchSize } = {}) {
@@ -26,7 +22,7 @@ function makeClient(db, { adapter = new MemoryAdapter(), batchSize } = {}) {
     net.sizes.push(body.commands.length);
     if (!net.online) throw new TypeError('fetch failed');
     if (body.commands.length > net.maxCommands) throw new HttpError(413);
-    const res = handleSync(net.db, JSON.parse(JSON.stringify(body)));
+    const res = handleSync(net.db, JSON.parse(JSON.stringify(body)), firstUser(net.db).id);
     if (net.loseResponse) {
       net.loseResponse = false;
       throw new TypeError('verbinding verbroken');
@@ -50,6 +46,8 @@ function snapshot(view) {
       .map(({ created_at, updated_at, completed_at, ...rest }) => ({ ...rest, completed: Boolean(completed_at) }))
       .sort((a, b) => (a.id < b.id ? -1 : 1));
   }
+  // Het id van een ledenrij kiest de server; vergelijk leden dus op project, gebruiker en rol.
+  out.members = out.members.map(({ id, ...rest }) => rest).sort((a, b) => (`${a.project_id}/${a.user_id}` < `${b.project_id}/${b.user_id}` ? -1 : 1));
   return out;
 }
 const serverRev = (db) => Number(db.prepare("SELECT value FROM meta WHERE key = 'rev'").get().value);
@@ -61,10 +59,15 @@ test('eerste sync: de Inbox komt binnen en het token wordt bewaard', async () =>
   assert.equal(c.store.token, '*');
   assert.equal(await c.sync.syncNow(), true);
   assert.equal(c.store.view.projects.get(INBOX_ID).name, 'Inbox');
-  assert.equal(c.store.token, '1');
+  assert.equal(c.store.token, '2');
+  assert.equal(c.store.me.username, 'tester', 'de server meldt wie je bent');
+  assert.equal(c.store.userId, c.store.me.id);
+  assert.equal(c.store.userName(c.store.userId), 'Tester');
+  assert.equal(c.store.view.members.size, 1);
   const again = new Store(c.adapter);
   await again.init();
-  assert.equal(again.token, '1');
+  assert.equal(again.token, '2');
+  assert.equal(again.me.username, 'tester', 'ook na een herstart bekend, zonder verbinding');
   assert.equal(again.view.projects.size, 1);
 });
 
@@ -140,7 +143,7 @@ test('een wijziging van een ander apparaat overschrijft mijn nog niet verstuurde
   await b.sync.syncNow();
 
   // de delta van B komt binnen terwijl A's wijziging nog in de wachtrij staat
-  const delta = handleSync(db, { sync_token: a.store.token });
+  const delta = handleSync(db, { sync_token: a.store.token }, firstUser(db).id);
   await a.store.applyResponse(JSON.parse(JSON.stringify(delta)));
   assert.equal(a.store.queueLength, 1);
   assert.equal(a.store.view.tasks.get(t).content, 'Van A', 'mijn wijziging blijft zichtbaar');
@@ -220,7 +223,7 @@ test('server teruggezet (token loopt vooruit): volledige sync vervangt de lokale
   await c.actions.addTask({ content: 'Oud', project_id: INBOX_ID });
   await c.actions.addProject({ name: 'Oud project' });
   await c.sync.syncNow();
-  assert.equal(c.store.token, '3');
+  assert.equal(c.store.token, '4');
 
   c.net.db = makeServer(); // verse server
   c.net.online = false;

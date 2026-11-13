@@ -14,6 +14,7 @@ export function newId() {
   return s;
 }
 
+const isOwnLabel = (label, me) => !label.owner_id || !me || label.owner_id === me;
 const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : 1);
 
 /**
@@ -42,10 +43,13 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
   const labelCommands = (names) => {
     const ids = [];
     const commands = [];
-    let last = maxKey(store.view.labels, () => true);
+    let last = maxKey(store.view.labels, (l) => isOwnLabel(l, store.userId));
     // Namen vergelijken via nameKey: hoofdletterongevoelig voor alle Unicode-letters ("Café" = "CAFÉ") en gelijk voor
     // de gewone en de ontleedde schrijfwijze van "é".
-    const known = new Map([...store.view.labels.values()].map((l) => [nameKey(l.name), l.id]));
+    // Een eigen label gaat voor; bestaat alleen het label van iemand anders (op een gedeelde taak), dan gebruiken we dat.
+    const known = new Map();
+    const me = store.userId;
+    for (const l of [...store.view.labels.values()].sort((a, b) => Number(isOwnLabel(a, me)) - Number(isOwnLabel(b, me)))) known.set(nameKey(l.name), l.id);
     for (const raw of names) {
       const name = normalizeText(raw).trim();
       if (!name) continue;
@@ -112,6 +116,14 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     },
     updateSection: (id, changes) => send([{ type: 'section_update', args: { id, ...changes } }]),
     deleteSection: (id) => send([{ type: 'section_delete', args: { id } }]),
+
+    // ---- delen en samenwerken ----
+    /** Deelt een project met iemand, op gebruikersnaam. De server meldt het als die niet bestaat. */
+    shareProject: (project_id, username) => send([{ type: 'project_share', args: { project_id, username: username.trim() } }]),
+    unshareProject: (project_id, user_id) => send([{ type: 'project_unshare', args: { project_id, user_id } }]),
+    leaveProject: (project_id) => send([{ type: 'project_leave', args: { project_id } }]),
+    /** Wijst een taak toe aan een lid van het project, of aan niemand (null). */
+    assignTask: (id, assignee_id) => send([{ type: 'task_update', args: { id, assignee_id } }]),
 
     // ---- labels ----
     async addLabel(name) {

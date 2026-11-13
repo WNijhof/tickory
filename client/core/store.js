@@ -84,6 +84,9 @@ export class Store {
     /** @type {QueueItem[]} */
     this.queue = [];
     this.token = '*';
+    /** De ingelogde gebruiker en wie je verder in gedeelde projecten tegenkomt (alleen namen), zoals de server ze meldde. */
+    this.me = null;
+    this.users = [];
     this.lastSeq = 0;
     this.listeners = new Set();
     this.ready = false;
@@ -100,6 +103,8 @@ export class Store {
     const pending = this.queue.filter((q) => this.unsaved.has(keyOf(q)) && !loaded.has(keyOf(q)));
     this.queue = [...data.queue, ...pending].sort(byQueueOrder);
     this.token = typeof data.meta.sync_token === 'string' ? data.meta.sync_token : '*';
+    this.me = data.meta.me ?? null;
+    this.users = Array.isArray(data.meta.users) ? data.meta.users : [];
     this.lastSeq = Math.max(this.lastSeq, ...this.queue.map((q) => q.seq));
     this.rebuild();
     this.ready = true;
@@ -108,6 +113,16 @@ export class Store {
 
   get queueLength() {
     return this.queue.length;
+  }
+
+  /** Id van de ingelogde gebruiker; null zolang de server er nog niet over gesproken heeft. */
+  get userId() {
+    return this.me?.id ?? null;
+  }
+
+  /** Naam van een gebruiker zoals die in de gedeelde projecten bekend is, of null. */
+  userName(id) {
+    return this.users.find((u) => u.id === id)?.name ?? null;
   }
 
   /** @param {() => void} fn */
@@ -122,7 +137,7 @@ export class Store {
 
   rebuild() {
     const view = cloneState(this.base);
-    for (const item of this.queue) applyCommand(view, item.cmd, item.at);
+    for (const item of this.queue) applyCommand(view, item.cmd, item.at, this.userId);
     this.view = view;
   }
 
@@ -151,7 +166,7 @@ export class Store {
     this.queue.push(...items);
     for (const item of items) this.unsaved.add(keyOf(item));
     const view = cloneState(this.view);
-    for (const item of items) applyCommand(view, item.cmd, item.at);
+    for (const item of items) applyCommand(view, item.cmd, item.at, this.userId);
     this.view = view;
     this.notify();
     await this.persist({ queueAdd: items });
@@ -170,6 +185,40 @@ export class Store {
     this.rebuild();
     this.notify();
     await this.persist({ queueRemove: items.map((q) => [q.seq, q.origin]) });
+  }
+
+  /**
+   * Ruimt op wat bij een verdwenen project of taak hoorde. De server meldt alleen dát een project of taak voor jou weg is
+   * (bijvoorbeeld omdat je uit het project bent gehaald, of de taak naar een project van een ander is verhuisd), niet
+   * ook alles wat eraan hing; dat staat intussen voor jou niet meer toegankelijk op de server.
+   */
+  dropOrphans(batch) {
+    const base = this.base;
+    const drop = (resource, pred) => {
+      for (const row of [...base[resource].values()]) {
+        if (!pred(row)) continue;
+        base[resource].delete(row.id);
+        batch.rowsDelete.push({ resource, id: row.id });
+      }
+    };
+    const projectsLeft = new Set(base.projects.keys());
+    // Een rij die naar een project verwijst dat niet (meer) bestaat, hoort er niet meer bij. Het project zelf is de enige
+    // plek waar dat mis kan gaan; daarom controleren we de rest tegen de projecten die er nog zijn.
+    drop('sections', (s) => !projectsLeft.has(s.project_id));
+    drop('members', (m) => !projectsLeft.has(m.project_id));
+    drop('comments', (c) => (c.project_id ? !projectsLeft.has(c.project_id) : false));
+    drop('tasks', (t) => !projectsLeft.has(t.project_id));
+    // subtaken zonder bovenliggende taak, en alles wat aan een verdwenen taak hing
+    for (let again = true; again;) {
+      again = false;
+      drop('tasks', (t) => {
+        const orphan = t.parent_id && !base.tasks.has(t.parent_id);
+        if (orphan) again = true;
+        return Boolean(orphan);
+      });
+    }
+    drop('comments', (c) => (c.task_id ? !base.tasks.has(c.task_id) : false));
+    drop('reminders', (r) => !base.tasks.has(r.task_id));
   }
 
   /**
@@ -193,6 +242,15 @@ export class Store {
           batch.rowsPut.push({ resource, row });
         }
       }
+    }
+    this.dropOrphans(batch);
+    if (res.me) {
+      this.me = res.me;
+      batch.meta.me = res.me;
+    }
+    if (Array.isArray(res.users)) {
+      this.users = res.users;
+      batch.meta.users = res.users;
     }
     const status = res.sync_status ?? {};
     const errors = [];

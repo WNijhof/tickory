@@ -1,7 +1,7 @@
 // Opslag in IndexedDB (alleen in de browser). Eén commit is één transactie: alles of niets.
 // Stores: rows ("resource/id" -> { resource, row }), meta (sleutel -> waarde), queue ([seq, origin] -> commando).
 
-const DB_NAME = 'eigen-tool';
+const DB_NAME = 'tickory';
 const DB_VERSION = 1;
 
 const done = (tx) =>

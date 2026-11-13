@@ -1,9 +1,19 @@
-// Rooktest tegen een draaiende server (los proces). Gebruik: node scripts/smoke.ts <basis-url> <tokenbestand>
-import { readFileSync } from 'node:fs';
+// Rooktest tegen een draaiende server (los proces).
+// Gebruik: SMOKE_USER=<gebruikersnaam> SMOKE_PASSWORD=<wachtwoord> node scripts/smoke.ts [basis-url]
+// Maakt een project "Rooktest" aan en ruimt dat aan het eind weer op; je andere gegevens blijven ongemoeid.
 import assert from 'node:assert/strict';
 
-const [, , base = 'http://127.0.0.1:8799', tokenFile = '.smoke-token'] = process.argv;
-const token = readFileSync(tokenFile, 'utf8').trim();
+const [, , base = 'http://127.0.0.1:8787'] = process.argv;
+const { SMOKE_USER: username, SMOKE_PASSWORD: password } = process.env;
+if (!username || !password) throw new Error('zet SMOKE_USER en SMOKE_PASSWORD');
+
+console.log('health:', await (await fetch(`${base}/health`)).json());
+const login = await fetch(`${base}/api/v1/auth/login`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, device_name: 'Rooktest' }),
+});
+assert.equal(login.status, 200, 'inloggen mislukt');
+const { token, me } = await login.json();
+console.log('ingelogd als', me.username);
 
 async function sync(body: unknown, auth = true): Promise<{ status: number; json: any }> {
   const r = await fetch(`${base}/api/v1/sync`, {
@@ -14,45 +24,48 @@ async function sync(body: unknown, auth = true): Promise<{ status: number; json:
   return { status: r.status, json: await r.json() };
 }
 
-console.log('health:', (await (await fetch(`${base}/health`)).json()));
 assert.equal((await sync({}, false)).status, 401);
-console.log('zonder token: 401 ✓');
+console.log('zonder aanmelding: 401 ✓');
 
+const run = Date.now().toString(36);
+const P = `project-smoke-${run}`.slice(0, 40);
+const T = `task-smoke-${run}`.slice(0, 40);
 const first = await sync({
   sync_token: '*',
   commands: [
-    { type: 'project_add', uuid: 'smoke-cmd-0001', args: { id: 'project-smoke-01', name: 'Rooktest' } },
-    { type: 'task_add', uuid: 'smoke-cmd-0002', args: {
-      id: 'task-smoke-0001', project_id: 'project-smoke-01', content: 'Planten water geven', priority: 2,
+    { type: 'project_add', uuid: `smoke-${run}-0001`, args: { id: P, name: 'Rooktest' } },
+    { type: 'task_add', uuid: `smoke-${run}-0002`, args: {
+      id: T, project_id: P, content: 'Planten water geven', priority: 2,
       due: { date: '2026-11-13', string: 'elke vrijdag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [5] } } } },
   ],
 });
 assert.equal(first.status, 200);
-assert.equal(first.json.sync_status['smoke-cmd-0001'], 'ok');
-assert.equal(first.json.sync_status['smoke-cmd-0002'], 'ok');
-console.log('aanmaken: token', first.json.sync_token, '| taken:', first.json.tasks.map((t: any) => `${t.content} (sleutel ${t.order_key})`));
+assert.equal(first.json.sync_status[`smoke-${run}-0001`], 'ok');
+assert.equal(first.json.sync_status[`smoke-${run}-0002`], 'ok');
+console.log('aanmaken: token', first.json.sync_token);
 
-const done = await sync({ sync_token: first.json.sync_token, commands: [{ type: 'task_complete', uuid: 'smoke-cmd-0003', args: { id: 'task-smoke-0001' } }] });
-const t = done.json.tasks[0];
+const done = await sync({ sync_token: first.json.sync_token, commands: [{ type: 'task_complete', uuid: `smoke-${run}-0003`, args: { id: T } }] });
+const t = done.json.tasks.find((x: any) => x.id === T);
 assert.equal(t.checked, false);
 assert.equal(t.due.date, '2026-11-20');
-assert.equal(done.json.projects.length, 0, 'delta bevat het ongewijzigde project niet');
 console.log('afvinken terugkerende taak: nieuwe datum', t.due.date, '| nog open:', !t.checked, '| keer voltooid:', t.completed_count);
 
 const rev = done.json.sync_token;
-const again = await sync({ sync_token: rev, commands: [{ type: 'task_complete', uuid: 'smoke-cmd-0003', args: { id: 'task-smoke-0001' } }] });
-assert.equal(again.json.sync_status['smoke-cmd-0003'], 'ok');
-assert.equal(again.json.sync_token, rev, 'herhaald commando verandert niets');
-assert.equal(again.json.tasks.length, 0);
-console.log('herhaald commando (zelfde uuid): idempotent ✓, token ongewijzigd', again.json.sync_token);
+const again = await sync({ sync_token: rev, commands: [{ type: 'task_complete', uuid: `smoke-${run}-0003`, args: { id: T } }] });
+assert.equal(again.json.sync_status[`smoke-${run}-0003`], 'ok');
+assert.equal(again.json.tasks.length, 0, 'herhaald commando verandert niets');
+console.log('herhaald commando (zelfde uuid): idempotent ✓');
 
-const bad = await sync({ sync_token: rev, commands: [{ type: 'task_add', uuid: 'smoke-cmd-0004', args: { project_id: 'project-smoke-01', content: 'x', priority: 9 } }] });
-console.log('ongeldig commando:', JSON.stringify(bad.json.sync_status['smoke-cmd-0004']));
-assert.equal(bad.json.sync_status['smoke-cmd-0004'].error_code, 'INVALID_ARG');
+const bad = await sync({ sync_token: rev, commands: [{ type: 'task_add', uuid: `smoke-${run}-0004`, args: { project_id: P, content: 'x', priority: 9 } }] });
+assert.equal(bad.json.sync_status[`smoke-${run}-0004`].error_code, 'INVALID_ARG');
+console.log('ongeldig commando geweigerd ✓');
 
-const del = await sync({ sync_token: rev, commands: [{ type: 'project_delete', uuid: 'smoke-cmd-0005', args: { id: 'project-smoke-01' } }] });
-console.log('project verwijderen: delta bevat', del.json.projects.length, 'project en', del.json.tasks.length, 'taak als is_deleted =', del.json.tasks.every((x: any) => x.is_deleted));
+const del = await sync({ sync_token: rev, commands: [{ type: 'project_delete', uuid: `smoke-${run}-0005`, args: { id: P } }] });
+assert.equal(del.json.sync_status[`smoke-${run}-0005`], 'ok');
 const full = await sync({ sync_token: '*' });
-assert.equal(full.json.tasks.length + full.json.projects.length, 0);
-console.log('volledige sync daarna: leeg ✓');
-console.log('\nROOKTEST GESLAAGD');
+assert.ok(!full.json.projects.some((p: any) => p.id === P) && !full.json.tasks.some((x: any) => x.id === T));
+console.log('opgeruimd ✓');
+
+await fetch(`${base}/api/v1/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
+assert.equal((await sync({})).status, 401, 'na uitloggen werkt het token niet meer');
+console.log('uitgelogd ✓\n\nROOKTEST GESLAAGD');

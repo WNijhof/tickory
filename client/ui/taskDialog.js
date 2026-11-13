@@ -2,7 +2,7 @@
 
 import { parseDateText } from '../core/dateNl.js';
 import { formatDateInput, formatDueLong } from '../core/format.js';
-import { byOrder, projectList } from '../core/selectors.js';
+import { byOrder, membersOf, projectList } from '../core/selectors.js';
 import { confirmDialog, h, replace } from './dom.js';
 
 const PRIORITY_LABELS = { 1: 'P1 – hoogste', 2: 'P2', 3: 'P3', 4: 'P4 – geen' };
@@ -28,6 +28,7 @@ export function openTaskDialog({ task, store, actions, today }) {
       projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === task.project_id }, `${'  '.repeat(depth)}${p.name}`)));
     const section = h('select', { class: 'field' });
     const labels = h('input', { class: 'field', type: 'text', value: initialLabels, placeholder: 'bv. bellen, thuis', autocomplete: 'off' });
+    const assignee = h('select', { class: 'field', 'aria-label': 'Toegewezen aan' });
     const subtask = h('input', { class: 'field', type: 'text', placeholder: 'Subtaak toevoegen', autocomplete: 'off', maxLength: 4000 });
     const error = h('p', { class: 'error', role: 'alert' });
 
@@ -37,7 +38,18 @@ export function openTaskDialog({ task, store, actions, today }) {
       section.disabled = list.length === 0;
     };
     fillSections(task.section_id);
-    project.addEventListener('change', () => fillSections(null));
+
+    // Toewijzen kan aan de leden van het project; in een project dat je met niemand deelt is er niets te kiezen.
+    const memberName = (id) => `${store.userName(id) ?? 'Onbekende gebruiker'}${id === store.userId ? ' (jij)' : ''}`;
+    const fillAssignees = (projectId, selected) => {
+      const members = membersOf(view, projectId);
+      replace(assignee, h('option', { value: '' }, '(niemand)'), members.map((m) => h('option', { value: m.user_id, selected: m.user_id === selected }, memberName(m.user_id))));
+      assigneeField.hidden = members.length < 2;
+    };
+    project.addEventListener('change', () => {
+      fillSections(null);
+      fillAssignees(project.value, assignee.value || null); // wie ook in het nieuwe project zit, blijft toegewezen
+    });
 
     const showDueHint = () => {
       const text = due.value.trim();
@@ -81,10 +93,17 @@ export function openTaskDialog({ task, store, actions, today }) {
           changes.due = parsed;
         }
       }
+      // Verhuist de taak naar een ander project, dan wijzen we pas na de verhuizing toe: de server controleert of de persoon
+      // lid is van het project waar de taak dán in staat.
+      const projectChanges = !parent && project.value !== task.project_id;
+      const assigneeValue = assignee.value || null;
+      const assigneeChanged = !assigneeField.hidden && assigneeValue !== (task.assignee_id ?? null);
+      if (assigneeChanged && !projectChanges) changes.assignee_id = assigneeValue;
       if (Object.keys(changes).length > 0) await actions.updateTask(task.id, changes);
-      if (!parent && (project.value !== task.project_id || (section.value || null) !== (task.section_id ?? null))) {
+      if (!parent && (projectChanges || (section.value || null) !== (task.section_id ?? null))) {
         await actions.moveTask(task.id, { project_id: project.value, section_id: section.value || null });
       }
+      if (assigneeChanged && projectChanges) await actions.assignTask(task.id, assigneeValue);
       if (labels.value.trim() !== initialLabels) {
         await actions.setTaskLabels(task.id, labels.value.split(',').map((s) => s.trim().replace(/^@/, '')).filter(Boolean));
       }
@@ -115,6 +134,8 @@ export function openTaskDialog({ task, store, actions, today }) {
     };
 
     const field = (label, control, extra = null) => h('label', { class: 'field-label' }, label, control, extra);
+    const assigneeField = field('Toegewezen aan', assignee);
+    fillAssignees(task.project_id, task.assignee_id ?? null);
     const dialog = h('dialog', { class: 'dialog dialog-wide', id: 'task-dialog' },
       h('form', { class: 'dialog-form', onsubmit: (e) => { e.preventDefault(); save(); } },
         h('h2', {}, parent ? `Subtaak van: ${parent.content}` : 'Taak bewerken'),
@@ -124,6 +145,7 @@ export function openTaskDialog({ task, store, actions, today }) {
           field('Datum', due, dueHint),
           field('Deadline', deadline),
           field('Prioriteit', priority),
+          assigneeField,
           field('Labels', labels),
           !parent && field('Project', project),
           !parent && field('Sectie', section),

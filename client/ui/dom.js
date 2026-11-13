@@ -41,17 +41,32 @@ export function toast(message, { action = null, timeout = 6000, kind = 'info' } 
   return close;
 }
 
-/** Opent een dialoogvenster en geeft de uitkomst terug zodra het sluit. Het venster wordt daarna opgeruimd. */
-function openDialog(build) {
+/**
+ * Opent een dialoogvenster en geeft de uitkomst terug zodra het sluit. Het venster wordt daarna opgeruimd.
+ * `build(finish, dialog)` geeft de inhoud; `finish(waarde)` sluit het venster.
+ *
+ * Met `dismissable: false` is het venster alleen via `finish` te sluiten. Escape tegenhouden is daarvoor niet genoeg:
+ * een browser laat dat alleen toe na een handeling van de gebruiker, en op een net geopende pagina is die er nog niet.
+ * Sluit het venster toch, dan openen we het meteen opnieuw (met de ingevulde velden intact).
+ */
+export function openDialog(build, { wide = false, dismissable = true, onClose = () => {} } = {}) {
   return new Promise((resolve) => {
     let outcome = null;
-    const dialog = h('dialog', { class: 'dialog' });
+    let finished = false;
+    const dialog = h('dialog', { class: `dialog${wide ? ' dialog-wide' : ''}` });
     const finish = (value) => {
       outcome = value;
+      finished = true;
       dialog.close();
     };
-    dialog.append(build(finish));
+    if (!dismissable) dialog.addEventListener('cancel', (e) => e.preventDefault());
+    dialog.append(build(finish, dialog));
     dialog.addEventListener('close', () => {
+      if (!dismissable && !finished) {
+        dialog.showModal();
+        return;
+      }
+      onClose();
       dialog.remove();
       resolve(outcome);
     });

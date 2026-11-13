@@ -5,7 +5,7 @@
 // Schermafbeeldingen komen in .e2e/shots/. Sluit af met code 1 als een controle mislukt.
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import assert from 'node:assert/strict';
@@ -13,6 +13,7 @@ import { createSchema } from '../server/schema.ts';
 import { createApp } from '../server/main.ts';
 import type { App } from '../server/main.ts';
 import { handleSync } from '../server/sync.ts';
+import { createSession, createUser, hashPassword, setPasswordCostForTests } from '../server/users.ts';
 import { addDays, formatDate, todayString } from '../client/core/format.js';
 
 const BROWSERS = [
@@ -25,7 +26,6 @@ const BROWSERS = [
 const browserPath = BROWSERS.find((p) => existsSync(p));
 if (!browserPath) throw new Error('geen browser gevonden; geef het pad mee als argument');
 
-const TOKEN = 'e2e-token-0123456789-abcdefghijkl';
 const APP_PORT = 8791;
 const CDP_PORT = 9341;
 const BASE = `http://127.0.0.1:${APP_PORT}`;
@@ -35,22 +35,29 @@ rmSync(workDir, { recursive: true, force: true });
 mkdirSync(shotsDir, { recursive: true });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// Het aantal bestanden dat de app offline bewaart, uit de service worker zelf (zodat dit getal nooit achterloopt).
+const SHELL_COUNT = (readFileSync(fileURLToPath(new URL('../client/sw.js', import.meta.url)), 'utf8').split('const SHELL = [')[1].split('];')[0].match(/'\/[^']*'/g) ?? []).length;
 const results: string[] = [];
 const step = (text: string) => { results.push(text); console.log(`✔ ${text}`); };
 
 // ---------- server ----------
+setPasswordCostForTests(1024); // snelle wachtwoordhash; alleen voor deze test
 const db = new DatabaseSync(':memory:');
 createSchema(db);
+const PASSWORD_ALICE = 'alice-wachtwoord-1';
+const PASSWORD_BOB = 'bob-wachtwoord-123';
+const alice = createUser(db, { username: 'alice', name: 'Alice', passwordHash: await hashPassword(PASSWORD_ALICE) });
+const bob = createUser(db, { username: 'bob', name: 'Bob', passwordHash: await hashPassword(PASSWORD_BOB) });
 let app: App | null = null;
 async function startServer() {
-  app = createApp({ db, token: TOKEN });
+  app = createApp({ db });
   await new Promise<void>((r) => app!.server.listen(APP_PORT, '127.0.0.1', r));
 }
 async function stopServer() {
   await app?.close();
   app = null;
 }
-const serverState = () => handleSync(db, { sync_token: '*' }) as Record<string, any>;
+const serverState = (as = alice.id) => handleSync(db, { sync_token: '*' }, as) as Record<string, any>;
 const serverTask = (content: string) => (serverState().tasks as any[]).find((t) => t.content === content);
 
 // ---------- browser ----------
@@ -125,6 +132,11 @@ async function waitFor(expression: string, what: string, timeoutMs = 10_000): Pr
     await sleep(100);
   }
 }
+/**
+ * Echt bijgewerkt. De statusregel loopt één beeldverversing achter op de wachtrij; daarom eerst twee verversingen wachten,
+ * zodat een zojuist gemaakte wijziging al als "wachtend" in beeld staat voordat we "Bijgewerkt" geloven.
+ */
+const SYNCED = `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(document.getElementById('sync-status').textContent === 'Bijgewerkt'))))`;
 const js = (v: unknown) => JSON.stringify(v);
 const pageText = () => evaluate<string>(`document.body.innerText.replace(/\\s+/g, ' ').slice(0, 900)`);
 const typeInto = (selector: string, text: string) =>
@@ -168,19 +180,31 @@ try {
   const today = todayString();
   const tomorrow = addDays(today, 1);
 
-  // ---- 1. eerste keer openen: token ----
+  // ---- 1. eerste keer openen: inloggen ----
   await send('Page.navigate', { url: `${BASE}/` });
   await waitFor(`document.body.classList.contains('ready')`, 'app gestart');
-  await waitFor(`document.querySelector('dialog[open] input[type=password]')`, 'tokenvenster');
-  await shot('token');
-  await promptAnswer('fout-token-0123456789-abcdefghij');
-  await waitFor(`document.querySelector('dialog[open] input[type=password]')`, 'tokenvenster opnieuw na fout token');
-  assert.equal(await status(), 'Token nodig');
-  step('fout token: de app vraagt opnieuw om het token');
-  await promptAnswer(TOKEN);
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'eerste sync');
+  await waitFor(`document.querySelector('dialog[open] input[type=password]')`, 'inlogscherm');
+  await shot('inloggen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Inloggen');
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await sleep(150);
+  assert.ok(await evaluate(`Boolean(document.querySelector('dialog[open] input[type=password]'))`), 'Escape sluit het inlogscherm niet');
+  await typeInto('dialog[open] input[autocomplete=username]', 'alice');
+  await typeInto('dialog[open] input[type=password]', 'verkeerd-wachtwoord');
+  await submit('dialog[open] form');
+  await waitFor(`document.querySelector('dialog[open] .error')?.textContent === 'Gebruikersnaam of wachtwoord klopt niet'`, 'foutmelding bij fout wachtwoord');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] input[type=password]').value`), '', 'het wachtwoord wordt gewist');
+  step('fout wachtwoord: duidelijke melding, het inlogscherm blijft staan (ook na Escape)');
+  await typeInto('dialog[open] input[autocomplete=username]', 'Alice'); // hoofdletters maken niet uit
+  await typeInto('dialog[open] input[type=password]', PASSWORD_ALICE);
+  await submit('dialog[open] form');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'inlogscherm gesloten');
+  await waitFor(`await ${SYNCED}`, 'eerste sync');
   await waitFor(`[...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Inbox')`, 'Inbox in de zijbalk');
-  step('juist token: verbonden, Inbox zichtbaar');
+  assert.ok(await evaluate(`[...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Alice')`), 'de naam van de gebruiker staat in de zijbalk');
+  assert.equal(await evaluate(`(localStorage.getItem('tickory.token') || '').startsWith('tky_')`), true);
+  step('juist wachtwoord: ingelogd, Inbox zichtbaar, naam in de zijbalk');
 
   // ---- 2. snel toevoegen met Nederlandse datum ----
   await typeInto('#quick-input', 'Tandarts bellen morgen om 9 uur p1 @bellen');
@@ -194,7 +218,7 @@ try {
   await nav('Binnenkort');
   await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Binnenkort');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@bellen', 'Inbox']);
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'gesynchroniseerd');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const tandarts = serverTask('Tandarts bellen');
   assert.equal(tandarts.due.date, `${tomorrow}T09:00`);
   assert.equal(tandarts.priority, 1);
@@ -234,7 +258,7 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
   await waitFor(`document.querySelectorAll('.task').length === 3`, 'subtaak zichtbaar');
   assert.equal(await evaluate(`document.querySelector('.task[data-depth="1"] .task-title').textContent`), 'Glazen apart');
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'gesynchroniseerd');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const afwas = serverTask('Afwasmachine uitruimen');
   const expectedThursday = (() => {
     // donderdag van de volgende week (week begint op maandag)
@@ -260,7 +284,7 @@ try {
   await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent.startsWith('Volgende keer: morgen'))`, 'melding volgende keer');
   await waitFor(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Planten water geven')?.querySelector('.chip')?.textContent === '↻ morgen'`, 'terugkerende taak toont de nieuwe datum');
   assert.deepEqual(await taskMeta('Planten water geven'), ['↻ morgen']);
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'gesynchroniseerd');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   assert.equal(serverTask('Planten water geven').due.date, tomorrow);
   assert.equal(serverTask('Planten water geven').checked, false);
   assert.equal(serverTask('Glazen apart').checked, false);
@@ -280,13 +304,13 @@ try {
   await quickAdd('Zoë bellen @ÉÉN'); // de ë als e + los trema, zoals sommige toetsenborden het opleveren
   await quickAdd('Oud papier elke tweede dinsdag');
   await quickAdd('Kerstdiner reserveren 25 december');
-  await waitFor(`document.querySelectorAll('.task').length >= 5`, 'vijf Nederlandse taken in de Inbox');
+  await waitFor(`['IJs kopen', 'Café reserveren', 'Zoë bellen', 'Oud papier', 'Kerstdiner reserveren'].every((t) => [...document.querySelectorAll('.task .task-title')].some((e) => e.textContent === t))`, 'vijf Nederlandse taken in de Inbox');
   const nlTitles = await taskTitles();
   for (const t of ['IJs kopen', 'Café reserveren', 'Zoë bellen', 'Oud papier', 'Kerstdiner reserveren']) assert.ok(nlTitles.includes(t), `"${t}" ontbreekt in ${JSON.stringify(nlTitles)}`);
   assert.ok(nlTitles.every((t) => t === t.normalize('NFC')), `alle titels horen al in NFC te staan: ${JSON.stringify(nlTitles)}`);
   assert.ok(!nlTitles.some((t) => /Ijs/.test(t)), 'geen "Ijs": in het Nederlands is het "IJs"');
   await shot('nederlands');
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'gesynchroniseerd');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const nl = serverState();
   const labelNames = (nl.labels as any[]).map((l) => l.name);
   assert.deepEqual(labelNames.filter((n) => n.normalize('NFC').toLowerCase() === 'één').length, 1, `één label "één" (en niet ook "ÉÉN"): ${JSON.stringify(labelNames)}`);
@@ -303,9 +327,10 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'terug naar Thuis');
 
   // ---- 6. een ander apparaat wijzigt iets: komt vanzelf binnen ----
+  const otherToken = createSession(db, alice.id, 'Telefoon').token;
   const other = await fetch(`${BASE}/api/v1/sync`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json', 'X-Client-Id': 'ander-apparaat' },
+    headers: { Authorization: `Bearer ${otherToken}`, 'Content-Type': 'application/json', 'X-Client-Id': 'ander-apparaat' },
     body: JSON.stringify({ commands: [{ type: 'task_add', uuid: 'e2e-ander-apparaat-1', args: { project_id: serverTask('Planten water geven').project_id, content: 'Van mijn telefoon' } }] }),
   });
   assert.equal(other.status, 200);
@@ -316,13 +341,13 @@ try {
   await waitFor(`navigator.serviceWorker.controller !== null`, 'service worker actief', 15_000);
   // De offline-kopie moet compleet zijn. Op een pc met AdGuard wordt ze kort na het aanleggen gewist (AdGuard plakt
   // eigen code vóór de service worker); de app vult haar daarna zelf weer aan. Daarop wachten we hier.
-  const cacheCount = `caches.open('eigen-tool-v1').then((c) => c.keys()).then((k) => k.length)`;
+  const cacheCount = `caches.open('tickory-v1').then((c) => c.keys()).then((k) => k.length)`;
   const firstCount = await evaluate<number>(cacheCount);
-  const otherCaches = await evaluate<string[]>(`caches.keys().then((n) => n.filter((x) => x !== 'eigen-tool-v1'))`);
-  await waitFor(`caches.open('eigen-tool-v1').then((c) => c.keys()).then((k) => k.length >= 24)`, 'offline-kopie compleet (eventueel na aanvullen)', 30_000);
-  const root = await evaluate<any>(`caches.open('eigen-tool-v1').then((c) => c.match('/')).then((m) => m && { status: m.status, type: m.type })`);
+  const otherCaches = await evaluate<string[]>(`caches.keys().then((n) => n.filter((x) => x !== 'tickory-v1'))`);
+  await waitFor(`caches.open('tickory-v1').then((c) => c.keys()).then((k) => k.length >= ${SHELL_COUNT})`, 'offline-kopie compleet (eventueel na aanvullen)', 30_000);
+  const root = await evaluate<any>(`caches.open('tickory-v1').then((c) => c.match('/')).then((m) => m && { status: m.status, type: m.type })`);
   assert.deepEqual(root, { status: 200, type: 'basic' });
-  step(`offline-kopie compleet: 24 bestanden${firstCount < 24 ? ` (stond eerst op ${firstCount}: gewist door een filter met cache "${otherCaches.join(', ')}", daarna vanzelf aangevuld)` : ''}`);
+  step(`offline-kopie compleet: ${SHELL_COUNT} bestanden${firstCount < SHELL_COUNT ? ` (stond eerst op ${firstCount}: gewist door een filter met cache "${otherCaches.join(', ')}", daarna vanzelf aangevuld)` : ''}`);
   await stopServer();
   await quickAdd('Offline bedacht p2');
   await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Offline bedacht')`, 'offline taak direct zichtbaar');
@@ -342,7 +367,7 @@ try {
 
   await startServer();
   await click('#sync-status');
-  await waitFor(`document.getElementById('sync-status').textContent === 'Bijgewerkt'`, 'weer bijgewerkt na terugkeer van de server', 15_000);
+  await waitFor(`await ${SYNCED}`, 'weer bijgewerkt na terugkeer van de server', 15_000);
   assert.equal(serverTask('Offline bedacht').priority, 2);
   assert.equal((serverState().tasks as any[]).filter((t) => t.content === 'Offline bedacht').length, 1);
   step('terug online: de offline taak staat één keer op de server');
@@ -351,6 +376,78 @@ try {
   await nav('Vandaag');
   await waitFor(`document.getElementById('view-title').textContent === 'Vandaag'`, 'scherm Vandaag');
   await shot('vandaag');
+
+  // ---- 8b. een project delen, samenwerken en toewijzen ----
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'scherm Thuis');
+  await clickText('Delen');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Delen: Thuis'`, 'deelvenster');
+  assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes('Alice')`), 'jij staat in de lijst');
+  await typeInto('dialog[open] input[aria-label="Gebruikersnaam van de persoon"]', 'niemand-bekend');
+  await submit('dialog[open] form.subtask-row');
+  await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent === 'Niet gelukt (project delen). Deze gebruiker bestaat niet.')`, 'melding: gebruiker bestaat niet');
+  await typeInto('dialog[open] input[aria-label="Gebruikersnaam van de persoon"]', 'Bob');
+  await submit('dialog[open] form.subtask-row');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .device-info strong')].some((e) => e.textContent.startsWith('Bob'))`, 'Bob in de ledenlijst');
+  await shot('delen');
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('.shared-with')?.textContent.startsWith('Gedeeld met Bob')`, 'regel "Gedeeld met Bob"');
+  assert.ok(await evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === 'Thuis').querySelector('.nav-shared')`), 'het project staat als gedeeld in de zijbalk');
+  const bobView = serverState(bob.id);
+  assert.deepEqual((bobView.projects as any[]).map((p) => p.name).sort(), ['Inbox', 'Thuis']);
+  assert.ok((bobView.tasks as any[]).some((t) => t.content === 'Planten water geven'), 'bob ziet de taken in het gedeelde project');
+  assert.ok(!(bobView.tasks as any[]).some((t) => t.content === 'Tandarts bellen'), 'bob ziet niets uit Alice\' Inbox');
+  step('delen via het scherm: onbekende gebruiker geeft een duidelijke melding, "Bob" wordt lid; Bob ziet het project en niets anders van Alice');
+
+  const bobToken = createSession(db, bob.id, 'Bob zijn telefoon').token;
+  const thuisId = (serverState().projects as any[]).find((p) => p.name === 'Thuis').id;
+  const fromBob = await fetch(`${BASE}/api/v1/sync`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${bobToken}`, 'Content-Type': 'application/json', 'X-Client-Id': 'bob-telefoon' },
+    body: JSON.stringify({ commands: [{ type: 'task_add', uuid: 'e2e-bob-taak-0001', args: { project_id: thuisId, content: 'Gordijnen ophangen', assignee_id: alice.id } }] }),
+  });
+  assert.equal(fromBob.status, 200);
+  await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Gordijnen ophangen')`, 'taak van Bob verschijnt vanzelf', 6000);
+  assert.deepEqual(await taskMeta('Gordijnen ophangen'), ['voor jou']);
+  step('realtime samenwerken: een taak van Bob die aan Alice is toegewezen verschijnt vanzelf met "voor jou"');
+
+  await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Gordijnen ophangen').querySelector('.task-body').click()`);
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'bewerkvenster');
+  assert.ok(await evaluate(`[...document.querySelectorAll('#task-dialog select[aria-label="Toegewezen aan"] option')].map((o) => o.textContent).join('|') === '(niemand)|Alice (jij)|Bob'`), 'kiezen kan uit de leden van het project');
+  await evaluate(`(() => { const sel = document.querySelector('#task-dialog select[aria-label="Toegewezen aan"]'); sel.value = ${js(bob.id)}; })()`);
+  await submit('#task-dialog form');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  assert.equal(serverTask('Gordijnen ophangen').assignee_id, bob.id);
+  assert.deepEqual(await taskMeta('Gordijnen ophangen'), ['voor Bob']);
+  step('toewijzen in het bewerkvenster: de taak gaat naar Bob');
+
+  // ---- 8c. account, apparaten en beheer ----
+  await nav('Alice');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await clickText('Account, wachtwoord en apparaten');
+  await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'dit apparaat'`, 'apparatenlijst');
+  assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes('Alice') && document.querySelector('dialog[open]').textContent.includes('beheerder')`));
+  await shot('account');
+  await clickText('Gebruikersbeheer');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .device strong')].map((e) => e.textContent).join(',').includes('Bob')`, 'gebruikerslijst');
+  await evaluate(`document.querySelectorAll('dialog[open] details')[1].open = true`);
+  await typeInto('dialog[open] input[aria-label="Gebruikersnaam"]', 'carol');
+  await typeInto('dialog[open] input[aria-label="Naam"]', 'Carol de Vries');
+  await typeInto('dialog[open] input[aria-label="Beginwachtwoord"]', 'kort');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await sleep(200);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM users WHERE username = 'carol'").get() as any).n, 0, 'een te kort wachtwoord wordt niet verstuurd');
+  await typeInto('dialog[open] input[aria-label="Beginwachtwoord"]', 'carol-wachtwoord-1');
+  await submit('dialog[open] details:nth-of-type(2) form');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .device strong')].some((e) => e.textContent.startsWith('Carol de Vries'))`, 'Carol in de lijst');
+  assert.ok((db.prepare("SELECT COUNT(*) AS n FROM users WHERE username = 'carol'").get() as any).n === 1);
+  await shot('beheer');
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Account'`, 'terug in het accountscherm');
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'alles gesloten');
+  step('account: apparatenlijst met "dit apparaat"; beheer: een account aanmaken via het scherm (te kort wachtwoord wordt geweigerd)');
 
   // ---- 9. telefoonformaat en donkere modus ----
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
@@ -382,24 +479,63 @@ try {
 
   // ---- 11. afmelden wist de lokale gegevens ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
-  await nav('Instellingen');
+  await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
   await clickText('Afmelden en lokale gegevens wissen');
   await waitFor(`[...document.querySelectorAll('dialog[open] button')].some((b) => b.textContent === 'Afmelden')`, 'bevestiging');
   await clickText('Afmelden', `document.querySelector('dialog[open]')`);
-  await waitFor(`document.querySelector('dialog[open] input[type=password]') && document.querySelectorAll('.task').length === 0`, 'na afmelden: leeg en tokenvenster', 15_000);
-  assert.equal(await evaluate(`localStorage.getItem('eigen-tool.token')`), null);
-  const leftovers = await evaluate<number>(`new Promise((res, rej) => { const r = indexedDB.open('eigen-tool'); r.onsuccess = () => { const tx = r.result.transaction(['rows', 'queue'], 'readonly'); const a = tx.objectStore('rows').count(); const b = tx.objectStore('queue').count(); tx.oncomplete = () => res(a.result + b.result); }; r.onerror = () => rej(r.error); })`);
+  await waitFor(`document.querySelector('dialog[open] input[type=password]') && document.querySelectorAll('.task').length === 0`, 'na afmelden: leeg en inlogscherm', 15_000);
+  assert.equal(await evaluate(`localStorage.getItem('tickory.token')`), null);
+  const leftovers = await evaluate<number>(`new Promise((res, rej) => { const r = indexedDB.open('tickory'); r.onsuccess = () => { const tx = r.result.transaction(['rows', 'queue'], 'readonly'); const a = tx.objectStore('rows').count(); const b = tx.objectStore('queue').count(); tx.oncomplete = () => res(a.result + b.result); }; r.onerror = () => rej(r.error); })`);
   assert.equal(leftovers, 0, 'geen taken meer in de lokale opslag');
   assert.ok((serverState().tasks as any[]).length >= 6, 'op de server staat alles nog');
-  step('afmelden: token en lokale kopie zijn gewist, de server heeft alles nog');
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND revoked_at IS NOT NULL").get(alice.id) as any).n, 1, 'de sessie van dit apparaat is op de server ingetrokken');
+  step('afmelden: sessie ingetrokken, token en lokale kopie gewist, de server heeft alles nog');
+
+  // ---- 12. een ander account op hetzelfde apparaat ----
+  await typeInto('dialog[open] input[autocomplete=username]', 'bob');
+  await typeInto('dialog[open] input[type=password]', PASSWORD_BOB);
+  await submit('dialog[open] form');
+  await waitFor(`!document.querySelector('dialog[open]') && await ${SYNCED}`, 'ingelogd als Bob');
+  await waitFor(`[...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Bob')`, 'naam Bob in de zijbalk');
+  const bobProjects = await evaluate<string[]>(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`);
+  assert.ok(bobProjects.includes('Thuis') && bobProjects.includes('Inbox'), `Bob ziet zijn Inbox en het gedeelde project: ${JSON.stringify(bobProjects)}`);
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis bij Bob');
+  assert.deepEqual((await taskTitles()).sort(), ['Afwasmachine uitruimen', 'Gordijnen ophangen', 'Glazen apart', 'Planten water geven', 'Van mijn telefoon', 'Offline bedacht'].sort());
+  assert.equal(await evaluate(`document.querySelector('.shared-with').textContent.startsWith('Gedeeld met Alice')`), true);
+  await nav('Inbox');
+  await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'Inbox van Bob');
+  assert.deepEqual(await taskTitles(), [], 'Bobs Inbox is leeg: Alice\' taken zijn niet te zien');
+  await shot('bob');
+  step('ander account: Bob ziet zijn eigen (lege) Inbox en het gedeelde project, en niets van Alice\' eigen taken');
+
+  // ---- 13. sessie ingetrokken door de beheerder, en een ander account logt in: eerst de gegevens van Bob wissen ----
+  await quickAdd('Bobs eigen taak');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL').run(new Date().toISOString(), bob.id);
+  await click('#sync-status');
+  await waitFor(`document.querySelector('dialog[open] input[type=password]') && document.getElementById('sync-status').textContent === 'Inloggen nodig'`, 'inlogscherm na intrekken van de sessie');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] input[autocomplete=username]').value`), 'bob', 'de gebruikersnaam is al ingevuld');
+  assert.ok(await evaluate(`document.querySelector('dialog[open] .hint')?.textContent.includes('niet meer aangemeld')`));
+  await typeInto('dialog[open] input[autocomplete=username]', 'alice');
+  await typeInto('dialog[open] input[type=password]', PASSWORD_ALICE);
+  await submit('dialog[open] form');
+  await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Inloggen als Alice?')`, 'waarschuwing bij wisselen van account');
+  assert.ok(await evaluate(`[...document.querySelectorAll('dialog[open] p')].some((e) => e.textContent.includes('gegevens van Bob'))`));
+  await clickText('Wissen en inloggen');
+  await waitFor(`document.body.classList.contains('ready') && [...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Alice') && await ${SYNCED}`, 'ingelogd als Alice na het wissen', 20_000);
+  const aliceProjects = await evaluate<string[]>(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`);
+  assert.ok(aliceProjects.includes('Thuis'));
+  assert.equal((await evaluate<string[]>(`[...document.querySelectorAll('.task-title')].map((e) => e.textContent)`)).includes('Bobs eigen taak'), false);
+  step('sessie ingetrokken: het inlogscherm komt vanzelf; een ander account wist eerst de gegevens van de vorige gebruiker (na waarschuwing)');
 
   // ---- fouten in de console ----
   const own = consoleErrors.filter((e) => !/adguard/i.test(e));
-  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR/i.test(e));
+  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 400 .*\/api\/v1\/admin\/users/i.test(e));
   const unexpected = own.filter((e) => !expected.includes(e));
   assert.deepEqual(unexpected, [], 'onverwachte fouten in de console van de browser');
-  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen tijdens de offline-test en het foute token; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
+  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-test, het foute wachtwoord, het te korte wachtwoord en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
 } catch (err) {
   failed = err;
   try {
@@ -412,7 +548,7 @@ try {
       const t0 = performance.now();
       out.kaleFetch = await limit(fetch('/api/v1/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then((r) => 'antwoord ' + r.status).catch((e) => 'fout: ' + e.message), 4000);
       out.kaleFetchMs = Math.round(performance.now() - t0);
-      out.indexedDb = await limit(new Promise((res) => { const r = indexedDB.open('eigen-tool'); r.onsuccess = () => { const tx = r.result.transaction('queue', 'readonly'); const c = tx.objectStore('queue').count(); tx.oncomplete = () => res('ok, ' + c.result + ' wachtend'); tx.onerror = () => res('fout'); }; r.onerror = () => res('fout bij openen'); r.onblocked = () => res('GEBLOKKEERD'); }), 4000);
+      out.indexedDb = await limit(new Promise((res) => { const r = indexedDB.open('tickory'); r.onsuccess = () => { const tx = r.result.transaction('queue', 'readonly'); const c = tx.objectStore('queue').count(); tx.oncomplete = () => res('ok, ' + c.result + ' wachtend'); tx.onerror = () => res('fout'); }; r.onerror = () => res('fout bij openen'); r.onblocked = () => res('GEBLOKKEERD'); }), 4000);
       return out;
     })()`);
   } catch (e) {

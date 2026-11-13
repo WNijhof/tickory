@@ -1,31 +1,29 @@
-# Start de server. Bij de eerste keer wordt een token aangemaakt en in data\token.txt bewaard,
-# zodat je daarna altijd hetzelfde token hebt. Het token wordt getoond, want je vult het in de app in.
+# Start de server op deze pc. Bij de eerste keer maak je een account aan (gebruikersnaam en wachtwoord);
+# dat account is beheerder en kan in de app andere accounts aanmaken.
 #
-# Gebruik (in PowerShell, vanuit de map eigen-tool):   .\scripts\start.ps1
-# Optioneel:  -Port 8787   -BindHost 127.0.0.1   -TokenFile <pad>
+# Gebruik (in PowerShell, vanuit de map tickory):   .\start.cmd
+# Optioneel:  -Port 8787   -BindHost 127.0.0.1
 
 param(
   [int]$Port = 8787,
-  [string]$BindHost = '127.0.0.1',
-  [string]$TokenFile = ''
+  [string]$BindHost = '127.0.0.1'
 )
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
-if (-not $TokenFile) { $TokenFile = Join-Path (Get-Location) 'data\token.txt' }
-New-Item -ItemType Directory -Force (Split-Path -Parent $TokenFile) | Out-Null
 
-if (-not (Test-Path -LiteralPath $TokenFile)) {
-  $new = (node server/main.ts --new-token | Select-Object -First 1).Trim()
-  if ($new.Length -lt 24) { throw 'Het token kon niet worden aangemaakt (is Node 26 geinstalleerd?).' }
-  Set-Content -LiteralPath $TokenFile -Value $new -Encoding ascii
-  Write-Host "Nieuw token aangemaakt en bewaard in $TokenFile"
+$users = node server/main.ts user list
+if ($LASTEXITCODE -ne 0) { throw 'De server kon niet starten (is Node 26 geinstalleerd?).' }
+if (-not $users) {
+  Write-Host ''
+  Write-Host 'Eerste start: maak je account aan. Het wachtwoord heeft minimaal 10 tekens en is tijdens het typen niet te zien.'
+  $name = Read-Host 'Gebruikersnaam'
+  node server/main.ts user add $name --admin
+  if ($LASTEXITCODE -ne 0) { throw 'Het account is niet aangemaakt. Start opnieuw om het nog eens te proberen.' }
 }
 
-$env:TODO_TOKEN = (Get-Content -LiteralPath $TokenFile -Raw).Trim()
 $env:PORT = "$Port"
 $env:HOST = $BindHost
 Write-Host ''
-Write-Host "Je token (vul dit in de app in):  $($env:TODO_TOKEN)"
-Write-Host "Open daarna:                      http://${BindHost}:$Port"
+Write-Host "Open in je browser:  http://${BindHost}:$Port"
 Write-Host ''
 node server/main.ts

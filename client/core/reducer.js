@@ -6,7 +6,7 @@
 // Afspraak: `state` bevat per resource een Map (id -> rij) met alleen niet-verwijderde rijen. De Maps zijn een
 // eigen kopie en mogen worden gewijzigd; rij-objecten worden altijd vervangen, nooit aangepast.
 
-import { ENTITIES, ENTITY_LIST, INBOX_ID } from '../../shared/schema.js';
+import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
 import { keyAfter } from '../../shared/orderKey.js';
 import { nextOccurrence } from '../../shared/recurrence.js';
 
@@ -78,11 +78,15 @@ function removeWhere(state, resource, pred) {
   for (const r of [...state[resource].values()]) if (pred(r)) state[resource].delete(r.id);
 }
 
-function add(state, e, args, now) {
+function add(state, e, args, now, userId) {
   const id = args.id;
   if (typeof id !== 'string' || state[e.resource].has(id)) return;
+  if (e.name === 'project' && isInboxId(id)) return; // gereserveerd, zoals op de server
   const row = { id };
-  for (const c of e.cols) row[c.name] = has(args, c.name) ? args[c.name] : c.default !== undefined ? copyDefault(c.default) : null;
+  for (const c of e.cols) {
+    // maker/eigenaar/auteur vult de server in met de gebruiker die het commando uitvoert; hier doen we alvast hetzelfde
+    row[c.name] = c.stamp ? userId : has(args, c.name) ? args[c.name] : c.default !== undefined ? copyDefault(c.default) : null;
+  }
   if (e.name === 'task' && row.parent_id) {
     const parent = state.tasks.get(row.parent_id);
     if (!parent) return;
@@ -93,6 +97,19 @@ function add(state, e, args, now) {
   row.created_at = now;
   row.updated_at = now;
   state[e.resource].set(id, row);
+  if (e.name === 'project') addMembers(state, row, userId, now);
+}
+
+/** Zoals op de server: de maker is eigenaar; een subproject krijgt dezelfde leden en rollen als het bovenliggende project. */
+function addMembers(state, project, userId, now) {
+  if (!userId) return;
+  const roles = new Map();
+  if (project.parent_id) for (const m of state.members.values()) if (m.project_id === project.parent_id) roles.set(m.user_id, m.role);
+  roles.set(userId, 'owner');
+  for (const [user_id, role] of roles) {
+    const id = `local-member-${project.id}-${user_id}`.slice(0, 40);
+    state.members.set(id, { id, project_id: project.id, user_id, role, is_deleted: false, created_at: now, updated_at: now });
+  }
 }
 
 function update(state, e, args, now) {
@@ -109,20 +126,34 @@ function deleteTaskTree(state, rootIds) {
   removeWhere(state, 'reminders', (r) => ids.has(r.task_id));
 }
 
-function remove(state, e, args, now) {
+/** Is deze gebruiker eigenaar van het project? Zonder bekende gebruiker (tests, vóór de eerste sync) tellen we het als ja. */
+function isOwner(state, userId, projectId) {
+  if (!userId) return true;
+  for (const m of state.members.values()) if (m.project_id === projectId && m.user_id === userId) return m.role === 'owner';
+  return false;
+}
+
+function remove(state, e, args, now, userId) {
   const id = args.id;
   if (!state[e.resource].has(id)) return;
   switch (e.name) {
     case 'project': {
-      if (id === INBOX_ID) return;
+      if (isInboxId(id)) return;
+      if (userId && !isOwner(state, userId, id)) return; // alleen de eigenaar kan een project verwijderen
+      // Subprojecten gaan alleen mee als je er zelf eigenaar van bent; andermans projecten komen op het hoogste niveau te staan.
       const projects = [id];
       for (let i = 0; i < projects.length; i++) {
-        for (const p of state.projects.values()) if (p.parent_id === projects[i] && !projects.includes(p.id)) projects.push(p.id);
+        for (const p of [...state.projects.values()]) {
+          if (p.parent_id !== projects[i] || projects.includes(p.id)) continue;
+          if (isOwner(state, userId, p.id)) projects.push(p.id);
+          else patch(state, 'projects', p.id, { parent_id: null }, now);
+        }
       }
       const gone = new Set(projects);
       deleteTaskTree(state, [...state.tasks.values()].filter((t) => gone.has(t.project_id)).map((t) => t.id));
       removeWhere(state, 'sections', (s) => gone.has(s.project_id));
       removeWhere(state, 'comments', (c) => gone.has(c.project_id));
+      removeWhere(state, 'members', (m) => gone.has(m.project_id));
       for (const p of projects) state.projects.delete(p);
       break;
     }
@@ -184,6 +215,7 @@ function taskUncomplete(state, args, now) {
 }
 
 const GENERIC = /^([a-z]+)_(add|update|delete)$/;
+const CAN_WRITE_FOREIGN = new Set(['label', 'filter']); // alleen de eigenaar wijzigt of verwijdert deze
 
 /**
  * Past één commando toe op `state`. Onbekende of onuitvoerbare commando's doen niets:
@@ -191,8 +223,9 @@ const GENERIC = /^([a-z]+)_(add|update|delete)$/;
  * @param {ReturnType<typeof emptyState>} state
  * @param {{ type: string, args?: Record<string, unknown> }} cmd
  * @param {string} now ISO-tijdstip waarop het commando is gemaakt
+ * @param {string | null} [userId] de ingelogde gebruiker (voor eigenaar, maker en auteur van nieuwe rijen)
  */
-export function applyCommand(state, cmd, now) {
+export function applyCommand(state, cmd, now, userId = null) {
   const args = cmd.args ?? {};
   switch (cmd.type) {
     case 'task_move': return taskMove(state, args, now);
@@ -201,10 +234,15 @@ export function applyCommand(state, cmd, now) {
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;
-      if (!e) return undefined;
-      if (m[2] === 'add') return add(state, e, args, now);
+      if (!e || e.commands === false) return undefined;
+      if (m[2] === 'add') return add(state, e, args, now, userId);
+      // een label of filter van iemand anders lees je alleen
+      if (CAN_WRITE_FOREIGN.has(e.name) && userId) {
+        const row = state[e.resource].get(args.id);
+        if (row && row.owner_id && row.owner_id !== userId) return undefined;
+      }
       if (m[2] === 'update') return update(state, e, args, now);
-      return remove(state, e, args, now);
+      return remove(state, e, args, now, userId);
     }
   }
 }

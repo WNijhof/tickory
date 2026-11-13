@@ -1,7 +1,7 @@
 {
-  "name": "Taken",
-  "short_name": "Taken",
-  "description": "Persoonlijke takenlijst die ook zonder verbinding werkt",
+  "name": "Tickory",
+  "short_name": "Tickory",
+  "description": "Takenlijst voor jezelf en samen, die ook zonder verbinding werkt",
   "lang": "nl",
   "dir": "ltr",
   "id": "/",

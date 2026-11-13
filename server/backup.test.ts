@@ -8,23 +8,27 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { createSchema } from './schema.ts';
 import { handleSync } from './sync.ts';
+import { createUser } from './users.ts';
 import { backupTo } from './backup.ts';
 
 function withDir(t: { after: (fn: () => void) => void }): string {
-  const dir = mkdtempSync(join(tmpdir(), 'eigen-tool-backup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tickory-backup-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
+const userOf = (db: DatabaseSync): string => (db.prepare('SELECT id FROM users').get() as { id: string }).id;
+
 function seeded(path: string): DatabaseSync {
   const db = new DatabaseSync(path);
   createSchema(db);
+  const user = createUser(db, { username: 'back-up', name: 'Back-up', passwordHash: 'x' });
   handleSync(db, {
     commands: [
       { type: 'project_add', uuid: 'backup-test-0001', args: { id: 'project-backup-01', name: 'Thuis' } },
       { type: 'task_add', uuid: 'backup-test-0002', args: { id: 'task-backup-0001', project_id: 'project-backup-01', content: 'Belangrijk' } },
     ],
-  });
+  }, user.id);
   return db;
 }
 
@@ -41,9 +45,10 @@ test('de kopie bevat alle gegevens, ook die nog in het WAL-bestand staan terwijl
 
   // de kopie is een zelfstandige database: de server kan ermee starten en kent de opdracht van vóór de back-up nog
   const restored = new DatabaseSync(join(dir, 'kopie', 'todo-1.db'));
-  const res = handleSync(restored, { commands: [{ type: 'task_add', uuid: 'backup-test-0002', args: { project_id: 'project-backup-01', content: 'Dubbel?' } }] });
+  const res = handleSync(restored, { commands: [{ type: 'task_add', uuid: 'backup-test-0002', args: { project_id: 'project-backup-01', content: 'Dubbel?' } }] }, userOf(restored));
   assert.equal(res.sync_status['backup-test-0002'], 'ok');
   assert.equal((res.tasks as unknown[]).length, 1, 'het herhaalde uuid is herkend en niets is dubbel uitgevoerd');
+  assert.equal((res.users as unknown[]).length, 1, 'ook de gebruikers staan in de kopie');
   restored.close();
   db.close();
 });

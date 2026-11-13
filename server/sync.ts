@@ -1,71 +1,101 @@
 // De sync-engine: voert commando's uit en levert de delta sinds een token.
 //
 // Eén verzoek = één transactie. Elk commando draait in een eigen savepoint: een mislukt commando laat niets achter
-// en breekt de rest niet af. Elk commando-uuid wordt hooguit één keer uitgevoerd (idempotent), zodat een client
-// na een verbroken verbinding veilig kan herhalen.
+// en breekt de rest niet af. Elk commando-uuid wordt per gebruiker hooguit één keer uitgevoerd (idempotent), zodat
+// een client na een verbroken verbinding veilig kan herhalen.
 //
 // sync_token = het hoogste versienummer (rev) dat de client kent. Elke wijziging krijgt een hoger rev; een delta is
-// alles met rev > token. Verwijderingen blijven als rijen met is_deleted=true bestaan, zodat ze in de delta meekomen.
+// alles met rev > token dat de gebruiker mag zien. Verwijderingen blijven als rijen met is_deleted=true bestaan, zodat
+// ze in de delta meekomen.
+//
+// Wie wat ziet (zie `visibility`):
+//   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
+//   - labels, filters en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
+// Verandert wat iemand mag zien (lid worden, verwijderd worden, een taak die naar een project van anderen verhuist), dan
+// krijgt die persoon dat in de delta mee: alle inhoud van een nieuw project, of een verwijdering van wat verdween.
 
 import type { DatabaseSync } from 'node:sqlite';
-import { randomBytes } from 'node:crypto';
-import { ENTITIES, ENTITY_LIST, ID_RE, INBOX_ID, RESOURCE_NAMES, toApi, validateValue } from './schema.ts';
+import { ENTITIES, ENTITY_LIST, ID_RE, INBOX_ID, isInboxId, RESOURCE_NAMES, toApi, validateValue } from './schema.ts';
 import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { nextOccurrence } from '../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
+import { bumpRev, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
+import type { Ctx, Row } from './rows.ts';
+import { getUserById, getUserByName, peersOf, publicMe } from './users.ts';
+
+export { currentRev, newId, SyncError, INBOX_ID };
 
 type Recurrence = { freq: 'daily' | 'weekly' | 'monthly' | 'yearly'; interval?: number; byweekday?: number[]; bymonthday?: number };
-type Row = Record<string, unknown>;
 type Args = Record<string, unknown>;
-interface Ctx { db: DatabaseSync; rev: number; now: string }
 
-export class SyncError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = 'SyncError';
-    this.code = code;
+// ---------- wie mag wat zien ----------
+
+const MY_PROJECTS = 'SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0';
+
+const roleOf = (db: DatabaseSync, userId: string, projectId: unknown): 'owner' | 'member' | null => {
+  if (typeof projectId !== 'string') return null;
+  const r = db.prepare('SELECT role FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(projectId, userId) as Row | undefined;
+  return (r?.role as 'owner' | 'member' | undefined) ?? null;
+};
+const isMember = (db: DatabaseSync, userId: string, projectId: unknown): boolean => roleOf(db, userId, projectId) !== null;
+
+/** Een label is zichtbaar voor de eigenaar en voor wie het op een taak in een eigen project ziet staan. */
+function labelVisible(db: DatabaseSync, userId: string, row: Row): boolean {
+  if (row.owner_id === userId) return true;
+  return db
+    .prepare(`SELECT 1 FROM tasks t, json_each(t.labels) j WHERE j.value = ? AND t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) LIMIT 1`)
+    .get(row.id as string, userId) !== undefined;
+}
+
+function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): boolean {
+  switch (name) {
+    case 'project': return isMember(db, userId, row.id);
+    case 'section': case 'task': case 'member': return isMember(db, userId, row.project_id);
+    case 'comment': {
+      if (row.task_id) {
+        const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
+        return t !== undefined && isMember(db, userId, t.project_id);
+      }
+      return isMember(db, userId, row.project_id);
+    }
+    case 'label': return labelVisible(db, userId, row);
+    case 'filter': return row.owner_id === userId;
+    case 'reminder': {
+      if (row.owner_id !== userId) return false;
+      const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
+      return t !== undefined && isMember(db, userId, t.project_id);
+    }
   }
 }
 
-function fail(code: string, message: string): never {
-  throw new SyncError(code, message);
+/** Zoals getRow, maar alleen als het bestaat, niet verwijderd is en de gebruiker het mag zien. Anders "bestaat niet". */
+function requireLive(ctx: Ctx, name: EntityName, id: unknown, what: string): Row {
+  if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', `${what}: ongeldig id`);
+  const row = getRow(ctx.db, ENTITIES[name], id);
+  if (!row || row.is_deleted === 1 || !canSee(ctx.db, ctx.userId, name, row)) fail('NOT_FOUND', `${what}: ${name} bestaat niet`);
+  return row;
 }
 
-export const newId = (): string => randomBytes(12).toString('base64url');
-const has = (o: object, k: string): boolean => Object.hasOwn(o, k);
-const placeholders = (n: number): string => Array.from({ length: n }, () => '?').join(', ');
-
-// ---------- versienummers ----------
-
-export function currentRev(db: DatabaseSync): number {
-  return Number((db.prepare("SELECT value FROM meta WHERE key = 'rev'").get() as Row).value);
+/** Wijzigen of verwijderen mag niet altijd als je iets mag zien: een label van een ander lees je alleen. */
+function requireMayWrite(ctx: Ctx, e: Entity, row: Row): void {
+  switch (e.name) {
+    case 'label': case 'filter':
+      if (row.owner_id !== ctx.userId) fail('FORBIDDEN', e.name === 'label' ? 'dit label is van iemand anders; je kunt het alleen lezen' : 'dit filter is van iemand anders');
+      break;
+    case 'comment':
+      if (row.author_id !== null && row.author_id !== ctx.userId) fail('FORBIDDEN', 'je kunt alleen je eigen opmerkingen wijzigen of verwijderen');
+      break;
+    default:
+      break;
+  }
 }
-function bumpRev(db: DatabaseSync): number {
-  const r = currentRev(db) + 1;
-  db.prepare("UPDATE meta SET value = ? WHERE key = 'rev'").run(String(r));
-  return r;
+
+function requireOwner(ctx: Ctx, projectId: string, what: string): void {
+  if (roleOf(ctx.db, ctx.userId, projectId) !== 'owner') fail('FORBIDDEN', what);
 }
 
 // ---------- rijen lezen en schrijven ----------
-
-function toDb(c: Col, v: unknown): string | number | null {
-  if (v === null || v === undefined) return null;
-  if (c.type === 'bool') return v ? 1 : 0;
-  if (c.type === 'json') return JSON.stringify(v);
-  return v as string | number;
-}
-
-const getRow = (db: DatabaseSync, e: Entity, id: string): Row | undefined =>
-  db.prepare(`SELECT * FROM ${e.table} WHERE id = ?`).get(id) as Row | undefined;
-
-function requireLive(db: DatabaseSync, name: EntityName, id: unknown, what: string): Row {
-  if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', `${what}: ongeldig id`);
-  const row = getRow(db, ENTITIES[name], id);
-  if (!row || row.is_deleted === 1) fail('NOT_FOUND', `${what}: ${name} bestaat niet`);
-  return row;
-}
 
 /** Valideert de meegestuurde argumenten en geeft de te bewaren kolomwaarden terug. */
 function collect(ctx: Ctx, e: Entity, args: Args, mode: 'add' | 'update'): Row {
@@ -81,53 +111,36 @@ function collect(ctx: Ctx, e: Entity, args: Args, mode: 'add' | 'update'): Row {
       const v = deepNormalize(args[c.name]);
       const err = validateValue(c, v);
       if (err) fail('INVALID_ARG', `${e.name}.${c.name}: ${err}`);
-      if (c.ref && v !== null) requireLive(ctx.db, c.ref, v, `${e.name}.${c.name}`);
+      if (c.ref && v !== null) requireLive(ctx, c.ref, v, `${e.name}.${c.name}`);
       out[c.name] = v;
     } else if (mode === 'add') {
       if (c.required) fail('MISSING_ARG', `${e.name}.${c.name} is verplicht`);
-      if (c.default !== undefined) out[c.name] = c.default;
+      if (c.stamp) out[c.name] = ctx.userId;
+      else if (c.default !== undefined) out[c.name] = c.default;
     }
   }
   return out;
 }
 
-function scope(e: Entity, v: Row): { where: string; params: (string | null)[] } {
+function scope(ctx: Ctx, e: Entity, v: Row): { where: string; params: (string | null)[] } {
   switch (e.name) {
-    case 'project': return { where: 'parent_id IS ?', params: [(v.parent_id as string | null) ?? null] };
+    case 'project': return { where: `parent_id IS ? AND id IN (${MY_PROJECTS})`, params: [(v.parent_id as string | null) ?? null, ctx.userId] };
     case 'section': return { where: 'project_id = ?', params: [v.project_id as string] };
     case 'task':
       return {
         where: 'project_id = ? AND section_id IS ? AND parent_id IS ?',
         params: [v.project_id as string, (v.section_id as string | null) ?? null, (v.parent_id as string | null) ?? null],
       };
+    case 'label': case 'filter': return { where: 'owner_id = ?', params: [ctx.userId] };
     default: return { where: '1 = 1', params: [] };
   }
 }
 
 /** Een sleutel die achter de laatste broer/zus in dezelfde lijst komt. */
 function nextKey(ctx: Ctx, e: Entity, v: Row): string {
-  const s = scope(e, v);
+  const s = scope(ctx, e, v);
   const r = ctx.db.prepare(`SELECT MAX(order_key) AS k FROM ${e.table} WHERE is_deleted = 0 AND ${s.where}`).get(...s.params) as Row;
   return keyAfter((r.k as string | null) ?? null);
-}
-
-function insertRow(ctx: Ctx, e: Entity, id: string, v: Row): void {
-  const names = e.cols.map((c) => c.name);
-  ctx.db
-    .prepare(`INSERT INTO ${e.table} (id, ${names.join(', ')}, rev, is_deleted, created_at, updated_at) VALUES (?, ${placeholders(names.length)}, ?, 0, ?, ?)`)
-    .run(id, ...e.cols.map((c) => toDb(c, v[c.name])), ctx.rev, ctx.now, ctx.now);
-}
-
-function updateRow(ctx: Ctx, e: Entity, id: string, changes: Row): void {
-  const cols = e.cols.filter((c) => has(changes, c.name));
-  if (cols.length === 0) return;
-  ctx.db
-    .prepare(`UPDATE ${e.table} SET ${cols.map((c) => `${c.name} = ?`).join(', ')}, rev = ?, updated_at = ? WHERE id = ?`)
-    .run(...cols.map((c) => toDb(c, changes[c.name])), ctx.rev, ctx.now, id);
-}
-
-function mark(ctx: Ctx, table: string, where: string, params: (string | number)[]): void {
-  ctx.db.prepare(`UPDATE ${table} SET is_deleted = 1, rev = ?, updated_at = ? WHERE is_deleted = 0 AND (${where})`).run(ctx.rev, ctx.now, ...params);
 }
 
 // ---------- afspraken per entiteit (cross-field controles) ----------
@@ -143,12 +156,23 @@ function descendantIds(db: DatabaseSync, rootIds: string[]): string[] {
   return [...all];
 }
 
-/** `v` is in API-vorm (booleans, JSON uitgepakt). Bij 'add' mag verify standaardwaarden in `v` aanvullen. */
-function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update'): void {
+/** Het project en al zijn subprojecten (alle niveaus), de wortel eerst. */
+function projectTree(db: DatabaseSync, rootId: string): string[] {
+  const projects = [rootId];
+  for (let i = 0; i < projects.length; i++) {
+    const kids = db.prepare('SELECT id FROM projects WHERE is_deleted = 0 AND parent_id = ?').all(projects[i]) as Row[];
+    for (const k of kids) if (!projects.includes(k.id as string)) projects.push(k.id as string);
+  }
+  return projects;
+}
+
+/** `v` is in API-vorm (booleans, JSON uitgepakt). `given` zijn de kolommen die de client in dit commando meestuurde. */
+function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update', given: Row): void {
   const db = ctx.db;
   switch (e.name) {
     case 'project': {
-      if (id === INBOX_ID && (v.parent_id !== null || v.is_archived === true)) fail('CONFLICT', 'de Inbox kan niet worden verplaatst of gearchiveerd');
+      if (isInboxId(id) && (v.parent_id !== null || v.is_archived === true)) fail('CONFLICT', 'de Inbox kan niet worden verplaatst of gearchiveerd');
+      if (v.parent_id && isInboxId(v.parent_id)) fail('CONFLICT', 'de Inbox kan geen subprojecten hebben');
       let p = v.parent_id as string | null;
       for (let i = 0; p && i < 1000; i++) {
         if (p === id) fail('CYCLE', 'een project kan niet in zichzelf of een eigen subproject staan');
@@ -158,23 +182,27 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update')
     }
     case 'label': {
       // Vergelijken in JavaScript, niet met SQLite's lower(): dat kent alleen ASCII, dus "Café" en "CAFÉ" waren twee labels.
+      // Alleen onder je eigen labels: een ander mag best dezelfde naam gebruiken.
       const key = nameKey(v.name as string);
-      const others = db.prepare('SELECT name FROM labels WHERE is_deleted = 0 AND id <> ?').all(id) as Row[];
+      const others = db.prepare('SELECT name FROM labels WHERE is_deleted = 0 AND owner_id = ? AND id <> ?').all(ctx.userId, id) as Row[];
       if (others.some((o) => nameKey(o.name as string) === key)) fail('DUPLICATE', 'er bestaat al een label met deze naam');
       break;
     }
     case 'task': {
-      for (const l of (v.labels as string[]) ?? []) requireLive(db, 'label', l, 'task.labels');
+      for (const l of (v.labels as string[]) ?? []) requireLive(ctx, 'label', l, 'task.labels');
+      if (v.assignee_id && has(given, 'assignee_id') && !isMember(db, v.assignee_id as string, v.project_id)) {
+        fail('INVALID_ARG', 'de toegewezen persoon is geen lid van dit project');
+      }
       if (mode === 'add') {
         const sectionId = v.section_id as string | null;
         const parentId = v.parent_id as string | null;
         if (parentId) {
-          const parent = requireLive(db, 'task', parentId, 'task.parent_id');
+          const parent = requireLive(ctx, 'task', parentId, 'task.parent_id');
           if (parent.project_id !== v.project_id) fail('CONFLICT', 'een subtaak hoort in hetzelfde project als de bovenliggende taak');
           if (sectionId && sectionId !== parent.section_id) fail('CONFLICT', 'een subtaak volgt de sectie van de bovenliggende taak');
           v.section_id = parent.section_id ?? null;
         } else if (sectionId) {
-          const s = requireLive(db, 'section', sectionId, 'task.section_id');
+          const s = requireLive(ctx, 'section', sectionId, 'task.section_id');
           if (s.project_id !== v.project_id) fail('CONFLICT', 'de sectie hoort bij een ander project');
         }
       }
@@ -201,21 +229,41 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update')
 
 // ---------- generieke commando's ----------
 
+/**
+ * Een nieuw project: de maker wordt eigenaar. Een subproject krijgt dezelfde leden en rollen als het bovenliggende
+ * project, en de maker is daar altijd eigenaar van (ook als hij in het bovenliggende project gewoon lid is).
+ */
+function addMembersForNewProject(ctx: Ctx, projectId: string, parentId: string | null): void {
+  const members = new Map<string, string>();
+  if (parentId) {
+    const rows = ctx.db.prepare('SELECT user_id, role FROM project_members WHERE project_id = ? AND is_deleted = 0').all(parentId) as { user_id: string; role: string }[];
+    for (const r of rows) members.set(r.user_id, r.role);
+  }
+  members.set(ctx.userId, 'owner');
+  for (const [user_id, role] of members) insertRow(ctx, ENTITIES.member, newId(), { project_id: projectId, user_id, role });
+}
+
 function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   const id = args.id === undefined ? newId() : args.id;
   if (typeof id !== 'string' || !ID_RE.test(id)) fail('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+  if (e.name === 'project' && isInboxId(id)) fail('INVALID_ARG', 'ids die met "inbox-" beginnen zijn gereserveerd');
   if (getRow(ctx.db, e, id)) fail('ID_EXISTS', `${e.name} met dit id bestaat al`);
   const v = collect(ctx, e, args, 'add');
-  verify(ctx, e, id, v, 'add');
+  verify(ctx, e, id, v, 'add', v);
   const oc = e.cols.find((c) => c.orderKey);
   if (oc && v[oc.name] === undefined) v[oc.name] = nextKey(ctx, e, v);
   insertRow(ctx, e, id, v);
+  if (e.name === 'project') addMembersForNewProject(ctx, id, (v.parent_id as string | null) ?? null);
 }
 
 function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
-  const row = requireLive(ctx.db, e.name, args.id, `${e.name}.id`);
+  const row = requireLive(ctx, e.name, args.id, `${e.name}.id`);
+  requireMayWrite(ctx, e, row);
   const changes = collect(ctx, e, args, 'update');
-  verify(ctx, e, row.id as string, { ...toApi(e, row), ...changes }, 'update');
+  if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) {
+    requireOwner(ctx, row.id as string, 'alleen de eigenaar kan een project verplaatsen');
+  }
+  verify(ctx, e, row.id as string, { ...toApi(e, row), ...changes }, 'update', changes);
   updateRow(ctx, e, row.id as string, changes);
 }
 
@@ -233,11 +281,20 @@ function deleteTaskTree(ctx: Ctx, rootIds: string[]): void {
   mark(ctx, 'reminders', `task_id IN (${ph})`, ids);
 }
 
+/**
+ * Verwijdert een project met alles erin. Subprojecten gaan alleen mee als de gebruiker daar ook eigenaar van is:
+ * een subproject van iemand anders (bijvoorbeeld een privéproject dat onder dit project is gehangen) blijft bestaan
+ * en komt op het hoogste niveau te staan, zodat verwijderen nooit andermans gegevens meeneemt.
+ */
 function deleteProject(ctx: Ctx, rootId: string): void {
   const projects = [rootId];
   for (let i = 0; i < projects.length; i++) {
     const kids = ctx.db.prepare('SELECT id FROM projects WHERE is_deleted = 0 AND parent_id = ?').all(projects[i]) as Row[];
-    for (const k of kids) if (!projects.includes(k.id as string)) projects.push(k.id as string);
+    for (const k of kids) {
+      const kid = k.id as string;
+      if (roleOf(ctx.db, ctx.userId, kid) === 'owner') projects.push(kid);
+      else updateRow(ctx, ENTITIES.project, kid, { parent_id: null });
+    }
   }
   for (const p of projects) {
     const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE is_deleted = 0 AND project_id = ?').all(p) as Row[]).map((r) => r.id as string);
@@ -245,15 +302,18 @@ function deleteProject(ctx: Ctx, rootId: string): void {
     mark(ctx, 'sections', 'project_id = ?', [p]);
     mark(ctx, 'comments', 'project_id = ?', [p]);
     mark(ctx, 'projects', 'id = ?', [p]);
+    mark(ctx, 'project_members', 'project_id = ?', [p]);
   }
 }
 
 function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
   const id = onlyId(args);
-  requireLive(ctx.db, e.name, id, `${e.name}.id`);
+  const row = requireLive(ctx, e.name, id, `${e.name}.id`);
+  requireMayWrite(ctx, e, row);
   switch (e.name) {
     case 'project':
-      if (id === INBOX_ID) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
+      if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
+      requireOwner(ctx, id, 'alleen de eigenaar kan een project verwijderen; gebruik "verlaten" om er zelf uit te gaan');
       deleteProject(ctx, id);
       break;
     case 'section': {
@@ -283,18 +343,18 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
 function taskMove(ctx: Ctx, args: Args): void {
   const allowed = ['id', 'project_id', 'section_id', 'parent_id', 'order_key'];
   for (const k of Object.keys(args)) if (!allowed.includes(k)) fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
-  const row = requireLive(ctx.db, 'task', args.id, 'task.id');
+  const row = requireLive(ctx, 'task', args.id, 'task.id');
   const id = row.id as string;
   if (!has(args, 'project_id') && !has(args, 'section_id') && !has(args, 'parent_id')) fail('MISSING_ARG', 'geef project_id, section_id of parent_id op');
 
   const projectChanges = has(args, 'project_id') && args.project_id !== row.project_id;
-  if (has(args, 'project_id')) requireLive(ctx.db, 'project', args.project_id, 'task.project_id');
+  if (has(args, 'project_id')) requireLive(ctx, 'project', args.project_id, 'task.project_id');
   const projectId = (has(args, 'project_id') ? args.project_id : row.project_id) as string;
   let parentId = (has(args, 'parent_id') ? args.parent_id : projectChanges ? null : row.parent_id) as string | null;
   let sectionId = (has(args, 'section_id') ? args.section_id : projectChanges ? null : row.section_id) as string | null;
 
   if (parentId !== null) {
-    const parent = requireLive(ctx.db, 'task', parentId, 'task.parent_id');
+    const parent = requireLive(ctx, 'task', parentId, 'task.parent_id');
     if (parent.project_id !== projectId) fail('CONFLICT', 'de bovenliggende taak staat in een ander project');
     for (let p: Row | undefined = parent, i = 0; p && i < 1000; i++) {
       if (p.id === id) fail('CYCLE', 'een taak kan niet onder zichzelf of een eigen subtaak staan');
@@ -303,7 +363,7 @@ function taskMove(ctx: Ctx, args: Args): void {
     if (has(args, 'section_id') && args.section_id !== (parent.section_id ?? null)) fail('CONFLICT', 'een subtaak volgt de sectie van de bovenliggende taak');
     sectionId = (parent.section_id as string | null) ?? null;
   } else if (sectionId !== null) {
-    const s = requireLive(ctx.db, 'section', sectionId, 'task.section_id');
+    const s = requireLive(ctx, 'section', sectionId, 'task.section_id');
     if (s.project_id !== projectId) fail('CONFLICT', 'de sectie hoort bij een ander project');
   }
   parentId = parentId ?? null;
@@ -315,20 +375,32 @@ function taskMove(ctx: Ctx, args: Args): void {
   } else {
     orderKey = nextKey(ctx, ENTITIES.task, { project_id: projectId, section_id: sectionId, parent_id: parentId });
   }
+  const kids = descendantIds(ctx.db, [id]);
+  if (projectChanges) {
+    // Leden van het oude project die het nieuwe niet zien, krijgen via deze lijst te horen dat de taak (en subtaken) weg is.
+    const log = ctx.db.prepare('INSERT INTO task_moves (task_id, from_project_id, rev) VALUES (?, ?, ?)');
+    for (const t of [id, ...kids]) log.run(t, row.project_id as string, ctx.rev);
+  }
   updateRow(ctx, ENTITIES.task, id, { project_id: projectId, section_id: sectionId, parent_id: parentId, order_key: orderKey });
 
   // subtaken gaan mee naar hetzelfde project en dezelfde sectie
-  const kids = descendantIds(ctx.db, [id]);
   if (kids.length > 0) {
     ctx.db
       .prepare(`UPDATE tasks SET project_id = ?, section_id = ?, rev = ?, updated_at = ? WHERE id IN (${placeholders(kids.length)})`)
       .run(projectId, sectionId, ctx.rev, ctx.now, ...kids);
   }
+  if (projectChanges) {
+    // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
+    const moved = [id, ...kids];
+    const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(moved.length)})`).all(...moved) as Row[])
+      .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
+    for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+  }
 }
 
 function taskComplete(ctx: Ctx, args: Args): void {
   const id = onlyId(args);
-  const row = requireLive(ctx.db, 'task', id, 'task.id');
+  const row = requireLive(ctx, 'task', id, 'task.id');
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   const count = (row.completed_count as number) + 1;
@@ -348,9 +420,69 @@ function taskComplete(ctx: Ctx, args: Args): void {
 
 function taskUncomplete(ctx: Ctx, args: Args): void {
   const id = onlyId(args);
-  const row = requireLive(ctx.db, 'task', id, 'task.id');
+  const row = requireLive(ctx, 'task', id, 'task.id');
   if (row.checked === 0) return;
   updateRow(ctx, ENTITIES.task, id, { checked: false, completed_at: null });
+}
+
+// ---------- delen ----------
+
+function exactArgs(args: Args, allowed: string[]): void {
+  for (const k of Object.keys(args)) if (!allowed.includes(k)) fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
+}
+
+/** Een persoon uit een project en de bijbehorende gegevens halen: hun toewijzingen en herinneringen voor die taken. */
+function removeMember(ctx: Ctx, projectId: string, userId: string): void {
+  mark(ctx, 'project_members', 'project_id = ? AND user_id = ?', [projectId, userId]);
+  const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = 0').all(projectId) as Row[]).map((r) => r.id as string);
+  if (tasks.length === 0) return;
+  const ph = placeholders(tasks.length);
+  mark(ctx, 'reminders', `owner_id = ? AND task_id IN (${ph})`, [userId, ...tasks]);
+  const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...tasks) as Row[];
+  for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+}
+
+function projectShare(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['project_id', 'username']);
+  const project = requireLive(ctx, 'project', args.project_id, 'project_id');
+  const id = project.id as string;
+  if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden gedeeld');
+  requireOwner(ctx, id, 'alleen de eigenaar kan een project delen');
+  if (typeof args.username !== 'string') fail('INVALID_ARG', 'username moet tekst zijn');
+  const target = getUserByName(ctx.db, args.username);
+  // zelfde melding voor "bestaat niet" en "geblokkeerd": zo is de lijst met gebruikers niet af te tasten
+  if (!target || target.is_disabled) fail('NOT_FOUND', 'deze gebruiker bestaat niet');
+  if (target.id === ctx.userId) return;
+  // het project en de subprojecten waar de eigenaar ook eigenaar van is
+  for (const p of projectTree(ctx.db, id)) {
+    if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || isMember(ctx.db, target.id, p)) continue;
+    insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role: 'member' });
+  }
+}
+
+function projectUnshare(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['project_id', 'user_id']);
+  const project = requireLive(ctx, 'project', args.project_id, 'project_id');
+  const id = project.id as string;
+  requireOwner(ctx, id, 'alleen de eigenaar kan iemand uit een project halen');
+  const userId = args.user_id;
+  if (typeof userId !== 'string' || !ID_RE.test(userId)) fail('INVALID_ARG', 'ongeldig gebruikers-id');
+  if (userId === ctx.userId) fail('CONFLICT', 'gebruik "verlaten" om er zelf uit te gaan');
+  const role = roleOf(ctx.db, userId, id);
+  if (role === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
+  if (role === 'owner') fail('CONFLICT', 'een eigenaar kan niet uit het project worden gehaald');
+  for (const p of projectTree(ctx.db, id)) {
+    if (roleOf(ctx.db, ctx.userId, p) === 'owner' && roleOf(ctx.db, userId, p) === 'member') removeMember(ctx, p, userId);
+  }
+}
+
+function projectLeave(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['project_id']);
+  const project = requireLive(ctx, 'project', args.project_id, 'project_id');
+  const id = project.id as string;
+  if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden verlaten');
+  if (roleOf(ctx.db, ctx.userId, id) === 'owner') fail('CONFLICT', 'de eigenaar kan het project niet verlaten; verwijder het project of laat het door iemand anders overnemen');
+  for (const p of projectTree(ctx.db, id)) if (roleOf(ctx.db, ctx.userId, p) === 'member') removeMember(ctx, p, ctx.userId);
 }
 
 // ---------- commandoregister ----------
@@ -358,6 +490,7 @@ function taskUncomplete(ctx: Ctx, args: Args): void {
 type Handler = (ctx: Ctx, args: Args) => void;
 const HANDLERS: Record<string, Handler> = {};
 for (const e of ENTITY_LIST) {
+  if (e.commands === false) continue;
   HANDLERS[`${e.name}_add`] = (ctx, args) => addEntity(ctx, e, args);
   HANDLERS[`${e.name}_update`] = (ctx, args) => updateEntity(ctx, e, args);
   HANDLERS[`${e.name}_delete`] = (ctx, args) => deleteEntity(ctx, e, args);
@@ -365,6 +498,9 @@ for (const e of ENTITY_LIST) {
 HANDLERS.task_move = taskMove;
 HANDLERS.task_complete = taskComplete;
 HANDLERS.task_uncomplete = taskUncomplete;
+HANDLERS.project_share = projectShare;
+HANDLERS.project_unshare = projectUnshare;
+HANDLERS.project_leave = projectLeave;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
 
 // ---------- het sync-verzoek ----------
@@ -378,6 +514,9 @@ export interface SyncResponse {
   /** true als niet alle resourcetypen zijn opgevraagd; sla dan het nieuwe token niet op. */
   partial: boolean;
   sync_status: Record<string, CommandStatus>;
+  me: ReturnType<typeof publicMe>;
+  /** De gebruiker zelf en iedereen met wie een project wordt gedeeld (alleen om namen te tonen). */
+  users: { id: string; username: string; name: string }[];
   [resource: string]: unknown;
 }
 
@@ -403,7 +542,88 @@ function resolveResources(requested: unknown): { include: Set<string>; partial: 
   return { include, partial: include.size !== RESOURCE_NAMES.length };
 }
 
-export function handleSync(db: DatabaseSync, req: unknown): SyncResponse {
+/** De voorwaarde (SQL) die bepaalt welke rijen van een entiteit deze gebruiker nu mag zien. */
+function visibility(name: EntityName, uid: string): { sql: string; params: string[] } {
+  const tasksOfMine = `SELECT id FROM tasks WHERE project_id IN (${MY_PROJECTS})`;
+  switch (name) {
+    case 'project': return { sql: `id IN (${MY_PROJECTS})`, params: [uid] };
+    case 'section': case 'task': case 'member': return { sql: `project_id IN (${MY_PROJECTS})`, params: [uid] };
+    case 'comment': return { sql: `(project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine}))`, params: [uid, uid] };
+    case 'label':
+      return {
+        sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
+        params: [uid, uid],
+      };
+    case 'filter': return { sql: 'owner_id = ?', params: [uid] };
+    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
+  }
+}
+
+/** Alles van een nieuw project dat de gebruiker nog niet kent, ook als het oud is (rev ≤ token). */
+function inProjects(name: EntityName, uid: string, projects: string[]): { sql: string; params: string[] } | null {
+  if (projects.length === 0) return null;
+  const ph = placeholders(projects.length);
+  const tasksIn = `SELECT id FROM tasks WHERE project_id IN (${ph})`;
+  switch (name) {
+    case 'project': return { sql: `id IN (${ph})`, params: projects };
+    case 'section': case 'task': case 'member': return { sql: `project_id IN (${ph})`, params: projects };
+    case 'comment': return { sql: `(project_id IN (${ph}) OR task_id IN (${tasksIn}))`, params: [...projects, ...projects] };
+    case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...projects] };
+    default: return null;
+  }
+}
+
+function collectResources(db: DatabaseSync, uid: string, include: Set<string>, since: number, full: boolean, response: SyncResponse): void {
+  // Projecten die de gebruiker sinds het token erbij kreeg (en dus nog helemaal niet kent), of waar die uit is gehaald.
+  const gained = full ? [] : (db.prepare('SELECT DISTINCT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0 AND rev > ?').all(uid, since) as Row[]).map((r) => r.project_id as string);
+  const lost = full
+    ? []
+    : (db
+        .prepare(`SELECT DISTINCT project_id FROM project_members WHERE user_id = ? AND is_deleted = 1 AND rev > ? AND project_id NOT IN (${MY_PROJECTS})`)
+        .all(uid, since, uid) as Row[]).map((r) => r.project_id as string);
+  // Taken die naar een project verhuisden dat deze gebruiker niet ziet, terwijl die ze wel kende.
+  const moved = full
+    ? []
+    : (db
+        .prepare(
+          `SELECT DISTINCT m.task_id FROM task_moves m JOIN tasks t ON t.id = m.task_id
+           WHERE m.rev > ? AND m.from_project_id IN (${MY_PROJECTS}) AND t.project_id NOT IN (${MY_PROJECTS})`,
+        )
+        .all(since, uid, uid) as Row[]).map((r) => r.task_id as string);
+  // Labels van anderen worden zichtbaar doordat ze op een taak in een gedeeld project komen te staan; ook als het label zelf oud is.
+  let extraLabels: string[] = [];
+  if (!full && include.has('labels')) {
+    const taskLabels = db
+      .prepare(`SELECT labels FROM tasks WHERE is_deleted = 0 AND project_id IN (${MY_PROJECTS}) AND (rev > ?${gained.length ? ` OR project_id IN (${placeholders(gained.length)})` : ''})`)
+      .all(uid, since, ...gained) as Row[];
+    extraLabels = [...new Set(taskLabels.flatMap((t) => (t.labels ? (JSON.parse(t.labels as string) as string[]) : [])))];
+  }
+
+  for (const e of ENTITY_LIST) {
+    if (!include.has(e.resource)) continue;
+    const vis = visibility(e.name, uid);
+    let where = vis.sql;
+    const params: (string | number)[] = [...vis.params];
+    if (full) {
+      where += ' AND is_deleted = 0';
+    } else {
+      const extra: string[] = [];
+      const extraParams: (string | number)[] = [];
+      const np = inProjects(e.name, uid, gained);
+      if (np) { extra.push(np.sql); extraParams.push(...np.params); }
+      if (e.name === 'label' && extraLabels.length > 0) { extra.push(`id IN (${placeholders(extraLabels.length)})`); extraParams.push(...extraLabels); }
+      where += ` AND (rev > ?${extra.length ? ` OR (is_deleted = 0 AND (${extra.join(' OR ')}))` : ''})`;
+      params.push(since, ...extraParams);
+    }
+    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[]).map((row) => toApi(e, row));
+    // verdwenen toegang: de client verwijdert het project met alles erin
+    if (e.name === 'project') for (const p of lost) out.push({ id: p, is_deleted: true });
+    if (e.name === 'task') for (const t of moved) out.push({ id: t, is_deleted: true });
+    response[e.resource] = out;
+  }
+}
+
+export function handleSync(db: DatabaseSync, req: unknown, userId: string): SyncResponse {
   if (!req || typeof req !== 'object' || Array.isArray(req)) fail('INVALID_REQUEST', 'verzoek moet een JSON-object zijn');
   const r = req as SyncRequest;
   const token = r.sync_token ?? '*';
@@ -421,13 +641,15 @@ export function handleSync(db: DatabaseSync, req: unknown): SyncResponse {
   const status: Record<string, CommandStatus> = {};
   db.exec('BEGIN IMMEDIATE');
   try {
+    const me = getUserById(db, userId);
+    if (!me || me.is_disabled) fail('UNAUTHORIZED', 'gebruiker bestaat niet of is geblokkeerd');
     const now = new Date().toISOString();
     if (commands.length > 0) {
       const cutoff = new Date(Date.now() - COMMAND_RETENTION_DAYS * 86_400_000).toISOString();
-      db.prepare('DELETE FROM commands WHERE at < ?').run(cutoff);
+      db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
     }
     for (const cmd of commands) {
-      const seen = db.prepare('SELECT status, error_code, error FROM commands WHERE uuid = ?').get(cmd.uuid) as Row | undefined;
+      const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
       if (seen) {
         status[cmd.uuid] = seen.status === 'ok' ? 'ok' : { error_code: seen.error_code as string, error: seen.error as string };
         continue;
@@ -439,7 +661,7 @@ export function handleSync(db: DatabaseSync, req: unknown): SyncResponse {
         const handler = Object.hasOwn(HANDLERS, cmd.type) ? HANDLERS[cmd.type] : undefined;
         if (!handler) fail('UNKNOWN_COMMAND', `onbekend commando "${cmd.type}"`);
         rev = bumpRev(db);
-        handler({ db, rev, now }, cmd.args ?? {});
+        handler({ db, rev, now, userId }, cmd.args ?? {});
         result = 'ok';
         db.exec('RELEASE cmd');
       } catch (err) {
@@ -450,8 +672,8 @@ export function handleSync(db: DatabaseSync, req: unknown): SyncResponse {
         result = { error_code: se.code, error: se.message };
         rev = currentRev(db);
       }
-      db.prepare('INSERT INTO commands (uuid, type, status, error_code, error, rev, at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
-        cmd.uuid, cmd.type.slice(0, 64), result === 'ok' ? 'ok' : 'error', result === 'ok' ? null : result.error_code, result === 'ok' ? null : result.error, rev, now,
+      db.prepare('INSERT INTO command_log (user_id, uuid, type, status, error_code, error, rev, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+        userId, cmd.uuid, cmd.type.slice(0, 64), result === 'ok' ? 'ok' : 'error', result === 'ok' ? null : result.error_code, result === 'ok' ? null : result.error, rev, now,
       );
       status[cmd.uuid] = result;
     }
@@ -460,14 +682,8 @@ export function handleSync(db: DatabaseSync, req: unknown): SyncResponse {
     let since = token === '*' ? 0 : Number(token);
     let full = token === '*';
     if (since > cur) { since = 0; full = true; } // de server is teruggezet: de client moet opnieuw beginnen
-    const response: SyncResponse = { sync_token: String(cur), full_sync: full, partial, sync_status: status };
-    for (const e of ENTITY_LIST) {
-      if (!include.has(e.resource)) continue;
-      const rows = db
-        .prepare(`SELECT * FROM ${e.table} WHERE rev > ?${full ? ' AND is_deleted = 0' : ''} ORDER BY rev, id`)
-        .all(since) as Row[];
-      response[e.resource] = rows.map((row) => toApi(e, row));
-    }
+    const response: SyncResponse = { sync_token: String(cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
+    collectResources(db, userId, include, since, full, response);
     db.exec('COMMIT');
     return response;
   } catch (err) {

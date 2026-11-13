@@ -1,7 +1,7 @@
 // Leest overzichten uit de lokale toestand: wat staat er in een project, wat is er vandaag, wat komt eraan.
 // Alleen lezen, geen wijzigingen.
 
-import { INBOX_ID } from '../../shared/schema.js';
+import { isInboxId } from '../../shared/schema.js';
 import { addDays } from './format.js';
 
 export const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -20,7 +20,7 @@ export function projectList(view) {
   }
   const out = [];
   const walk = (parentId, depth) => {
-    const list = (children.get(parentId) ?? []).sort((a, b) => (a.id === INBOX_ID ? -1 : b.id === INBOX_ID ? 1 : byOrder(a, b)));
+    const list = (children.get(parentId) ?? []).sort((a, b) => (isInboxId(a.id) ? -1 : isInboxId(b.id) ? 1 : byOrder(a, b)));
     for (const p of list) {
       out.push({ project: p, depth });
       walk(p.id, depth + 1);
@@ -100,3 +100,21 @@ export function counts(view, today) {
   }
   return { today: dueToday, perProject };
 }
+
+// ---- delen ----
+
+/** De leden van een project (rijen uit `members`), eigenaren eerst. */
+export function membersOf(view, projectId) {
+  return [...view.members.values()]
+    .filter((m) => m.project_id === projectId)
+    .sort((a, b) => (a.role === b.role ? (a.user_id < b.user_id ? -1 : 1) : a.role === 'owner' ? -1 : 1));
+}
+
+/** 'owner', 'member', of null als de gebruiker er geen lid van is. */
+export const roleIn = (view, projectId, userId) => membersOf(view, projectId).find((m) => m.user_id === userId)?.role ?? null;
+
+/** Een project met meer dan één lid is gedeeld. */
+export const isShared = (view, projectId) => membersOf(view, projectId).length > 1;
+
+/** Een label van iemand anders (je ziet het omdat het op een taak in een gedeeld project staat). */
+export const isForeignLabel = (label, userId) => Boolean(userId && label.owner_id && label.owner_id !== userId);

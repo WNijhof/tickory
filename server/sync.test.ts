@@ -2,20 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { createSchema } from './schema.ts';
+import { addUser, firstUser, mkdb } from './testutil.ts';
 import { COMMAND_TYPES, currentRev, handleSync, newId } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 
 type Row = Record<string, any>;
 
-function mkdb(): DatabaseSync {
-  const db = new DatabaseSync(':memory:');
-  createSchema(db);
-  return db;
-}
 let n = 0;
 const cmd = (type: string, args: Record<string, unknown> = {}): Command => ({ type, uuid: `cmd-${String(++n).padStart(6, '0')}`, args });
-const run = (db: DatabaseSync, commands: Command[], sync_token = '*', resource_types?: string[]): SyncResponse =>
-  handleSync(db, { sync_token, commands, ...(resource_types ? { resource_types } : {}) });
+const run = (db: DatabaseSync, commands: Command[], sync_token = '*', resource_types?: string[], as: string = firstUser(db).id): SyncResponse =>
+  handleSync(db, { sync_token, commands, ...(resource_types ? { resource_types } : {}) }, as);
 const ok = (res: SyncResponse, c: Command) => assert.equal(res.sync_status[c.uuid], 'ok', JSON.stringify(res.sync_status[c.uuid]));
 const err = (res: SyncResponse, c: Command, code: string) => {
   const s = res.sync_status[c.uuid];
@@ -32,18 +28,22 @@ function seed(db: DatabaseSync) {
   return { P, S, T, token: res.sync_token };
 }
 
-test('een nieuwe database bevat alleen de Inbox; de rest is leeg', () => {
-  const res = run(mkdb(), []);
+test('een nieuwe database bevat alleen de Inbox van de gebruiker; de rest is leeg', () => {
+  const db = mkdb();
+  const res = run(db, []);
   assert.equal(res.full_sync, true);
-  assert.equal(res.sync_token, '1');
+  assert.equal(res.sync_token, '2'); // versie 1: de Inbox uit "versie 0.1"; versie 2: het account dat die overneemt
   assert.deepEqual(rows(res, 'projects').map((p) => [p.id, p.name]), [['inbox-project', 'Inbox']]);
+  assert.deepEqual(rows(res, 'members').map((m) => [m.project_id, m.user_id, m.role]), [['inbox-project', firstUser(db).id, 'owner']]);
   for (const k of ['sections', 'tasks', 'labels', 'comments', 'reminders', 'filters']) assert.deepEqual(res[k], []);
+  assert.deepEqual(res.me, { id: firstUser(db).id, username: 'tester', name: 'Tester', is_admin: true, inbox_project_id: 'inbox-project' });
+  assert.deepEqual(res.users, [{ id: firstUser(db).id, username: 'tester', name: 'Tester' }]);
 });
 
 test('de Inbox wordt één keer aangemaakt en is beschermd', () => {
   const db = mkdb();
   createSchema(db); // opnieuw opstarten maakt geen tweede Inbox en verhoogt de versie niet
-  assert.equal(currentRev(db), 1);
+  assert.equal(currentRev(db), 2);
   const del = cmd('project_delete', { id: 'inbox-project' });
   const sub = cmd('project_add', { id: 'project-cccc3333', name: 'Ander' });
   const move = cmd('project_update', { id: 'inbox-project', parent_id: 'project-cccc3333' });
@@ -146,11 +146,11 @@ test('validatie: onbekende argumenten, ontbrekende velden, server-beheerde velde
 
 test('ongeldige verzoeken worden als geheel geweigerd', () => {
   const db = mkdb();
-  assert.throws(() => handleSync(db, null), /JSON-object/);
-  assert.throws(() => handleSync(db, { sync_token: 'abc' }), /sync_token/);
-  assert.throws(() => handleSync(db, { commands: [{ type: 'x', uuid: 'kort' }] }), /uuid/);
-  assert.throws(() => handleSync(db, { resource_types: ['tasks', 'bestaat-niet'] }), /onbekend resourcetype/);
-  assert.throws(() => handleSync(db, { commands: Array.from({ length: 101 }, () => cmd('task_add')) }), /maximaal 100/);
+  assert.throws(() => handleSync(db, null, firstUser(db).id), /JSON-object/);
+  assert.throws(() => handleSync(db, { sync_token: 'abc' }, firstUser(db).id), /sync_token/);
+  assert.throws(() => handleSync(db, { commands: [{ type: 'x', uuid: 'kort' }] }, firstUser(db).id), /uuid/);
+  assert.throws(() => handleSync(db, { resource_types: ['tasks', 'bestaat-niet'] }, firstUser(db).id), /onbekend resourcetype/);
+  assert.throws(() => handleSync(db, { commands: Array.from({ length: 101 }, () => cmd('task_add')) }, firstUser(db).id), /maximaal 100/);
 });
 
 test('verwijderen cascadeert en komt als is_deleted in de delta; een volledige sync toont het niet meer', () => {

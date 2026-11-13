@@ -14,3 +14,4 @@ Dockerfile
 .dockerignore
 docker-compose*.yml
 start.cmd
+server/testutil.ts
