@@ -658,4 +658,23 @@ export default {
   'ago.minutes': { one: '{count} minuut geleden', other: '{count} minuten geleden' },
   'ago.hours': { one: '{count} uur geleden', other: '{count} uur geleden' },
   'ago.days': { one: '{count} dag geleden', other: '{count} dagen geleden' },
+
+  // ---------- slepen en verplaatsen ----------
+  'dnd.cancelled': 'Verplaatsen geannuleerd.',
+  'dnd.dropped': '"{name}" verplaatst naar "{container}".',
+  'dnd.droppedSub': '"{name}" is nu een subtaak van "{parent}".',
+  'dnd.outdented': '"{name}" staat niet meer onder "{parent}".',
+  'dnd.keyMoved': '"{name}" staat nu op plek {position}, totaal {count} in "{container}".',
+  'dnd.alreadyFirst': '"{name}" staat al bovenaan.',
+  'dnd.alreadyLast': '"{name}" staat al onderaan.',
+  'dnd.noPrevious': 'Er staat niets boven "{name}" om het onder te hangen.',
+  'dnd.noParent': '"{name}" staat al op het hoogste niveau.',
+  'dnd.movedToProject': '"{name}" verplaatst naar "{project}".',
+  'dnd.projectNested': 'Project "{name}" is nu een subproject van "{parent}".',
+  'dnd.projectTop': 'Project "{name}" staat nu op het hoogste niveau.',
+  'dnd.projectDropped': 'Project "{name}" verplaatst.',
+  'dnd.projectKeyMoved': 'Project "{name}" staat nu op plek {position}, totaal {count}.',
+  'shortcuts.moveUpDown': 'Een taak of project een plek omhoog of omlaag zetten',
+  'shortcuts.moveInOut': 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen',
+  'shortcuts.dragNote': 'Slepen kan ook met de muis of je vinger (op een telefoon: lang indrukken of het handvat). Alleen de eigenaar van een project verplaatst het.',
 };

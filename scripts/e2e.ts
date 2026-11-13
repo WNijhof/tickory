@@ -26,6 +26,7 @@ import { setLanguage } from '../client/core/i18n.js';
 import { FILTER_EXAMPLES, FILTER_TERM_GROUPS } from '../client/core/filterText.js';
 import dutchTexts from '../client/i18n/nl.js';
 import en from '../client/i18n/en.js';
+import { dragAndDropScenario } from './e2e-dnd.ts';
 
 const BROWSERS = [
   process.argv[2],
@@ -393,6 +394,14 @@ try {
 
   // ---- 6. een ander apparaat wijzigt iets: komt vanzelf binnen ----
   const otherToken = createSession(db, alice.id, 'Telefoon').token;
+  // slepen en verplaatsen (scripts/e2e-dnd.ts); met E2E_DND_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
+  const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
+  if (process.env.E2E_DND_ONLY) {
+    try { await dndScenario(); console.log('ALLEEN SLEPEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-slepen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   const other = await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-ander-apparaat-1', args: { project_id: serverTask('Planten water geven').project_id, content: 'Van mijn telefoon' } }]);
   assert.equal(other.status, 200);
   await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Van mijn telefoon')`, 'taak van ander apparaat verschijnt zonder herladen', 6000);
@@ -1360,7 +1369,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1473,8 +1482,8 @@ try {
   await shot('engels-nieuwe-lijst');
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Keyboard shortcuts'`, 'sneltoetsen (Engels)');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Save the task in the task window']);
-  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Save the task in the task window', 'Move a task or project one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
+  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+']);
   await noDutch('sneltoetsen', mine);
   await press('Escape');
   await noDialog();
@@ -2164,6 +2173,9 @@ try {
   await nav('Thuis');
   await waitFor(SYNCED, 'gesynchroniseerd');
   step('zoeken, filters en labels: licht en donker, toegankelijkheid van het zoekvenster (combobox, lijst, actieve optie, aantal, focus terug), focusring in de zijbalk, Engels zonder Nederlandse tekst (zoeken, filterfouten, uitleg, labelmeldingen) en zonder afgekapte tekst, telefoon: zoekknop in de kop, zoekvenster over het hele scherm, zijbalk en vensters met tikvlakken van minstens 44 px');
+
+  // ---- 9c. slepen en verplaatsen van taken en projecten: muis, aanraking en toetsenbord ----
+  await dndScenario();
 
   // ---- 10. installeerbaar als app ----
   try {

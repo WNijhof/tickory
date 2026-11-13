@@ -70,6 +70,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - The interface in English and Dutch.
 - A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
 - Ticking off with undo; showing or hiding completed tasks.
+- **Dragging**: change the order of tasks, move them to another section, make a task a subtask of another (and back), or drop it on a project in the sidebar; in the sidebar, change the order of projects and make or undo sub-projects (owner only; favourites can be reordered among each other). With the mouse or a pen, with a finger (press and hold, or use the handle), or from the keyboard with `Alt` + arrow keys, announced to screen readers. It works offline like every other change. Today and Upcoming are sorted by date and priority, so tasks there can only be dragged to a project.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
 - Installable as an app (PWA) on phone and computer, and an Android app of its own (see below).
 - Managing your password and the devices you are signed in on.
@@ -89,7 +90,6 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Missing entirely:**
 
-- **Dragging or otherwise changing the order of tasks.** A new task always goes to the end.
 - Attachments, statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.

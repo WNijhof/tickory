@@ -72,6 +72,17 @@ description: What Tickory looks like and how it works: the sidebar with Inbox, T
 </ul>
 <p>Within a day, tasks without a time come first, then those with a time, from early to late; at the same time the highest priority goes first. In a shared project you also see the tasks assigned to someone else here. Tasks without a date are in neither view; you find those in their project.</p>
 
+<h2 id="moving-tasks-and-projects">Moving tasks and projects</h2>
+<p>You drag tasks and projects to their place. A line shows where it will end up. Drop a task on the top edge or bottom edge of another task and it goes before or after it; drop it in the middle of a task and it becomes a subtask of that task (the frame around that task shows this). Subtasks always move along with their task.</p>
+<ul>
+  <li><strong>Tasks:</strong> change the order within a project, move to another section (also onto the heading of a section, which puts it at the top), make a subtask, and drag a subtask out again. Drop a task on a project in the sidebar and it moves there; the message below has <x-ui k="task.undo"></x-ui>. In a shared project every member can move tasks.</li>
+  <li><strong>Projects</strong> in the sidebar: change the order, drop a project on another project (it becomes a subproject) and drop a subproject on the heading <x-ui k="nav.projects"></x-ui> (it becomes an ordinary project again). Only the owner of the project can do this; members do not see it as an option. The Inbox stays where it is. You can order favourites among themselves, as long as they are projects with the same parent.</li>
+  <li><strong>With the mouse:</strong> take hold of a row and drag; it starts after a few millimetres. An ordinary click still opens the task. <kbd>Esc</kbd> cancels the drag, and at the top or bottom edge of the screen the list scrolls along by itself.</li>
+  <li><strong>On a phone:</strong> press and hold a row for a moment and then drag, or take the handle (the six dots) on the right of a task, which drags at once. Swiping just scrolls. To move a task to another project, drag it against the left edge of the screen: the sidebar opens and you drop it on the project.</li>
+  <li><strong>With the keyboard:</strong> <kbd>Alt</kbd>+<kbd>↑</kbd> and <kbd>Alt</kbd>+<kbd>↓</kbd> move the task or project you are on one place up or down (at the edge of a section a task goes to the previous or next section). <kbd>Alt</kbd>+<kbd>→</kbd> puts it under the task or project above; <kbd>Alt</kbd>+<kbd>←</kbd> takes it out again. A screen reader announces where it ended up, or why it could not.</li>
+</ul>
+<p>Moving also works without a connection and is sent later. If something has changed in the meantime so that it is no longer possible (a section was removed, a task deleted), the change is undone and you see why. In <x-ui k="nav.today"></x-ui> and <x-ui k="nav.upcoming"></x-ui> tasks are sorted by date and priority; there you can only drag them to a project in the sidebar.</p>
+
 <h2 id="on-a-phone">On a phone</h2>
 <x-shot name="telefoon-project" alt="The project Huishouden on a phone: at the top the menu button and the status, below that the title with the Comments button and the icons for Share and Project, the input field and the task list.">On a narrow screen the sidebar is behind the button with the three lines at the top left. The Share and Project buttons become icons.</x-shot>
 <p>On a narrow screen the sidebar is hidden. Tap the button with the three lines at the top left to open it; when you choose something it closes by itself. Tap next to the sidebar (or press Escape) to close it. On a phone the task window takes up the whole screen.</p>
@@ -81,6 +92,6 @@ description: What Tickory looks like and how it works: the sidebar with Inbox, T
 
 <h2>What is not possible yet</h2>
 <ul>
-  <li><strong>Changing the order.</strong> Tasks, sections and projects stay in the order in which they were made; dragging is not possible.</li>
-  <li>A board or calendar view, the duration of a task and attachments.</li>
+  <li><strong>Your own order in Today and Upcoming.</strong> Tasks are sorted there by date and priority. You cannot drag sections, and favourites have no order of their own: they follow the order of the projects.</li>
+  <li>A board or calendar view, the duration of a task, attachments.</li>
 </ul>

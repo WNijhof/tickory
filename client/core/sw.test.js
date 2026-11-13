@@ -8,7 +8,6 @@ import vm from 'node:vm';
 
 const SOURCE = readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
 const ORIGIN = 'https://tickory.example';
-const CACHE = /const CACHE = '([^']+)'/.exec(SOURCE)[1]; // de naam staat alleen in sw.js, zodat een nieuwe versie deze test niet breekt
 
 /** Een nep-server: pad -> { body, type, status }. Elk antwoord is "basic", zoals een antwoord van de eigen oorsprong. */
 function makeSw(server) {
@@ -60,7 +59,8 @@ async function request(sw, path, mode = 'cors') {
   await Promise.allSettled(waits);
   return { handled: true, text, type: res.headers.get('content-type') };
 }
-const cached = async (sw, path) => sw.stores.get(CACHE)?.get(path)?.clone().text();
+const CACHE_NAME = /const CACHE = '([^']+)'/.exec(SOURCE)[1];
+const cached = async (sw, path) => sw.stores.get(CACHE_NAME)?.get(path)?.clone().text();
 
 const APP = { '/': { body: '<!doctype html><title>Tickory</title>APP', type: 'text/html; charset=utf-8' }, '/app.css': { body: 'body{color:red}', type: 'text/css' }, '/ui/app.js': { body: 'export {}', type: 'text/javascript' } };
 

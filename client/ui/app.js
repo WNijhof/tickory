@@ -17,6 +17,7 @@ import { createShortcuts } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
+import { createDragDrop } from './dragdrop.js';
 import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { openQuickAddDialog, previewChips } from './quickAdd.js';
@@ -524,6 +525,11 @@ async function boot() {
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
+  // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
+  createDragDrop({
+    content: $('content'), sidebar: $('sidebar'), actions,
+    getContext: () => ({ view: store.view, userId: store.userId, showCompleted: (projectId) => ui.showCompleted.has(projectId) }),
+  });
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
   $('menu-button').addEventListener('click', () => document.body.classList.toggle('nav-open'));

@@ -40,10 +40,11 @@ export const dot = (color, extra = '') => h('span', { class: `dot ${colorClass(c
 export function sidebar({ view, today, route, handlers, me = null }) {
   const n = counts(view, today);
   const countOf = (count) => count > 0 && h('span', { class: 'nav-count' }, String(count));
-  const item = ({ target, label, lead, count = 0, shared = false, fk }) => {
+  const item = ({ target, label, lead, count = 0, shared = false, fk, list = null }) => {
     const active = sameRoute(route, target);
+    // `list` (inbox, favorite of tree) maakt van een project een plek om op te slepen en iets om te slepen (ui/dragdrop.js)
     return h('button', {
-      class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk },
+      class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk, ...(list ? { projectId: target.id, list } : {}) },
       onclick: () => handlers.navigate(target),
     },
     lead,
@@ -64,18 +65,18 @@ export function sidebar({ view, today, route, handlers, me = null }) {
     h('button', { class: 'sidebar-add', type: 'button', 'aria-keyshortcuts': 'q', onclick: () => handlers.quickAdd() }, h('span', { class: 'sidebar-add-plus', 'aria-hidden': 'true' }, icon('plus')), t('quick.addTask')),
     h('div', { id: 'sidebar-search', class: 'sidebar-slot' }),
     h('nav', { class: 'nav', 'aria-label': t('nav.views') },
-      inbox && item({ target: { type: 'project', id: inbox.id }, label: inbox.name, lead: icon('inbox'), count: n.perProject.get(inbox.id) ?? 0, fk: 'nav-inbox' }),
+      inbox && item({ target: { type: 'project', id: inbox.id }, label: inbox.name, lead: icon('inbox'), count: n.perProject.get(inbox.id) ?? 0, fk: 'nav-inbox', list: 'inbox' }),
       item({ target: { type: 'today' }, label: t('nav.today'), lead: icon('today'), count: n.today, fk: 'nav-today' }),
       item({ target: { type: 'upcoming' }, label: t('nav.upcoming'), lead: icon('upcoming'), fk: 'nav-upcoming' }),
       h('div', { id: 'sidebar-extra', class: 'sidebar-slot' }),
       favorites.length > 0 && [
         h('div', { class: 'nav-heading' }, h('span', {}, t('nav.favorites'))),
-        favorites.map((p) => projectItem(p, { fk: `fav:${p.id}` })),
+        favorites.map((p) => projectItem(p, { fk: `fav:${p.id}`, list: 'favorite' })),
       ],
-      h('div', { class: 'nav-heading' },
+      h('div', { class: 'nav-heading', dataset: { dropTop: '1' } },
         h('span', {}, t('nav.projects')),
         h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus'))),
-      navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)) } },
+      navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)), hasChildren: String(hasChildren && !collapsed) } },
         hasChildren
           ? h('button', {
             class: 'nav-toggle', type: 'button', 'aria-expanded': String(!collapsed), dataset: { fk: `toggle:${project.id}` },
@@ -83,7 +84,7 @@ export function sidebar({ view, today, route, handlers, me = null }) {
             onclick: () => handlers.toggleProject(project),
           }, icon(collapsed ? 'chevronRight' : 'chevronDown'))
           : h('span', { class: 'nav-toggle nav-toggle-empty', 'aria-hidden': 'true' }),
-        projectItem(project, { fk: `project:${project.id}` }))),
+        projectItem(project, { fk: `project:${project.id}`, list: 'tree' }))),
       archivedCount > 0 && h('button', { class: 'nav-link', type: 'button', onclick: handlers.showArchive }, icon('archive'), t('nav.archived')),
     ),
     h('div', { class: 'sidebar-footer' },
@@ -180,7 +181,9 @@ function buildRow(m) {
   }
 
   const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
+  body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
   li.append(check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
+  li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
   if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
   return li;
 }
@@ -273,7 +276,7 @@ export function resetRowCache() {
 
 const count = (n) => h('span', { class: 'group-count' }, String(n));
 
-export function group({ title, rows, total, collapsible = null, extra = null, footer = null }) {
+export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null }) {
   const head = title && h('div', { class: 'group-head' },
     collapsible && h('button', {
       class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
@@ -283,7 +286,8 @@ export function group({ title, rows, total, collapsible = null, extra = null, fo
     total > 0 && count(total),
     extra);
   const collapsed = collapsible?.collapsed;
-  return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}` },
+  // `drop`: hier kunnen taken heen gesleept worden (project en sectie), zie ui/dragdrop.js
+  return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}`, dataset: drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : {} },
     head,
     !collapsed && rows.length > 0 && h('ul', { class: 'tasks' }, rows),
     !collapsed && footer);
@@ -372,7 +376,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     const folded = foldRows(g.tasks);
     const items = rows(folded, false);
     if (!g.section) {
-      return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)) });
+      return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)), drop: archived ? null : { projectId: project.id } });
     }
     const section = g.section;
     return group({
@@ -380,6 +384,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       collapsible: { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
       extra: h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
       footer: !archived && addInline(handlers, addTarget(section)),
+      drop: archived ? null : { projectId: project.id, sectionId: section.id },
     });
   });
   return finish({

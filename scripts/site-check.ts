@@ -1203,7 +1203,7 @@ if (wants('browser')) {
         await go('i', 'Inbox');
         await press('?', true);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sneltoetsen')`, 'overzicht van sneltoetsen');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
         await clickText('Sluiten', `document.querySelector('dialog[open]')`);
         await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
         // in een invoerveld doen de toetsen niets
@@ -1213,6 +1213,27 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.getElementById('quick-input').value`), 'q');
         await typeInto('#quick-input', '');
         await evaluate(`document.activeElement.blur()`);
+        // slepen in de demo: een echt muisgebaar zet de eerste taak onder de vierde, en dat is meteen te zien
+        await nav('Huishouden');
+        await viewTitle('Huishouden');
+        const beforeDrag = await titles();
+        const rects = await evaluate<{ from: { x: number; y: number }; to: { x: number; y: number } }>(`(() => {
+          const rows = [...document.querySelectorAll('.task')];
+          const box = (e, fy) => { const r = e.querySelector('.task-title').getBoundingClientRect(); const row = e.getBoundingClientRect(); return { x: Math.round(r.left + 20), y: Math.round(row.top + row.height * fy) }; };
+          return { from: box(rows[0], 0.5), to: box(rows[Math.min(3, rows.length - 1)], 0.9) };
+        })()`);
+        const mouse = (type: string, x: number, y: number, buttons: number) => b.send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+        await mouse('mouseMoved', rects.from.x, rects.from.y, 0);
+        await mouse('mousePressed', rects.from.x, rects.from.y, 1);
+        for (let i = 1; i <= 10; i++) await mouse('mouseMoved', rects.from.x, Math.round(rects.from.y + ((rects.to.y - rects.from.y) * i) / 10), 1);
+        assert.equal(await evaluate(`Boolean(document.querySelector('.dnd-ghost')) && Boolean(document.querySelector('.dnd-line'))`), true, 'tijdens het slepen: een kopie en een invoegstreep');
+        await mouse('mouseReleased', rects.from.x, rects.to.y, 0);
+        await waitFor(`document.querySelectorAll('.dnd-ghost, .dnd-line').length === 0`, 'slepen afgerond');
+        await waitFor(`JSON.stringify([...document.querySelectorAll('.task .task-title')].map((e) => e.textContent)) !== ${js(JSON.stringify(beforeDrag))}`, 'de nieuwe volgorde staat in beeld');
+        const afterDrag = await titles();
+        assert.notDeepEqual(afterDrag, beforeDrag, 'de volgorde is veranderd');
+        assert.deepEqual([...afterDrag].sort(), [...beforeDrag].sort(), 'er is niets verdwenen of verdubbeld');
+        assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false, 'het taakvenster is niet opengegaan');
         assertClean('opmerkingen, projecten en sneltoetsen');
       });
 

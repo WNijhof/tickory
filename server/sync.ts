@@ -747,7 +747,10 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
       params.push(since, ...extraParams);
       // Verwijderde rijen van een project dat de gebruiker nooit eerder had, zijn voor hem niet bestaand: niets sturen.
       const fresh = inProjects(e.name, uid, GAINED_NEW, [uid, since, uid]);
-      if (fresh) { where += ` AND NOT (is_deleted = 1 AND (${fresh.sql}))`; params.push(...fresh.params); }
+      // COALESCE: een opmerking bij een taak heeft project_id NULL, en `NULL IN (…)` is zonder COALESCE onbekend in plaats van onwaar;
+      // NOT van onbekend is ook onbekend, en dan viel de verwijderde opmerking (of herinnering) uit de delta zodra de gebruiker
+      // in dezelfde ronde een nieuw project kreeg.
+      if (fresh) { where += ` AND NOT COALESCE(is_deleted = 1 AND (${fresh.sql}), 0)`; params.push(...fresh.params); }
     }
     // Een verwijderde rij gaat nooit met zijn inhoud mee, alleen als {id, is_deleted}: dat is wat een client nodig heeft om
     // hem op te ruimen. De inhoud van wat is verwijderd, hoort niet bij iemand te komen die er nooit bij was.

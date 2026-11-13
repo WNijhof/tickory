@@ -196,6 +196,7 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 
 | Onderdeel | Bestand | Taak |
 |---|---|---|
+| Slepen en verplaatsen | `core/dnd.js`, `ui/dragdrop.js`, `dnd.css` | Taken en projecten verplaatsen met muis, pen, aanraking (lang indrukken of handvat) en `Alt` + pijl, met aankondiging (aria-live). `core/dnd.js` bepaalt zonder scherm waar iets terechtkomt en welke `order_key` het krijgt (ook bij buren met dezelfde sleutel: die krijgen nieuwe sleutels via `task_update`/`project_update`); alleen de eigenaar verplaatst een project. De uitvoering loopt via `actions.moveTask` en `moveProject`, dus optimistisch en offline |
 | Optimistische uitvoering | `core/reducer.js` | Past commando's lokaal toe volgens dezelfde regels als de server |
 | Opslag | `core/store.js`, `core/idb.js` | Laatst bevestigde toestand plus wachtrij in IndexedDB; atomaire commits; wachtrijsleutel `[volgnummer, tabblad]` zodat twee tabbladen elkaar niet overschrijven |
 | Synchronisatie | `core/syncClient.js`, `core/events.js` | Verzenden in porties van 100 (bij HTTP 413 kleinere), tijdslimieten, realtime-signaal |
@@ -224,6 +225,8 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Offline | `sw.js` | Bewaart alle bestanden van de app en vult de bewaarde kopie vanzelf aan als die gewist is |
 
 **Optimistisch rekenen.** De weergave is altijd *bevestigde toestand plus wachtrij*. Na elk sync-antwoord wordt de bevestigde toestand vervangen en de nog niet bevestigde wachtrij er opnieuw op toegepast. Een wijziging van een ander apparaat overschrijft dus nooit een wijziging die nog moet worden verstuurd.
+
+**Zelfde weigeringen als de server.** De reducer voert een `task_move` met een cirkel, een sectie of ouder van een ander project of een ongeldige sleutel niet door, laat de toewijzing vervallen als de nieuwe projectleden de persoon niet bevatten, en voert een `project_update` met een nieuwe `parent_id` niet door voor een lid, bij een cirkel of onder de Inbox. De differentiële test en `dndSync.test.js` controleren dat.
 
 **Geweigerde wijzigingen.** Weigert de server een commando (bijvoorbeeld omdat de taak intussen elders is verwijderd), dan verdwijnt het uit de wachtrij, valt de weergave terug op de werkelijke toestand en toont de app de reden.
 
@@ -264,7 +267,6 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
 | Herinneringen op een locatie, per e-mail, en Engelse datumtaal voor herinneringen | Alleen op tijd, in de app en als melding. Wat je intypt is voorlopig Nederlands (`!(morgen om 8 uur)`); `!30m` en een datum in de vorm `2026-12-31T14:30` werken in elke taal |
 | De duur van een taak, bord- en kalenderweergave | Staan als veld of entiteit in het datamodel en worden gesynchroniseerd; de app heeft er geen scherm voor. (Opmerkingen, subprojecten, favorieten, kleuren en archiveren hebben sinds het nieuwe uiterlijk wel een scherm; zie hoofdstuk 8.) |
-| De volgorde van taken wijzigen (slepen), bord- en kalenderweergave | Ontbreken in de app; `order_key` (de volgordesleutel) bestaat |
 | Bijlagen, activiteitenlog, voltooide taken met paginering | Voltooide taken blijven nu in `tasks` met `checked: true` |
 | Persoonlijke projectvoorkeuren in gedeelde projecten | Volgorde in de zijbalk, favoriet en ingeklapt horen nu bij het project en gelden dus voor alle leden |
 | Eigenaarschap overdragen, uitnodigen via link of e-mail | Delen gaat nu op gebruikersnaam; een eigenaar kan een project alleen verwijderen, niet overdragen |
