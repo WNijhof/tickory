@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De talen van de app. Hiermee kan de gebruiker op Android 13 en nieuwer per app een taal kiezen in de instellingen. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="nl" />
+    <locale android:name="en" />
+</locale-config>

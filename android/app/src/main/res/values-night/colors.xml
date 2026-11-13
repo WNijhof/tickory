@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dezelfde kleuren als de web-app (client/app.css), donkere weergave. -->
+<resources>
+    <color name="brand">#2DD4BF</color>
+    <color name="on_brand">#06201D</color>
+    <color name="background">#16191C</color>
+    <color name="text">#E8EAED</color>
+    <color name="text_soft">#9AA5B1</color>
+    <color name="danger">#F97066</color>
+    <color name="warn">#FDB022</color>
+</resources>

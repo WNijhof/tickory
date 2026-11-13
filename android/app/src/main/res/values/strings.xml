@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nederlands is de standaardtaal van de app. De Engelse teksten staan in values-en/strings.xml.
+  De build maakt van dit bestand ook values-nl (zie app/build.gradle.kts), zodat Android bij de taalvolgorde
+  "Nederlands, daarna Engels" voor Nederlands kiest. De naam van de app staat in donottranslate.xml.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="nl">
+    <!-- Taal van deze teksten; de app leest dit om datums in meldingen in dezelfde taal te schrijven. -->
+    <string name="language_code">nl</string>
+
+    <!-- Instelscherm -->
+    <string name="setup_title">Verbind met je server</string>
+    <string name="setup_intro">Tickory werkt met je eigen server. Vul het adres in waarop je Tickory in de browser opent.</string>
+    <string name="setup_address_label">Adres van je server</string>
+    <string name="setup_address_examples">Bijvoorbeeld https://taken.voorbeeld.nl of http://192.168.1.10:8787</string>
+    <string name="setup_connect">Verbinden</string>
+    <string name="setup_connecting">Bezig met verbinden…</string>
+    <string name="setup_http_warning">Let op: met http is de verbinding niet versleuteld. Gebruik dit alleen op je eigen thuisnetwerk.</string>
+
+    <string name="error_address_empty">Vul het adres van je server in.</string>
+    <string name="error_address_scheme">Het adres moet beginnen met https:// of http://.</string>
+    <string name="error_address_credentials">Zet geen gebruikersnaam of wachtwoord in het adres. Inloggen doe je daarna in de app.</string>
+    <string name="error_address_invalid">Dit is geen geldig adres. Controleer het op typfouten.</string>
+    <string name="error_unknown_host">Dit adres is niet gevonden. Controleer het adres en je internetverbinding.</string>
+    <string name="error_connect">Geen verbinding met de server. Controleer het adres en of de server aanstaat. Staat de server thuis? Controleer dan of je met je eigen wifi verbonden bent.</string>
+    <string name="error_timeout">De server reageert niet. Controleer het adres en je verbinding en probeer het opnieuw.</string>
+    <string name="error_tls">De beveiligde verbinding is mislukt: het certificaat van de server wordt niet vertrouwd.</string>
+    <string name="error_try_http">Draait je server zonder https? Zet dan http:// voor het adres.</string>
+    <string name="error_not_tickory">Op dit adres draait geen Tickory-server (antwoord %1$d).</string>
+    <string name="error_redirect">Dit adres verwijst door naar %1$s. Vul dat adres in als dat je server is.</string>
+    <string name="error_redirect_unknown">Dit adres verwijst door naar een ander adres. Vul het adres in waar je server echt op draait.</string>
+    <string name="error_other">Verbinden is niet gelukt. Probeer het opnieuw.</string>
+
+    <!-- Toestemming voor het thuisnetwerk (Android 17 en nieuwer) -->
+    <string name="local_network_title">Toegang tot je thuisnetwerk</string>
+    <string name="local_network_message">Je server staat op je eigen netwerk. Android vraagt daarvoor de toestemming ‘Apparaten in de buurt’. Tickory gebruikt die alleen om je eigen server te bereiken.</string>
+    <string name="local_network_continue">Doorgaan</string>
+    <string name="local_network_denied">Zonder deze toestemming kan Tickory je server op het thuisnetwerk niet bereiken. Je kunt de toestemming geven bij de instellingen van de app, onder Rechten › Apparaten in de buurt.</string>
+    <string name="local_network_hint">Staat je server op je thuisnetwerk? Dan heeft Tickory de toestemming ‘Apparaten in de buurt’ nodig.</string>
+    <string name="local_network_grant">Toestemming geven</string>
+    <string name="open_app_settings">App-instellingen openen</string>
+
+    <!-- Hoofdscherm: de server is niet bereikbaar -->
+    <string name="load_error_title">Geen verbinding met je server</string>
+    <string name="load_error_message">Tickory kan %1$s niet bereiken. Controleer je internetverbinding en of de server aanstaat.</string>
+    <string name="load_error_http">De server op %1$s gaf een fout (%2$d).</string>
+    <string name="load_error_tls">De beveiligde verbinding met %1$s is mislukt: het certificaat van de server wordt niet vertrouwd.</string>
+    <string name="load_error_redirect">De server verwijst de app door naar %1$s. Tickory opent alleen het adres dat je hebt ingesteld. Is je server verhuisd? Wijzig dan het serveradres.</string>
+    <string name="retry">Opnieuw proberen</string>
+    <string name="change_server">Serveradres wijzigen</string>
+    <string name="change_server_title">Serveradres wijzigen?</string>
+    <string name="change_server_message">Je wordt op dit toestel afgemeld en de geplande herinneringen worden gewist. Wijzigingen die nog niet naar de server zijn verstuurd, gaan verloren.</string>
+    <string name="change_server_confirm">Wijzigen</string>
+    <string name="cancel">Annuleren</string>
+    <string name="no_app_for_link">Er is geen app gevonden om deze link te openen.</string>
+    <string name="webview_missing">Tickory heeft het Android-onderdeel ‘Android System WebView’ nodig, maar dat ontbreekt of staat uit.</string>
+
+    <!-- Meldingen -->
+    <string name="channel_reminders">Herinneringen</string>
+    <string name="channel_reminders_description">Meldingen voor de herinneringen bij je taken</string>
+    <string name="notification_reminder">Herinnering</string>
+    <string name="notification_reminder_due">Herinnering · %1$s</string>
+    <string name="task_untitled">Taak zonder titel</string>
+    <string name="action_complete">Voltooien</string>
+    <string name="action_snooze">Over 10 minuten</string>
+    <string name="complete_working">Bezig met voltooien…</string>
+    <string name="complete_queued">Geen verbinding. De taak wordt voltooid zodra er weer verbinding is.</string>
+    <string name="complete_rejected_gone">Voltooien is niet gelukt: de taak bestaat niet meer of je hebt er geen toegang meer toe.</string>
+    <string name="complete_rejected_other">Voltooien is niet gelukt. Open de app om het daar te proberen.</string>
+    <string name="complete_signed_out">Je bent afgemeld. Open de app en log opnieuw in om deze taak te voltooien.</string>
+    <string name="complete_failed">Voltooien is niet gelukt: de server is niet bereikbaar. Open de app om het opnieuw te proberen.</string>
+</resources>

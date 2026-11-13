@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De hoofdknop: afgerond vlak in de kleur van de app, met de gewone tik-rimpeling van Android eroverheen. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:attr/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="10dp" />
+            <solid android:color="@color/brand" />
+        </shape>
+    </item>
+</ripple>

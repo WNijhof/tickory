@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Eénkleurige laag van het app-pictogram, voor "pictogrammen met thema" (Android 13 en nieuwer). Android kleurt de
+  vorm zelf in. Het vlak is 108 x 108 dp; alleen het midden (een cirkel van 66 dp) is gegarandeerd zichtbaar.
+  Het vinkje komt uit client/icon.svg (tekenvlak 512), hier verkleind zodat het binnen die cirkel blijft.
+  Komt er een nieuw logo, vervang dan de pathData door de vorm van dat logo (zie android/README.md).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:pivotX="256"
+        android:pivotY="256"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M148,268l72,72 144,-168"
+            android:strokeColor="#FF000000"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="44" />
+    </group>
+</vector>

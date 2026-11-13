@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English. The default language of the app is Dutch (values/strings.xml); keep both files in step. -->
+<resources>
+    <string name="language_code">en</string>
+
+    <!-- Setup screen -->
+    <string name="setup_title">Connect to your server</string>
+    <string name="setup_intro">Tickory works with your own server. Enter the address you use to open Tickory in your browser.</string>
+    <string name="setup_address_label">Address of your server</string>
+    <string name="setup_address_examples">For example https://tasks.example.com or http://192.168.1.10:8787</string>
+    <string name="setup_connect">Connect</string>
+    <string name="setup_connecting">Connecting…</string>
+    <string name="setup_http_warning">Note: with http the connection is not encrypted. Only use this on your own home network.</string>
+
+    <string name="error_address_empty">Enter the address of your server.</string>
+    <string name="error_address_scheme">The address must start with https:// or http://.</string>
+    <string name="error_address_credentials">Don\'t put a username or password in the address. You sign in afterwards, in the app.</string>
+    <string name="error_address_invalid">This is not a valid address. Check it for typos.</string>
+    <string name="error_unknown_host">This address could not be found. Check the address and your internet connection.</string>
+    <string name="error_connect">Can\'t connect to the server. Check the address and make sure the server is running. Is the server at home? Then check that you are connected to your own Wi-Fi.</string>
+    <string name="error_timeout">The server is not responding. Check the address and your connection, then try again.</string>
+    <string name="error_tls">The secure connection failed: the server\'s certificate is not trusted.</string>
+    <string name="error_try_http">Does your server run without https? Then put http:// in front of the address.</string>
+    <string name="error_not_tickory">There is no Tickory server at this address (response %1$d).</string>
+    <string name="error_redirect">This address redirects to %1$s. Enter that address if it is your server.</string>
+    <string name="error_redirect_unknown">This address redirects to another address. Enter the address your server actually runs on.</string>
+    <string name="error_other">Connecting failed. Please try again.</string>
+
+    <!-- Home network permission (Android 17 and later) -->
+    <string name="local_network_title">Access to your home network</string>
+    <string name="local_network_message">Your server is on your own network. Android asks for the ‘Nearby devices’ permission for that. Tickory only uses it to reach your own server.</string>
+    <string name="local_network_continue">Continue</string>
+    <string name="local_network_denied">Without this permission Tickory can\'t reach your server on the home network. You can grant it in the app\'s settings, under Permissions › Nearby devices.</string>
+    <string name="local_network_hint">Is your server on your home network? Then Tickory needs the ‘Nearby devices’ permission.</string>
+    <string name="local_network_grant">Grant permission</string>
+    <string name="open_app_settings">Open app settings</string>
+
+    <!-- Main screen: the server can't be reached -->
+    <string name="load_error_title">Can\'t reach your server</string>
+    <string name="load_error_message">Tickory can\'t reach %1$s. Check your internet connection and make sure the server is running.</string>
+    <string name="load_error_http">The server at %1$s returned an error (%2$d).</string>
+    <string name="load_error_tls">The secure connection to %1$s failed: the server\'s certificate is not trusted.</string>
+    <string name="load_error_redirect">The server redirects the app to %1$s. Tickory only opens the address you have set. Has your server moved? Then change the server address.</string>
+    <string name="retry">Try again</string>
+    <string name="change_server">Change server address</string>
+    <string name="change_server_title">Change server address?</string>
+    <string name="change_server_message">You will be signed out on this device and the scheduled reminders will be removed. Changes that have not been sent to the server yet will be lost.</string>
+    <string name="change_server_confirm">Change</string>
+    <string name="cancel">Cancel</string>
+    <string name="no_app_for_link">No app was found to open this link.</string>
+    <string name="webview_missing">Tickory needs the Android component ‘Android System WebView’, but it is missing or turned off.</string>
+
+    <!-- Notifications -->
+    <string name="channel_reminders">Reminders</string>
+    <string name="channel_reminders_description">Notifications for the reminders on your tasks</string>
+    <string name="notification_reminder">Reminder</string>
+    <string name="notification_reminder_due">Reminder · %1$s</string>
+    <string name="task_untitled">Untitled task</string>
+    <string name="action_complete">Complete</string>
+    <string name="action_snooze">In 10 minutes</string>
+    <string name="complete_working">Completing…</string>
+    <string name="complete_queued">No connection. The task will be completed as soon as there is a connection again.</string>
+    <string name="complete_rejected_gone">Completing failed: the task no longer exists or you no longer have access to it.</string>
+    <string name="complete_rejected_other">Completing failed. Open the app to try it there.</string>
+    <string name="complete_signed_out">You have been signed out. Open the app and sign in again to complete this task.</string>
+    <string name="complete_failed">Completing failed: the server can\'t be reached. Open the app to try again.</string>
+</resources>

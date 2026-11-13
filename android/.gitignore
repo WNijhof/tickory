@@ -1,0 +1,20 @@
+# Bouwresultaten en caches
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# Instellingen van deze machine (pad naar de Android SDK)
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Sleutels horen nooit in de repo
+*.jks
+*.keystore
+keystore.properties

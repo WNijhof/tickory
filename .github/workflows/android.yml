@@ -1,0 +1,169 @@
+name: Android-app
+
+# Bouwt de Android-app (APK) zodra je een versie-tag zet, en hangt hem aan de GitHub Release van die tag:
+#   git tag v0.2.0 && git push origin v0.2.0
+# De versie van de app komt uit package.json; de tag moet daarmee overeenkomen.
+# Handmatig starten (Actions > Android-app > Run workflow) bouwt alleen de APK en bewaart hem bij de run.
+#
+# Ondertekening:
+#   Met de vier secrets hieronder wordt de APK getekend met je eigen sleutel. Alleen zulke APK's kunnen elkaar op een
+#   telefoon opvolgen (updaten zonder gegevens te verliezen).
+#     ANDROID_KEYSTORE_BASE64     het sleutelbestand, als base64 (base64 -w0 tickory.jks)
+#     ANDROID_KEYSTORE_PASSWORD   wachtwoord van het sleutelbestand
+#     ANDROID_KEY_ALIAS           naam van de sleutel in het bestand
+#     ANDROID_KEY_PASSWORD        wachtwoord van de sleutel
+#   Ontbreken ze, dan komt er een debug-APK: prima om te proberen, maar elke run tekent die met een andere wegwerpsleutel,
+#   dus zo'n APK kan een eerder geïnstalleerde versie niet bijwerken (eerst verwijderen, dan installeren).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # alleen nodig om de APK aan de GitHub Release te hangen
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            android/gradle/libs.versions.toml
+            android/gradle/wrapper/gradle-wrapper.properties
+            android/**/*.gradle.kts
+
+      # De wrapper is het enige programma in de repo dat niet als leesbare tekst is na te kijken. Dit is de
+      # controlesom van gradle-wrapper.jar van Gradle 9.6.1, zoals gradle.org die publiceert
+      # (https://services.gradle.org/distributions/gradle-9.6.1-wrapper.jar.sha256). Pas hem aan als je Gradle bijwerkt.
+      - name: Gradle-wrapper controleren
+        run: |
+          echo "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7  gradle/wrapper/gradle-wrapper.jar" | sha256sum --check
+          chmod +x gradlew
+
+      - name: Versie bepalen
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version="$(sed -n 's/^[[:space:]]*"version"[[:space:]]*:[[:space:]]*"\([0-9][0-9.]*\)".*/\1/p' ../package.json | head -n 1)"
+          if [ -z "$version" ]; then echo "::error::Geen versie gevonden in package.json"; exit 1; fi
+          if [ "$IS_TAG" = "true" ] && [ "v$version" != "$TAG" ]; then
+            echo "::error::De tag ($TAG) en de versie in package.json ($version) zijn niet gelijk. Hoog package.json op en zet de tag opnieuw."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "apk=$RUNNER_TEMP/tickory-$version.apk" >> "$GITHUB_OUTPUT"
+
+      # De runner heeft de Android SDK al; hier komen alleen de twee onderdelen bij die deze app nodig heeft.
+      - name: Android SDK-onderdelen
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" "platforms;android-37.0" "build-tools;36.0.0"
+
+      # De tests bootsen Android na met Robolectric; dat haalt eenmalig een groot bestand op (ongeveer 150 MB).
+      - uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('android/gradle/libs.versions.toml', 'android/app/src/test/resources/robolectric.properties') }}
+
+      - name: Unit-tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew lintDebug
+
+      - name: Testrapport bewaren als er iets misging
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-rapporten
+          path: |
+            android/app/build/reports/
+            android/app/build/test-results/
+          if-no-files-found: ignore
+
+      # Secrets zijn niet rechtstreeks in een "if" te gebruiken; deze stap kijkt of ze er alle vier zijn.
+      - name: Sleutel klaarzetten
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tickory-release.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: APK bouwen, getekend met de eigen sleutel
+        if: steps.signing.outputs.signed == 'true'
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/tickory-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APK: ${{ steps.version.outputs.apk }}
+        run: |
+          ./gradlew assembleRelease
+          cp app/build/outputs/apk/release/tickory-release.apk "$APK"
+          rm -f "$RUNNER_TEMP/tickory-release.jks"
+          echo "Getekend met de eigen sleutel: deze APK kan eerdere getekende versies bijwerken." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: APK bouwen, debug (geen sleutel ingesteld)
+        if: steps.signing.outputs.signed != 'true'
+        env:
+          APK: ${{ steps.version.outputs.apk }}
+        run: |
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/tickory-debug.apk "$APK"
+          echo "::warning::Geen sleutel ingesteld: dit is een debug-APK met een wegwerpsleutel. Die kan een eerder geïnstalleerde versie niet bijwerken."
+          echo "Debug-APK (wegwerpsleutel): om te proberen. Stel de vier ANDROID_-secrets in voor een APK die kan bijwerken." >> "$GITHUB_STEP_SUMMARY"
+
+      # Staat in de APK wat we verwachten? (naam van het pakket en versie)
+      - name: APK nakijken
+        env:
+          APK: ${{ steps.version.outputs.apk }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          badging="$("$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK")"
+          echo "$badging" | grep -E "^package:|^minSdkVersion|^targetSdkVersion|^uses-permission" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$badging" | grep -q "^package: name='io.github.wnijhof.tickory' .*versionName='$VERSION'"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tickory-${{ steps.version.outputs.version }}-apk
+          path: ${{ steps.version.outputs.apk }}
+          if-no-files-found: error
+
+      - name: APK aan de GitHub Release hangen
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          APK: ${{ steps.version.outputs.apk }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+          else
+            gh release create "$TAG" "$APK" --title "$TAG" --generate-notes --verify-tag
+          fi

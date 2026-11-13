@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- Onversleuteld http is hier een bewuste keuze: de server draait bij mensen thuis, soms zonder https.
+         De app waarschuwt daarvoor op het instelscherm. -->
+    <issue id="InsecureBaseConfiguration" severity="ignore" />
+</lint>

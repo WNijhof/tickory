@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- De server bereiken (de web-app in de WebView en het verversen van herinneringen op de achtergrond). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Herinneringen als melding tonen. Op Android 13 en nieuwer vraagt de app hier eerst toestemming voor. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Na het opstarten van het toestel de alarmen opnieuw zetten; Android wist ze bij uitschakelen. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      Een herinnering op de minuut laten afgaan. Android 13 en nieuwer: USE_EXACT_ALARM, bedoeld voor apps waarvan
+      herinneren de kern is; de gebruiker hoeft niets aan te zetten. Android 12 en 12L: SCHEDULE_EXACT_ALARM, daar
+      standaard toegekend en door de gebruiker uit te zetten. Ouder: geen recht nodig.
+    -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+
+    <!--
+      Android 17 en nieuwer: zonder dit recht (dat de gebruiker moet toestaan, onder "Apparaten in de buurt") kan een
+      app geen adressen op het eigen netwerk bereiken, dus ook geen server thuis op http://192.168.x.x. De app vraagt
+      het alleen als het ingestelde serveradres op het eigen netwerk ligt. Oudere versies kennen dit recht niet en
+      slaan het over.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
+    <!-- WorkManager brengt dit recht mee voor langlopend werk op de voorgrond. Dat gebruikt deze app niet. -->
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE"
+        tools:node="remove" />
+
+    <application
+        android:name=".TickoryApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:localeConfig="@xml/locales_config"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Tickory"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="33">
+
+        <!-- De WebView stuurt geen gebruiksstatistieken of crashrapporten naar Google. -->
+        <meta-data
+            android:name="android.webkit.WebView.MetricsOptOut"
+            android:value="true" />
+        <!-- Geen "Safe Browsing": daarbij worden (delen van) bezochte adressen bij Google nagekeken. De app opent alleen de eigen server. -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="false" />
+
+        <!--
+          Eén scherm, één exemplaar (singleTask): tikken op een melding opent de taak in de app die al open staat.
+          Draaien en formaatwijzigingen handelt het scherm zelf af, zodat de web-app daarbij niet opnieuw laadt.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".SetupActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+
+        <!-- Alle drie alleen voor de app zelf en voor Android (exported="false"): andere apps kunnen ze niet aanroepen. -->
+        <receiver
+            android:name=".reminders.AlarmReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".reminders.ActionReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".reminders.SystemEventsReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

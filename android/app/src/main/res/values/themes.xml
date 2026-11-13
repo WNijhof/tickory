@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Lichte weergave. De donkere staat in values-night/themes.xml; Android kiest zelf aan de hand van de systeeminstelling.
+  De WebView leest uit dit thema of de app licht of donker is en geeft dat door aan de web-app (prefers-color-scheme).
+  De kleur van de systeembalken regelt de app in code (enableEdgeToEdge), niet hier.
+-->
+<resources>
+    <style name="Theme.Tickory" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_soft</item>
+    </style>
+</resources>

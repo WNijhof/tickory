@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gemaakt door tools/make-launcher-icons.mjs: de achtergrondkleur van het app-pictogram. Niet met de hand wijzigen. -->
+<resources>
+    <color name="ic_launcher_background">#0F766E</color>
+</resources>

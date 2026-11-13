@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Onversleuteld http is toegestaan: de server draait bij mensen thuis en is daar soms alleen via http bereikbaar
+  (http://192.168.1.10:8787). Het adres is vooraf niet bekend, dus dit kan niet tot één domein worden beperkt.
+  De app waarschuwt op het instelscherm als iemand een http-adres invult.
+
+  Voor https gelden de gewone regels: alleen de certificaatautoriteiten van Android zelf worden vertrouwd, niet de
+  certificaten die een gebruiker er zelf bij heeft gezet.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

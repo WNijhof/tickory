@@ -1,0 +1,6 @@
+# Aanvulling op de .gitattributes van de repo (die overal LF afspreekt).
+# Een Windows-batchbestand met alleen LF kan bij "goto" de mist in gaan; het shellscript moet juist LF houden.
+*.bat text eol=crlf
+gradlew text eol=lf
+*.jar binary
+*.png binary

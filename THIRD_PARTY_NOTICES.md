@@ -26,4 +26,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-Verder gebruikt dit project geen software van derden: server en client draaien op Node.js zelf en op standaard web-API's.
+Verder gebruikt dit project geen software van derden in de server en de web-app: die draaien op Node.js zelf en op standaard web-API's. Voor de Android-app zie onderaan.
+
+## Android-app (APK)
+
+De Android-app (map `android/`) gebruikt, alle onder de Apache-licentie 2.0: AndroidX (core, activity, work, lifecycle, room, sqlite, startup, savedstate, profileinstaller, collection, concurrent, tracing, annotation), de Kotlin-standaardbibliotheek, kotlinx-coroutines, kotlinx-serialization-core, Guava ListenableFuture, JetBrains annotations en JSpecify. In de repo staat verder `gradle-wrapper.jar` (Apache-2.0). Alleen voor de tests: JUnit 4 (EPL-1.0), Robolectric (MIT) en AndroidX Test (Apache-2.0); die komen niet in de APK.

@@ -1,0 +1,28 @@
+# Alle versies op één plek. Onderling gecontroleerd tegen de officiële tabellen (zie android/README.md):
+#   - Android Gradle Plugin 9.3 vraagt Gradle 9.5.0 of hoger en JDK 17 of hoger, en kent API-niveau 37.
+#   - Kotlin 2.4.21 is getest met Gradle 7.6.3 t/m 9.7.0 en de Android Gradle Plugin 8.5.2 t/m 9.3.1.
+#   - Gradle zelf staat in gradle/wrapper/gradle-wrapper.properties (9.6.1).
+[versions]
+agp = "9.3.3"
+kotlin = "2.4.21"
+androidxCore = "1.19.1"
+androidxActivity = "1.13.0"
+androidxWork = "2.12.0"
+# Alleen voor de tests (komen niet in de APK):
+junit = "4.13.2"
+robolectric = "4.17"
+androidxTestCore = "1.7.0"
+
+[libraries]
+kotlin-gradle-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidxCore" }
+androidx-activity = { module = "androidx.activity:activity", version.ref = "androidxActivity" }
+androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidxWork" }
+junit = { module = "junit:junit", version.ref = "junit" }
+# Robolectric bootst Android na op de pc, zodat ook alarmen, meldingen en ontvangers zonder telefoon te testen zijn.
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
+androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "androidxWork" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
