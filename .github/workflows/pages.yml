@@ -1,0 +1,63 @@
+name: Website
+
+# Bouwt de website (met de handleiding en de demo) en publiceert haar op GitHub Pages bij elke wijziging op main.
+# Handmatig starten kan ook: Actions > Website > Run workflow.
+#
+# Eenmalig instellen in de repo: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# Zolang dat niet is gedaan, mislukt de stap "configure-pages" en wordt er niets gepubliceerd.
+# Eerst wordt gebouwd en gecontroleerd (links, de demo in een echte browser); pas daarna wordt er gepubliceerd.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Eén publicatie tegelijk; een lopende publicatie wordt afgemaakt en niet afgebroken.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: bouwen en controleren
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+      - name: Adres van de site opvragen
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Website bouwen
+        env:
+          # het pad en het adres waaronder Pages de site aanbiedt (bij deze repo: /tickory/ op wnijhof.github.io)
+          SITE_BASE: ${{ steps.pages.outputs.base_path }}/
+          SITE_URL: ${{ steps.pages.outputs.base_url }}/
+        run: node scripts/build-site.ts
+      - name: Website en demo controleren
+        env:
+          SITE_BASE: ${{ steps.pages.outputs.base_path }}/
+        run: node scripts/site-check.ts
+      - name: Website klaarzetten voor publicatie
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: publiceren
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publiceren op GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
