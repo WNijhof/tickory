@@ -1,0 +1,115 @@
+<!--
+title: Widgets op Android
+description: De widgets van de Tickory-app voor Android: Vandaag, Project of lijst, Binnenkort en een knop Taak toevoegen. Afvinken vanaf het startscherm, ook zonder internet; plaatsen, formaat, kleuren en wat ze wel en niet doen. Komt met de eerstvolgende versie.
+-->
+<h1>Widgets op Android</h1>
+<p class="intro">Met een widget zie je je taken op het startscherm van je telefoon en vink je ze daar af, zonder de app te openen. De widgets zitten in de <a href="android-app.html">Android-app</a>; in een browser bestaan ze niet.</p>
+
+<div class="note warn">
+  <span class="note-label">Volgende versie, en nog niet op een telefoon geprobeerd</span>
+  <p>De widgets komen met de <strong>eerstvolgende versie</strong> van de Android-app; in de versie die nu uit is zitten ze niet. Ze zijn getest op een computer (de rekenregels, de gegevens op het toestel, de wachtrij, het tekenen op een nagebootste Android en het scherm waarop je kiest wat een widget toont). Hoe ze er <strong>op een echte telefoon en in jouw launcher</strong> uitzien, hoe het formaat aanpassen voelt en hoe stroombesparing zich gedraagt, is nog niet uitgeprobeerd. Merk je iets, meld het dan op <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>De vier widgets</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Widget</th><th>Wat hij toont</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Vandaag</strong></td><td class="wrap-ok">Wat te laat is en wat vandaag moet, in dezelfde volgorde als in de app: eerst op tijdstip, dan op prioriteit. Bovenaan staan de datum en het aantal taken. Is er niets te doen, dan zegt hij dat.</td></tr>
+      <tr><td><strong>Project of lijst</strong></td><td class="wrap-ok">De open taken van één plek die je zelf kiest als je de widget plaatst: de Inbox, een project (met de secties en subtaken), Vandaag of Binnenkort. Je kunt er meer plaatsen, elk met een eigen keuze. Opgeslagen filters kunnen hier nog niet in; de keuzelijst is er wel op voorbereid.</td></tr>
+      <tr><td><strong>Binnenkort</strong></td><td class="wrap-ok">De komende twee weken vanaf morgen, per dag met een kopje. Wat te laat is, staat in Vandaag.</td></tr>
+      <tr><td><strong>Taak toevoegen</strong></td><td class="wrap-ok">Een knop (klein, 1×1 of breder) die Tickory opent op het venster <em>Taak toevoegen</em>, voor de Inbox.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="widget-demo" role="group" aria-label="Nagebootst voorbeeld van de widget Vandaag, licht en donker">
+  <figure>
+    <div class="widget-mock" aria-hidden="true">
+      <div class="wm-bar"><div class="wm-title"><span class="wm-head">Vandaag</span><span class="wm-soft">vr 13 nov · 3 taken</span></div><span class="wm-plus">+</span></div>
+      <div class="wm-row"><span class="wm-check p3"></span><span class="wm-text">Boodschappen<br><span class="wm-soft wm-late">gisteren · Inbox</span></span></div>
+      <div class="wm-row"><span class="wm-check p1"></span><span class="wm-text">Tandarts bellen<br><span class="wm-soft">14:00 · Werk</span></span></div>
+      <div class="wm-row"><span class="wm-check"></span><span class="wm-text">Planten water geven<br><span class="wm-soft">Huis · @thuis</span></span></div>
+    </div>
+    <figcaption>Licht. Een cirkel in de kleur van de prioriteit; tik erop om af te vinken, tik op de titel om de taak te openen, tik op + om iets toe te voegen.</figcaption>
+  </figure>
+  <figure>
+    <div class="widget-mock is-dark" aria-hidden="true">
+      <div class="wm-bar"><div class="wm-title"><span class="wm-head">Binnenkort</span><span class="wm-soft">4 taken</span></div><span class="wm-plus">+</span></div>
+      <span class="wm-day">Morgen</span>
+      <div class="wm-row"><span class="wm-check p2"></span><span class="wm-text">Bakker<br><span class="wm-soft">10:00 · Inbox</span></span></div>
+      <span class="wm-day">Zo 15 nov</span>
+      <div class="wm-row"><span class="wm-check"></span><span class="wm-text">Verjaardag Jan<br><span class="wm-soft">Familie</span></span></div>
+    </div>
+    <figcaption>Donker, voor de widget Binnenkort.</figcaption>
+  </figure>
+</div>
+<p>Dit zijn <strong>nagebootste voorbeelden in HTML</strong>, geen schermafbeeldingen van een telefoon. Op een echt toestel kunnen de kleuren, de hoeken en de lettergrootte anders uitvallen, omdat de launcher en het thema van je telefoon daar invloed op hebben.</p>
+
+<h2>Een widget plaatsen</h2>
+<ol>
+  <li>Houd een leeg stuk van je startscherm ingedrukt en kies <em>Widgets</em> (de naam verschilt per merk).</li>
+  <li>Zoek <em>Tickory</em> en sleep de widget die je wilt naar het startscherm.</li>
+  <li>Bij <em>Project of lijst</em> opent een scherm waarop je kiest wat de widget toont. Sluit je dat zonder te kiezen, dan wordt de widget niet geplaatst. Later opnieuw kiezen kan op Android 9 en nieuwer door de widget lang in te drukken en de instelling te kiezen; op oudere versies haal je de widget weg en plaats je hem opnieuw.</li>
+  <li>Ben je nog niet ingelogd, dan staat er <em>Log in in de app</em>. Tik erop, log in, en de widget vult zich.</li>
+</ol>
+<p>Het <strong>formaat</strong> kun je aanpassen door de widget ingedrukt te houden en aan de randjes te slepen. Klein toont alleen de titel met het aantal en de taken op één regel; middel en groot laten ook de datum, het project en de labels zien, groot met iets grotere letters. De lijst scrolt als er meer taken zijn dan er passen.</p>
+
+<h2>Afvinken en openen</h2>
+<ul>
+  <li><strong>Tik op de cirkel</strong> om een taak af te vinken. Hij verdwijnt meteen uit alle widgets. De cirkel en de regel zijn minstens 48 punten groot, het kleinste tikvlak dat Android aanraadt.</li>
+  <li><strong>Tik op de titel</strong> om de taak in de app te openen.</li>
+  <li><strong>Tik op +</strong> om het venster <em>Taak toevoegen</em> te openen. In Vandaag staat de datum al op vandaag, in een project komt de taak in dat project, in de andere lijsten blijft de plek zoals de app hem kent.</li>
+  <li><strong>Tik op de kop</strong> om de app te openen.</li>
+</ul>
+
+<h3>Afvinken zonder internet</h3>
+<p>Afvinken werkt ook als je telefoon geen verbinding heeft. De app zet de taak dan in een wachtrij op het toestel, die een herstart van de telefoon overleeft, en stuurt hem naar je server zodra er verbinding is. Lukt dat niet, dan probeert hij het opnieuw; na drie dagen geeft hij het op en staat de taak weer in de lijst zoals de server hem heeft. Twee keer tikken telt als één keer, en ook als de app of de web-app hetzelfde afvinken nog eens doet, schuift een terugkerende taak niet twee keer door.</p>
+<ul>
+  <li>Een <strong>terugkerende taak</strong> verdwijnt na het tikken uit de widget en komt terug met de nieuwe datum zodra de server die heeft doorgegeven. De widget verzint die datum niet zelf; zonder verbinding blijft hij dus even weg.</li>
+  <li>Weigert de server het afvinken (de taak is intussen weggehaald, of je bent geen lid meer van het project), dan blijft er niets hangen: de widget laat bij de eerstvolgende verversing zien hoe het er echt voor staat.</li>
+  <li>De herinneringen en meldingen van een afgevinkte taak vervallen meteen, ook zonder internet.</li>
+</ul>
+
+<h2>Verversen</h2>
+<p>De widgets lezen hun gegevens van het toestel zelf, niet via de ingebouwde browser; ze werken dus ook als de app niet draait. Het toestel haalt de gegevens op:</p>
+<ul>
+  <li>direct na het inloggen en elke keer dat je de app opent;</li>
+  <li>kort nadat je in de app een taak, project of volgorde wijzigt;</li>
+  <li>elk kwartier op de achtergrond, alleen met verbinding en zonder de telefoon wakker te houden;</li>
+  <li>direct na het afvinken in een widget.</li>
+</ul>
+<p>Na middernacht tekenen de widgets zich opnieuw, ook zonder verbinding, zodat <em>Vandaag</em> en <em>te laat</em> kloppen. Dat gebeurt met één onnauwkeurig alarm per dag, dat Android mag uitstellen; het kan dus een paar minuten later zijn.</p>
+
+<h2>Uiterlijk</h2>
+<ul>
+  <li><strong>Licht en donker</strong> volgen de instelling van je telefoon.</li>
+  <li>Op <strong>Android 12 en nieuwer</strong> nemen de achtergrond, de tekst en het accent de kleuren van je thema over (<em>Material You</em>), en de hoeken die van je telefoon. Op oudere versies of zonder dynamische kleuren zijn het de vaste Tickory-kleuren. De kleuren van de prioriteiten blijven vast, want die betekenen iets.</li>
+  <li>De widgets hebben beschrijvingen voor <strong>TalkBack</strong>: de cirkel leest als <em>Voltooien: …</em> met de naam van de taak, de titel als <em>Taak openen: …</em>.</li>
+  <li>De widgets zijn er in het Nederlands en het Engels, naar de taal van de telefoon.</li>
+</ul>
+
+<h2>Privacy en veiligheid</h2>
+<ul>
+  <li>De taken staan in de privé-opslag van de app op de telefoon, niet versleuteld en niet in back-ups; wie het toestel rootet, kan ze lezen. De aanmelding blijft versleuteld in de Android Keystore, zoals voor de herinneringen.</li>
+  <li><strong>Afmelden leegt alles</strong>: de taken, de projecten en de wachtrij. Log je in met een ander account, dan zijn de taken van het vorige account meteen verborgen en verdwijnt wat nog in de wachtrij stond; wat het ene account afvinkte, wordt nooit onder het andere verstuurd. Wijzig je het serveradres, dan wordt ook alles gewist.</li>
+  <li>In een <strong>gedeeld project</strong> toont de widget alleen wat jij mag zien: de server stuurt niets anders. Ben je geen lid meer, dan verdwijnt het project bij de eerstvolgende verversing en zegt een widget die erop stond dat het project er niet meer is.</li>
+  <li>De widgets praten via dezelfde verbinding en aanmelding met je server als de herinneringen, en de app wijst een <code>http://</code>-adres buiten je eigen netwerk ook hier af. Er komen geen taken in het logboek van de telefoon.</li>
+</ul>
+
+<h2>Als een widget leeg of oud is</h2>
+<ul>
+  <li><em>Log in in de app</em> of <em>Log opnieuw in in de app</em>: de aanmelding ontbreekt of is verlopen. Open de app en log in.</li>
+  <li><em>Bezig met laden…</em>: er zijn nog geen gegevens van je account op het toestel. Open de app met verbinding.</li>
+  <li>De widget loopt achter: kijk bij <x-ui k="settings.title"></x-ui>, <x-ui k="settings.notifications"></x-ui> of de batterijbesparing van de app is aangezet. Sommige merken (Xiaomi, Huawei, OnePlus, Samsung) leggen apps op de achtergrond aan banden; zet de batterij van Tickory op <em>Onbeperkt</em>. Zonder dat ververst de widget pas als je de app opent.</li>
+  <li>Een taak die je in de app wijzigt, staat binnen een paar seconden in de widget; zonder verbinding in de app wacht de widget tot de wijziging op de server staat.</li>
+</ul>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Opgeslagen filters in een widget. De keuzelijst is voorbereid; filters komen later.</li>
+  <li>Een taak in de widget bewerken, uitstellen of een datum geven; daarvoor open je de taak.</li>
+  <li>Widgets op het vergrendelscherm of in een browser.</li>
+</ul>

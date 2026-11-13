@@ -22,6 +22,8 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     setSession: (token) => call('setSession', token ?? ''),
     /** Meldt dat taken of herinneringen zijn gewijzigd. */
     remindersChanged: () => call('remindersChanged'),
+    /** Meldt dat iets is veranderd dat in de widgets van de Android-app staat (taken, projecten, volgorde); de app ververst ze. */
+    widgetsChanged: () => call('widgetsChanged'),
     /** @returns {{ notifications: boolean, exactAlarms: boolean, batteryOptimized: boolean, appVersion: string } | null} */
     status() {
       try {
@@ -46,6 +48,38 @@ export function taskIdFromHash(hash) {
 }
 
 /**
+ * Het venster "Taak toevoegen" openen vanuit een widget: `#add` (waar je nu bent), `#add=today` (met vandaag als datum) of
+ * `#add=<project-id>` (in dat project). Geeft de context voor het venster terug (`{}` voor "waar je nu bent"), of null als
+ * de URL hier niet over gaat. Een project dat de app niet kent, geeft `{}`.
+ * @param {string | null | undefined} hash
+ * @param {(id: string) => boolean} [knowsProject]
+ */
+export function addContextFromHash(hash, knowsProject = () => true) {
+  const m = /^#add(?:=([A-Za-z0-9_-]{1,40}))?$/.exec(hash ?? '');
+  if (!m) return null;
+  if (!m[1]) return {};
+  if (m[1] === 'today') return { due: 'today' };
+  return knowsProject(m[1]) ? { projectId: m[1] } : {};
+}
+
+/**
+ * Een vingerafdruk van alles wat in de widgets van de Android-app staat: van elke open taak de titel, datum, prioriteit,
+ * plek en volgorde, en de namen van de projecten. Verandert hij, dan moet de Android-app de widgets verversen.
+ */
+export function widgetFingerprint(view) {
+  const lines = [];
+  for (const t of view.tasks.values()) {
+    if (t.checked) continue;
+    lines.push([t.id, t.content, t.due?.date ?? '', t.due?.recurrence ? 1 : 0, t.priority, t.project_id, t.section_id ?? '', t.parent_id ?? '', t.order_key].join(''));
+  }
+  const projects = [];
+  for (const p of view.projects.values()) projects.push([p.id, p.name, p.parent_id ?? '', p.is_archived ? 1 : 0, p.order_key].join(''));
+  const sections = [];
+  for (const s of view.sections.values()) sections.push([s.id, s.name, s.order_key, s.is_archived ? 1 : 0].join(''));
+  return [lines.sort().join(''), projects.sort().join(''), sections.sort().join('')].join('');
+}
+
+/**
  * Een vingerafdruk van alles wat bepaalt wanneer er een melding komt: de eigen herinneringen en, van de taken waar ze bij
  * horen, de datum, de titel en of ze af zijn. Verandert de vingerafdruk, dan moet de Android-app opnieuw inplannen.
  */
@@ -57,6 +91,33 @@ export function reminderFingerprint(view, userId) {
     lines.push([r.id, r.type, r.minute_offset ?? '', r.due?.date ?? '', t ? `${t.due?.date ?? ''}|${t.checked ? 1 : 0}|${t.content}` : 'x'].join('\u0001'));
   }
   return lines.sort().join('\u0002');
+}
+
+/**
+ * Houdt de Android-app op de hoogte van wat in de widgets staat: roept `bridge.widgetsChanged()` aan zodra de vingerafdruk
+ * (zie widgetFingerprint) verandert, kort uitgesteld, zodat een reeks wijzigingen één melding geeft. Geeft een functie
+ * terug om te stoppen.
+ * @param {{ store: import('./store.js').Store, bridge: ReturnType<typeof androidBridge>, delayMs?: number,
+ *           timers?: { setTimeout: typeof setTimeout, clearTimeout: typeof clearTimeout } }} options
+ */
+export function watchWidgets({ store, bridge, delayMs = 2000, timers = globalThis }) {
+  if (!bridge.available) return () => {};
+  let last = widgetFingerprint(store.view);
+  let timer = null;
+  const unsubscribe = store.subscribe(() => {
+    const now = widgetFingerprint(store.view);
+    if (now === last) return;
+    last = now;
+    if (timer !== null) timers.clearTimeout(timer);
+    timer = timers.setTimeout(() => {
+      timer = null;
+      bridge.widgetsChanged();
+    }, delayMs);
+  });
+  return () => {
+    if (timer !== null) timers.clearTimeout(timer);
+    unsubscribe();
+  };
 }
 
 /**

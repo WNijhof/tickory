@@ -17,6 +17,7 @@ import { HttpError } from './syncClient.js';
 import { applyCommand, cloneState, descendantIds } from './reducer.js';
 import { ENTITIES, ID_RE, isInboxId, RESOURCE_NAMES, validateValue } from '../../shared/schema.js';
 import { isValidKey } from '../../shared/orderKey.js';
+import { isValidDate } from '../../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../../shared/text.js';
 import { addMember, createSeed } from './demoSeed.js';
 
@@ -193,7 +194,13 @@ export class DemoServer {
     const apply = (a = args) => applyCommand(state, { type, args: a }, at, me);
     switch (type) {
       case 'task_move': this.checkTaskMove(state, args); apply(); return this.dropStrangers(state, args.id, at);
-      case 'task_complete': case 'task_uncomplete': exactArgs(args, ['id']); requireLive(state, 'task', args.id, 'task.id'); return apply();
+      case 'task_complete':
+        // zoals de server: `if_due` is de datum die de afzender zag (de reducer doet er hetzelfde mee)
+        exactArgs(args, ['id', 'if_due']);
+        if (args.if_due !== undefined && !isValidDate(args.if_due)) fail('INVALID_ARG', 'if_due moet een geldige datum zijn');
+        requireLive(state, 'task', args.id, 'task.id');
+        return apply();
+      case 'task_uncomplete': exactArgs(args, ['id']); requireLive(state, 'task', args.id, 'task.id'); return apply();
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
       case 'project_leave': return this.projectLeave(state, args, at);

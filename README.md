@@ -81,7 +81,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Coming (built or partly built, not usable yet):**
 
-- **The first Android APK.** The app exists and is tested on a computer, but there is no release yet and the maker has not tried it on a real phone. The first APK comes with the next version; until then use the web app in your phone's browser, or build it yourself from [android/README.md](android/README.md).
+- **The first Android APK.** The app exists and is tested on a computer, but there is no release yet and the maker has not tried it on a real phone. The first APK comes with the next version, and so do the **home screen widgets** (see below); until then use the web app in your phone's browser, or build it yourself from [android/README.md](android/README.md).
 - **English date language.** The interface is English, but what you type as a date is only recognised in Dutch.
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
@@ -150,6 +150,7 @@ An app of its own (Kotlin, in [`android/`](android/README.md)) that shows the we
 - **Installing** (when there is an APK): download it on the phone, open it and allow "install unknown apps" for the app you opened it with, then enter the address of your server and sign in. Updating: install the new APK over the old one; that only works when both are signed with the same key (a debug APK cannot update, uninstall it first).
 - **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work; there is no file picker (attachments do not exist yet anyway). Android 8 or newer.
 - **Not tested on a phone.** It has been tested on a computer (calculation rules, a simulated Android and one test against a real server), but the maker has not tried it on a real device yet. Please report what you notice.
+- **Widgets (next version).** Four home screen widgets: **Today** (overdue and due today), **Project or list** (you choose the Inbox, a project, Today or Upcoming when you place it; saved filters come later), **Upcoming** (the next two weeks, by day) and an **Add task** button. Tap the circle to complete a task, also without internet (it waits in a queue on the phone and is sent when there is a connection; a recurring task comes back with the new date from the server), tap the title to open the task, tap + to add one. Resizable, light and dark, Material You colours on Android 12 and newer, TalkBack descriptions, Dutch and English. They read the data on the device, not the web view; signing out or switching account clears everything. Not tried on a phone yet: how they look per launcher, resizing and battery saving. See [the guide](https://wnijhof.github.io/tickory/en/guide/widgets.html) and [android/README.md](android/README.md).
 
 More in the guide: [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html).
 

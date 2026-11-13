@@ -13,12 +13,15 @@ import io.github.wnijhof.tickory.core.LocalNetwork
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
+import io.github.wnijhof.tickory.store.WidgetStore
+import io.github.wnijhof.tickory.widget.WidgetUpdater
 import io.github.wnijhof.tickory.reminders.Notifications
 import io.github.wnijhof.tickory.reminders.ReminderEngine
 
 /**
- * Eén verversing: eerst wat er nog aan "Voltooien" wacht alsnog versturen, dan de taken en herinneringen ophalen en
- * de alarmen bijwerken. Lukt het ophalen niet, dan blijft het bestaande plan staan.
+ * Eén verversing: eerst wat er nog aan "Voltooien" wacht alsnog versturen (uit een melding en uit een widget), dan de
+ * taken, projecten en herinneringen ophalen, de alarmen bijwerken en de widgets opnieuw tekenen. Lukt het ophalen niet,
+ * dan blijft het bestaande plan en de bestaande inhoud van de widgets staan.
  */
 class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
     override fun doWork(): Result {
@@ -31,9 +34,28 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
 
         if (!flushCompletes(app)) return failed(app, prefs, origin)
 
-        return when (val result = ApiClient(origin, 10_000, 20_000, Session.userAgent).fetchSnapshot(token)) {
+        val client = ApiClient(origin, 10_000, 20_000, Session.userAgent)
+
+        // Na een nieuwe aanmelding weten we nog niet van wie de gegevens op het toestel zijn. Eerst vaststellen (zodat een
+        // wachtrij van een andere gebruiker nooit onder dit account wordt verstuurd), dan pas de wachtrij versturen.
+        var fetched: FetchResult? = null
+        if (WidgetStore.isUnverified(app)) {
+            fetched = client.fetchSnapshot(token)
+            if (fetched is FetchResult.Ok) apply(app, fetched)
+        }
+        when (WidgetSync.flush(app, client, token)) {
+            WidgetSync.Outcome.NOTHING -> if (fetched is FetchResult.Ok) return Result.success() // net al opgehaald en verwerkt
+            WidgetSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
+            WidgetSync.Outcome.OFFLINE -> return failed(app, prefs, origin)
+            WidgetSync.Outcome.UNAUTHORIZED -> {
+                ReminderEngine.replan(app)
+                return Result.success()
+            }
+        }
+
+        return when (val result = fetched ?: client.fetchSnapshot(token)) {
             is FetchResult.Ok -> {
-                ReminderEngine.onSynced(app, result.snapshot)
+                apply(app, result)
                 Result.success()
             }
             is FetchResult.Unauthorized -> {
@@ -43,6 +65,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             }
             is FetchResult.Failed -> failed(app, prefs, origin)
         }
+    }
+
+    /** De verse gegevens: de alarmen worden opnieuw gepland en de widgets krijgen hun nieuwe inhoud. */
+    private fun apply(app: Context, result: FetchResult.Ok) {
+        ReminderEngine.onSynced(app, result.snapshot)
+        result.widget?.let { WidgetStore.accept(app, it) }
+        WidgetUpdater.updateAll(app)
     }
 
     /**
@@ -68,6 +97,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
     /** Geen verbinding met de server. Het plan van de vorige keer blijft gelden; we schuiven alleen het venster op. */
     private fun failed(app: Context, prefs: Prefs, origin: String): Result {
         ReminderEngine.replan(app)
+        WidgetUpdater.updateAll(app) // geen nieuwe gegevens, maar een nieuwe dag of een afgevinkte taak moet wel zichtbaar worden
         noteIfLocalServerBlocked(app, prefs, origin)
         // Het kwartierwerk komt vanzelf terug; een eenmalige verversing proberen we nog een paar keer, met oplopende pauzes.
         val periodic = inputData.getBoolean(KEY_PERIODIC, false)

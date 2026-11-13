@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kleuren van de widgets, donkere weergave (zie values/widget_colors.xml). -->
+<resources>
+    <color name="widget_bg">#1E2226</color>
+    <color name="widget_text">#E8EAED</color>
+    <color name="widget_text_soft">#9AA5B1</color>
+    <color name="widget_accent">#2DD4BF</color>
+    <color name="widget_overdue">#F97066</color>
+    <color name="widget_ripple">#33FFFFFF</color>
+
+    <color name="widget_p1">#F2776C</color>
+    <color name="widget_p2">#F5A03A</color>
+    <color name="widget_p3">#6AA3FF</color>
+    <color name="widget_p4">#8B96A1</color>
+    <color name="widget_p1_fill">#26F2776C</color>
+    <color name="widget_p2_fill">#26F5A03A</color>
+    <color name="widget_p3_fill">#266AA3FF</color>
+    <color name="widget_p4_fill">#268B96A1</color>
+</resources>

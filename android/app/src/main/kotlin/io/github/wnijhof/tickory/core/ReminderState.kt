@@ -116,6 +116,22 @@ object ReminderLogic {
         return state.copy(snoozed = state.snoozed - dropped) to dropped
     }
 
+    /**
+     * Taken die in een widget zijn afgevinkt, nog voor de server het bevestigt: hun herinneringen vervallen meteen (ook
+     * zonder internet), en hun uitstel. De volgende verversing zet de taak terug als de server het toch anders ziet.
+     */
+    fun completedLocally(state: ReminderState, taskIds: Set<String>): Pair<ReminderState, Set<String>> {
+        var current = state
+        val dropped = HashSet<String>()
+        for (id in taskIds) {
+            val (next, ids) = onTaskCompleted(current, id)
+            current = next
+            dropped += ids
+        }
+        val tasks = current.snapshot.tasks.map { if (it.id in taskIds) it.copy(checked = true) else it }
+        return current.copy(snapshot = SyncSnapshot(tasks, current.snapshot.reminders)) to dropped
+    }
+
     /** Afmelden of een andere gebruiker: alles weg. Wat getoond is onthouden we wel bij [keepShown] (zelfde gebruiker, nieuwe sessie). */
     fun cleared(state: ReminderState, keepShown: Boolean): ReminderState = ReminderState(shown = if (keepShown) state.shown else emptyMap())
 

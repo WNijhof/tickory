@@ -66,4 +66,39 @@
     <string name="complete_rejected_other">Completing failed. Open the app to try it there.</string>
     <string name="complete_signed_out">You have been signed out. Open the app and sign in again to complete this task.</string>
     <string name="complete_failed">Completing failed: the server can\'t be reached. Open the app to try again.</string>
+
+    <!-- Widgets -->
+    <string name="widget_today_name">Today</string>
+    <string name="widget_today_description">What is overdue and what is due today. Tap the circle to complete.</string>
+    <string name="widget_project_name">Project or list</string>
+    <string name="widget_project_description">The open tasks of a project, the Inbox, Today or Upcoming. You choose when you place it.</string>
+    <string name="widget_upcoming_name">Upcoming</string>
+    <string name="widget_upcoming_description">The next two weeks, by day.</string>
+    <string name="widget_add_name">Add task</string>
+    <string name="widget_add_description">A button that opens Tickory on the Add task window.</string>
+    <string name="widget_title_today">Today</string>
+    <string name="widget_title_upcoming">Upcoming</string>
+    <string name="widget_title_inbox">Inbox</string>
+    <string name="widget_title_project_fallback">Project</string>
+    <plurals name="widget_task_count">
+        <item quantity="one">%d task</item>
+        <item quantity="other">%d tasks</item>
+    </plurals>
+    <string name="widget_add_task">Add task</string>
+    <string name="widget_complete_task">Complete: %1$s</string>
+    <string name="widget_open_task">Open task: %1$s</string>
+    <string name="widget_signed_out">Sign in via the app</string>
+    <string name="widget_expired">Sign in again via the app</string>
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_empty_today">Nothing to do today</string>
+    <string name="widget_empty_upcoming">Nothing planned for the next two weeks</string>
+    <string name="widget_empty_project">No open tasks</string>
+    <string name="widget_project_missing">This project is gone. Choose another project.</string>
+    <string name="widget_filter_unsupported">Filters cannot be shown in a widget yet. Choose a project.</string>
+    <string name="widget_config_title">What should the widget show?</string>
+    <string name="widget_config_hint_signed_out">Sign in via the app to see your projects here. You can already choose Today, Upcoming and Inbox.</string>
+    <string name="widget_config_open_app">Open Tickory</string>
+    <string name="widget_preview_task_1">Do the shopping</string>
+    <string name="widget_preview_task_2">Call the dentist</string>
+    <string name="widget_preview_task_3">Water the plants</string>
 </resources>

@@ -29,7 +29,8 @@ sealed class HealthResult {
 }
 
 sealed class FetchResult {
-    data class Ok(val snapshot: SyncSnapshot) : FetchResult()
+    /** @property widget wat de widgets nodig hebben uit hetzelfde antwoord; null als dat niet te lezen was */
+    data class Ok(val snapshot: SyncSnapshot, val widget: WidgetSnapshot? = null) : FetchResult()
 
     /** 401: de sessie is verlopen of ingetrokken. */
     object Unauthorized : FetchResult()
@@ -49,6 +50,23 @@ sealed class CompleteResult {
     /** Geen verbinding of een tijdelijke fout: opnieuw proberen met hetzelfde uuid. */
     data class Failed(val problem: NetProblem?, val status: Int) : CompleteResult()
 }
+
+/** De uitkomst van een rij commando's in één verzoek. */
+sealed class BatchResult {
+    /** De server antwoordde; per uuid de uitkomst (ontbreekt een uuid, dan is die [CommandStatus.Missing]). */
+    data class Done(val statuses: Map<String, CommandStatus>) : BatchResult()
+
+    object Unauthorized : BatchResult()
+
+    /** De server weigert het hele verzoek; opnieuw sturen verandert niets. */
+    data class Rejected(val code: String) : BatchResult()
+
+    /** Geen verbinding of een tijdelijke fout: opnieuw proberen. */
+    object Failed : BatchResult()
+}
+
+/** Een commando voor `POST /api/v1/sync`. */
+data class SyncCommand(val type: String, val uuid: String, val args: Map<String, Any?>)
 
 /**
  * De verzoeken die de app zelf (buiten de WebView om) aan de server doet. Gewone HttpURLConnection met time-outs,
@@ -77,7 +95,7 @@ class ApiClient(
 
     /** Haalt alle taken en de herinneringen van de ingelogde gebruiker op. */
     fun fetchSnapshot(token: String): FetchResult {
-        val body = Json.stringify(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders")))
+        val body = Json.stringify(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders", "projects", "sections", "labels")))
         val response = try {
             request("POST", SYNC_PATH, token, body)
         } catch (e: Exception) {
@@ -86,7 +104,32 @@ class ApiClient(
         if (response.status == 401) return FetchResult.Unauthorized
         if (response.status != 200) return FetchResult.Failed(null, response.status)
         val snapshot = SyncParser.parseSnapshot(response.body) ?: return FetchResult.Failed(null, response.status)
-        return FetchResult.Ok(snapshot)
+        return FetchResult.Ok(snapshot, WidgetParser.parse(response.body))
+    }
+
+    /**
+     * Stuurt commando's in één verzoek (hooguit [WidgetQueue.BATCH]). Met dezelfde uuid's opnieuw sturen is veilig: de server
+     * voert elk uuid één keer uit en geeft daarna dezelfde uitkomst.
+     */
+    fun sendCommands(token: String, commands: List<SyncCommand>): BatchResult {
+        val list = commands.map { mapOf("type" to it.type, "uuid" to it.uuid, "args" to it.args) }
+        // Alleen de uitkomsten zijn nodig; "settings" houdt het antwoord klein.
+        val body = Json.stringify(mapOf("sync_token" to "*", "resource_types" to listOf("settings"), "commands" to list))
+        val response = try {
+            request("POST", SYNC_PATH, token, body)
+        } catch (e: Exception) {
+            return BatchResult.Failed
+        }
+        return when {
+            response.status == 401 -> BatchResult.Unauthorized
+            response.status == 200 -> {
+                if (Json.parseObject(response.body)?.obj("sync_status") == null) return BatchResult.Failed
+                BatchResult.Done(commands.associate { it.uuid to SyncParser.commandStatus(response.body, it.uuid) })
+            }
+            response.status in 400..499 && response.status != 408 && response.status != 429 ->
+                BatchResult.Rejected(Json.parseObject(response.body)?.text("error_code") ?: "HTTP_${response.status}")
+            else -> BatchResult.Failed
+        }
     }
 
     /** Vinkt een taak af. Met hetzelfde [uuid] opnieuw aanroepen is veilig: de server voert het maar één keer uit. */

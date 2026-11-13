@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  De widget Vandaag. Formaat: minstens 2x2 vakjes, tot ongeveer 5 breed en 6 hoog. updatePeriodMillis ververst alleen
+  wat op het scherm staat uit de gegevens op het toestel (geen verbinding); de gegevens zelf haalt WorkManager op.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_today_description"
+    android:initialLayout="@layout/widget_list"
+    android:maxResizeWidth="450dp"
+    android:maxResizeHeight="600dp"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:previewLayout="@layout/widget_preview_list"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

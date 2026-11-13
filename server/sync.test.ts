@@ -280,6 +280,46 @@ test('afvinken van een terugkerende taak schuift de datum door en houdt hem open
   assert.equal(t.completed_count, 1);
 });
 
+test('afvinken met if_due: een terugkerende taak die al is doorgeschoven, schuift niet nog eens door', () => {
+  const db = mkdb();
+  const { P } = seed(db);
+  const add = cmd('task_add', {
+    id: 'recurring-bbbb22', project_id: P, content: 'Planten water geven',
+    due: { date: '2026-11-13', recurrence: { freq: 'weekly', byweekday: [5] } },
+  });
+  const plain = cmd('task_add', { id: 'plain-bbbb2222', project_id: P, content: 'Gewoon', due: { date: '2026-11-13' } });
+  const base = run(db, [add, plain]).sync_token;
+  // eerste afvinkactie (bijvoorbeeld vanuit de widget) met de datum die de afzender zag
+  const first = cmd('task_complete', { id: 'recurring-bbbb22', if_due: '2026-11-13' });
+  const r1 = run(db, [first], base);
+  ok(r1, first);
+  assert.equal(rows(r1, 'tasks')[0].due.date, '2026-11-20');
+  // dezelfde afvinkactie vanuit een tweede bron (andere uuid, zelfde geziene datum): geen tweede keer doorschuiven
+  const second = cmd('task_complete', { id: 'recurring-bbbb22', if_due: '2026-11-13' });
+  const r2 = run(db, [second], r1.sync_token);
+  ok(r2, second);
+  assert.equal(rows(r2, 'tasks').length, 0, 'er is niets veranderd');
+  assert.equal(rows(run(db, []), 'tasks').find((t) => t.id === 'recurring-bbbb22')!.due.date, '2026-11-20');
+  assert.equal(rows(run(db, []), 'tasks').find((t) => t.id === 'recurring-bbbb22')!.completed_count, 1);
+  // een nieuwe afvinkactie met de nieuwe datum telt wel
+  const third = cmd('task_complete', { id: 'recurring-bbbb22', if_due: '2026-11-20' });
+  ok(run(db, [third], r2.sync_token), third);
+  assert.equal(rows(run(db, []), 'tasks').find((t) => t.id === 'recurring-bbbb22')!.due.date, '2026-11-27');
+  // zonder if_due blijft alles zoals het was; een gewone taak negeert if_due
+  const noGuard = cmd('task_complete', { id: 'recurring-bbbb22' });
+  ok(run(db, [noGuard]), noGuard);
+  assert.equal(rows(run(db, []), 'tasks').find((t) => t.id === 'recurring-bbbb22')!.due.date, '2026-12-04');
+  const gone = cmd('task_complete', { id: 'plain-bbbb2222', if_due: '2030-01-01' });
+  ok(run(db, [gone]), gone);
+  assert.equal(rows(run(db, []), 'tasks').find((t) => t.id === 'plain-bbbb2222')!.checked, true);
+  // een ongeldige datum en een onbekend argument worden geweigerd
+  const bad = cmd('task_complete', { id: 'recurring-bbbb22', if_due: 'morgen' });
+  const extra = cmd('task_complete', { id: 'recurring-bbbb22', iets: 1 });
+  const res = run(db, [bad, extra]);
+  err(res, bad, 'INVALID_ARG');
+  err(res, extra, 'UNKNOWN_ARG');
+});
+
 test('labels: unieke naam, taak koppelt via id, verwijderen haalt het label van taken', () => {
   const db = mkdb();
   const { P, T } = seed(db);

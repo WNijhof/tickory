@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Kleuren van de widgets, lichte weergave. De donkere staan in values-night. Op Android 12 en nieuwer volgen de
+  achtergrond, de tekst en het accent de kleuren van het thema van de gebruiker (Material You): zie values-v31 en
+  values-night-v31. De prioriteitskleuren blijven vast: die betekenen iets (hetzelfde als in de web-app, client/app.css).
+-->
+<resources>
+    <color name="widget_bg">#FBFCFC</color>
+    <color name="widget_text">#1C1F23</color>
+    <color name="widget_text_soft">#5B6670</color>
+    <color name="widget_accent">#0F766E</color>
+    <color name="widget_overdue">#B42318</color>
+    <color name="widget_ripple">#1F000000</color>
+
+    <color name="widget_p1">#D1453B</color>
+    <color name="widget_p2">#CC6D00</color>
+    <color name="widget_p3">#246FE0</color>
+    <color name="widget_p4">#7D8791</color>
+    <color name="widget_p1_fill">#1FD1453B</color>
+    <color name="widget_p2_fill">#1FCC6D00</color>
+    <color name="widget_p3_fill">#1F246FE0</color>
+    <color name="widget_p4_fill">#1F7D8791</color>
+</resources>

@@ -8,6 +8,7 @@ import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.sync.Completer
 import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
+import io.github.wnijhof.tickory.widget.WidgetUpdater
 import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
@@ -80,6 +81,7 @@ class SystemEventsReceiver : BroadcastReceiver() {
         try {
             Notifications.ensureChannel(app) // de naam van het kanaal volgt de taal van het toestel
             ReminderEngine.replan(app)
+            WidgetUpdater.updateAll(app) // nieuwe dag, andere tijdzone of taal: de widgets opnieuw tekenen (en het middernachtalarm opnieuw zetten)
             if (Session.isActive(app) && (action == Intent.ACTION_BOOT_COMPLETED || action == Intent.ACTION_MY_PACKAGE_REPLACED)) {
                 SyncScheduler.start(app)
             }

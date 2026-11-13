@@ -33,6 +33,13 @@ class WebBridge(private val activity: MainActivity) {
         if (Session.isActive(app)) SyncScheduler.refreshNow(app, followUp = true)
     }
 
+    /** Wat in de widgets staat (taken, projecten, volgorde) is gewijzigd: de gegevens opnieuw ophalen en de widgets verversen. */
+    @JavascriptInterface
+    fun widgetsChanged() {
+        if (!activity.isTrustedPage()) return
+        if (Session.isActive(app)) SyncScheduler.refreshNow(app, followUp = true)
+    }
+
     /** JSON: {"notifications":bool,"exactAlarms":bool,"batteryOptimized":bool,"appVersion":"…"} */
     @JavascriptInterface
     fun notificationStatus(): String {

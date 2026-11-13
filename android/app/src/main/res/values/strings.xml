@@ -71,4 +71,39 @@
     <string name="complete_rejected_other">Voltooien is niet gelukt. Open de app om het daar te proberen.</string>
     <string name="complete_signed_out">Je bent afgemeld. Open de app en log opnieuw in om deze taak te voltooien.</string>
     <string name="complete_failed">Voltooien is niet gelukt: de server is niet bereikbaar. Open de app om het opnieuw te proberen.</string>
+
+    <!-- Widgets -->
+    <string name="widget_today_name">Vandaag</string>
+    <string name="widget_today_description">Wat te laat is en wat vandaag moet. Tik op de cirkel om af te vinken.</string>
+    <string name="widget_project_name">Project of lijst</string>
+    <string name="widget_project_description">De open taken van een project, de Inbox, Vandaag of Binnenkort. Je kiest bij het plaatsen.</string>
+    <string name="widget_upcoming_name">Binnenkort</string>
+    <string name="widget_upcoming_description">De komende twee weken, per dag.</string>
+    <string name="widget_add_name">Taak toevoegen</string>
+    <string name="widget_add_description">Een knop die Tickory opent op het venster Taak toevoegen.</string>
+    <string name="widget_title_today">Vandaag</string>
+    <string name="widget_title_upcoming">Binnenkort</string>
+    <string name="widget_title_inbox">Inbox</string>
+    <string name="widget_title_project_fallback">Project</string>
+    <plurals name="widget_task_count">
+        <item quantity="one">%d taak</item>
+        <item quantity="other">%d taken</item>
+    </plurals>
+    <string name="widget_add_task">Taak toevoegen</string>
+    <string name="widget_complete_task">Voltooien: %1$s</string>
+    <string name="widget_open_task">Taak openen: %1$s</string>
+    <string name="widget_signed_out">Log in in de app</string>
+    <string name="widget_expired">Log opnieuw in in de app</string>
+    <string name="widget_loading">Bezig met laden…</string>
+    <string name="widget_empty_today">Niets te doen vandaag</string>
+    <string name="widget_empty_upcoming">Niets gepland de komende twee weken</string>
+    <string name="widget_empty_project">Geen open taken</string>
+    <string name="widget_project_missing">Dit project is er niet meer. Kies een ander project.</string>
+    <string name="widget_filter_unsupported">Filters kunnen nog niet in een widget. Kies een project.</string>
+    <string name="widget_config_title">Wat moet de widget tonen?</string>
+    <string name="widget_config_hint_signed_out">Log in in de app om je projecten hier te zien. Vandaag, Binnenkort en Inbox kun je al kiezen.</string>
+    <string name="widget_config_open_app">Tickory openen</string>
+    <string name="widget_preview_task_1">Boodschappen doen</string>
+    <string name="widget_preview_task_2">Tandarts bellen</string>
+    <string name="widget_preview_task_3">Planten water geven</string>
 </resources>

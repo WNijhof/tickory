@@ -43,17 +43,22 @@ object DueText {
         }
         if (time == null) return day
 
+        return "$day ${clock(time, lang, use24Hour)}"
+    }
+
+    /** Een kloktijd: "14:00", of voor Engels zonder 24-uursklok "2:00 PM". */
+    fun clock(time: java.time.LocalTime, lang: Lang, use24Hour: Boolean = true): String {
         val minute = time.minute.toString().padStart(2, '0')
-        val clock = if (lang == Lang.NL || use24Hour) {
+        return if (lang == Lang.NL || use24Hour) {
             "${time.hour.toString().padStart(2, '0')}:$minute"
         } else {
             val hour12 = if (time.hour % 12 == 0) 12 else time.hour % 12
             "$hour12:$minute ${if (time.hour < 12) "AM" else "PM"}"
         }
-        return "$day $clock"
     }
 
-    private fun dayMonth(date: LocalDate, today: LocalDate, lang: Lang): String {
+    /** "vr 13 nov" (met het jaar als het niet dit jaar is). */
+    fun dayMonth(date: LocalDate, today: LocalDate, lang: Lang): String {
         val weekday = date.dayOfWeek.value - 1 // maandag = 0
         val month = date.monthValue - 1
         val base = if (lang == Lang.EN) {
