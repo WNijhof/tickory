@@ -36,6 +36,15 @@ object ServerAddress {
         return (parseInternal(url, assumeHttps = false) as? Result.Ok)?.origin
     }
 
+    /**
+     * Mag de app met dit adres verbinden? Met https altijd. Zonder versleuteling (http) alleen als het adres op het eigen netwerk
+     * ligt (zie [LocalNetwork]) of het toestel zelf is (localhost): daar leest niemand van buiten mee. Naar een server op
+     * internet zouden het wachtwoord en het sessietoken onversleuteld over de lijn gaan.
+     *
+     * @param local ligt het adres op het eigen netwerk (naam of IP-adres, eventueel na opzoeken)
+     */
+    fun cleartextAllowed(address: Result.Ok, local: Boolean): Boolean = address.https || local || LocalNetwork.isLoopbackHost(address.host)
+
     /** Hoort [url] bij de server met oorsprong [origin]? */
     fun sameOrigin(url: String?, origin: String?): Boolean {
         if (origin.isNullOrEmpty()) return false

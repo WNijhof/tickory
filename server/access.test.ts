@@ -492,7 +492,7 @@ test('migratie van een database uit versie 0.1: het eerste account neemt alles o
 
 test('createSchema voegt ontbrekende kolommen toe aan een oudere database en verandert verder niets', () => {
   const db = freshDb();
-  db.exec('DROP INDEX labels_owner; DROP INDEX filters_owner; DROP INDEX reminders_owner');
+  db.exec('DROP INDEX labels_owner; DROP INDEX filters_owner; DROP INDEX reminders_owner; DROP INDEX labels_order; DROP INDEX filters_order; DROP INDEX tasks_creator');
   for (const [t, c] of [['tasks', 'assignee_id'], ['tasks', 'creator_id'], ['comments', 'author_id'], ['labels', 'owner_id'], ['filters', 'owner_id'], ['reminders', 'owner_id']]) {
     db.exec(`ALTER TABLE ${t} DROP COLUMN ${c}`);
   }

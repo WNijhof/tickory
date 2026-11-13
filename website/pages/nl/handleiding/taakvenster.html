@@ -1,0 +1,69 @@
+<!--
+title: Het taakvenster
+description: Een taak bekijken en bewerken in Tickory: naam en beschrijving, datum met snelle keuzes, prioriteit, labels, toewijzen, deadline, herinneringen, subtaken en opmerkingen, en opslaan met Ctrl+Enter.
+-->
+<h1>Het taakvenster</h1>
+<p class="intro">Klik op de naam van een taak en het taakvenster opent: links de taak zelf met subtaken en opmerkingen, rechts de eigenschappen. Hier wijzig je alles wat bij een taak hoort.</p>
+
+<x-shot name="taak-bewerken" alt="Het taakvenster van Boodschappen doen in twee kolommen. Links de titel, de beschrijving, vier subtaken waarvan één afgevinkt, en twee opmerkingen van Bram en Anna met een veld om een opmerking te schrijven. Rechts project, sectie, datum met snelle keuzes, prioriteit P1 tot P4, labels, toegewezen aan, deadline en een herinnering.">Het taakvenster. Links wat bij de taak zelf hoort, rechts de eigenschappen. Het veld Toegewezen aan staat er alleen bij een project dat je met anderen deelt.</x-shot>
+
+<h2 id="openen-en-sluiten">Openen, opslaan en sluiten</h2>
+<ul>
+  <li><strong>Openen:</strong> klik op de naam van een taak, of op het potlood dat bij een regel verschijnt. Tik je op een melding van een herinnering, dan opent Tickory bij die taak.</li>
+  <li><strong>Opslaan:</strong> kies <x-ui k="common.save"></x-ui>, of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (op een Mac <kbd>Cmd</kbd>+<kbd>Enter</kbd>). Wat je in de eigenschappen en in de naam en beschrijving hebt gewijzigd, wordt dan bewaard.</li>
+  <li><strong>Sluiten zonder opslaan:</strong> kies <x-ui k="common.cancel"></x-ui>, het kruisje rechtsboven, of druk op <kbd>Esc</kbd>.</li>
+  <li><strong>Meteen bewaard</strong> wordt wat je toevoegt of verwijdert: subtaken, opmerkingen en herinneringen. Daar hoef je niet op <x-ui k="common.save"></x-ui> voor te klikken.</li>
+</ul>
+<p>Het rondje links van de titel vinkt de taak af; wat je al gewijzigd had, wordt eerst bewaard. Rechtsonder in het venster staat de tip <x-ui k="task.saveTip"></x-ui>. Op een telefoon neemt het venster het hele scherm in.</p>
+
+<h2 id="naam-en-beschrijving">Naam en beschrijving</h2>
+<p>De titel is één regel: Enter voegt geen nieuwe regel toe. De beschrijving mag langer zijn; de eerste regel ervan staat in grijs onder de naam van de taak in de lijst.</p>
+
+<h2 id="eigenschappen">De eigenschappen</h2>
+<dl>
+  <dt>Project en sectie</dt>
+  <dd>Kies een ander project of een andere sectie om de taak te verplaatsen; subtaken gaan mee. De taak komt daar onderaan te staan. Subprojecten staan ingesprongen in de lijst. Bij een subtaak staan deze twee velden er niet: een subtaak blijft bij haar taak.</dd>
+  <dt>Datum</dt>
+  <dd>In gewone taal, ook herhalingen: <code>morgen om 14 uur</code>, <code>elke maandag</code>. Onder het veld zie je wat er van wordt. Zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>. Daaronder staan snelle keuzes: <x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui> en <x-ui k="task.quickNone"></x-ui>. Een tijdstip dat er al was, blijft staan.</dd>
+  <dt>Prioriteit</dt>
+  <dd>Vier knoppen, <strong>P1</strong> (hoogste) tot <strong>P4</strong> (geen). De kleur is ook de kleur van het rondje in de lijst: rood, oranje, blauw of grijs.</dd>
+  <dt>Labels</dt>
+  <dd>Typ een naam en druk op Enter of typ een komma; het label verschijnt als blokje met een kruisje. Bestaande labels worden aangeboden terwijl je typt, en een nieuw label wordt aangemaakt. Backspace in het lege veld haalt het laatste label weg.</dd>
+  <dt>Toegewezen aan</dt>
+  <dd>Alleen in een gedeeld project. Zie <a href="delen.html#taken-toewijzen">taken toewijzen</a>.</dd>
+  <dt>Deadline</dt>
+  <dd>De uiterste dag, los van de datum waarop je eraan wilt werken.</dd>
+  <dt>Herinneringen</dt>
+  <dd>Je eigen herinneringen bij deze taak. Zie <a href="herinneringen.html">Herinneringen</a>.</dd>
+</dl>
+<p>Onderaan de eigenschappen staat wie de taak maakte en wanneer ("Gemaakt door Anna, za 14 nov").</p>
+
+<h2 id="subtaken">Subtaken</h2>
+<p>Onder de beschrijving staan de subtaken, met bovenaan hoeveel er af zijn ("Subtaken (1/4)"). Typ in <x-ui k="task.addSubtask"></x-ui> een naam en druk op Enter om er een toe te voegen; zo voeg je er snel een paar achter elkaar toe.</p>
+<ul>
+  <li>Klik op het rondje om een subtaak af te vinken. Klik in de naam om die te wijzigen: Enter of klikken op een andere plek bewaart, Escape zet de oude naam terug. De prullenbak verwijdert de subtaak.</li>
+  <li>Een subtaak is zelf een gewone taak: klik in de lijst op haar naam om haar een datum, labels of eigen subtaken te geven. Het venster heet dan "Subtaak van …".</li>
+  <li>Een subtaak staat altijd in hetzelfde project en dezelfde sectie als de taak waar ze onder hangt.</li>
+  <li>Vink je een taak af, dan zijn haar subtaken ook afgevinkt. Verwijder je een taak, dan zijn haar subtaken ook weg.</li>
+  <li>Een bestaande taak tot subtaak van een andere maken (of andersom) kan in de app nog niet.</li>
+</ul>
+
+<h2 id="opmerkingen">Opmerkingen</h2>
+<p>Onder de subtaken staan de opmerkingen bij de taak: wie schreef wat en hoe lang geleden ("2 uur geleden"; houd de muis erop voor het precieze tijdstip). Zo kun je met de anderen in een gedeeld project over een taak praten, of voor jezelf iets noteren.</p>
+<ul>
+  <li><strong>Plaatsen:</strong> schrijf in het veld <x-ui k="comment.placeholder"></x-ui> en kies <x-ui k="comment.post"></x-ui>, of druk op <kbd>Ctrl</kbd>+<kbd>Enter</kbd>. De opmerking staat er meteen, ook offline; ze gaat naar de server zodra dat kan.</li>
+  <li><strong>Bewerken en verwijderen:</strong> alleen je eigen opmerkingen, met het potlood en de prullenbak achter de naam. Een opmerking die je later hebt aangepast, krijgt <x-ui k="comment.edited"></x-ui> achter de naam. Verwijderen vraagt eerst om bevestiging en geldt voor iedereen.</li>
+  <li><strong>Wie ziet ze:</strong> iedereen die lid is van het project. Een opmerking is gewone tekst: er is geen opmaak. Een webadres wordt een link die in een nieuw tabblad opent.</li>
+  <li><strong>Bij het hele project:</strong> de knop <x-ui k="comment.projectButton"></x-ui> bovenaan een project opent dezelfde lijst voor het project zelf.</li>
+</ul>
+<p>In de lijst staat achter een taak met opmerkingen een tekstballonnetje met het aantal.</p>
+
+<h2 id="een-taak-verwijderen">Een taak verwijderen</h2>
+<p>Kies linksonder <x-ui k="common.delete"></x-ui> (of het prullenbakje bij de regel in de lijst). Na bevestiging is de taak weg, met haar subtaken, opmerkingen en herinneringen. Er is geen prullenbak: wat je verwijdert, haal je niet terug. Wil je een taak alleen uit het zicht hebben, vink haar dan af.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Taken slepen om de volgorde te wijzigen. Verplaatsen naar een ander project of een andere sectie gaat via de keuzelijsten.</li>
+  <li>Bijlagen bij een taak, en de duur van een taak.</li>
+  <li>Labels hernoemen of verwijderen.</li>
+</ul>

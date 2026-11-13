@@ -63,7 +63,7 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
       <h3>Vandaag en Binnenkort</h3>
       <p><x-ui k="nav.today"></x-ui> laat zien wat vandaag moet en wat te laat is, uit al je projecten bij elkaar. <x-ui k="nav.upcoming"></x-ui> toont de komende twee weken, dag voor dag.</p>
       <p>Een terugkerende taak die je afvinkt, schuift door naar de volgende keer. Afvinken maak je met één klik ongedaan.</p>
-      <a class="more" href="handleiding/projecten.html#vandaag-en-binnenkort">Meer over de overzichten</a>
+      <a class="more" href="handleiding/het-scherm.html#vandaag-en-binnenkort">Meer over de overzichten</a>
     </div>
     <x-shot name="binnenkort" alt="Het overzicht Binnenkort: taken van morgen tot en met volgende week, per dag gegroepeerd, met bij elke taak het project en wie hem doet."></x-shot>
   </div>
@@ -81,10 +81,20 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
   <div class="feature">
     <div class="feature-text">
       <h3>Alles van een taak op één plek</h3>
-      <p>Klik op een taak voor de details: beschrijving, datum, deadline, prioriteit, labels, project en sectie, en subtaken. In het datumveld typ je dezelfde gewone taal als bij het toevoegen.</p>
-      <a class="more" href="handleiding/projecten.html">Projecten, secties en subtaken</a>
+      <p>Klik op een taak voor de details: beschrijving, datum met snelle keuzes, deadline, prioriteit, labels, project en sectie, herinneringen en subtaken. Onderaan staan de opmerkingen: praat met de anderen in een gedeeld project, of noteer iets voor jezelf. In het datumveld typ je dezelfde gewone taal als bij het toevoegen.</p>
+      <p>Het gaat ook met het toetsenbord: <kbd>q</kbd> voegt een taak toe en <kbd>Ctrl</kbd>+<kbd>Enter</kbd> slaat op.</p>
+      <a class="more" href="handleiding/taakvenster.html">Het taakvenster</a> · <a class="more" href="handleiding/sneltoetsen.html">Sneltoetsen</a>
     </div>
-    <x-shot name="taak-bewerken" alt="Het venster Taak bewerken voor de taak Boodschappen doen, met velden voor beschrijving, datum, deadline, prioriteit, toegewezen aan, labels, project en sectie, het deel Herinneringen met één herinnering, en een veld om een subtaak toe te voegen."></x-shot>
+    <x-shot name="taak-bewerken" alt="Het taakvenster van Boodschappen doen in twee kolommen: links de titel, de beschrijving, subtaken en opmerkingen, rechts project, sectie, datum met snelle keuzes, prioriteit, labels, toegewezen aan, deadline en een herinnering."></x-shot>
+  </div>
+
+  <div class="feature">
+    <div class="feature-text">
+      <h3>Je projecten overzichtelijk</h3>
+      <p>Geef elk project een eigen kleur, zet je favorieten bovenaan de zijbalk en hang projecten onder elkaar met subprojecten. Is een project klaar, dan archiveer je het: het verdwijnt uit beeld en je zet het later terug.</p>
+      <a class="more" href="handleiding/projecten.html">Projecten en secties</a> · <a class="more" href="handleiding/het-scherm.html">Het scherm</a>
+    </div>
+    <x-shot name="project-bewerken" alt="Het venster Project bewerken met de naam Huishouden, zestien gekleurde bolletjes om een kleur te kiezen en het selectievakje Favoriet."></x-shot>
   </div>
 
   <div class="feature">
@@ -106,7 +116,7 @@ description: Tickory is een takenapp die je zelf host, voor jezelf, je gezin of 
     </div>
     <div class="feature-pair">
       <x-shot name="telefoon-project" alt="Het project Huishouden op een telefoon, met secties en subtaken onder elkaar."></x-shot>
-      <x-shot name="telefoon-menu" alt="Het uitgeschoven menu op een telefoon met Vandaag, Binnenkort en de projecten Inbox, Huishouden, Vakantie Texel en Buurtfeest."></x-shot>
+      <x-shot name="telefoon-menu" alt="Het uitgeschoven menu op een telefoon met Taak toevoegen, Inbox, Vandaag en Binnenkort, de favorieten en de projecten Huishouden, Vakantie Texel met het subproject Fietsroute, en Buurtfeest."></x-shot>
     </div>
   </div>
 
@@ -168,8 +178,7 @@ docker compose ps          # na enkele seconden: (healthy)</code></pre>
     <div>
       <h3>Staat op de server, nog niet in de app</h3>
       <ul>
-        <li>Opmerkingen bij taken en projecten</li>
-        <li>Subprojecten, favorieten, archiveren van projecten en secties</li>
+        <li>Het verplaatsen van een project naar een ander project</li>
         <li>De duur van een taak, en een bord- of kalenderweergave</li>
       </ul>
     </div>
@@ -178,7 +187,7 @@ docker compose ps          # na enkele seconden: (healthy)</code></pre>
       <ul>
         <li>De volgorde van taken wijzigen (slepen): een nieuwe taak komt altijd achteraan</li>
         <li>Labels beheren: hernoemen, verwijderen, op een label filteren</li>
-        <li>Bijlagen, import en export, een iCal-feed, sneltoetsen, widgets, statistieken, sjablonen</li>
+        <li>Bijlagen, import en export, een iCal-feed, widgets, statistieken, sjablonen</li>
         <li>Uitnodigen via een link of e-mail, en een project overdragen aan een andere eigenaar</li>
         <li>Zelf een account aanmaken of je wachtwoord per e-mail herstellen: dat doet een beheerder</li>
       </ul>

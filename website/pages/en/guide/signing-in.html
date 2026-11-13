@@ -24,7 +24,7 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
   <dt>“<x-ui k="api.invalidCredentials"></x-ui>”</dt>
   <dd>One of the two is wrong. You get the same message when the account does not exist or is blocked: the server does not reveal which usernames exist.</dd>
   <dt>“<x-ui k="api.tooManyAttempts"></x-ui>”</dt>
-  <dd>After eight failed attempts within fifteen minutes for the same username (or forty from the same address) you cannot sign in for a while. The message says how long to wait; that is fifteen minutes at most.</dd>
+  <dd>After eight failed attempts within fifteen minutes on the same username from the same address (or forty from the same address, or sixty on that username in total) you cannot sign in for a while. The message says how long to wait; that is fifteen minutes at most. Someone else cannot lock you out from their own address: your counter is the one for your address.</dd>
   <dt>“No connection to the server”</dt>
   <dd>The app cannot reach the server. Check your internet connection and whether the address is right.</dd>
 </dl>

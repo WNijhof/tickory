@@ -16,6 +16,8 @@ import { bumpRev, fail, getRow, insertRow, newId } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { keyAfter } from '../shared/orderKey.js';
 import { nameKey } from '../shared/text.js';
+import { WEAK_REASONS_NL, weakPasswordReason } from '../shared/password.js';
+import { LIMITS } from './limits.ts';
 
 // ---------- wachtwoorden ----------
 
@@ -26,8 +28,39 @@ export function setPasswordCostForTests(N: number): void {
   cost = { ...cost, N };
 }
 
+/**
+ * Scrypt kost per berekening 32 MiB en ongeveer 90 ms op een draad van de threadpool van Node (4 draden, gedeeld met
+ * het lezen van bestanden). Zonder grens kan een stroom inlogverzoeken de hele server vertragen. Daarom lopen er hooguit
+ * `parallel` berekeningen tegelijk (de rest wacht, tot `waiting` stuks) en laten we er twee draden vrij voor de rest.
+ * Is ook de wachtrij vol, dan geeft het verzoek meteen BUSY (HTTP 503) in plaats van mee te wachten.
+ */
+const gate = { parallel: 2, waiting: 32, running: 0, queue: [] as (() => void)[] };
+/** Alleen voor tests: andere grenzen voor het aantal gelijktijdige scrypt-berekeningen. */
+export function setScryptGateForTests(parallel: number, waiting: number): void {
+  gate.parallel = parallel;
+  gate.waiting = waiting;
+}
+/** Hoeveel berekeningen lopen er nu en hoeveel wachten er (voor tests). */
+export const scryptGateState = (): { running: number; waiting: number } => ({ running: gate.running, waiting: gate.queue.length });
+
+async function gated<T>(work: () => Promise<T>): Promise<T> {
+  if (gate.running >= gate.parallel) {
+    if (gate.queue.length >= gate.waiting) fail('BUSY', 'de server is druk; probeer het over een paar seconden opnieuw');
+    await new Promise<void>((resolve) => gate.queue.push(resolve)); // de plek wordt overgedragen: `running` blijft gelijk
+  } else {
+    gate.running++;
+  }
+  try {
+    return await work();
+  } finally {
+    const next = gate.queue.shift();
+    if (next) next();
+    else gate.running--;
+  }
+}
+
 const derive = (password: string, salt: Buffer, c: { N: number; r: number; p: number }): Promise<Buffer> =>
-  scryptAsync(password.normalize('NFC'), salt, 32, { ...c, maxmem: 256 * c.N * c.r + (1 << 20) });
+  gated(() => scryptAsync(password.normalize('NFC'), salt, 32, { ...c, maxmem: 256 * c.N * c.r + (1 << 20) }));
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
@@ -49,7 +82,8 @@ export async function verifyPassword(password: string, stored: string): Promise<
 let dummyHash: Promise<string> | null = null;
 /** Voor een onbekende gebruikersnaam rekenen we toch een hash uit, zodat de antwoordtijd niet verraadt wie bestaat. */
 export async function verifyAgainstDummy(password: string): Promise<void> {
-  dummyHash ??= hashPassword('onbekende-gebruiker');
+  // Mislukt het aanmaken (de server is druk), dan niet de mislukte belofte bewaren: de volgende poging probeert opnieuw.
+  dummyHash ??= hashPassword('onbekende-gebruiker').catch((err) => { dummyHash = null; throw err; });
   await verifyPassword(password, await dummyHash);
 }
 
@@ -75,6 +109,8 @@ export function validatePassword(raw: unknown, username?: string): string {
   if ([...raw].length < MIN_PASSWORD_LENGTH) fail('INVALID_ARG', `wachtwoord: minimaal ${MIN_PASSWORD_LENGTH} tekens`);
   if (raw.length > 200) fail('INVALID_ARG', 'wachtwoord: maximaal 200 tekens');
   if (username && nameKey(raw) === nameKey(username)) fail('INVALID_ARG', 'het wachtwoord mag niet gelijk zijn aan de gebruikersnaam');
+  const weak = weakPasswordReason(raw, username);
+  if (weak) fail('INVALID_ARG', `wachtwoord: te makkelijk te raden (${WEAK_REASONS_NL[weak]}); kies een langere zin of meer verschillende tekens`);
   return raw;
 }
 
@@ -234,6 +270,13 @@ export function createSession(db: DatabaseSync, userId: string, deviceName: stri
   const now = new Date().toISOString();
   const name = deviceName.normalize('NFC').replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, 100) || 'Onbekend apparaat';
   db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, userId, sha256(token), name, now, now);
+  // Het aantal aangemelde apparaten is begrensd (zie limits.ts): bij het volgende inloggen wordt het langst ongebruikte afgemeld.
+  const surplus = db
+    .prepare('SELECT id FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND id <> ? ORDER BY last_used_at DESC, created_at DESC, rowid DESC LIMIT -1 OFFSET ?')
+    .all(userId, id, LIMITS.sessionsPerUser - 1) as { id: string }[];
+  for (const old of surplus) db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(now, old.id);
+  // Ingetrokken sessies hoeven niet eeuwig in de database te blijven staan.
+  db.prepare('DELETE FROM sessions WHERE revoked_at IS NOT NULL AND revoked_at < ?').run(new Date(Date.parse(now) - 30 * 86_400_000).toISOString());
   return { token, id };
 }
 
@@ -269,17 +312,50 @@ export function revokeSessions(db: DatabaseSync, userId: string, exceptSessionId
 // ---------- inlogpogingen beperken ----------
 
 /**
- * Houdt mislukte inlogpogingen bij per gebruikersnaam en per adres. Te veel mislukkingen in korte tijd: even geen
- * pogingen meer. Het geheugen is begrensd, en een herstart wist de tellers (dat is acceptabel voor dit doel).
+ * Het adres waarop de beperking telt. Een IPv6-aanvaller heeft doorgaans een heel /64-blok tot zijn beschikking; per
+ * volledig adres tellen zou dus niets beperken. Daarom telt bij IPv6 de voorkant (de eerste 64 bits). Een IPv4-adres in
+ * IPv6-schrijfwijze (::ffff:1.2.3.4) telt als dat IPv4-adres.
+ */
+export function ipBucket(address: string): string {
+  const s = address.trim().toLowerCase().split('%')[0];
+  if (!s.includes(':')) return s;
+  const mapped = /^(?:0:0:0:0:0:ffff|::ffff):(\d+\.\d+\.\d+\.\d+)$/.exec(s);
+  if (mapped) return mapped[1];
+  if (s.includes('.')) return s; // een andere vorm met ingebed IPv4-adres: laat zoals het is
+  const parts = s.split('::');
+  if (parts.length > 2) return s;
+  const head = parts[0] ? parts[0].split(':') : [];
+  const tail = parts.length === 2 && parts[1] ? parts[1].split(':') : [];
+  const groups = parts.length === 1 ? head : [...head, ...Array<string>(Math.max(0, 8 - head.length - tail.length)).fill('0'), ...tail];
+  if (groups.length !== 8 || !groups.every((g) => /^[0-9a-f]{1,4}$/.test(g))) return s;
+  return `${groups.slice(0, 4).map((g) => g.padStart(4, '0')).join(':')}::/64`;
+}
+
+/** Een geregistreerde poging; geef hem aan `succeed` (gelukt) of `cancel` (niet de schuld van de bezoeker) terug. */
+export interface LoginAttempt { at: number; pair: string; ip: string; user: string }
+
+/**
+ * Beperkt inlogpogingen, met drie tellers per venster (standaard een kwartier):
+ *  - per combinatie van gebruikersnaam en adres (`pair`, 8): wie het wachtwoord raadt, kan dat maar een paar keer;
+ *  - per adres (`ip`, 40; bij IPv6 per /64): één bron kan niet eindeloos veel namen proberen;
+ *  - per gebruikersnaam over alle adressen (`user`, 60): een verspreide aanval wordt ook begrensd.
+ * Een aanvaller van één adres kan het account van een ander dus niet vergrendelen: hij komt niet verder dan zijn eigen
+ * `pair`-limiet, en voor de algemene limiet van de naam heeft hij tientallen adressen nodig. Het eigen adres van de
+ * eigenaar telt apart.
+ *
+ * De poging wordt geteld voordat het wachtwoord wordt gecontroleerd (`begin`), niet erna. Controleren duurt even en
+ * gebeurt asynchroon; tellen na afloop liet honderden gelijktijdige pogingen door de controle voordat de eerste telde.
+ * Het geheugen is begrensd (de oudste tellers gaan eerst weg); een herstart wist de tellers.
  */
 export class LoginLimiter {
   hits = new Map<string, number[]>();
-  limits: { user: number; ip: number };
+  limits: { pair: number; ip: number; user: number };
   windowMs: number;
   now: () => number;
+  maxKeys = 10_000;
 
-  constructor(limits = { user: 8, ip: 40 }, windowMs = 15 * 60_000, now: () => number = Date.now) {
-    this.limits = limits;
+  constructor(limits: Partial<{ pair: number; ip: number; user: number }> = {}, windowMs = 15 * 60_000, now: () => number = Date.now) {
+    this.limits = { pair: 8, ip: 40, user: 60, ...limits };
     this.windowMs = windowMs;
     this.now = now;
   }
@@ -292,25 +368,65 @@ export class LoginLimiter {
     return list;
   }
 
-  /** Seconden tot de volgende poging mag; 0 als het mag. */
-  retryAfter(username: string, ip: string): number {
+  /**
+   * Mag deze poging? Zo ja, dan is hij nu geteld en komt er een `attempt` terug. Zo nee, dan is `wait` het aantal seconden
+   * tot het weer mag; een geweigerde poging telt niet mee (anders houdt wie blijft proberen zichzelf buitengesloten).
+   */
+  begin(username: string, ip: string): { wait: number; attempt: LoginAttempt | null } {
+    const name = nameKey(username);
+    const bucket = ipBucket(ip);
+    const keys = { pair: `p:${name}|${bucket}`, ip: `i:${bucket}`, user: `u:${name}` };
     let wait = 0;
-    for (const [key, limit] of [[`u:${nameKey(username)}`, this.limits.user], [`i:${ip}`, this.limits.ip]] as const) {
-      const list = this.recent(key);
+    const lists = (['pair', 'ip', 'user'] as const).map((kind) => {
+      const list = this.recent(keys[kind]);
+      const limit = this.limits[kind];
       if (list.length >= limit) wait = Math.max(wait, Math.ceil((list[list.length - limit] + this.windowMs - this.now()) / 1000));
+      return list;
+    });
+    if (wait > 0) return { wait, attempt: null };
+    const at = this.now();
+    (['pair', 'ip', 'user'] as const).forEach((kind, i) => {
+      this.hits.delete(keys[kind]); // opnieuw achteraan zetten: de Map houdt de volgorde van laatst gebruikt bij
+      this.hits.set(keys[kind], [...lists[i], at]);
+    });
+    this.trim();
+    return { wait: 0, attempt: { at, ...keys } };
+  }
+
+  private take(key: string, at: number): void {
+    const list = this.hits.get(key);
+    if (!list) return;
+    const i = list.indexOf(at);
+    if (i >= 0) list.splice(i, 1);
+    if (list.length === 0) this.hits.delete(key);
+  }
+
+  /** Het wachtwoord klopte: deze poging telt niet als mislukking, en de mislukkingen van deze naam vanaf dit adres vervallen. */
+  succeed(attempt: LoginAttempt): void {
+    this.take(attempt.ip, attempt.at);
+    this.take(attempt.user, attempt.at);
+    this.hits.delete(attempt.pair);
+  }
+
+  /** De poging is niet door de bezoeker mislukt (bijvoorbeeld: de server was druk): hij telt niet mee. */
+  cancel(attempt: LoginAttempt): void {
+    this.take(attempt.pair, attempt.at);
+    this.take(attempt.ip, attempt.at);
+    this.take(attempt.user, attempt.at);
+  }
+
+  /**
+   * Houdt het geheugen begrensd. Eerst gaat wat verlopen is; is het dan nog te veel (een aanval met steeds nieuwe namen
+   * en adressen), dan gaan de oudst gebruikte tellers weg tot 90% van het maximum. Nooit alles tegelijk: dat zou de
+   * tellers van een lopende aanval ook wissen.
+   */
+  private trim(): void {
+    if (this.hits.size <= this.maxKeys) return;
+    for (const key of [...this.hits.keys()]) this.recent(key);
+    const target = Math.floor(this.maxKeys * 0.9);
+    for (const key of this.hits.keys()) {
+      if (this.hits.size <= target) break;
+      this.hits.delete(key);
     }
-    return wait;
-  }
-
-  fail(username: string, ip: string): void {
-    // Sleutels van gebruikers en adressen die niet meer terugkomen worden pas bij een volgende vraag opgeruimd; daarom
-    // ruimen we bij groei zelf op. Blijft het toch te groot (een aanval met steeds nieuwe namen), dan beginnen we opnieuw.
-    if (this.hits.size > 1000) for (const key of [...this.hits.keys()]) this.recent(key);
-    if (this.hits.size > 10_000) this.hits.clear();
-    for (const key of [`u:${nameKey(username)}`, `i:${ip}`]) this.hits.set(key, [...this.recent(key), this.now()]);
-  }
-
-  success(username: string): void {
-    this.hits.delete(`u:${nameKey(username)}`);
   }
 }

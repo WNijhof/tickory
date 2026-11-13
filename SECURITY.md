@@ -26,7 +26,8 @@ Only the latest released version receives fixes. Update before you report, if yo
 
 - Put HTTPS in front of it (see the guide, "HTTPS"). Without HTTPS the password and the session token travel unencrypted.
 - Only set `TRUST_PROXY=1` when there really is a reverse proxy in front.
-- A backup contains all tasks of all users and the password hashes: keep it as carefully as the database.
+- A backup contains all tasks of all users, the password hashes and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons): keep it as carefully as the database.
+- After the first start, remove `TODO_ADMIN_PASSWORD` from `.env` and recreate the container, or use `TODO_ADMIN_PASSWORD_FILE`; otherwise the password stays visible in `docker inspect`.
 - The security model (password hashing, sessions, sign-in limits, Content-Security-Policy) is described in chapter 9 of [SPEC.md](SPEC.md) (in Dutch).
 
 ## Nederlands

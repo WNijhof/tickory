@@ -53,22 +53,56 @@ export interface Browser {
 export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 860 }: { workDir: string; cdpPort: number; width?: number; height?: number }): Promise<Browser> {
   const path = findBrowser();
   if (!path) throw new Error('geen browser gevonden (Edge of Chrome); geef het pad in de omgevingsvariabele SITE_BROWSER');
-  const profile = `${workDir.replace(/[\\/]+$/, '')}/profile-${cdpPort}`;
-  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  mkdirSync(profile, { recursive: true });
-  const args = [
-    '--headless=new', `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check',
-    '--disable-gpu', '--hide-scrollbars', '--disable-extensions', '--disable-background-networking', '--disable-component-update', '--disable-sync',
-    '--disable-features=Translate,msEdgeTranslate,OptimizationHints,MediaRouter', `--window-size=${width},${height}`,
-    // In een container (GitHub Actions) werkt de zandbak van de browser niet altijd; het gaat hier om eigen, lokale pagina's.
-    ...(process.env.CI ? ['--no-sandbox'] : []),
-    // SITE_BROWSER_LANG=en-US bootst een Engelse browser na (zoals op GitHub), om te zien dat de controles niet op de taal van de pc leunen
-    ...(process.env.SITE_BROWSER_LANG ? [`--lang=${process.env.SITE_BROWSER_LANG}`] : []),
-    'about:blank',
-  ];
-  const child: ChildProcess = spawn(path, args, { stdio: 'ignore' });
-
+  // De browser start soms traag, of niet (op GitHub Actions kwam het één keer voor: "reageert niet op de debugpoort"). Daarom tot
+  // drie pogingen, elk met een nieuwe poort en een nieuw profiel, en per poging maximaal dertig seconden wachten. Lokaal verandert er
+  // niets: de eerste poging lukt en gebruikt de gevraagde poort.
+  const ATTEMPTS = 3;
+  const WAIT_TRIES = 300; // keer 100 ms
+  let child: ChildProcess | null = null;
+  let profile = '';
   let ws: WebSocket | null = null;
+  for (let attempt = 0; attempt < ATTEMPTS && !ws; attempt++) {
+    const port = cdpPort + attempt * 100; // de vorige poort kan nog bezet zijn
+    profile = `${workDir.replace(/[\/]+$/, '')}/profile-${port}`;
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    mkdirSync(profile, { recursive: true });
+    const args = [
+      '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check',
+      '--disable-gpu', '--hide-scrollbars', '--disable-extensions', '--disable-background-networking', '--disable-component-update', '--disable-sync',
+      '--disable-features=Translate,msEdgeTranslate,OptimizationHints,MediaRouter', `--window-size=${width},${height}`,
+      // In een container (GitHub Actions) werkt de zandbak van de browser niet altijd; het gaat hier om eigen, lokale pagina's.
+      ...(process.env.CI ? ['--no-sandbox'] : []),
+      // SITE_BROWSER_LANG=en-US bootst een Engelse browser na (zoals op GitHub), om te zien dat de controles niet op de taal van de pc leunen
+      ...(process.env.SITE_BROWSER_LANG ? [`--lang=${process.env.SITE_BROWSER_LANG}`] : []),
+      'about:blank',
+    ];
+    const started: ChildProcess = spawn(path, args, { stdio: 'ignore' });
+    child = started;
+    let exited = false;
+    started.once('exit', () => { exited = true; });
+    started.once('error', () => { exited = true; });
+    for (let i = 0; i < WAIT_TRIES && !ws && !exited; i++) {
+      try {
+        const list = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as any[];
+        const page = list.find((t) => t.type === 'page');
+        if (page) {
+          const socket = new WebSocket(page.webSocketDebuggerUrl);
+          await new Promise((res, rej) => { socket.onopen = res; socket.onerror = rej; });
+          ws = socket;
+        }
+      } catch { /* de browser start nog op */ }
+      if (!ws) await sleep(100);
+    }
+    if (!ws) {
+      started.kill();
+      await sleep(500); // even de tijd om te stoppen, voordat de volgende poging dezelfde map opruimt
+      rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+      if (attempt + 1 < ATTEMPTS) console.error(`de browser reageerde niet op de debugpoort (poging ${attempt + 1} van ${ATTEMPTS}); opnieuw proberen`);
+    }
+  }
+  if (!ws || !child) throw new Error(`de browser reageert niet op de debugpoort (${ATTEMPTS} pogingen)`);
+  const proc: ChildProcess = child;
+
   let seq = 0;
   const pending = new Map<number, (m: any) => void>();
   const errors: string[] = [];
@@ -76,23 +110,6 @@ export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 8
   const requests: Request[] = [];
   const byId = new Map<string, Request>();
   const note = (text: string) => (LOCAL_FILTER.test(text) ? filtered : errors).push(text);
-
-  for (let i = 0; i < 150 && !ws; i++) {
-    try {
-      const list = (await (await fetch(`http://127.0.0.1:${cdpPort}/json/list`)).json()) as any[];
-      const page = list.find((t) => t.type === 'page');
-      if (page) {
-        const socket = new WebSocket(page.webSocketDebuggerUrl);
-        await new Promise((res, rej) => { socket.onopen = res; socket.onerror = rej; });
-        ws = socket;
-      }
-    } catch { /* de browser start nog op */ }
-    if (!ws) await sleep(100);
-  }
-  if (!ws) {
-    child.kill();
-    throw new Error('de browser reageert niet op de debugpoort');
-  }
   const socket = ws;
   socket.onmessage = (e) => {
     const m = JSON.parse(String(e.data));
@@ -171,7 +188,7 @@ export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 8
     },
     close: async () => {
       try { socket.close(); } catch { /* al dicht */ }
-      child.kill();
+      proc.kill();
       await sleep(400);
       rmSync(profile, { recursive: true, force: true, maxRetries: 8, retryDelay: 300 });
     },

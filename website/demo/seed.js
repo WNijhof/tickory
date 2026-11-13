@@ -85,9 +85,9 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     }
     return labels.get(key);
   };
-  const project = (owner, name, members = []) => {
+  const project = (owner, name, members = [], extra = {}) => {
     const pid = id('project');
-    run(owner, 'project_add', { id: pid, name });
+    run(owner, 'project_add', { id: pid, name, ...extra });
     for (const m of members) addMember(state, pid, m, 'member', at, id('member'));
     return pid;
   };
@@ -122,6 +122,18 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     run(DEMO_ME, 'reminder_add', { id: id('reminder'), task_id: taskId, ...(when ? { type: 'absolute', due: { date: when } } : { type: 'relative', minute_offset: minutes }) });
   };
 
+  /** Een opmerking bij een taak (`{ task }`) of een project (`{ project }`), `minutesAgo` minuten geleden geschreven door `by`. */
+  const comment = (by, target, content, minutesAgo) => {
+    const cid = id('comment');
+    run(by, 'comment_add', { id: cid, content, ...(target.task ? { task_id: target.task } : { project_id: target.project }) });
+    const row = state.comments.get(cid);
+    if (row) {
+      const when = new Date(now.getTime() - minutesAgo * 60_000).toISOString();
+      row.created_at = when;
+      row.updated_at = when;
+    }
+  };
+
   const [anna, bram, sanne, joost, mila] = DEMO_USERS.map((u) => u.id);
   const bellen = label(anna, 'bellen');
   const boodschappen = label(anna, 'boodschappen');
@@ -145,12 +157,12 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   task(anna, { content: 'Pakketje ophalen bij de buren', project: INBOX, done: true });
 
   // ---- Huishouden: jouw project, gedeeld met Bram en Sanne ----
-  const huis = project(anna, 'Huishouden', [bram, sanne]);
+  const huis = project(anna, 'Huishouden', [bram, sanne], { color: 'teal', is_favorite: true });
   const sBoodschappen = section(anna, huis, 'Boodschappen');
   const sKlusjes = section(anna, huis, 'Klusjes');
   const sVast = section(anna, huis, 'Vaste prik');
   task(bram, { content: 'Weekmenu maken', project: huis, due: day(0), assignee: bram });
-  const boodschap = task(anna, { content: 'Boodschappen doen', project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen] });
+  const boodschap = task(anna, { content: 'Boodschappen doen', project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen], description: 'Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.' });
   task(anna, { content: 'Brood', project: huis, parent: boodschap, done: true });
   task(anna, { content: 'Melk en eieren', project: huis, parent: boodschap });
   task(bram, { content: 'Koffiebonen', project: huis, parent: boodschap });
@@ -166,9 +178,14 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   reminder(task(anna, { content: 'Vuilnis buiten zetten', project: huis, section: sVast, due: due('elke donderdag om 20:00'), assignee: bram }), { minutes: 60 });
   task(anna, { content: 'Planten water geven', project: huis, section: sVast, due: due('elke zondag'), assignee: sanne });
   task(bram, { content: 'Stofzuigen', project: huis, section: sVast, due: due('elke zaterdag'), assignee: anna });
+  const lamp = [...state.tasks.values()].find((x) => x.content === 'Lamp in de gang vervangen').id;
+  comment(bram, { task: boodschap }, 'Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.', 150);
+  comment(anna, { task: boodschap }, 'Top, dank je! Vergeet de hagelslag niet: https://www.voorbeeld.nl/boodschappen', 95);
+  comment(bram, { task: lamp }, 'Welke fitting is het, E27 of E14?', 1500);
+  comment(sanne, { project: huis }, 'Wie zet deze week het vuilnis buiten?', 300);
 
   // ---- Vakantie Texel: van jou alleen ----
-  const texel = project(anna, 'Vakantie Texel');
+  const texel = project(anna, 'Vakantie Texel', [], { color: 'sky' });
   const sRegelen = section(anna, texel, 'Regelen');
   const sInpakken = section(anna, texel, 'Inpakken');
   const boot = task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1 });
@@ -179,9 +196,15 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   task(anna, { content: 'Regenjassen', project: texel, section: sInpakken });
   task(anna, { content: 'Fietstassen', project: texel, section: sInpakken });
   task(anna, { content: 'Verrekijker', project: texel, section: sInpakken });
+  // een subproject, en een project dat al klaar is en daarom gearchiveerd (zie "Gearchiveerde projecten" onderaan de zijbalk)
+  const route = project(anna, 'Fietsroute', [], { color: 'green', parent_id: texel });
+  task(anna, { content: 'Knooppunten uitzoeken', project: route, due: due('over twee weken') });
+  const oud = project(anna, 'Verhuizing 2025', [], { color: 'grey' });
+  task(anna, { content: 'Adreswijziging doorgeven', project: oud, done: true });
+  run(anna, 'project_update', { id: oud, is_archived: true });
 
   // ---- Buurtfeest: van Joost; jij en Mila zijn lid ----
-  const feest = project(joost, 'Buurtfeest', [anna, mila]);
+  const feest = project(joost, 'Buurtfeest', [anna, mila], { color: 'orange' });
   const buurt = label(joost, 'buurt'); // een label van iemand anders: je ziet het, maar kunt het niet wijzigen
   task(joost, { content: 'Vergunning aanvragen bij de gemeente', project: feest, deadline: 14, priority: 1, assignee: joost, labels: [buurt] });
   task(joost, { content: 'Partytent regelen', project: feest, due: due('aanstaande vrijdag'), assignee: anna });
