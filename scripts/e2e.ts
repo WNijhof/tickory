@@ -36,8 +36,10 @@ rmSync(workDir, { recursive: true, force: true });
 mkdirSync(shotsDir, { recursive: true });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-// Het aantal bestanden dat de app offline bewaart, uit de service worker zelf (zodat dit getal nooit achterloopt).
-const SHELL_COUNT = (readFileSync(fileURLToPath(new URL('../client/sw.js', import.meta.url)), 'utf8').split('const SHELL = [')[1].split('];')[0].match(/'\/[^']*'/g) ?? []).length;
+// Het aantal bestanden dat de app offline bewaart en de naam van die bewaarplaats, uit de service worker zelf (zodat dit nooit achterloopt).
+const swSource = readFileSync(fileURLToPath(new URL('../client/sw.js', import.meta.url)), 'utf8');
+const SHELL_COUNT = (swSource.split('const SHELL = [')[1].split('];')[0].match(/'\/[^']*'/g) ?? []).length;
+const CACHE_NAME = /const CACHE = '([^']+)'/.exec(swSource)![1];
 const results: string[] = [];
 const step = (text: string) => { results.push(text); console.log(`✔ ${text}`); };
 
@@ -139,6 +141,24 @@ async function waitFor(expression: string, what: string, timeoutMs = 10_000): Pr
  */
 const SYNCED = `new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(document.getElementById('sync-status').textContent === 'Bijgewerkt'))))`;
 const js = (v: unknown) => JSON.stringify(v);
+/**
+ * Een sync-verzoek van "een ander apparaat", rechtstreeks vanuit deze test. Eén herhaling bij een verbroken verbinding:
+ * na het stoppen en starten van de server kan Node nog een oude, bewaarde verbinding proberen. Elk commando heeft een
+ * vaste uuid, dus herhalen is veilig.
+ */
+async function syncAs(token: string, clientId: string, commands: object[]): Promise<Response> {
+  const request = () => fetch(`${BASE}/api/v1/sync`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-Client-Id': clientId },
+    body: JSON.stringify({ commands }),
+  });
+  try {
+    return await request();
+  } catch {
+    await sleep(250);
+    return request();
+  }
+}
 const pageText = () => evaluate<string>(`document.body.innerText.replace(/\\s+/g, ' ').slice(0, 900)`);
 const typeInto = (selector: string, text: string) =>
   evaluate(`(() => { const el = document.querySelector(${js(selector)}); if (!el) throw new Error('niet gevonden: ' + ${js(selector)}); el.focus(); el.value = ${js(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); })()`);
@@ -329,11 +349,7 @@ try {
 
   // ---- 6. een ander apparaat wijzigt iets: komt vanzelf binnen ----
   const otherToken = createSession(db, alice.id, 'Telefoon').token;
-  const other = await fetch(`${BASE}/api/v1/sync`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${otherToken}`, 'Content-Type': 'application/json', 'X-Client-Id': 'ander-apparaat' },
-    body: JSON.stringify({ commands: [{ type: 'task_add', uuid: 'e2e-ander-apparaat-1', args: { project_id: serverTask('Planten water geven').project_id, content: 'Van mijn telefoon' } }] }),
-  });
+  const other = await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-ander-apparaat-1', args: { project_id: serverTask('Planten water geven').project_id, content: 'Van mijn telefoon' } }]);
   assert.equal(other.status, 200);
   await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Van mijn telefoon')`, 'taak van ander apparaat verschijnt zonder herladen', 6000);
   step('realtime: een taak van een ander apparaat verschijnt binnen enkele seconden, zonder herladen');
@@ -342,11 +358,11 @@ try {
   await waitFor(`navigator.serviceWorker.controller !== null`, 'service worker actief', 15_000);
   // De offline-kopie moet compleet zijn. Op een pc met AdGuard wordt ze kort na het aanleggen gewist (AdGuard plakt
   // eigen code vóór de service worker); de app vult haar daarna zelf weer aan. Daarop wachten we hier.
-  const cacheCount = `caches.open('tickory-v1').then((c) => c.keys()).then((k) => k.length)`;
+  const cacheCount = `caches.open(${js(CACHE_NAME)}).then((c) => c.keys()).then((k) => k.length)`;
   const firstCount = await evaluate<number>(cacheCount);
-  const otherCaches = await evaluate<string[]>(`caches.keys().then((n) => n.filter((x) => x !== 'tickory-v1'))`);
-  await waitFor(`caches.open('tickory-v1').then((c) => c.keys()).then((k) => k.length >= ${SHELL_COUNT})`, 'offline-kopie compleet (eventueel na aanvullen)', 30_000);
-  const root = await evaluate<any>(`caches.open('tickory-v1').then((c) => c.match('/')).then((m) => m && { status: m.status, type: m.type })`);
+  const otherCaches = await evaluate<string[]>(`caches.keys().then((n) => n.filter((x) => x !== ${js(CACHE_NAME)}))`);
+  await waitFor(`caches.open(${js(CACHE_NAME)}).then((c) => c.keys()).then((k) => k.length >= ${SHELL_COUNT})`, 'offline-kopie compleet (eventueel na aanvullen)', 30_000);
+  const root = await evaluate<any>(`caches.open(${js(CACHE_NAME)}).then((c) => c.match('/')).then((m) => m && { status: m.status, type: m.type })`);
   assert.deepEqual(root, { status: 200, type: 'basic' });
   step(`offline-kopie compleet: ${SHELL_COUNT} bestanden${firstCount < SHELL_COUNT ? ` (stond eerst op ${firstCount}: gewist door een filter met cache "${otherCaches.join(', ')}", daarna vanzelf aangevuld)` : ''}`);
   await stopServer();
@@ -402,11 +418,7 @@ try {
 
   const bobToken = createSession(db, bob.id, 'Bob zijn telefoon').token;
   const thuisId = (serverState().projects as any[]).find((p) => p.name === 'Thuis').id;
-  const fromBob = await fetch(`${BASE}/api/v1/sync`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${bobToken}`, 'Content-Type': 'application/json', 'X-Client-Id': 'bob-telefoon' },
-    body: JSON.stringify({ commands: [{ type: 'task_add', uuid: 'e2e-bob-taak-0001', args: { project_id: thuisId, content: 'Gordijnen ophangen', assignee_id: alice.id } }] }),
-  });
+  const fromBob = await syncAs(bobToken, 'bob-telefoon', [{ type: 'task_add', uuid: 'e2e-bob-taak-0001', args: { project_id: thuisId, content: 'Gordijnen ophangen', assignee_id: alice.id } }]);
   assert.equal(fromBob.status, 200);
   await waitFor(`[...document.querySelectorAll('.task-title')].some((e) => e.textContent === 'Gordijnen ophangen')`, 'taak van Bob verschijnt vanzelf', 6000);
   assert.deepEqual(await taskMeta('Gordijnen ophangen'), ['voor jou']);
