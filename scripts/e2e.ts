@@ -1035,7 +1035,7 @@ try {
   await sleep(300);
   await shot('telefoon-project');
   assert.equal(await evaluate(`getComputedStyle(document.getElementById('sidebar')).position`), 'fixed', 'op de telefoon is de zijbalk een uitschuifmenu');
-  assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true, 'geen horizontaal scrollen op de telefoon');
+  assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390, 'geen horizontaal scrollen op de telefoon: de pagina is precies zo breed als het scherm');
   await click('#menu-button');
   await sleep(350);
   await shot('telefoon-menu');

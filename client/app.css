@@ -53,7 +53,7 @@ h1, h2, p { margin: 0; }
 .scrim { display: none; }
 .topbar { display: flex; align-items: center; gap: 12px; padding: 18px 0 12px; position: sticky; top: 0; background: var(--bg); z-index: 2; }
 .topbar h1 { font-size: 1.5rem; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-button { display: none; }
+.icon-button.menu-button { display: none; }
 
 /* ---------- zijbalk ---------- */
 .brand { font-weight: 700; font-size: 1.1rem; padding: 6px 12px 14px; color: var(--accent); }
@@ -205,7 +205,7 @@ textarea.field { resize: vertical; }
 
 /* ---------- telefoon ---------- */
 @media (max-width: 760px) {
-  .menu-button { display: inline-flex; }
+  .icon-button.menu-button { display: inline-flex; }
   .sidebar {
     position: fixed; left: 0; top: 0; bottom: 0; z-index: 11; transform: translateX(-102%); transition: transform 0.18s ease;
     width: min(86vw, 320px); padding-top: calc(12px + env(safe-area-inset-top));

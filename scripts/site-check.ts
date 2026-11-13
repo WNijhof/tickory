@@ -790,7 +790,7 @@ if (wants('browser')) {
         await nav('Huishouden');
         await viewTitle('Huishouden');
         await waitFor(`await ${SYNCED}`, 'bijgewerkt');
-        assert.deepEqual(await chips('Loodgieter bellen'), ['morgen 09:00', '@bellen']);
+        assert.deepEqual(await chips('Loodgieter bellen'), ['morgen 09:00', '@bellen', '🔔']);
         assert.equal(await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Loodgieter bellen').classList.contains('prio-1')`), true);
         assert.equal(await evaluate(`[...document.querySelectorAll('.group')].find((g) => g.querySelector('.group-title')?.textContent === 'Klusjes').textContent.includes('Loodgieter bellen')`), true, 'de taak staat in de sectie Klusjes');
 

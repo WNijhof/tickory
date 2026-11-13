@@ -10,6 +10,10 @@
     "test": "node --test shared/ server/ client/core/",
     "start": "node server/main.ts",
     "e2e": "node scripts/e2e.ts",
-    "backup": "node server/backup.ts"
+    "backup": "node server/backup.ts",
+    "site:build": "node scripts/build-site.ts",
+    "site:check": "node scripts/build-site.ts && node scripts/site-check.ts",
+    "site:serve": "node scripts/serve-site.ts",
+    "site:shots": "node scripts/site-shots.ts"
   }
 }

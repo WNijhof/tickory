@@ -16,3 +16,6 @@ docker-compose*.yml
 start.cmd
 server/testutil.ts
 android
+website
+_site
+.site-work

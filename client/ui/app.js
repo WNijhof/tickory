@@ -173,7 +173,7 @@ async function submitQuickAdd(e) {
 
 function navigate(route) {
   ui.route = route;
-  localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
+  if (!backend.demo) localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
   document.body.classList.remove('nav-open');
   render();
 }

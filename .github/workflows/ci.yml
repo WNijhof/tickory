@@ -19,6 +19,17 @@ jobs:
       - run: node --version
       - run: npm test
 
+  website:
+    name: website en demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+      - run: node scripts/build-site.ts
+      - run: node scripts/site-check.ts
+
   image:
     name: image bouwen en testen
     runs-on: ubuntu-latest
