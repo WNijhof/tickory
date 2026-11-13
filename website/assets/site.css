@@ -268,3 +268,24 @@ td.wrap-ok { white-space: normal; }
   .site-header, .site-footer, .guide-nav, .pager, .copy, .skip { display: none !important; }
   .guide { display: block; }
 }
+
+/* ---------- nagebootste widget (handleiding, pagina Widgets): HTML en CSS, geen schermafbeelding van een telefoon ---------- */
+.widget-demo { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.widget-demo figure { flex: 1 1 260px; max-width: 340px; }
+.widget-demo figcaption { color: var(--text-soft); font-size: 0.9rem; margin-top: 8px; }
+.widget-mock { --wm-bg: #fbfcfc; --wm-text: #1c1f23; --wm-soft: #5b6670; --wm-accent: #0f766e; --wm-late: #b42318; --wm-p1: #d1453b; --wm-p2: #cc6d00; --wm-p3: #246fe0; --wm-p4: #7d8791;
+  background: var(--wm-bg); color: var(--wm-text); border: 1px solid var(--line); border-radius: 22px; padding: 4px 0 10px; box-shadow: var(--shadow); font-size: 0.95rem; line-height: 1.35; }
+.widget-mock.is-dark { --wm-bg: #1e2226; --wm-text: #e8eaed; --wm-soft: #9aa5b1; --wm-accent: #2dd4bf; --wm-late: #f97066; --wm-p1: #f2776c; --wm-p2: #f5a03a; --wm-p3: #6aa3ff; --wm-p4: #8b96a1; }
+.wm-bar { display: flex; align-items: center; padding: 6px 4px 2px 16px; }
+.wm-title { flex: 1; min-width: 0; }
+.wm-head { display: block; font-weight: 700; font-size: 1.1rem; }
+.wm-soft { color: var(--wm-soft); font-size: 0.8rem; }
+.wm-plus { width: 40px; text-align: center; font-size: 1.6rem; line-height: 1; color: var(--wm-accent); }
+.wm-row { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 14px; }
+.wm-check { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--wm-p4); background: color-mix(in srgb, var(--wm-p4) 14%, transparent); }
+.wm-check.p1 { border-color: var(--wm-p1); background: color-mix(in srgb, var(--wm-p1) 14%, transparent); }
+.wm-check.p2 { border-color: var(--wm-p2); background: color-mix(in srgb, var(--wm-p2) 14%, transparent); }
+.wm-check.p3 { border-color: var(--wm-p3); background: color-mix(in srgb, var(--wm-p3) 14%, transparent); }
+.wm-text { min-width: 0; }
+.wm-day { display: block; padding: 6px 16px 0; font-size: 0.8rem; font-weight: 700; color: var(--wm-accent); }
+.wm-late { color: var(--wm-late); }

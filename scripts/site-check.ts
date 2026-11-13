@@ -496,6 +496,10 @@ if (wants('demo')) {
       ['task_update', { id: T1, project_id: x.inbox }, 'IMMUTABLE'],
       ['task_update', { id: 'check-task-geen', content: 'x' }, 'NOT_FOUND'],
       ['task_complete', { id: T1 }, 'ok'],
+      // if_due: een afvinkactie die een oudere datum zag, doet niets (T1 is net doorgeschoven); een ongeldige datum of extra argument niet
+      ['task_complete', { id: T1, if_due: '2001-01-01' }, 'ok'],
+      ['task_complete', { id: T3, if_due: 'morgen' }, 'INVALID_ARG'],
+      ['task_complete', { id: T3, iets: 1 }, 'UNKNOWN_ARG'],
       ['task_complete', { id: T3 }, 'ok'],
       ['task_complete', { id: T3 }, 'ok'],
       ['task_uncomplete', { id: T3 }, 'ok'],

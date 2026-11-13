@@ -136,3 +136,19 @@ test('twee afvinkacties op dezelfde terugkerende taak (widget en web-app) schuiv
   assert.equal(c.store.view.tasks.get(rec).due.date, '2026-11-20', 'één keer doorgeschoven');
   assert.equal(c.store.view.tasks.get(rec).completed_count, 1);
 });
+
+test('lokaal doet het commando hetzelfde als de server: een al doorgeschoven terugkerende taak blijft staan', async () => {
+  const { applyCommand, emptyState } = await import('./reducer.js');
+  const state = emptyState();
+  const due = { date: '2026-11-20', recurrence: { freq: 'weekly', byweekday: [5] } };
+  state.tasks.set('recurring-aaaa11', { id: 'recurring-aaaa11', project_id: 'p', content: 'x', due, checked: false, completed_count: 1, order_key: 'a' });
+  // een afvinkactie die de datum van vóór het doorschuiven zag: niets doen
+  applyCommand(state, { type: 'task_complete', args: { id: 'recurring-aaaa11', if_due: '2026-11-13' } }, '2026-11-13T10:00:00Z');
+  assert.equal(state.tasks.get('recurring-aaaa11').due.date, '2026-11-20');
+  assert.equal(state.tasks.get('recurring-aaaa11').completed_count, 1);
+  // met de goede datum, of zonder: wel doorschuiven
+  applyCommand(state, { type: 'task_complete', args: { id: 'recurring-aaaa11', if_due: '2026-11-20' } }, '2026-11-13T10:00:00Z');
+  assert.equal(state.tasks.get('recurring-aaaa11').due.date, '2026-11-27');
+  applyCommand(state, { type: 'task_complete', args: { id: 'recurring-aaaa11' } }, '2026-11-13T10:00:00Z');
+  assert.equal(state.tasks.get('recurring-aaaa11').due.date, '2026-12-04');
+});

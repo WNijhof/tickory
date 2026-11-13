@@ -1,0 +1,115 @@
+<!--
+title: Widgets on Android
+description: The widgets of the Tickory Android app: Today, Project or list, Upcoming and an Add task button. Complete tasks from the home screen, also without internet; placing them, resizing, colours and what they do and do not do. Comes with the next version.
+-->
+<h1>Widgets on Android</h1>
+<p class="intro">A widget shows your tasks on the home screen of your phone and lets you complete them there, without opening the app. The widgets are part of the <a href="android-app.html">Android app</a>; they do not exist in a browser.</p>
+
+<div class="note warn">
+  <span class="note-label">Next version, and not tried on a phone yet</span>
+  <p>The widgets come with the <strong>next version</strong> of the Android app; the version that is out now does not have them. They have been tested on a computer (the calculation rules, the data on the device, the queue, drawing on a simulated Android and the screen where you choose what a widget shows). How they look <strong>on a real phone and in your launcher</strong>, how resizing feels and how battery saving treats them has not been tried yet. If you notice something, report it on <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>The four widgets</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Widget</th><th>What it shows</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Today</strong></td><td class="wrap-ok">What is overdue and what is due today, in the same order as in the app: by time first, then by priority. The date and the number of tasks are at the top. If there is nothing to do, it says so.</td></tr>
+      <tr><td><strong>Project or list</strong></td><td class="wrap-ok">The open tasks of one place that you choose when you place the widget: the Inbox, a project (with its sections and subtasks), Today or Upcoming. You can place more of them, each with its own choice. Saved filters cannot be shown yet; the list of choices is prepared for them.</td></tr>
+      <tr><td><strong>Upcoming</strong></td><td class="wrap-ok">The next two weeks starting tomorrow, by day with a heading. What is overdue is in Today.</td></tr>
+      <tr><td><strong>Add task</strong></td><td class="wrap-ok">A button (small, 1×1 or wider) that opens Tickory on the <em>Add task</em> window, for the Inbox.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="widget-demo" role="group" aria-label="Simulated example of the Today widget, light and dark">
+  <figure>
+    <div class="widget-mock" aria-hidden="true">
+      <div class="wm-bar"><div class="wm-title"><span class="wm-head">Today</span><span class="wm-soft">Fri 13 Nov · 3 tasks</span></div><span class="wm-plus">+</span></div>
+      <div class="wm-row"><span class="wm-check p3"></span><span class="wm-text">Do the shopping<br><span class="wm-soft wm-late">yesterday · Inbox</span></span></div>
+      <div class="wm-row"><span class="wm-check p1"></span><span class="wm-text">Call the dentist<br><span class="wm-soft">14:00 · Work</span></span></div>
+      <div class="wm-row"><span class="wm-check"></span><span class="wm-text">Water the plants<br><span class="wm-soft">Home · @home</span></span></div>
+    </div>
+    <figcaption>Light. A circle in the colour of the priority; tap it to complete, tap the title to open the task, tap + to add something.</figcaption>
+  </figure>
+  <figure>
+    <div class="widget-mock is-dark" aria-hidden="true">
+      <div class="wm-bar"><div class="wm-title"><span class="wm-head">Upcoming</span><span class="wm-soft">4 tasks</span></div><span class="wm-plus">+</span></div>
+      <span class="wm-day">Tomorrow</span>
+      <div class="wm-row"><span class="wm-check p2"></span><span class="wm-text">Bakery<br><span class="wm-soft">10:00 · Inbox</span></span></div>
+      <span class="wm-day">Sun 15 Nov</span>
+      <div class="wm-row"><span class="wm-check"></span><span class="wm-text">Jan's birthday<br><span class="wm-soft">Family</span></span></div>
+    </div>
+    <figcaption>Dark, for the Upcoming widget.</figcaption>
+  </figure>
+</div>
+<p>These are <strong>simulated examples made in HTML</strong>, not screenshots of a phone. On a real device the colours, the corners and the text size can turn out differently, because your launcher and the theme of your phone influence them.</p>
+
+<h2>Placing a widget</h2>
+<ol>
+  <li>Press and hold an empty spot on your home screen and choose <em>Widgets</em> (the name differs per brand).</li>
+  <li>Find <em>Tickory</em> and drag the widget you want to the home screen.</li>
+  <li>For <em>Project or list</em> a screen opens where you choose what the widget shows. If you close it without choosing, the widget is not placed. Choosing again later works on Android 9 and newer by pressing and holding the widget and picking the setting; on older versions you remove the widget and place it again.</li>
+  <li>If you are not signed in yet, it says <em>Sign in via the app</em>. Tap it, sign in, and the widget fills up.</li>
+</ol>
+<p>You can change the <strong>size</strong> by pressing and holding the widget and dragging the edges. Small shows only the title with the count and the tasks on one line each; medium and large also show the date, the project and the labels, large with slightly bigger letters. The list scrolls when there are more tasks than fit.</p>
+
+<h2>Completing and opening</h2>
+<ul>
+  <li><strong>Tap the circle</strong> to complete a task. It disappears from all widgets right away. The circle and the row are at least 48 points big, the smallest tap target Android recommends.</li>
+  <li><strong>Tap the title</strong> to open the task in the app.</li>
+  <li><strong>Tap +</strong> to open the <em>Add task</em> window. In Today the date is already set to today, in a project the task goes into that project, in the other lists the place stays as the app knows it.</li>
+  <li><strong>Tap the header</strong> to open the app.</li>
+</ul>
+
+<h3>Completing without internet</h3>
+<p>Completing also works when your phone has no connection. The app then puts the task in a queue on the device that survives a restart of the phone, and sends it to your server as soon as there is a connection. If that fails it tries again; after three days it gives up and the task is back in the list as the server has it. Tapping twice counts as once, and even when the app or the web app does the same completing again, a recurring task does not move on twice.</p>
+<ul>
+  <li>A <strong>recurring task</strong> disappears from the widget after the tap and comes back with the new date as soon as the server has passed it on. The widget does not invent that date itself, so without a connection it stays away for a while.</li>
+  <li>If the server refuses (the task has been removed in the meantime, or you are no longer a member of the project), nothing gets stuck: the widget shows how things really are at the next refresh.</li>
+  <li>The reminders and notifications of a completed task expire right away, also without internet.</li>
+</ul>
+
+<h2>Refreshing</h2>
+<p>The widgets read their data from the device itself, not through the built-in browser, so they also work when the app is not running. The device fetches the data:</p>
+<ul>
+  <li>right after signing in and every time you open the app;</li>
+  <li>shortly after you change a task, project or order in the app;</li>
+  <li>every quarter of an hour in the background, only with a connection and without keeping the phone awake;</li>
+  <li>right after completing something in a widget.</li>
+</ul>
+<p>After midnight the widgets redraw themselves, also without a connection, so that <em>Today</em> and <em>overdue</em> are right. This uses one inexact alarm per day that Android may postpone, so it can be a few minutes later.</p>
+
+<h2>Appearance</h2>
+<ul>
+  <li><strong>Light and dark</strong> follow the setting of your phone.</li>
+  <li>On <strong>Android 12 and newer</strong> the background, the text and the accent take the colours of your theme (<em>Material You</em>), and the corners those of your phone. On older versions or without dynamic colours they are the fixed Tickory colours. The priority colours stay fixed, because they mean something.</li>
+  <li>The widgets have descriptions for <strong>TalkBack</strong>: the circle reads as <em>Complete: …</em> with the name of the task, the title as <em>Open task: …</em>.</li>
+  <li>The widgets come in Dutch and English, following the language of the phone.</li>
+</ul>
+
+<h2>Privacy and security</h2>
+<ul>
+  <li>The tasks are kept in the private storage of the app on the phone, not encrypted and not in backups; anyone who roots the device can read them. The sign-in stays encrypted in the Android Keystore, as for the reminders.</li>
+  <li><strong>Signing out clears everything</strong>: the tasks, the projects and the queue. If you sign in with another account, the tasks of the previous account are hidden at once and whatever was still in the queue is dropped; what one account completed is never sent under the other. If you change the server address, everything is wiped too.</li>
+  <li>In a <strong>shared project</strong> the widget shows only what you may see: the server sends nothing else. If you are no longer a member, the project disappears at the next refresh and a widget that was showing it says the project is gone.</li>
+  <li>The widgets use the same connection and sign-in to your server as the reminders, and the app refuses an <code>http://</code> address outside your own network here too. No tasks end up in the log of the phone.</li>
+</ul>
+
+<h2>If a widget is empty or out of date</h2>
+<ul>
+  <li><em>Sign in via the app</em> or <em>Sign in again via the app</em>: the sign-in is missing or has expired. Open the app and sign in.</li>
+  <li><em>Loading…</em>: there is no data for your account on the device yet. Open the app with a connection.</li>
+  <li>The widget lags behind: look under <x-ui k="settings.title"></x-ui>, <x-ui k="settings.notifications"></x-ui> to see whether battery saving is on for the app. Some brands (Xiaomi, Huawei, OnePlus, Samsung) restrict apps in the background; set the battery of Tickory to <em>Unrestricted</em>. Without that the widget only refreshes when you open the app.</li>
+  <li>A task you change in the app shows in the widget within a few seconds; without a connection in the app, the widget waits until the change is on the server.</li>
+</ul>
+
+<h2>What does not work yet</h2>
+<ul>
+  <li>Saved filters in a widget. The list of choices is prepared; filters come later.</li>
+  <li>Editing a task in the widget, postponing it or giving it a date; open the task for that.</li>
+  <li>Widgets on the lock screen or in a browser.</li>
+</ul>

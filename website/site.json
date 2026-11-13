@@ -88,6 +88,7 @@
         { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
         { "nl": "handleiding/installeren-als-app.html", "en": "guide/install-as-app.html" },
         { "nl": "handleiding/android-app.html", "en": "guide/android-app.html" },
+        { "nl": "handleiding/widgets.html", "en": "guide/widgets.html" },
         { "nl": "handleiding/account.html", "en": "guide/account.html" }
       ]
     },
