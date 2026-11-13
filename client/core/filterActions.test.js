@@ -301,6 +301,33 @@ test('labelList: zonder gebruiker (voor de eerste sync) zijn alle labels eigen; 
   assert.deepEqual(labelList(view, null).others, []);
 });
 
+test('label hernoemen: dezelfde naam in een andere Unicode-vorm is dezelfde naam en wordt niet verstuurd', async () => {
+  const w = world();
+  await start(w.alice);
+  const a = w.alice;
+  const id = await a.actions.addLabel('Zoë');
+  await a.sync.syncNow();
+  const queue = a.store.queueLength;
+  assert.deepEqual(await a.actions.renameLabel(id, 'Zoe\u0308'), { ok: true });
+  assert.equal(a.store.queueLength, queue);
+  assert.equal(a.store.view.labels.get(id).name, 'Zoë');
+});
+
+test('filter wijzigen: naam en tekst worden getrimd, andere velden blijven zoals opgegeven', async () => {
+  const w = world();
+  await start(w.alice);
+  const a = w.alice;
+  const id = await a.actions.addFilter({ name: 'x', query: 'p1' });
+  await a.actions.updateFilter(id, { name: ' Nieuw ', query: ' p2 ', color: 'blue' });
+  const f = filterList(a.store.view, a.user.id)[0];
+  assert.deepEqual([f.name, f.query, f.color], ['Nieuw', 'p2', 'blue']);
+  await a.actions.updateFilter(id, { is_favorite: true });
+  const g = filterList(a.store.view, a.user.id)[0];
+  assert.deepEqual([g.name, g.query, g.is_favorite], ['Nieuw', 'p2', true]);
+  assert.equal(await a.sync.syncNow(), true);
+  assert.deepEqual(a.errors, []);
+});
+
 test('compileFilter en de acties delen geen verborgen toestand', () => {
   // een filter wordt telkens opnieuw gecompileerd: dezelfde tekst, twee keer, hetzelfde resultaat
   const ctx = { view: { projects: new Map(), tasks: new Map([['t', { id: 't', priority: 1 }]]) }, now: NOW };

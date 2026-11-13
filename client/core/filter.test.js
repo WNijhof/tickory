@@ -2,8 +2,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyState } from './reducer.js';
-import { compileFilter, evaluateFilter, FILTER_ERROR_CODES, filterErrorMessage, MAX_QUERY_LENGTH, TERMS } from './filter.js';
+import { compileFilter, evaluateFilter, FILTER_ERROR_CODES, filterErrorMessage, TERMS } from './filter.js';
 import { hasReminder } from './selectors.js';
+import { ENTITIES } from '../../shared/schema.js';
 import { addDays, todayString } from './format.js';
 
 const NOW = new Date(2026, 10, 11, 9, 0, 0);
@@ -253,7 +254,7 @@ test('projecten: #project, ##project met subprojecten, namen met spaties en teke
 });
 
 test('projecten: Café in elke schrijfwijze', () => {
-  for (const q of ['#Café', '#CAFÉ', '#café', '#Cafe\u0301', '#CAFE\u0301', '#cafe']) assert.deepEqual(hits(q, PROPS), ['inCafe'], q);
+  for (const q of ['#Café', '#CAFÉ', '#café', '#Cafe\u0301', '#CAFE\u0301', '#cafe', '#CAFE', '#Cafè', '#CAFÈ']) assert.deepEqual(hits(q, PROPS), ['inCafe'], q);
 });
 
 test('projecten: bij twee projecten met dezelfde naam tellen beide', () => {
@@ -388,6 +389,7 @@ test('zoek: tekens van de filtertaal in de tekst met aanhalingstekens of backsla
   assert.deepEqual(hits('zoek: "Jan & Piet"', tasks), ['a']);
   assert.deepEqual(hits('zoek: Jan \\& Piet', tasks), ['a']);
   assert.deepEqual(hits('zoek: wow!', tasks), ['b'], 'een uitroepteken in een zoektekst is gewoon een teken');
+  for (const word of ['zoeken', 'search', 'ZOEK']) assert.deepEqual(hits(`${word}: wow!`, tasks), ['b'], word);
   assert.deepEqual(hits('zoek: "(echt)"', tasks), ['b']);
   assert.deepEqual(hits('zoek: "a, b"', tasks), ['c']);
   assert.deepEqual(hits('zoek: wow! & !zoek: jan', tasks), ['b']);
@@ -674,11 +676,19 @@ test('fout: zonder ingelogde gebruiker werken "mij" en "anderen" niet, de rest w
   assert.equal(compileFilter('p1 & heeft herinnering', { view: world([]), now: NOW }).ok, true);
 });
 
+test('een ongeldige tijd als "nu" valt terug op de echte klok in plaats van te crashen', () => {
+  const c = compileFilter('vandaag', { view: world([]), now: new Date(Number.NaN), userId: ME });
+  assert.equal(c.ok, true);
+  const today = todayString(new Date());
+  assert.equal(c.match({ due: { date: today } }), true);
+});
+
 test('fout: te lang, te diep genest', () => {
-  assert.equal(compileFilter('p1'.padEnd(MAX_QUERY_LENGTH, ' ')).ok, true, 'precies de maximale lengte mag');
-  const e = error(`p1${' '.repeat(MAX_QUERY_LENGTH)}`);
+  assert.equal(compileFilter('p1'.padEnd(2000, ' ')).ok, true, 'precies de maximale lengte mag');
+  const e = error(`p1${' '.repeat(2000)}`);
   assert.equal(e.code, 'too_long');
-  assert.equal(e.position, MAX_QUERY_LENGTH);
+  assert.equal(e.position, 2000);
+  assert.equal(ENTITIES.filter.cols.find((c) => c.name === 'query').maxLen, 2000, 'gelijk aan wat het datamodel toestaat');
   const deep = error(`${'('.repeat(100)}p1${')'.repeat(100)}`);
   assert.equal(deep.code, 'too_deep');
   assert.equal(compileFilter(`${'('.repeat(30)}p1${')'.repeat(30)}`, ctxOf(world([]))).ok, true);
@@ -878,6 +888,62 @@ test('prestatie: 10.000 taken met een paar termen in redelijke tijd', (t) => {
     t.diagnostic(`${ms.toFixed(1)} ms voor ${r.tasks.length} van 10000 taken: ${q}`);
   }
   assert.ok(slowest < 2000, `te traag: ${slowest.toFixed(0)} ms`);
+});
+
+// ---------- aanvullingen op de dekking ----------
+
+test('maandnamen: elke maand, Nederlands en Engels, voluit en afgekort', () => {
+  const names = [
+    ['januari', 'january', 'jan'], ['februari', 'february', 'feb'], ['maart', 'march', 'mrt', 'mar'], ['april', 'apr'], ['mei', 'may'], ['juni', 'june', 'jun'],
+    ['juli', 'july', 'jul'], ['augustus', 'august', 'aug'], ['september', 'sep', 'sept'], ['oktober', 'october', 'okt', 'oct'], ['november', 'nov'], ['december', 'dec'],
+  ];
+  names.forEach((forms, i) => {
+    const day = `2026-${String(i + 1).padStart(2, '0')}-15`;
+    const tasks = [T('hit', { due: D(day) }), T('other', { due: D(`2026-${String(((i + 1) % 12) + 1).padStart(2, '0')}-15`) })];
+    for (const form of forms) {
+      assert.deepEqual(hits(`15 ${form}`, tasks), ['hit'], `15 ${form}`);
+      assert.deepEqual(hits(`${form} 15`, tasks), ['hit'], `${form} 15`);
+    }
+  });
+});
+
+test('datum: een herhaling is geen datum, en een tijd bij de datum telt niet mee', () => {
+  assert.equal(error('elke dag').code, 'unknown_term');
+  assert.equal(error('elke maandag').code, 'unknown_term');
+  assert.equal(error('vóór: elke dag').code, 'invalid_date');
+  assert.deepEqual(hits('morgen om 9 uur', DATES), ['tomorrow']);
+  assert.deepEqual(hits('vóór: morgen om 9 uur', DATES), hits('vóór: morgen', DATES));
+});
+
+test('namen: bij twee labels met dezelfde naam (eigen en van een ander) tellen beide', () => {
+  const tasks = [T('a', { labels: ['l-bellen'] }), T('b', { labels: ['l-bellen-x'] }), T('c')];
+  const extra = (v) => v.labels.set('l-bellen-x', { id: 'l-bellen-x', name: 'Bellen', owner_id: 'u-bram', order_key: 'z' });
+  assert.deepEqual(hits('@bellen', tasks, { extra }), ['a', 'b']);
+});
+
+test('namen: een exacte naam gaat voor een naam zonder accenten', () => {
+  const tasks = [T('plain', { project_id: 'p-cafe-plain' }), T('accent', { project_id: 'p-cafe' })];
+  const extra = (v) => v.projects.set('p-cafe-plain', { id: 'p-cafe-plain', name: 'Cafe', order_key: 'z' });
+  assert.deepEqual(hits('#Café', tasks, { extra }), ['accent']);
+  assert.deepEqual(hits('#Cafe', tasks, { extra }), ['plain']);
+  assert.deepEqual(hits('#cafe', tasks, { extra }), ['plain']);
+});
+
+test('fout: een vergeten operator wordt aangewezen, maar niet bij een lange reeks woorden', () => {
+  assert.equal(error('p1 x x').code, 'expected_operator');
+  assert.equal(error('p1 x x x x x x x x').code, 'unknown_term');
+  assert.equal(error('x x').code, 'unknown_term');
+  const q = 'p1   vandaag';
+  const e = error(q);
+  assert.equal(q.slice(e.position, e.position + e.length), 'vandaag');
+});
+
+test('evaluateFilter: gelijke datum, prioriteit en project volgen de eigen volgorde (order_key), niet de volgorde van aanmaken', () => {
+  const tasks = [T('c', { order_key: 'c' }), T('a', { order_key: 'a' }), T('b', { order_key: 'b' })];
+  assert.deepEqual(evaluateFilter('alles', ctxOf(world(tasks))).tasks.map((t) => t.id), ['a', 'b', 'c']);
+  // bij gelijke volgordesleutel beslist het id
+  const same = [T('z', { order_key: 'k' }), T('y', { order_key: 'k' })];
+  assert.deepEqual(evaluateFilter('alles', ctxOf(world(same))).tasks.map((t) => t.id), ['y', 'z']);
 });
 
 // ---------- de lijst met termen voor de interface ----------

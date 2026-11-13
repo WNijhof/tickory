@@ -283,6 +283,29 @@ test('zoeken: willekeurige zoektermen geven geldige markeringen', () => {
   assert.ok(total > 200, `genoeg treffers (${total})`);
 });
 
+test('zoeken: markeringen die in elkaar liggen worden één, en een stuk beschrijving bevat alleen treffers die erin passen', () => {
+  const v = world();
+  v.tasks.set('a', task('a', 'abcdef'));
+  assert.deepEqual(search(v, 'abcdef cd')[0].marks, [{ start: 0, length: 6 }]);
+  assert.deepEqual(search(v, 'cd abcdef')[0].marks, [{ start: 0, length: 6 }]);
+  assert.deepEqual(search(v, 'ab bc')[0].marks, [{ start: 0, length: 3 }], 'overlappend: één markering');
+  assert.deepEqual(search(v, 'ab cd')[0].marks, [{ start: 0, length: 4 }], 'aansluitend: één markering');
+  assert.deepEqual(search(v, 'ab ef')[0].marks, [{ start: 0, length: 2 }, { start: 4, length: 2 }], 'met ruimte ertussen: twee');
+  const description = `tandarts aan het begin${' en dan weer een heleboel tekst'.repeat(12)} en tandarts aan het eind`;
+  v.tasks.set('d', task('d', 'Iets', { description }));
+  const d = search(v, 'tandarts')[0];
+  assert.equal(d.where, 'description');
+  assert.equal(d.marks.length, 1, 'de tweede treffer valt buiten het stuk');
+  assert.ok(d.marks.every((m) => m.start + m.length <= d.text.length));
+});
+
+test('zoeken: een zoektekst langer dan 200 tekens wordt afgekapt', () => {
+  const v = world();
+  v.tasks.set('a', task('a', 'a'.repeat(200)));
+  assert.equal(search(v, `${'a'.repeat(200)} zzz`).length, 1);
+  assert.equal(search(v, `${'a'.repeat(150)} zzz`).length, 0, 'onder de grens telt het laatste woord wel');
+});
+
 test('zoeken: 10.000 taken in redelijke tijd', (t) => {
   const v = world();
   const words = ['melk', 'brood', 'tandarts', 'café', 'bellen', 'tuin', 'belasting', 'fiets'];
