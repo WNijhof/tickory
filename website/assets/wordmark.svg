@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" role="img" aria-label="Tickory">
+  <style>
+    text { font: 700 62px "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; fill: #1c1f23; }
+    @media (prefers-color-scheme: dark) { text { fill: #e8eaed; } }
+  </style>
+  <svg width="96" height="96" viewBox="0 0 512 512">
+    <rect width="512" height="512" rx="112" fill="#0f766e"/>
+    <path d="M256 54v28M458 256h-28M256 458v-28M54 256h28" fill="none" stroke="#5eead4" stroke-width="18" stroke-linecap="round"/>
+    <path d="M146 250l76 76 148-176" fill="none" stroke="#fff" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="222" cy="326" r="9" fill="#0f766e"/>
+  </svg>
+  <text x="120" y="70" textLength="216" lengthAdjust="spacingAndGlyphs">Tickory</text>
+</svg>
