@@ -2283,10 +2283,11 @@ try {
   await press('Escape');
   await noDialog();
   assert.equal(await evaluate(`document.body.classList.contains('nav-open')`), true, 'na annuleren staat Bladeren nog open');
+  await waitFor(`!document.querySelector('#search-dialog')`, 'het vorige zoekvenster is weg'); // anders typen we in het oude
   await click('#sidebar .search-field');
   await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoeken vanuit Bladeren');
-  await typeInto('#search-dialog .search-input', 'Balkproef');
-  await waitFor(`document.querySelector('#search-dialog .search-hit')`, 'treffer');
+  await typeInto('#search-dialog[open] .search-input', 'Balkproef');
+  await waitFor(`document.querySelector('#search-dialog[open] .search-hit')`, 'treffer');
   await press('Enter');
   await waitFor(`document.querySelector('#task-dialog[open]') && !document.body.classList.contains('nav-open')`, 'de treffer opent de taak en Bladeren gaat dicht');
   await click('#task-dialog .task-top .icon-button');
