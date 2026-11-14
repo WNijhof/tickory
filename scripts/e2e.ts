@@ -37,6 +37,7 @@ import { notifyScenario } from './e2e-notify.ts';
 import { accountScenario } from './e2e-account.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
+import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -80,9 +81,10 @@ let app: App | null = null;
 // De klok van de server kan vooruit (scripts/e2e-account.ts): een code van tweestapsverificatie geldt maar één keer per 30 seconden.
 let clockShift = 0;
 const serverNow = () => Date.now() + clockShift;
-async function startServer() {
+async function startServer(extra: Partial<Parameters<typeof createApp>[0]> = {}) {
   // met meldingen in de browser, zoals de echte server; de klok staat uit (niets wordt verstuurd, er is ook geen apparaat aangemeld)
-  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0, attachments, attachmentSweepMs: 0, clock: serverNow, log: () => {} });
+  // `extra`: bijvoorbeeld inloggen via OIDC (scripts/e2e-oidc.ts)
+  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0, attachments, attachmentSweepMs: 0, clock: serverNow, log: () => {}, ...extra });
   await new Promise<void>((r) => app!.server.listen(APP_PORT, '127.0.0.1', r));
 }
 async function stopServer() {
@@ -553,6 +555,14 @@ try {
     send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, typeInto, clickText, nav, PASSWORD_ALICE, PASSWORD_BOB, workDir, BASE,
     shiftClock: (ms: number) => { clockShift += ms; }, serverNow,
   });
+  // ---- 8c3. inloggen via SSO tegen een nagebootste inlogdienst (scripts/e2e-oidc.ts); E2E_OIDC_ONLY=1: tot en met dit ----
+  await oidcScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, typeInto, clickText, nav, PASSWORD_ALICE, BASE, startServer, stopServer });
+  if (process.env.E2E_OIDC_ONLY) {
+    console.log('TOT EN MET SSO: GESLAAGD');
+    browser.kill();
+    await stopServer();
+    process.exit(0);
+  }
   if (process.env.E2E_ACCOUNT_ONLY) {
     console.log('ALLEEN ACCOUNT: GESLAAGD');
     browser.kill();

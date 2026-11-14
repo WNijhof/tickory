@@ -455,7 +455,9 @@ function ssoSection({ api, startLink, onPasswordless }) {
   const summary = h('summary', {});
   const body = h('div', { class: 'sso' }, h('p', { class: 'hint' }, t('common.loading')));
   const message = h('p', { class: 'hint', role: 'status' });
-  const section = h('details', { class: 'section sso-section', hidden: true }, summary, body, message);
+  const section = h('details', { class: 'section sso-section' }, summary, body, message);
+  // pas in het scherm als de server SSO kent (een server zonder SSO, en de demo, laten hier niets zien)
+  const holder = h('div', { hidden: true });
 
   async function load() {
     let s;
@@ -466,7 +468,7 @@ function ssoSection({ api, startLink, onPasswordless }) {
     }
     if (!s?.enabled) return;
     const name = s.name;
-    section.hidden = false;
+    if (!section.isConnected) holder.replaceWith(section);
     summary.textContent = t('sso.section', { name });
     if (!s.has_password) onPasswordless(name);
     if (s.linked) {
@@ -517,7 +519,7 @@ function ssoSection({ api, startLink, onPasswordless }) {
   }
 
   load();
-  return section;
+  return holder;
 }
 
 /**

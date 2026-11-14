@@ -557,14 +557,15 @@ async function adoptLogin(res) {
 
 /**
  * Terug van de inlogdienst (`#oidc=…` of `#oidc-error=…`, zie core/sso.js) of de noodcode van een beheerder (`#signin=…`). De code
- * wordt ingewisseld met het geheim van de poging die hier begon. Geeft een melding voor het inlogscherm terug als het niet lukte
- * (ingelogd: dan als melding in beeld), anders null.
+ * wordt ingewisseld met het geheim van de poging die hier begon. Geeft null als het gelukt is. Anders `{ note, login }`: bij een
+ * poging om in te loggen (`login`) komt de melding op het inlogscherm, bij koppelen als melding in beeld.
  */
 async function finishSso(ret) {
   const pending = ret.kind === 'signin' ? null : takePending(localStorage);
+  const login = ret.kind === 'signin' || pending?.purpose === 'login' || (!pending && !getToken());
   const fail = (text) => {
-    if (getToken()) toast(text, { kind: 'error', timeout: 12_000 });
-    return text;
+    if (!login) toast(text, { kind: 'error', timeout: 12_000 });
+    return { note: text, login };
   };
   if (ret.kind === 'error') return fail(ssoErrorText(ret.error));
   if (ret.kind === 'code' && !pending) return fail(ssoErrorText('EXPIRED')); // niet hier begonnen: niet inwisselen
@@ -816,13 +817,13 @@ async function boot() {
   // terug van de inlogdienst (SSO) of een noodcode: eerst afhandelen, en het fragment meteen uit de adresbalk (en de geschiedenis)
   const ssoReturn = parseSsoHash(location.hash);
   if (ssoReturn) history.replaceState(null, '', location.pathname + location.search);
-  const ssoNote = ssoReturn ? await finishSso(ssoReturn) : null;
-  if (getToken()) {
+  const ssoFailed = ssoReturn ? await finishSso(ssoReturn) : null;
+  if (getToken() && !ssoFailed?.login) {
     bridge.setSession(getToken()); // bij elke start, ook als de app al was ingelogd
     if (usesPush()) pushClient.refresh().catch(() => {});
     sync.requestSync(0);
   } else {
-    askLogin(ssoNote ?? '');
+    askLogin(ssoFailed?.note ?? '');
   }
 
   // Een melding aangetikt: de taak openen, via de adresbalk (#task=…, Android en nieuwe vensters) of via de service worker.

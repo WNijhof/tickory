@@ -234,7 +234,8 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
       if (!user) return json(res, 401, { error: 'invalid_token' });
       return json(res, 200, { sub: user.sub, ...idp.userinfo }, 'userinfo');
     }
-    res.writeHead(404);
+    // een browser vraagt om een pictogram; zonder antwoord staat er een fout in de console van de e2e
+    res.writeHead(p === '/favicon.ico' ? 204 : 404);
     res.end();
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
