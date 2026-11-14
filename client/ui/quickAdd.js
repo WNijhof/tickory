@@ -51,7 +51,8 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     const input = h('input', {
       class: 'field quick-big', type: 'text', maxLength: 4000, value: context.text ?? '', placeholder: t('quick.placeholder'), 'aria-label': t('quick.label'), autocomplete: 'off', enterkeyhint: 'done', autofocus: true,
     });
-    const description = h('textarea', { class: 'field', rows: 2, maxLength: 16000, placeholder: t('task.description'), 'aria-label': t('task.descriptionLabel') });
+    const description = h('textarea', { class: 'field', rows: context.description ? 4 : 2, maxLength: 16000, placeholder: t('task.description'), 'aria-label': t('task.descriptionLabel') });
+    description.value = context.description ?? ''; // bijvoorbeeld de link bij tekst die uit een andere app is gedeeld
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
       projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });

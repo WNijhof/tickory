@@ -5,6 +5,7 @@ import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
+import { shareFromHash } from '../core/share.js';
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
@@ -483,6 +484,7 @@ function openPendingTask() {
 }
 
 function openTaskFromHash() {
+  if (openShareFromHash()) return;
   const id = taskIdFromHash(location.hash);
   if (!id) {
     openAddFromHash();
@@ -490,6 +492,34 @@ function openTaskFromHash() {
   }
   history.replaceState(null, '', `${location.pathname}${location.search}`); // het adres weer schoon
   openTaskById(id);
+}
+
+// ---------- tekst uit een andere app delen ----------
+
+let pendingShare = null;
+
+/**
+ * "Delen naar Tickory" (#share=…): de gedeelde tekst wordt een voorgevuld venster "Taak toevoegen". Is de app nog niet klaar
+ * (nog niet ingelogd, eerste sync loopt) of staat er een venster open, dan wacht het tot het kan: je kunt het nog aanpassen of annuleren.
+ * @returns {boolean} of dit adres over delen ging
+ */
+function openShareFromHash() {
+  if (!/^#share=/.test(location.hash)) return false;
+  const draft = shareFromHash(location.hash);
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+  if (draft) {
+    pendingShare = draft;
+    openPendingShare();
+  }
+  return true;
+}
+
+function openPendingShare() {
+  if (!pendingShare || !store.me?.inbox_project_id) return;
+  if (document.querySelector('dialog[open]')) return; // het volgende moment (store.subscribe) opnieuw
+  const draft = pendingShare;
+  pendingShare = null;
+  handlers.quickAdd({ text: draft.title, description: draft.description });
 }
 
 /** De knop "+" van een widget van de Android-app: #add, #add=today of #add=<project-id> opent het venster Taak toevoegen. */
@@ -556,6 +586,7 @@ async function boot() {
   store.subscribe(invalidate);
   store.subscribe(maybeSetTimezone);
   store.subscribe(openPendingTask);
+  store.subscribe(openPendingShare);
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
   window.addEventListener('online', () => {

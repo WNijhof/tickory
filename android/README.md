@@ -173,6 +173,10 @@ Na een toestemmingsvraag of terugkeer uit de instellingen stuurt de app het voor
 widget openen de web-app op `<server>/#task=<id>`; de knop "+" van een widget op `<server>/#add` (`#add=today` met vandaag als
 datum, `#add=<project-id>` in dat project). Alleen veilige tekens komen in zo'n adres (`core/DeepLink.kt`).
 
+**Delen naar Tickory:** de app staat in het deelmenu van andere apps voor gewone tekst (`ACTION_SEND`, `text/plain`). Onderwerp en tekst gaan als
+`<server>/#share=<base64url van JSON>` naar de web-app (`core/ShareLink.kt`, afgekapt op 300 en 8000 tekens); de web-app (`client/core/share.js`)
+maakt er een titel en beschrijving van en opent het venster Taak toevoegen, in de Inbox, voorgevuld. Er wordt niets aangemaakt tot de gebruiker bevestigt.
+
 ## Widgets
 
 Vier widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en

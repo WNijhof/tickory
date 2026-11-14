@@ -1042,13 +1042,28 @@ try {
   await evaluate(`location.hash = '#task=<script>alert(1)</script>'`);
   await sleep(300);
   assert.equal(await evaluate(`Boolean(document.querySelector('#task-dialog'))`), false);
+  // tekst uit een andere app gedeeld (#share=…): het venster Taak toevoegen, voorgevuld en in de Inbox
+  const shared = Buffer.from(JSON.stringify({ title: 'Fietsroute Texel', text: 'https://example.org/route' }), 'utf8').toString('base64url');
+  await evaluate(`location.hash = ${js(`#share=${shared}`)}`);
+  await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]')?.value === 'Fietsroute Texel'`, 'gedeelde tekst als titel');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] textarea').value`), 'https://example.org/route', 'de link staat in de beschrijving');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Inbox', 'gedeelde tekst komt in de Inbox');
+  assert.equal(await evaluate(`location.hash`), '', 'het adres is weer schoon');
+  await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
+  assert.equal(serverTask('Fietsroute Texel'), undefined, 'annuleren maakt geen taak');
+  // een kapot of vreemd #share=… doet niets
+  await evaluate(`location.hash = '#share=@@@'`);
+  await evaluate(`location.hash = '#share=e30'`);
+  await sleep(300);
+  assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open]'))`), false);
   await evaluate(`history.replaceState(null, '', location.pathname)`);
   await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: stub.identifier });
   await evaluate(`sessionStorage.removeItem('android-calls')`);
   await send('Page.reload');
   await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart zonder brug');
   await waitFor(SYNCED, 'gesynchroniseerd');
-  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak (een vreemde waarde niet)');
+  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst (een vreemde waarde niet)');
 
   // ---- 8e. het uiterlijk: projectenboom met kleur, favoriet, subproject, in- en uitklappen en archief ----
   const projectOnServer = (name: string) => (serverState().projects as any[]).find((p) => p.name === name);
