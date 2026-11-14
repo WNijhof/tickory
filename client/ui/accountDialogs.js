@@ -207,7 +207,8 @@ function passwordSection({ me, api }) {
 /** Het soort apparaat zoals de server het uit de User-Agent las: "Webbrowser · Firefox · Windows" (zonder versies). */
 function deviceKind(device) {
   if (!device) return '';
-  const kind = device.kind === 'browser' ? t('account.deviceKind.browser') : device.kind === 'app' ? t('account.deviceKind.app') : t('account.deviceKind.other');
+  const kind = device.kind === 'browser' ? t('account.deviceKind.browser') : device.kind === 'app' ? t('account.deviceKind.app')
+    : device.kind === 'extension' ? t('account.deviceKind.extension') : t('account.deviceKind.other');
   return [kind, device.browser, device.os].filter(Boolean).join(' · ');
 }
 
@@ -257,7 +258,85 @@ function devicesSection({ api, onCurrentRevoked }) {
     }
   };
   load();
-  return h('details', { class: 'section devices', open: true }, h('summary', {}, t('account.devices')), list, othersRow, policy);
+  return h('details', { class: 'section devices', open: true }, h('summary', {}, t('account.devices')), list, othersRow, policy, pairingBlock({ api, onDone: load }));
+}
+
+/**
+ * De browserextensie koppelen (server/pairing.ts): eerst bewijzen dat jij het bent (het wachtwoord als het account er een heeft, en
+ * de code bij tweestapsverificatie), dan een eenmalige code van 10 minuten die je in de extensie invult. Zo kan de extensie ook
+ * inloggen op een server waar alleen SSO kan. `onDone` laadt de lijst met apparaten opnieuw (daar staat de extensie dan in).
+ */
+function pairingBlock({ api, onDone }) {
+  const body = h('div', { class: 'pairing-body' });
+  const error = h('p', { class: 'error', role: 'alert' });
+  const intro = () => replace(body,
+    h('p', { class: 'hint' }, t('account.pairIntro')),
+    h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button button-small', onclick: () => begin() }, t('account.pairMake'))));
+  const fail = (err) => {
+    if (!error.isConnected) replace(body, error);
+    error.textContent = errorText(err);
+  };
+
+  async function begin() {
+    error.textContent = '';
+    let need;
+    try {
+      need = await api.pairing.info();
+    } catch (err) {
+      return fail(err);
+    }
+    if (!need.password && !need.code) return create();
+    const pass = need.password && h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password') });
+    const code = need.code && h('input', { class: 'field', type: 'text', required: true, autocomplete: 'one-time-code', autocapitalize: 'none', spellcheck: false, maxLength: 24, 'aria-label': t('twoFactor.codeOrRecovery') });
+    replace(body, h('form', {
+      class: 'section-form',
+      onsubmit: (e) => {
+        e.preventDefault();
+        create(pass ? pass.value : undefined, code ? code.value.trim() : undefined);
+      },
+    },
+    h('p', { class: 'hint' }, t('account.pairConfirm')),
+    pass && h('label', { class: 'field-label' }, t('account.password'), pass),
+    code && h('label', { class: 'field-label' }, t('twoFactor.codeOrRecovery'), code),
+    error,
+    h('div', { class: 'dialog-buttons' },
+      h('button', { type: 'button', class: 'button', onclick: intro }, t('common.cancel')),
+      h('button', { type: 'submit', class: 'button button-primary' }, t('account.pairMake')))));
+    queueMicrotask(() => (pass || code).focus());
+    return undefined;
+  }
+
+  async function create(password, code) {
+    error.textContent = '';
+    let made;
+    try {
+      made = await api.pairing.create(password, code);
+    } catch (err) {
+      return fail(err);
+    }
+    const until = new Date(Date.now() + made.expires_in * 1000).toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' });
+    const shown = h('code', { class: 'pair-code' }, made.code);
+    replace(body,
+      h('p', { class: 'pair-code-row' }, `${t('account.pairCode')}: `, shown),
+      h('p', { class: 'hint' }, t('account.pairValid', { time: until })),
+      h('p', { class: 'hint' }, t('account.pairUse')),
+      h('div', { class: 'dialog-buttons' },
+        h('button', {
+          type: 'button', class: 'button', onclick: async () => {
+            try {
+              await navigator.clipboard.writeText(made.code);
+              toast(t('account.pairCopied'));
+            } catch {
+              getSelection()?.selectAllChildren(shown); // zonder toestemming van de browser: geselecteerd, kopiëren met Ctrl+C
+            }
+          },
+        }, t('twoFactor.copyCodes')),
+        h('button', { type: 'button', class: 'button button-primary', onclick: () => { intro(); onDone(); } }, t('account.pairDone'))));
+    return undefined;
+  }
+
+  intro();
+  return h('div', { class: 'pairing' }, h('h3', {}, t('account.pairTitle')), body);
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
