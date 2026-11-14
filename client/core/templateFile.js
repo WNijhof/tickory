@@ -82,8 +82,12 @@ function parseJson(body) {
 
 // ---------- CSV (het sjabloon van Todoist) ----------
 
-/** Splitst CSV in rijen van velden (aanhalingstekens, "" als aanhalingsteken, regeleinden binnen een veld). Geeft null bij te veel rijen. */
-function csvRows(text) {
+/**
+ * Splitst CSV in rijen van velden (aanhalingstekens, "" als aanhalingsteken, regeleinden binnen een veld); lege regels vallen weg.
+ * Geeft null bij te veel rijen. Ook gebruikt door het importeren uit Todoist (core/todoistImport.js), met een eigen grens en
+ * eventueel een puntkomma als scheidingsteken.
+ */
+export function csvRows(text, { maxRows = MAX_CSV_ROWS, delimiter = ',' } = {}) {
   const rows = [];
   let row = [];
   let field = '';
@@ -95,19 +99,19 @@ function csvRows(text) {
         if (text[i + 1] === '"') { field += '"'; i++; } else quoted = false;
       } else field += c;
     } else if (c === '"' && field === '') quoted = true;
-    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === delimiter) { row.push(field); field = ''; }
     else if (c === '\n' || c === '\r') {
       if (c === '\r' && text[i + 1] === '\n') i++;
       row.push(field);
       field = '';
       if (row.some((x) => x !== '')) rows.push(row);
       row = [];
-      if (rows.length > MAX_CSV_ROWS) return null;
+      if (rows.length > maxRows) return null;
     } else field += c;
   }
   row.push(field);
   if (row.some((x) => x !== '')) rows.push(row);
-  return rows.length > MAX_CSV_ROWS ? null : rows;
+  return rows.length > maxRows ? null : rows;
 }
 
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/gu;

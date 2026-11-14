@@ -63,7 +63,8 @@ export function projectRows(view, projectId, nameOf = () => '') {
   const taskRow = (t, depth) => {
     const labels = (t.labels ?? []).map(labelName).filter(Boolean).map((n) => `@${n.replace(/\s+/g, '_')}`);
     const content = labels.length > 0 ? `${t.content} ${labels.join(' ')}` : t.content;
-    const due = t.due ? (t.due.string || t.due.date) : '';
+    // een herhaling als tekst ("elke maandag"), een gewone datum als datum: "vrijdag" van vorige week betekent bij het importeren iets anders
+    const due = t.due ? (t.due.recurrence ? (t.due.string || t.due.date) : t.due.date) : '';
     rows.push(['task', content, t.description ?? '', t.priority ?? 4, Math.min(depth, 4), nameOf(t.creator_id), nameOf(t.assignee_id), due, t.due ? (t.due.lang ?? 'nl') : '', '']);
     for (const c of comments) if (c.task_id === t.id) rows.push(['note', c.content ?? '', '', '', '', nameOf(c.author_id), '', '', '', '']);
     for (const child of kids.get(t.id) ?? []) taskRow(child, depth + 1);

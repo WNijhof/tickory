@@ -1,0 +1,68 @@
+<!--
+title: Switching from Todoist
+description: Bring all your projects along from Todoist at once: download the backup, import it into Tickory, and what does and does not come along (sections, sub-tasks, labels, comments, dates in English and Dutch).
+-->
+<h1>Switching from Todoist</h1>
+<p class="intro">Coming from Todoist? Bring your lists along in one go: projects, sections, tasks with sub-tasks, descriptions, priority, labels, comments and dates. You download the backup in Todoist, choose that file in Tickory, see what comes along first, and import. It happens on your own device; Tickory fetches nothing from Todoist and never asks for your password.</p>
+
+<h2 id="in-todoist">In Todoist: download the backup</h2>
+<ol>
+  <li>Open Todoist in the browser (or the desktop app) and go to <strong>Settings</strong> › <strong>Backups</strong>.</li>
+  <li>Download the latest backup. You get a zip file with a CSV file per project. Do not unpack it: Tickory reads the zip itself.</li>
+</ol>
+<p>No backups listed (Todoist does not make them on every plan)? Then export each project separately: open the project in Todoist, choose <strong>Export as CSV</strong> (in older versions "Export as a template") in the menu with the three dots, and then choose all those CSV files at once in Tickory.</p>
+
+<h2 id="in-tickory">In Tickory: import</h2>
+<ol>
+  <li>Open <x-ui k="settings.title"></x-ui> (your name at the bottom left) and choose <x-ui k="settings.import"></x-ui>.</li>
+  <li>Under <x-ui k="import.fileLabel"></x-ui>, choose the zip, or one or more CSV files.</li>
+  <li>For each project you see what comes along: the number of sections, tasks, comments and labels, and what was not recognised (for example "3 dates not recognised, kept in the description"). Nothing is created yet.</li>
+  <li>Untick what you do not want to bring along (<x-ui k="import.selectAll"></x-ui> and <x-ui k="import.selectNone"></x-ui> change them all at once), and choose where the projects go: under a new project <strong><x-ui k="import.umbrellaName"></x-ui></strong> (you can change the name) or separately, at the top of your list.</li>
+  <li>Click <x-ui k="import.submit"></x-ui>. The projects are there right away, even without a connection; they go to the server as soon as it can be reached.</li>
+</ol>
+<p>Not what you wanted? Click <strong>Undo</strong> in the message at the bottom: the imported projects disappear again, with everything in them. Labels the import created stay.</p>
+
+<h2 id="what-comes-along">What comes along</h2>
+<table>
+  <thead><tr><th>From Todoist</th><th>In Tickory</th></tr></thead>
+  <tbody>
+    <tr><td>A project (a CSV file)</td><td>A project with the same name. If a file is called "Work - Clients" and the backup also has a project "Work", then "Clients" becomes a sub-project of "Work". If that is not clear-cut, the name stays as it is.</td></tr>
+    <tr><td>Sections, tasks and sub-tasks</td><td>The same, in the same order (up to five levels deep, as in Todoist).</td></tr>
+    <tr><td>Description and priority</td><td>The same: p1 is P1, p4 is no priority.</td></tr>
+    <tr><td>Labels (<code>@groceries</code>)</td><td>Labels. A label you already have (also with different capitals) is reused; the others are created.</td></tr>
+    <tr><td>Comments</td><td>Comments on the task (or on the project).</td></tr>
+    <tr><td>Dates and recurrences</td><td>Dates with times and recurrences, in English and Dutch (see below).</td></tr>
+    <tr><td>Deadline and duration</td><td>The task's deadline and duration.</td></tr>
+    <tr><td>A project as a board</td><td>The project as a board.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="what-does-not">What does not come along</h2>
+<ul>
+  <li><strong>Completed tasks and archived projects</strong>: they are not in a Todoist backup.</li>
+  <li><strong>Reminders</strong>: set them again in Tickory. The import also adds no automatic reminders, so hundreds do not go off at once.</li>
+  <li><strong>Attachments</strong>: only the name is in the comment ("[Attachment: receipt.jpg]"); the file itself is not.</li>
+  <li><strong>Who created a task or was assigned to it</strong>: you see those names in the preview, but they are not linked to users of your server. <a href="sharing.html">Share a project</a> again afterwards and assign tasks again.</li>
+  <li>A project's colour, filters, and labels that are not on any task.</li>
+</ul>
+
+<h2 id="dates">Dates</h2>
+<p>Todoist writes a date as text in the language of your Todoist app. Tickory reads:</p>
+<ul>
+  <li><strong>English</strong>: the common forms, such as "today", "tomorrow at 9am", "Jan 12", "12 Jan 2027", "every day", "every monday", "every mon, wed and fri", "every other week", "every weekday", "every month on the 15th", "every last friday", "every jan 12" and "every! 3 days".</li>
+  <li><strong>Dutch</strong>: everything you can type in Tickory as well, such as "morgen om 9 uur", "elke maandag", "elke tweede dinsdag" (see <a href="dates-and-recurrence.html">Dates and recurrence</a>).</li>
+  <li>A date such as <code>2026-12-01</code> in any language.</li>
+</ul>
+<p>Date entry in Tickory is in Dutch (an ISO date such as <code>2026-12-01</code> works in any language), so an English recurrence gets a Dutch text in Tickory ("elke maandag"); that way you can still change it in the task window.</p>
+<p>A date Tickory does not recognise is not lost: it is at the bottom of the task's description, as "Date from Todoist: every 3rd workday". The preview tells you how many there are. <a href="search.html">Search</a> for <code>Date from Todoist</code> afterwards to find them and pick a date. (The line is written in the language of the app at the moment you import.)</p>
+
+<h2 id="phone">On a phone</h2>
+<p>In the <a href="android-app.html">Android app</a> you choose the file with the normal file picker. You can also <strong>share</strong> the zip to Tickory from your Downloads or another app: the import window then opens with that file, instead of a new task.</p>
+
+<h2 id="own-export">Also for your own export</h2>
+<p>The same window also reads what Tickory itself <a href="export.html">exports</a>: the CSV with all tasks (with sub-projects) and the JSON. Handy if you move to another Tickory server. Colours also come along from the JSON; completed tasks do not.</p>
+
+<div class="note">
+  <span class="note-label">Safe</span>
+  <p>The file is only read and checked, on your own device: nothing is run or fetched, and text stays text. A damaged, truncated or encrypted zip is refused with a clear message, and files in the zip that are not CSV are skipped. If the import does not fit within the server's limits (for example more than 200 sections in one project), the window says so beforehand and nothing is half created.</p>
+</div>

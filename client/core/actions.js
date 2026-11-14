@@ -14,6 +14,7 @@ import { cleanFileName } from '../../shared/attachments.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
 import { inverseCommands } from './inverse.js';
 import { labelNamesOf, planTemplate, quotaProblem } from './templates.js';
+import { importQuotaProblem, planImport } from './importPlan.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -403,6 +404,24 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
         ...plan.rootTaskIds.map((id) => ({ type: 'task_delete', args: { id } })),
       ];
       return { ok: true, id: projectId, counts: plan.counts, undo: () => send(undoCommands) };
+    },
+
+    // ---- importeren (uit Todoist, of de eigen export) ----
+    /**
+     * Zet de gekozen projecten uit `readImport` (core/todoistImport.js) in de wachtrij: per project één reeks commando's, eerst
+     * gecontroleerd tegen de grenzen van de server (past het niet, dan gebeurt er niets). `onProgress(klaar, totaal)` na elk project.
+     * Ongedaan maken verwijdert de geïmporteerde projecten (met "Uit Todoist" alles eronder); nieuwe labels blijven staan.
+     * @returns {Promise<{ ok: true, counts: object, rootIds: string[], undo: () => Promise<void> } | { ok: false, problem: object }>}
+     */
+    async importProjects(projects, { selected, under = null, inboxName = 'Inbox' }, onProgress = () => {}) {
+      const plan = planImport(store.view, projects, { selected, under, inboxName, makeId, resolveLabels: labelCommands });
+      const problem = importQuotaProblem(store.view, store.userId, plan);
+      if (problem) return { ok: false, problem };
+      for (const [i, batch] of plan.batches.entries()) {
+        await send(batch.commands);
+        onProgress(i + 1, plan.batches.length, batch.name);
+      }
+      return { ok: true, counts: plan.counts, rootIds: plan.rootIds, undo: () => send(plan.rootIds.map((id) => ({ type: 'project_delete', args: { id } }))) };
     },
 
     // ---- filters ----

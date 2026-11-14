@@ -44,6 +44,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.AttachmentName
+import io.github.wnijhof.tickory.core.ChooserTypes
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.ExternalLink
 import io.github.wnijhof.tickory.inbox.AppVisibility
@@ -544,7 +545,7 @@ class MainActivity : ComponentActivity() {
             camera
         } else {
             Intent(Intent.ACTION_CHOOSER)
-                .putExtra(Intent.EXTRA_INTENT, params.createIntent())
+                .putExtra(Intent.EXTRA_INTENT, pickIntent(params))
                 .also { if (camera != null && wantsPhoto) it.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(camera)) }
         }
         fileCallback = callback
@@ -555,6 +556,20 @@ class MainActivity : ComponentActivity() {
             callback.onReceiveValue(null)
         }
         return true
+    }
+
+    /**
+     * Wat de kiezer mag tonen. Vraagt de pagina om bepaalde soorten bestanden (het importeren: zip, CSV of JSON), dan precies die
+     * typen ([ChooserTypes]); anders wat de WebView voorstelt. `createIntent()` neemt alleen het eerste item uit `accept`, en een
+     * uitgang als ".zip" is geen type: de kiezer zou dan niets tonen.
+     */
+    private fun pickIntent(params: WebChromeClient.FileChooserParams): Intent {
+        val types = ChooserTypes.mimeTypes(params.acceptTypes) ?: return params.createIntent()
+        return Intent(Intent.ACTION_GET_CONTENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(Intent.EXTRA_MIME_TYPES, types)
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE)
     }
 
     private fun cameraIntent(): Intent? {

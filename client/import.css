@@ -1,0 +1,32 @@
+/* Tickory: stijl voor het venster Importeren (uit Todoist of de eigen export). Staat apart van app.css (die laadt eerst) en gebruikt
+   dezelfde kleuren en maten, dus ook de wisseling tussen licht en donker. Alles mag op een telefoon van 390 pixels breed: lange
+   namen breken af, er is geen tabel en niets heeft een vaste breedte. */
+
+.dialog-import { width: min(760px, calc(100vw - 24px)); }
+.import-dialog { min-width: 0; }
+.import-result { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.import-projects, .import-place { border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 12px 10px; margin: 0; min-width: 0; }
+.import-projects legend, .import-place legend { font-size: 0.85rem; color: var(--text-soft); padding: 0 4px; }
+.import-select { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 8px; }
+.import-list { list-style: none; margin: 0; padding: 0; max-height: min(46dvh, 420px); overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.import-item { border-radius: 8px; padding: 6px 8px; background: var(--bg-soft); min-width: 0; }
+.import-item-head { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; font-weight: 600; }
+.import-item-head input { flex: none; width: 20px; height: 20px; margin: 0; }
+.import-name { min-width: 0; overflow-wrap: anywhere; }
+.import-counts { margin: 0 0 0 30px; font-size: 0.88rem; color: var(--text-soft); overflow-wrap: anywhere; }
+.import-issues { margin: 2px 0 0 30px; padding-left: 18px; font-size: 0.85rem; color: var(--text-soft); }
+.import-issues li { overflow-wrap: anywhere; }
+.import-people { margin: 2px 0 0 30px; overflow-wrap: anywhere; }
+.import-choice { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; }
+.import-choice input { flex: none; margin: 0; }
+.import-umbrella-row { margin: 0 0 6px 30px; min-width: 0; }
+.import-umbrella { width: 100%; max-width: 360px; }
+.import-progress { width: 100%; height: 10px; accent-color: var(--accent); }
+.import-status { font-size: 0.9rem; color: var(--text-soft); margin: 0; overflow-wrap: anywhere; }
+.import-status:empty, .import-warning:empty { display: none; }
+
+@media (max-width: 760px) {
+  .import-list { max-height: none; }
+  .import-counts, .import-issues, .import-people, .import-umbrella-row { margin-left: 0; }
+  .dialog-import .dialog-buttons .button { min-height: 44px; }
+}

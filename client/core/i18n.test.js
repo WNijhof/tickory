@@ -84,6 +84,7 @@ test('de Engelse teksten zijn ook echt vertaald (alleen bewust gelijke teksten z
     'reminder.line', 'color.magenta', 'calendar.week', 'calendar.weekNumber', 'calendar.weekShort',
     'duration.min', 'duration.days', 'export.projectLabel', 'appearance.accent.indigo', 'search.kind.project', 'search.kind.label', 'search.kind.filter', 'filters.title', 'labels.title', 'filter.queryLabel', 'attachment.meta',
     'admin.ssoBadge',
+    'import.count.labels',
   ]);
   for (const key of Object.keys(nl)) {
     const equal = JSON.stringify(nl[key]) === JSON.stringify(en[key]);

@@ -35,6 +35,7 @@ import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachme
 import { configureAttachments, rejectionText } from './attachments.js';
 import { appearanceDialog } from './appearance.js';
 import { exportDialog } from './exportDialog.js';
+import { allImportable, announceImport, importDialog } from './importDialog.js';
 import { applyAppearance, readAppearance } from '../core/theme.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
@@ -433,6 +434,7 @@ const handlers = {
         { value: 'productivity', label: t('settings.productivity') },
         { value: 'places', label: t('settings.places') },
         { value: 'export', label: t('settings.export') },
+        { value: 'import', label: t('settings.import') },
         { value: 'templates', label: t('settings.templates') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'appearance', label: t('settings.appearance') },
@@ -446,6 +448,7 @@ const handlers = {
     else if (choice === 'productivity') navigate({ type: 'productivity' });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'export') await exportDialog({ store, bridge });
+    else if (choice === 'import') announceImport(await importDialog({ store, actions }), navigate);
     else if (choice === 'templates') await templatesUi().manage();
     else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo });
     else if (choice === 'language') await chooseLanguage();
@@ -669,6 +672,11 @@ function openPendingShare() {
   }
   // Gedeelde bestanden: eerst ophalen bij de Android-app, daarna het venster; wordt de taak gemaakt, dan worden het bijlagen.
   fetchSharedFiles(draft).then(async (files) => {
+    // een back-up van Todoist (zip), een CSV van Todoist of de eigen export: dan importeren in plaats van een taak met bijlagen
+    if (files.length === draft.files.length && await allImportable(files)) {
+      announceImport(await importDialog({ store, actions, files }), navigate);
+      return;
+    }
     if (files.length < draft.files.length) toast(t('quick.sharedFilesMissing'), { kind: 'error' });
     const id = await handlers.quickAdd({ text: draft.title, description: draft.description, files: files.map((f) => f.name) });
     if (id && files.length > 0) {
