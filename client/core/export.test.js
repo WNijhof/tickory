@@ -47,7 +47,7 @@ test('projectRows: taken zonder sectie, dan secties met taken, subtaken ingespro
     ['task', 'Melk, eieren @met_de_auto', '', 4, 1],
     ['task', 'Koffiebonen', '', 3, 2],
   ]);
-  assert.deepEqual(rows[0].slice(5), ['Anna', 'Bram', 'vrijdag', 'nl', '']);
+  assert.deepEqual(rows[0].slice(5), ['Anna', 'Bram', '2026-11-20', 'nl', ''], 'een gewone datum als datum ("vrijdag" betekent later iets anders)');
   assert.deepEqual(rows[1].slice(5, 6), ['Bram']);
   assert.deepEqual(rows[5].slice(7, 9), ['2026-11-21T09:30', 'nl'], 'zonder tekst telt de datum zelf');
   assert.equal(rows.some((r) => r[1] === 'Verwijderd'), false, 'verwijderde taken en opmerkingen niet');
@@ -57,7 +57,7 @@ test('projectCsv: kopregel, CRLF, en alles netjes gequote', () => {
   const csv = projectCsv(view(), 'p1', names);
   const lines = csv.split('\r\n');
   assert.equal(lines[0], 'TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE');
-  assert.equal(lines[1], 'task,Rekening betalen @bellen,"Voor 1 dec, ""dringend""",1,1,Anna,Bram,vrijdag,nl,');
+  assert.equal(lines[1], 'task,Rekening betalen @bellen,"Voor 1 dec, ""dringend""",1,1,Anna,Bram,2026-11-20,nl,');
   assert.equal(lines[3], "task,'=SOM(A1:A2),,4,1,,,,,", 'formule onschadelijk gemaakt');
   assert.equal(lines.at(-1), '', 'eindigt met een regeleinde');
 });
