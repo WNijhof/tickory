@@ -25,6 +25,7 @@ import { DEFAULT_MIME, effectiveMime, isInlineMime } from '../../shared/attachme
 import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../../shared/roles.js';
 import { changedTaskFields, parseActivityQuery, shortTitle } from '../../shared/activity.js';
+import { isTimeZone, parseStatsQuery, statsSince, tallyCompletions } from '../../shared/stats.js';
 
 const MAX_COMMANDS = 100;
 /** Hoe lang na het verwijderen een taak of sectie nog kan worden teruggezet (gelijk aan RESTORE.windowMs op de server, server/limits.ts). */
@@ -404,6 +405,21 @@ export class DemoServer {
     return { entries: page, next: list.length > q.limit ? page[page.length - 1].id : null };
   }
 
+  /**
+   * Wat `GET /api/v1/stats` doet (zoals server/stats.ts): alleen je eigen afvinkingen, uit projecten die je nu ziet, per dag in
+   * tijdzone `tz` (anders die uit de instellingen, anders UTC).
+   */
+  statsPage({ days = null, tz = null } = {}) {
+    const q = parseStatsQuery({ days: days === null ? null : String(days), tz });
+    if (q.error) throw apiError(400, 'INVALID_ARG', q.error);
+    const own = this.state.settings.get(`settings-${this.me.id}`)?.timezone ?? null;
+    const zone = q.tz ?? (own && isTimeZone(own) ? own : 'UTC');
+    const nowMs = this.now().getTime();
+    const since = statsSince(nowMs, q.days);
+    const entries = this.activity.filter((e) => e.actor_id === this.me.id && (e.kind === 'task_completed' || e.kind === 'task_uncompleted') && e.at >= since && this.state.projects.has(e.project_id));
+    return structuredClone(tallyCompletions(entries, { tz: zone, nowMs, days: q.days }));
+  }
+
   // ---------- terugzetten (zoals server/restore.ts) ----------
 
   /** Zet een zojuist verwijderde taak (met alles eraan) of sectie terug, met dezelfde controles en meldingen als de server. */
@@ -739,6 +755,7 @@ export class DemoServer {
       changePassword: async () => { throw apiError(403, 'DEMO', notInDemo()); },
       sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s })) }),
       activity: async (projectId, q) => this.activityPage(projectId, q),
+      stats: async (q) => this.statsPage(q),
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);
         if (i < 0) throw apiError(404, 'NOT_FOUND', 'deze sessie bestaat niet');

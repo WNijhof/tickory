@@ -10,6 +10,7 @@
 import { applyCommand, emptyState } from './reducer.js';
 import { parseDateText } from './dateNl.js';
 import { addDays, todayString } from './format.js';
+import { isoWeekday, startOfWeek } from './calendar.js';
 import { ENTITIES, settingsId } from '../../shared/schema.js';
 import { keyAfter } from '../../shared/orderKey.js';
 
@@ -41,6 +42,81 @@ function makeRow(entityName, id, values, at) {
 /** Maakt iemand lid van een project (wat de server doet bij `project_share`). */
 export function addMember(state, projectId, userId, role, at, id) {
   state.members.set(id, makeRow('member', id, { project_id: projectId, user_id: userId, role }, at));
+}
+
+// ---------- wat je de afgelopen weken afvinkte (voor het scherm Productiviteit) ----------
+
+/** Zoveel weken terug gaat de voorbeeldgeschiedenis (het overzicht toont er hooguit 12; het logboek van een server gaat 180 dagen terug). */
+const HISTORY_WEEKS = 15;
+/** Een vast getal tussen 0 en 1 per tekst (geen Math.random): elke dag krijgt elke keer dezelfde aantallen en tijden. */
+function steady(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  h = Math.imul(h ^ (h >>> 15), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+const DONE_TITLES = {
+  inbox: ['Rekening van de tandarts betalen', 'Pakketje terugsturen', 'Afspraak bij de kapper maken', 'Mail van school beantwoorden', 'Verzekeringen vergelijken', "Foto's van de verjaardag uitzoeken", 'Abonnement opzeggen', 'Bibliotheekboek verlengen', 'Cadeau voor Sanne bestellen', 'Belastingbrief bekijken'],
+  huis: ['Was ophangen', 'Vaatwasser uitruimen', 'Bed verschonen', 'Koelkast schoonmaken', 'Recept voor zondag zoeken', 'Groente halen bij de markt', 'Ramen lappen', 'Badkamer poetsen', 'Gft-bak buiten zetten'],
+  texel: ['Fietsen nakijken', 'Weerbericht bekijken', 'Route naar de boot printen', 'Zwemspullen zoeken', 'Campingkaart verlengen'],
+  feest: ['Buren in de straat uitnodigen', 'Tafels en stoelen tellen', 'Prijzen voor de loterij vragen', 'Muziek testen'],
+};
+
+/**
+ * Een geloofwaardige geschiedenis van afvinkingen in het logboek: op werkdagen meestal 5 tot 9 taken, in het weekend een paar,
+ * hier en daar een dag met minder (de reeks breekt), en een rustige vakantieweek. De aantallen hangen alleen af van de datum en
+ * van hoeveel weken geleden die is: de demo ziet er elke dag hetzelfde uit en de controle van de website blijft stabiel. Van
+ * vandaag staat alleen wat vóór nu gebeurde. Ook Bram en Sanne vinken af (dat telt niet voor jou), en één keer zet je iets terug.
+ */
+function completionHistory({ now, today, entry, log, state, projects, people }) {
+  const thisWeek = startOfWeek(today);
+  const first = addDays(thisWeek, -7 * HISTORY_WEEKS);
+  const origin = new Date(new Date(`${first}T00:00:00Z`).getTime() - 2 * 86_400_000).toISOString();
+  // de projecten, secties en vaste taken bestonden al vóór de geschiedenis (in het logboek; de rijen zelf zijn "drie dagen oud")
+  const named = (content) => [...state.tasks.values()].find((x) => x.content === content);
+  const stofzuigen = named('Stofzuigen');
+  const oudPapier = named('Oud papier aan de straat');
+  const fietsband = named('Fietsband plakken');
+  for (const e of log) {
+    if (['project_created', 'member_added', 'section_added'].includes(e.kind) || (e.kind === 'task_added' && (e.task_id === stofzuigen?.id || e.task_id === oudPapier?.id))) e.at = origin;
+  }
+  const when = (date, minutes) => {
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y, m - 1, d, Math.floor(minutes / 60), minutes % 60).toISOString();
+  };
+  const nowIso = now.toISOString();
+  const add = (projectId, actor, at, ref) => { if (at < nowIso) entry(projectId, actor, 'task_completed', at, ref); };
+  for (let date = first; date <= today; date = addDays(date, 1)) {
+    const weeksAgo = Math.round((new Date(`${thisWeek}T00:00:00Z`) - new Date(`${startOfWeek(date)}T00:00:00Z`)) / (7 * 86_400_000));
+    const weekday = isoWeekday(date);
+    const r = steady(date);
+    let count;
+    if (weeksAgo === 7) count = Math.floor(r * 3); // een vakantieweek: het weekdoel niet gehaald
+    else if (weekday <= 5) count = weekday === 3 && [2, 5, 10, 13].includes(weeksAgo) ? 2 + Math.floor(r * 2) : 5 + Math.floor(r * 5);
+    else count = Math.floor(r * 4);
+    for (let i = 0; i < count; i++) {
+      const s = steady(`${date}/${i}`);
+      const minutes = 8 * 60 + 10 + Math.floor((i * 13 * 60) / count) + Math.floor(s * 35);
+      const pick = steady(`${date}/${i}/p`);
+      const kind = pick < 0.3 ? 'inbox' : pick < 0.72 ? 'huis' : pick < 0.88 ? 'texel' : 'feest';
+      const titles = DONE_TITLES[kind];
+      add(projects[kind], people.anna, when(date, minutes), { task_id: null, title: titles[Math.floor(s * titles.length) % titles.length] });
+    }
+    // de vaste taken: stofzuigen op zaterdag, oud papier om de week op dinsdag (terugkerend: ze schuiven door en blijven open)
+    if (stofzuigen && weekday === 6 && weeksAgo !== 7) add(projects.huis, people.anna, when(date, 10 * 60 + 5), { task_id: stofzuigen.id, title: stofzuigen.content, extra: { recurring: true } });
+    if (oudPapier && weekday === 2 && weeksAgo % 2 === 0) add(projects.huis, people.anna, when(date, 19 * 60 + 40), { task_id: oudPapier.id, title: oudPapier.content, extra: { recurring: true } });
+    // de anderen in Huishouden
+    if (steady(`${date}/b`) < 0.5) add(projects.huis, people.bram, when(date, 18 * 60 + 15), { task_id: null, title: 'Fietsen in de schuur gezet' });
+    if (steady(`${date}/s`) < 0.3) add(projects.huis, people.sanne, when(date, 16 * 60 + 30), { task_id: null, title: 'Kamer gestofzuigd' });
+  }
+  // een vergissing die je meteen herstelde: telt niet mee
+  if (fietsband) {
+    const date = addDays(today, -2);
+    add(projects.inbox, people.anna, when(date, 12 * 60), { task_id: fietsband.id, title: fietsband.content });
+    const back = when(date, 12 * 60 + 1);
+    if (back < nowIso) entry(projects.inbox, people.anna, 'task_uncompleted', back, { task_id: fietsband.id, title: fietsband.content });
+  }
 }
 
 /**
@@ -263,6 +339,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     const pid = c.task_id ? state.tasks.get(c.task_id)?.project_id : c.project_id;
     if (pid) entry(pid, c.author_id, 'comment_added', c.created_at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? state.tasks.get(c.task_id)?.content : null });
   }
+  completionHistory({ now, today, entry, log, state, projects: { inbox: INBOX, huis, texel, feest }, people: { anna, bram, sanne } });
   log.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
   const activity = log.map((e, i) => ({ id: String(i + 1), ...e }));
 

@@ -330,6 +330,7 @@ async function shootAll() {
   // twee taken afvinken, zodat Voltooid ook een groep van vandaag heeft naast de taken van drie dagen geleden
   for (const name of ['Weekmenu maken', 'Kamer opruimen']) await evaluate(`${row(name)}.querySelector('.check').click()`);
   await waitFor(`!${row('Weekmenu maken')} && !${row('Kamer opruimen')}`, 'twee taken afgevinkt');
+  await waitFor(`document.getElementById('sync-status').textContent === ${js(T('sync.upToDate'))}`, 'bijgewerkt (de cijfers boven Voltooid tellen ze dan mee)');
   await nav(T('nav.completed'));
   await title(T('nav.completed'));
   await waitFor(`document.querySelectorAll('li.task').length >= 4`, 'voltooide taken');
@@ -337,6 +338,17 @@ async function shootAll() {
   await evaluate(`document.activeElement?.blur()`);
   await settle();
   await capture('voltooid', DESKTOP);
+
+  // ---- het overzicht Productiviteit (de knop boven Voltooid), op een computer en een telefoon ----
+  await evaluate(`document.querySelector('.stats-strip-open').click()`);
+  await title(T('productivity.title'));
+  await waitFor(`document.querySelectorAll('.stat-tile').length === 4 && document.querySelectorAll('.chart').length === 2`, 'productiviteit');
+  await browser.viewport(HIGH.width, HIGH.height, { scale: HIGH.scale, mobile: HIGH.mobile });
+  await settle();
+  await capture('productiviteit', HIGH, await around('main.main', 0));
+  await browser.viewport(PHONE.width, PHONE.height, { scale: PHONE.scale, mobile: PHONE.mobile });
+  await settle();
+  await capture('telefoon-productiviteit', PHONE);
 }
 
 let failed: unknown = null;

@@ -33,6 +33,7 @@ import { todayString } from '../client/core/format.js';
 import { describeCommandError } from '../client/core/messages.js';
 import { handleSync } from '../server/sync.ts';
 import { listActivity } from '../server/activity.ts';
+import { myStats } from '../server/stats.ts';
 import { createAttachments } from '../server/attachments.ts';
 import { makePng } from './e2e-attachments.ts';
 import { addUser, freshDb } from '../server/testutil.ts';
@@ -412,6 +413,35 @@ if (wants('demo')) {
     assert.ok([...seed.state.labels.values()].some((l) => l.owner_id !== 'user-anna'), 'er is een label van iemand anders');
   });
 
+  await check('voorbeeldgegevens: het productiviteitsoverzicht heeft een geloofwaardige, vaste geschiedenis van 12 weken en meer', async () => {
+    const { summarize } = await load('demo/core/productivity.js');
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    for (let i = 0; i < 21; i++) {
+      for (const [h, min] of [[0, 5], [15, 0], [23, 55]]) {
+        const now = new Date(2026, 10, 13 + i, h, min);
+        const server = new DemoServer({ now: () => now, strict: true });
+        const stats = server.statsPage({ tz: zone });
+        const label = now.toISOString();
+        assert.deepEqual(new DemoServer({ now: () => now, strict: true }).statsPage({ tz: zone }), stats, `${label}: elke keer dezelfde getallen`);
+        assert.equal(stats.today, todayString(now), `${label}: vandaag in de tijdzone van het apparaat`);
+        assert.ok(stats.per_day.every((d: any) => d.date <= stats.today), `${label}: niets in de toekomst`);
+        const s = summarize(stats, { settings: null, today: todayString(now) });
+        const full = s.weeks.slice(0, -1);
+        assert.equal(full.length, 11);
+        assert.ok(full.filter((w: any) => w.count >= 25).length >= 9 && full.some((w: any) => w.count < 25), `${label}: bijna alle weken het weekdoel, één rustige week: ${full.map((w: any) => w.count)}`);
+        assert.ok(s.dayStreak.current >= 5 && s.dayStreak.longest >= s.dayStreak.current && s.dayStreak.longest <= 25, `${label}: een reeks dagen ${JSON.stringify(s.dayStreak)}`);
+        assert.ok(s.weekStreak.current >= 5 && s.weekStreak.longest >= 7, `${label}: een reeks weken ${JSON.stringify(s.weekStreak)}`);
+        assert.ok(s.days.slice(0, 6).filter((d: any) => !d.off).every((d: any) => d.count >= 2) && s.days.slice(0, 6).some((d: any) => d.count >= 5), `${label}: de laatste dagen ${s.days.map((d: any) => d.count)}`);
+        assert.ok(s.projects.items.length >= (s.week.count > 6 ? 2 : 1) || s.week.count === 0, `${label}: meer dan één project deze week`);
+        // alleen Anna: Bram en Sanne vinken ook af in Huishouden, maar dat telt niet
+        const total = stats.per_day.reduce((n: number, d: any) => n + d.count, 0);
+        const annaDone = server.activity.filter((e: any) => e.kind === 'task_completed' && e.actor_id === 'user-anna').length;
+        assert.ok(server.activity.some((e: any) => e.kind === 'task_completed' && e.actor_id !== 'user-anna'), 'anderen vinken ook af');
+        assert.ok(server.activity.some((e: any) => e.kind === 'task_uncompleted' && e.actor_id === 'user-anna') ? total === annaDone - 1 : total === annaDone, `${label}: alleen Anna's afvinkingen, min wat ze terugzette`);
+      }
+    }
+  });
+
   await check('sync-protocol: volledige sync, delta op sync_token, sync_status, verwijderingen, partial, een uuid maar één keer', () => {
     const server = new DemoServer({ strict: true });
     const first = server.sync({ sync_token: '*' });
@@ -644,6 +674,13 @@ if (wants('demo')) {
       ['settings_update', { id: x.settings, auto_reminder: -2 }, 'INVALID_ARG'],
       ['settings_update', { id: x.settings, timezone: 'Mars/Olympus' }, 'INVALID_ARG'],
       ['settings_update', { id: x.settings, owner_id: x.bram }, 'READONLY'],
+      // het productiviteitsoverzicht: doelen en vrije dagen, met grenzen (shared/stats.js)
+      ['settings_update', { id: x.settings, goal_daily: 8, goal_weekly: 0, days_off: [7, 6, 3] }, 'ok'],
+      ['settings_update', { id: x.settings, goal_daily: 101 }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, goal_weekly: -1 }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, days_off: [1, 2, 3, 4, 5, 6, 7] }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, days_off: [2, 2] }, 'INVALID_ARG'],
+      ['settings_update', { id: x.settings, goal_weekly: null }, 'ok'],
       ['settings_update', { id: 'settings-niemand', auto_reminder: 5 }, 'NOT_FOUND'],
       ['settings_add', { id: 'settings-check-0001', auto_reminder: 5 }, 'UNKNOWN_COMMAND'],
       ['settings_delete', { id: x.settings }, 'UNKNOWN_COMMAND'],
@@ -749,6 +786,16 @@ if (wants('demo')) {
     assert.equal(a.tasks.length, 4);
     assert.deepEqual((a.comments.find((c: any) => c.id === C3) as any).mentions, ['BRAM'], 'Kees is geen lid en valt weg, aan beide kanten');
     assert.deepEqual((a.settings[0] as any).notify_push, { completed: true, comment: false });
+    assert.deepEqual([(a.settings[0] as any).goal_daily, (a.settings[0] as any).goal_weekly, (a.settings[0] as any).days_off], [8, null, [7, 6, 3]], 'de doelen staan aan beide kanten');
+    // het productiviteitsoverzicht: in het eigen project dezelfde telling (de terugkerende taak telt, wat niets deed niet)
+    const statsOf = (x: typeof sides.real) => {
+      const answer = x === sides.real ? myStats(db, real.anna.id, { tz: 'Europe/Amsterdam', days: '7' }) : demo.statsPage({ tz: 'Europe/Amsterdam', days: 7 });
+      return { tz: answer.tz, days: answer.days, today: answer.today, mine: answer.per_day.map((d: any) => [d.date, d.projects[P] ?? 0]).filter(([, n]: any) => n > 0) };
+    };
+    assert.deepEqual(statsOf(sides.demo), statsOf(sides.real), 'de demo telt de afvinkingen zoals de echte server');
+    assert.equal(statsOf(sides.real).mine.reduce((n: number, [, c]: any) => n + c, 0), 1, 'één afvinking in het eigen project');
+    assert.throws(() => demo.statsPage({ days: 181 }), (err: any) => err.status === 400 && err.code === 'INVALID_ARG');
+    assert.throws(() => demo.statsPage({ tz: 'Mars/Olympus' }), (err: any) => err.status === 400 && err.code === 'INVALID_ARG');
     assert.deepEqual(a.templates.map((x: any) => [x.id, x.name, x.kind, x.description, x.color]), [[TP1, 'Nieuwe naam', 'project', 'Klus aan huis', 'brown']], 'het sjabloon is gewijzigd, het andere is verwijderd');
     assert.deepEqual(a.places.map((p: any) => [p.id, p.name, p.radius]), [[PL2, 'Werk', 500]], 'de verwijderde plaats is weg, de andere staat er nog');
     assert.deepEqual(a.reminders.filter((r: any) => r.type === 'location').map((r: any) => [r.id, r.place_id, r.trigger]), [[R4, PL2, 'leave']], 'de herinnering op de verwijderde plaats is mee verdwenen');
@@ -1948,6 +1995,50 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, 'de kalender veroorzaakt geen zijwaarts scrollen van de pagina');
         assertClean('bord en kalender op een telefoon');
         await b.viewport(1280, 860);
+      });
+
+      await check('demo: Productiviteit (Nederlands en Engels): de kop boven Voltooid, het scherm met diagrammen en tabellen, doelen instellen, op een telefoon en in het donker', async () => {
+        b.reset();
+        for (const lang of ['en', 'nl'] as const) { // eindigt in het Nederlands, zoals de controles hierna verwachten
+          const nl = lang === 'nl';
+          await b.viewport(1280, 860);
+          await openDemo(`?lang=${lang}`);
+          await nav(nl ? 'Voltooid' : 'Completed');
+          await waitFor(`document.querySelector('.stats-strip .stats-strip-value')`, 'de cijfers boven Voltooid');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.stats-strip-label')].map((e) => e.textContent)`), nl ? ['Vandaag', 'Deze week', 'Reeks dagen'] : ['Today', 'This week', 'Daily streak']);
+          await evaluate(`document.querySelector('.stats-strip-open').click()`);
+          await viewTitle(nl ? 'Productiviteit' : 'Productivity');
+          await waitFor(`document.querySelectorAll('.stat-tile').length === 4`, 'de tegels');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.stats-heading')].map((e) => e.textContent)`), nl ? ['De laatste 7 dagen', 'Per week', 'Deze week per project', 'Je doelen'] : ['The last 7 days', 'By week', 'This week by project', 'Your goals']);
+          assert.equal(await evaluate(`document.querySelectorAll('.chart')[0].querySelectorAll('.bar').length`), 7);
+          assert.equal(await evaluate(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length`), 12);
+          const days = await evaluate<string[]>(`[...document.querySelectorAll('.chart')[0].querySelectorAll('tbody th')].map((e) => e.textContent)`);
+          assert.match(days[6], nl ? /^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag) \d{1,2} [a-z]+$/ : /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) \d{1,2} [A-Z][a-z]+$/, `dagnamen uit Intl: ${days[6]}`);
+          assert.ok(await evaluate(`document.querySelectorAll('.share-row').length >= 1`), 'per project');
+          assert.equal(await evaluate(`document.getElementById('goal-daily').value`), '5');
+          assert.equal(await evaluate(`document.getElementById('goal-weekly').value`), '25');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.day-toggle input')].map((i) => i.checked)`), [false, false, false, false, false, true, true], 'standaard het weekend vrij');
+          assert.equal(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].some((e) => ['Productiviteit', 'Productivity'].includes(e.textContent))`), false, 'geen eigen regel in de zijbalk');
+          // de doelen werken ook in de demo (via de sync van de demo)
+          await evaluate(`(() => { const i = document.getElementById('goal-daily'); i.value = '3'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+          await waitFor(`await ${SYNCED}`, 'doel opgeslagen');
+          await evaluate(`document.activeElement?.blur()`);
+          await waitFor(`document.querySelector('.stats-strip, .stat-tile') && document.querySelectorAll('.chart')[0].querySelector('caption').textContent.endsWith(${js(nl ? '(dagdoel 3)' : '(daily goal 3)')})`, 'het diagram volgt het doel');
+          await evaluate(`document.querySelector('[data-fk="stats-weeks-4"]').click()`);
+          await waitFor(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length === 4`, 'vier weken');
+          assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth`), true, 'niet breder dan het venster');
+          // telefoon, donker
+          await b.viewport(390, 844, { mobile: true });
+          await b.colorScheme('dark');
+          await sleep(200);
+          assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390, 'geen zijwaarts scrollen op een telefoon');
+          assert.equal(await evaluate(`new Set([...document.querySelectorAll('.stat-tile')].map((e) => Math.round(e.getBoundingClientRect().left))).size`), 1, 'de tegels staan onder elkaar');
+          const small = await evaluate<string[]>(`[...document.querySelectorAll('#content button, #content input:not([type=checkbox]), .day-toggle span[aria-hidden]')].filter((e) => e.offsetParent !== null).map((e) => { const r = e.getBoundingClientRect(); return r.height < 44 ? (e.dataset.fk || e.textContent) + ' ' + Math.round(r.height) : null; }).filter(Boolean)`);
+          assert.deepEqual(small, [], 'tikvlakken van minstens 44 px');
+          assert.equal(await evaluate(`getComputedStyle(document.querySelector('.bar-fill')).fill`), await evaluate(`getComputedStyle(document.querySelector('.stat-meter-fill')).backgroundColor`), 'het diagram heeft de accentkleur');
+          await b.colorScheme('light');
+        }
+        assertClean('productiviteit');
       });
 
       await check('demo: bewaart niets: na herladen zijn de voorbeeldgegevens terug; geen service worker, geen opslag, geen aanmelding', async () => {
