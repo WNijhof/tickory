@@ -95,11 +95,20 @@ class ApiClient(
 
     /** Haalt alle taken en de herinneringen van de ingelogde gebruiker op. */
     fun fetchSnapshot(token: String): FetchResult {
-        val body = Json.stringify(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders", "projects", "sections", "labels")))
-        val response = try {
-            request("POST", SYNC_PATH, token, body)
+        val types = listOf("tasks", "reminders", "projects", "sections", "labels")
+        var response = try {
+            // "places": de plaatsen voor herinneringen op een locatie (van de gebruiker zelf, privé)
+            request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to types + "places")))
         } catch (e: Exception) {
             return FetchResult.Failed(classify(e), 0)
+        }
+        if (response.status == 400) {
+            // Een oudere server kent "places" niet en weigert het verzoek: dan zonder, en zonder herinneringen op een plek.
+            response = try {
+                request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to types)))
+            } catch (e: Exception) {
+                return FetchResult.Failed(classify(e), 0)
+            }
         }
         if (response.status == 401) return FetchResult.Unauthorized
         if (response.status != 200) return FetchResult.Failed(null, response.status)

@@ -30,7 +30,7 @@ export function positionErrorText(err) {
 
 /** De uitleg bij de toestand van de locatiecontrole op dit toestel. */
 export function adviceText(advice, status) {
-  if (advice === 'off') return t('places.android.off');
+  if (advice === 'off') return status?.declined ? t('places.android.declined') : t('places.android.off');
   if (advice === 'services') return t('places.android.services');
   if (advice === 'permission') return status?.approximate ? t('places.android.approximate') : t('places.android.permission');
   if (advice === 'background') return t('places.android.background');
@@ -177,8 +177,11 @@ export function placesDialog({ store, actions, bridge = androidBridge() }) {
       const status = bridge.locationStatus();
       const advice = locationAdvice(status);
       const buttons = [];
-      if (advice === 'off') buttons.push(h('button', { type: 'button', class: 'button button-primary', onclick: () => bridge.requestLocationPermission() }, t('places.android.turnOn')));
-      else {
+      if (advice === 'off') {
+        buttons.push(h('button', { type: 'button', class: 'button button-primary', onclick: () => bridge.requestLocationPermission() }, t('places.android.turnOn')));
+        // Eerder geweigerd: Android vraagt dan soms niet meer, en alleen de instellingen van de app helpen.
+        if (status?.declined) buttons.push(h('button', { type: 'button', class: 'button', onclick: () => bridge.openLocationSettings() }, t('places.android.openSettings')));
+      } else {
         if (advice === 'permission' || advice === 'background') buttons.push(h('button', { type: 'button', class: 'button button-primary', onclick: () => (status?.declined ? bridge.openLocationSettings() : bridge.requestLocationPermission()) }, status?.declined ? t('places.android.openSettings') : t('places.android.grant')));
         if (advice === 'services') buttons.push(h('button', { type: 'button', class: 'button', onclick: () => bridge.openLocationSettings() }, t('places.android.openSettings')));
         buttons.push(h('button', { type: 'button', class: 'button', dataset: { role: 'check-now' }, onclick: () => { bridge.checkLocationNow(); } }, t('places.android.checkNow')));

@@ -651,6 +651,7 @@ export default {
   'places.android.title': 'Locatiecontrole op dit toestel',
   'places.android.info': 'De app vergelijkt de positie van je telefoon zelf met je plaatsen, zuinig en zonder Google-diensten. Er wordt geen positie naar de server of naar iemand anders gestuurd.',
   'places.android.off': 'De locatiecontrole staat uit. Zet haar aan om herinneringen op een plek te krijgen.',
+  'places.android.declined': 'De toestemming voor locatie is geweigerd. Probeer het opnieuw, of geef de toestemming bij de instellingen van de app.',
   'places.android.services': 'Locatie staat uit op dit toestel. Zet locatie aan in de instellingen van Android.',
   'places.android.permission': 'Tickory mag je nauwkeurige positie nog niet gebruiken. Geef toestemming voor "nauwkeurige locatie".',
   'places.android.approximate': 'Tickory mag je positie alleen bij benadering gebruiken. Dat is te grof voor een straal van enkele honderden meters; kies "nauwkeurig" bij de toestemming.',

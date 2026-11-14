@@ -654,6 +654,7 @@ export default {
   'places.android.title': 'Location check on this device',
   'places.android.info': "The app compares your phone's position with your places itself, sparingly and without Google services. No position is sent to the server or to anyone else.",
   'places.android.off': 'The location check is off. Turn it on to get reminders at a place.',
+  'places.android.declined': 'Permission for location was declined. Try again, or allow it in the settings of the app.',
   'places.android.services': 'Location is off on this device. Turn location on in the Android settings.',
   'places.android.permission': 'Tickory is not allowed to use your precise position yet. Allow "precise location".',
   'places.android.approximate': 'Tickory may only use your approximate position. That is too coarse for a radius of a few hundred metres; choose "precise" in the permission.',
