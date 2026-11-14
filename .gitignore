@@ -7,3 +7,5 @@ node_modules/
 # De gebouwde website (node scripts/build-site.ts) en tijdelijke bestanden van de site-scripts
 _site/
 .site-work/
+# De gebouwde browserextensie (node scripts/build-extension.ts)
+/dist/

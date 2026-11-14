@@ -1,0 +1,418 @@
+{
+  "lang": {
+    "message": "nl",
+    "description": "De taal van deze teksten (voor het lang-attribuut van de pagina)."
+  },
+  "extName": {
+    "message": "Tickory: pagina als taak opslaan",
+    "description": "De naam van de extensie."
+  },
+  "extDescription": {
+    "message": "Bewaar de pagina, een link of geselecteerde tekst als taak op je eigen Tickory-server."
+  },
+  "actionTitle": {
+    "message": "Opslaan in Tickory",
+    "description": "De knop in de werkbalk."
+  },
+  "commandDescription": {
+    "message": "Het venster Opslaan in Tickory openen",
+    "description": "De sneltoets."
+  },
+  "menuSave": {
+    "message": "Opslaan in Tickory",
+    "description": "Het contextmenu (rechtsklik) op een pagina, link of selectie."
+  },
+  "deviceName": {
+    "message": "Browserextensie ($VALUE$)",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "De naam in de apparatenlijst van Tickory; $1 is de browser."
+  },
+  "descFoundOn": {
+    "message": "Gevonden op: $VALUE$",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "In de beschrijving bij een opgeslagen link; $1 is het adres van de pagina."
+  },
+  "popupTitle": {
+    "message": "Opslaan in Tickory"
+  },
+  "labelTitle": {
+    "message": "Taak"
+  },
+  "titlePlaceholder": {
+    "message": "Wat wil je doen?"
+  },
+  "titleHint": {
+    "message": "Snelle invoer: morgen, vrijdag 9:00, p1, #project, @label, !30m"
+  },
+  "labelDescription": {
+    "message": "Beschrijving"
+  },
+  "labelProject": {
+    "message": "Project"
+  },
+  "readOnly": {
+    "message": "$VALUE$ (alleen lezen)",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "Een project in de keuzelijst dat je alleen leest; $1 is de naam."
+  },
+  "buttonSave": {
+    "message": "Opslaan"
+  },
+  "buttonSaving": {
+    "message": "Bezig met opslaan…"
+  },
+  "saved": {
+    "message": "Opgeslagen in $VALUE$.",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is het project."
+  },
+  "savedPartly": {
+    "message": "Opgeslagen in $VALUE$, maar een label of herinnering kwam niet mee.",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is het project."
+  },
+  "openTickory": {
+    "message": "Tickory openen"
+  },
+  "settingsLink": {
+    "message": "Instellingen"
+  },
+  "notConnected": {
+    "message": "Nog niet verbonden met je Tickory-server."
+  },
+  "reconnect": {
+    "message": "De verbinding met Tickory is verlopen of ingetrokken. Verbind opnieuw."
+  },
+  "connectButton": {
+    "message": "Verbinden"
+  },
+  "signedInAs": {
+    "message": "$VALUE$ op $SECOND$",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      },
+      "second": {
+        "content": "$2"
+      }
+    },
+    "description": "$1 is de naam van de gebruiker, $2 de server."
+  },
+  "previewLabel": {
+    "message": "Herkend in de titel"
+  },
+  "chipDeadline": {
+    "message": "deadline $VALUE$",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipNewLabel": {
+    "message": "@$VALUE$ (nieuw)",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipReminderAt": {
+    "message": "herinnering $VALUE$",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipReminderNow": {
+    "message": "herinnering op het tijdstip"
+  },
+  "chipReminderMinutes": {
+    "message": "herinnering $VALUE$ min vooraf",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipReminderHours": {
+    "message": "herinnering $VALUE$ u vooraf",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipReminderDays": {
+    "message": "herinnering $VALUE$ d vooraf",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "chipDuration": {
+    "message": "duur $VALUE$ min",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    }
+  },
+  "optionsTitle": {
+    "message": "Tickory: verbinden"
+  },
+  "optionsHeading": {
+    "message": "Verbinden met je Tickory-server"
+  },
+  "serverLabel": {
+    "message": "Adres van je server"
+  },
+  "serverHint": {
+    "message": "Het adres waarop je Tickory in de browser opent. Zonder https alleen op je eigen netwerk, bijvoorbeeld http://192.168.1.10:8787."
+  },
+  "buttonConnect": {
+    "message": "Verbinden"
+  },
+  "buttonBusy": {
+    "message": "Bezig…"
+  },
+  "permissionNote": {
+    "message": "De browser vraagt daarna of de extensie dit adres mag gebruiken. Andere websites gebruikt de extensie niet."
+  },
+  "loginHeading": {
+    "message": "Inloggen op $VALUE$",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is de server."
+  },
+  "usernameLabel": {
+    "message": "Gebruikersnaam"
+  },
+  "passwordLabel": {
+    "message": "Wachtwoord"
+  },
+  "buttonLogin": {
+    "message": "Inloggen"
+  },
+  "codeHeading": {
+    "message": "Tweestapsverificatie"
+  },
+  "codeHint": {
+    "message": "Vul de code uit je authenticator-app in, of een herstelcode."
+  },
+  "codeLabel": {
+    "message": "Code"
+  },
+  "buttonVerify": {
+    "message": "Bevestigen"
+  },
+  "buttonBack": {
+    "message": "Terug"
+  },
+  "pairHeading": {
+    "message": "Inloggen met een koppelcode"
+  },
+  "pairHint": {
+    "message": "Open Tickory in je browser, kies Instellingen › Account, wachtwoord en apparaten › Koppelcode maken, en vul de code hier in. Zo werkt het ook als je alleen via SSO inlogt."
+  },
+  "pairLabel": {
+    "message": "Koppelcode"
+  },
+  "buttonPair": {
+    "message": "Koppelen"
+  },
+  "passwordOff": {
+    "message": "Op deze server log je alleen in via $VALUE$. Gebruik een koppelcode.",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is de naam van de inlogdienst."
+  },
+  "orSeparator": {
+    "message": "of",
+    "description": "Tussen inloggen met een wachtwoord en met een koppelcode."
+  },
+  "otherServer": {
+    "message": "Ander adres"
+  },
+  "connectedHeading": {
+    "message": "Verbonden"
+  },
+  "connectedAs": {
+    "message": "Verbonden met $VALUE$ als $SECOND$ (@$THIRD$).",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      },
+      "second": {
+        "content": "$2"
+      },
+      "third": {
+        "content": "$3"
+      }
+    },
+    "description": "$1 is de server, $2 de naam, $3 de gebruikersnaam."
+  },
+  "connectedNext": {
+    "message": "Klik op het pictogram van Tickory in de werkbalk (of gebruik de sneltoets of het contextmenu) om een pagina als taak op te slaan."
+  },
+  "buttonLogout": {
+    "message": "Uitloggen"
+  },
+  "logoutNote": {
+    "message": "Uitloggen meldt deze extensie af in Tickory en haalt de toestemming voor het adres weg."
+  },
+  "loggedOut": {
+    "message": "Uitgelogd."
+  },
+  "logoutOffline": {
+    "message": "Uitgelogd in de extensie. De server was niet bereikbaar: meld de extensie ook af in Tickory (Account, Aangemelde apparaten)."
+  },
+  "shortcutNote": {
+    "message": "Sneltoets: $VALUE$. Je past hem aan in de instellingen van je browser voor extensies.",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is de sneltoets."
+  },
+  "shortcutNone": {
+    "message": "Er is geen sneltoets ingesteld; dat kan in de instellingen van je browser voor extensies."
+  },
+  "privacyHeading": {
+    "message": "Privacy en rechten"
+  },
+  "privacyText": {
+    "message": "De extensie praat alleen met jouw server en stuurt pas iets als jij op Opslaan klikt: de titel, het adres van de pagina en wat je selecteerde. Er gaat niets naar anderen, en de extensie leest geen pagina’s waarop je haar niet zelf opent."
+  },
+  "privacyPermissions": {
+    "message": "Actief tabblad: de titel, het adres en de selectie van de pagina waarop je de extensie opent. Scripts: alleen om die selectie te lezen. Contextmenu: Opslaan in Tickory bij een rechtsklik. Opslag: het adres van je server en het token van deze extensie, alleen op deze computer. Toegang tot je server: pas bij het verbinden gevraagd, alleen voor dat adres."
+  },
+  "errAddressEmpty": {
+    "message": "Vul het adres van je server in."
+  },
+  "errAddressScheme": {
+    "message": "Gebruik een adres dat begint met https:// (of http:// op je eigen netwerk)."
+  },
+  "errAddressCredentials": {
+    "message": "Zet geen gebruikersnaam of wachtwoord in het adres; die vul je hieronder in."
+  },
+  "errAddressInvalid": {
+    "message": "Dit is geen geldig adres. Voorbeeld: https://taken.voorbeeld.nl"
+  },
+  "errInsecure": {
+    "message": "Zonder https gaan je wachtwoord en je taken onversleuteld over internet. Gebruik https://, of http:// alleen voor een server op je eigen netwerk."
+  },
+  "errPermission": {
+    "message": "De extensie kreeg geen toestemming voor dit adres. Probeer het opnieuw en kies Toestaan."
+  },
+  "errNotTickory": {
+    "message": "Op dit adres draait geen Tickory (of een versie zonder deze functie)."
+  },
+  "errOffline": {
+    "message": "Tickory is niet bereikbaar."
+  },
+  "errOfflineTryHttp": {
+    "message": "Klopt het adres? Draait je server zonder https op je eigen netwerk, typ dan http:// ervoor."
+  },
+  "errOfflineTryHttps": {
+    "message": "Klopt het adres, en is je server bereikbaar vanaf deze computer?"
+  },
+  "errTimeout": {
+    "message": "Tickory reageert niet. Probeer het zo opnieuw."
+  },
+  "errCredentials": {
+    "message": "Gebruikersnaam of wachtwoord klopt niet."
+  },
+  "errPasswordOff": {
+    "message": "Inloggen met een wachtwoord staat op deze server uit. Gebruik een koppelcode."
+  },
+  "errCode": {
+    "message": "De code klopt niet (of is al gebruikt)."
+  },
+  "errChallenge": {
+    "message": "Deze inlogpoging is verlopen. Log opnieuw in met je wachtwoord."
+  },
+  "errPairCode": {
+    "message": "Deze koppelcode is onbekend, verlopen of al gebruikt. Maak in Tickory een nieuwe."
+  },
+  "errPairCodeFormat": {
+    "message": "Een koppelcode heeft 16 tekens, bijvoorbeeld ABCD-EFGH-JKMN-PQRS."
+  },
+  "errBusy": {
+    "message": "De server is even druk. Probeer het zo opnieuw."
+  },
+  "errUnauthorized": {
+    "message": "De verbinding met Tickory is verlopen of ingetrokken. Verbind opnieuw."
+  },
+  "errForbidden": {
+    "message": "Je kunt in dit project alleen lezen. Kies een ander project."
+  },
+  "errNotFound": {
+    "message": "Dit project (of label) bestaat niet meer. Kies een ander project."
+  },
+  "errLimit": {
+    "message": "Er past niets meer bij: een grens van de server is bereikt."
+  },
+  "errInvalidTask": {
+    "message": "De server nam deze taak niet aan. Pas de titel of beschrijving aan en probeer het opnieuw."
+  },
+  "errTooLarge": {
+    "message": "De taak is te groot. Maak de beschrijving korter."
+  },
+  "errEmptyTitle": {
+    "message": "Geef de taak een titel."
+  },
+  "errServer": {
+    "message": "De server gaf een fout. Probeer het later opnieuw."
+  },
+  "errTooMany": {
+    "message": "Te veel pogingen. Probeer het over $VALUE$ minuten opnieuw.",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is het aantal minuten."
+  },
+  "errTooManyOne": {
+    "message": "Te veel pogingen. Probeer het over een minuut opnieuw."
+  },
+  "errUnknown": {
+    "message": "Er ging iets mis ($VALUE$).",
+    "placeholders": {
+      "value": {
+        "content": "$1"
+      }
+    },
+    "description": "$1 is de foutcode."
+  }
+}
