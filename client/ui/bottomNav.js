@@ -67,6 +67,7 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
     if (tab === 'inbox' && !id) return; // nog niet ingelogd: er is (nog) geen Inbox
     const before = activeTab(getRoute(), { inboxId: id, browseOpen: isOpen() });
     handlers.navigate(tab === 'inbox' ? { type: 'project', id } : { type: tab }); // sluit ook Bladeren
+    buttons[tab].focus({ preventScroll: true }); // de focus blijft op de knop (ook als het scherm opnieuw is getekend)
     // een ander scherm begint bovenaan; nog eens op dezelfde knop tikken gaat ook terug naar boven
     if (before !== tab || window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'instant' });
   }
@@ -105,8 +106,10 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
     try {
       if (history.state?.[STATE_KEY]) history.back(); // de eigen stap weer weg; "terug" daarna gaat waar het eerst heen ging
     } catch { /* zie open() */ }
-    // stond de focus in het scherm dat nu verdwijnt, dan naar de knop Bladeren (anders raakt een toetsenbordgebruiker zijn plek kwijt)
-    if (narrow() && sidebar?.contains(document.activeElement)) buttons.browse.focus({ preventScroll: true });
+    // stond de focus in het scherm dat nu verdwijnt (of nergens meer, na een keuze daarin), dan naar de knop Bladeren: anders raakt
+    // een toetsenbordgebruiker zijn plek kwijt
+    const focused = document.activeElement;
+    if (narrow() && (!focused || focused === body || sidebar?.contains(focused))) buttons.browse.focus({ preventScroll: true });
   }
 
   window.addEventListener('popstate', () => {
