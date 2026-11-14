@@ -189,6 +189,11 @@ test('een project van een ander onder het gedeelde project blijft buiten een rol
   assert.equal(roleOf(b, P, carol), 'member');
   assert.equal(roleOf(b, 'project-bram-sub', carol), 'member', 'anna is ook eigenaar van het subproject dat bram maakte');
   assert.equal(roleOf(b, 'project-bram-eig', carol), 'viewer', 'maar niet van het eigen project van bram');
+  // in het subproject van bram zijn anna en bram allebei eigenaar: de rol van een (andere) eigenaar wijzig je niet
+  const co = cmd('member_update', { project_id: 'project-bram-sub', user_id: bram.id, role: 'viewer' });
+  const r = run(db, anna, [co]);
+  assert.equal(status(r, co), 'CONFLICT');
+  assert.match((r.sync_status[co.uuid] as Row).error, /eigenaar/);
 });
 
 test('toewijzen kan niet aan een lezer; wordt iemand lezer, dan vervallen zijn toewijzingen; een verhuisde taak verliest een toewijzing aan een lezer', () => {

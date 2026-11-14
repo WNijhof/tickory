@@ -2,8 +2,10 @@
    Alleen de kleuren uit app.css (die hebben een licht en een donker thema). */
 
 /* ---------- alleen lezen ---------- */
-.banner-readonly { justify-content: flex-start; color: var(--text-soft); }
-.banner-readonly .icon { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.banner-readonly { justify-content: flex-start; align-items: flex-start; flex-wrap: nowrap; color: var(--text-soft); }
+.banner-readonly .icon { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--accent); }
+.banner-readonly > span { flex: 1; min-width: 0; }
+.dialog-task .quick-dates[hidden] { display: none; }
 .task-readonly .check, .check[disabled] { opacity: 0.45; cursor: not-allowed; }
 .task-readonly .task-body { cursor: pointer; }
 .nav-readonly .icon { color: var(--text-soft); }
@@ -11,6 +13,7 @@
 .dialog-task .field[readonly], .dialog-task .subtask-title[readonly] { background: transparent; }
 .dialog-task .banner-readonly { margin: 0 0 10px; }
 .share-invite { flex-wrap: wrap; }
+.share-invite[hidden] { display: none; } /* alleen de eigenaar nodigt uit; .subtask-row zet display, dus hidden alleen is niet genoeg */
 .share-role { width: auto; min-height: 40px; }
 .device .share-role { margin-left: auto; }
 

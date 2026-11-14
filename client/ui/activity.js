@@ -38,18 +38,27 @@ export function installActivity({ store, api, handlers, navigate, getRoute }) {
 
   // Na een sync (ook van iemand anders, via het live-signaal) kan er iets bij zijn gekomen: de nieuwste pagina opnieuw, niet te vaak.
   let timer = null;
+  /** De nieuwste pagina opnieuw, hooguit eens per 5 seconden; wat te vroeg komt, wacht tot het mag (en valt dus niet weg). */
+  const schedule = (delay) => {
+    if (timer) return;
+    timer = setTimeout(() => {
+      timer = null;
+      const now = getRoute();
+      if (now.type !== 'activity' || !store.view.projects.has(now.id)) return;
+      const wait = 5000 - (Date.now() - lastRefresh);
+      if (wait > 0) {
+        schedule(wait);
+        return;
+      }
+      lastRefresh = Date.now();
+      feed.refresh(now.id, filterOf(now.id));
+    }, delay);
+  };
   store.subscribe(() => {
     const route = getRoute();
     // wat je niet meer ziet (verlaten, eruit gehaald, verwijderd), vergeet de app meteen, ook wat al geladen was
     for (const id of feed.projects()) if (store.ready && store.view.projects.size > 0 && !store.view.projects.has(id)) feed.forget(id);
-    if (route.type !== 'activity' || !store.view.projects.has(route.id) || timer) return;
-    timer = setTimeout(() => {
-      timer = null;
-      const now = getRoute();
-      if (now.type !== 'activity' || Date.now() - lastRefresh < 5000) return;
-      lastRefresh = Date.now();
-      feed.refresh(now.id, filterOf(now.id));
-    }, 1500);
+    if (route.type === 'activity' && store.view.projects.has(route.id)) schedule(1500);
   });
 
   const entryRow = (item) => h('li', { class: 'activity-item', dataset: { id: item.id } },

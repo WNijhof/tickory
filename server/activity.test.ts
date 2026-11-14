@@ -116,6 +116,29 @@ test('een verwijderde bijlage verliest haar naam, ook in het logboek; een titel 
   assert.throws(() => listActivity(db, bram.id, P, {}), /bestaat niet/);
 });
 
+test('geen nieuws: dezelfde naam opnieuw; wel nieuws: een terugkerende taak die doorschuift, met die vermelding', () => {
+  const { db, anna } = world();
+  const before = kinds(db, anna).length;
+  run(db, anna, [cmd('project_update', { id: P, name: 'Verbouwing' }), cmd('section_add', { id: S, project_id: P, name: 'Keuken' })]);
+  run(db, anna, [cmd('section_update', { id: S, name: 'Keuken' })]);
+  assert.deepEqual(kinds(db, anna).slice(before), ['section_added'], 'hernoemen naar dezelfde naam staat er niet in');
+  run(db, anna, [cmd('task_add', { id: T, project_id: P, content: 'Planten water geven', due: { date: '2030-01-07', recurrence: { freq: 'weekly', byweekday: [1] } } }), cmd('task_complete', { id: T })]);
+  const done = all(db, anna).filter((e) => e.kind === 'task_completed');
+  assert.deepEqual(done.map((e) => e.extra), [{ recurring: true }]);
+  run(db, anna, [cmd('task_add', { id: 'task-act-000009', project_id: P, content: 'Eenmalig' }), cmd('task_complete', { id: 'task-act-000009' })]);
+  assert.equal(all(db, anna).filter((e) => e.kind === 'task_completed').at(-1)!.extra, null);
+});
+
+test('een sync met commando\'s ruimt regels op die ouder zijn dan de bewaartermijn', () => {
+  const { db, anna } = world();
+  const old = new Date(Date.now() - (ACTIVITY_RETENTION_DAYS + 2) * 86_400_000).toISOString();
+  db.prepare("INSERT INTO activity (project_id, at, actor_id, kind) VALUES (?, ?, ?, 'task_added')").run(P, old, anna.id);
+  handleSync(db, {}, anna.id); // zonder commando's: niets opgeruimd
+  assert.equal(Number((db.prepare('SELECT COUNT(*) AS n FROM activity WHERE at = ?').get(old) as Row).n), 1);
+  run(db, anna, [cmd('task_add', { project_id: anna.inbox_project_id, content: 'iets' })]);
+  assert.equal(Number((db.prepare('SELECT COUNT(*) AS n FROM activity WHERE at = ?').get(old) as Row).n), 0);
+});
+
 test('opruimen: ouder dan de bewaartermijn weg, en per project hooguit het maximum (de oudste eerst)', () => {
   const { db, anna } = world();
   const ins = db.prepare("INSERT INTO activity (project_id, at, actor_id, kind) VALUES (?, ?, ?, 'task_added')");
