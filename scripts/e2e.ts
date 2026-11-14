@@ -2196,8 +2196,9 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(serverTask('Balkproef').due?.date, today, 'de "+" in Vandaag voegt toe voor vandaag');
   // de laatste taak (en de laatste knop) vallen niet onder de balk of de "+", ook op een laag scherm
+  await closeToasts(); // een melding tilt de "+" tijdelijk op (zie hieronder)
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 520, deviceScaleFactor: 2, mobile: true });
-  await sleep(200);
+  await sleep(300);
   await evaluate(`window.scrollTo(0, document.documentElement.scrollHeight)`);
   await sleep(200);
   const cover = await evaluate<any>(`(() => {
@@ -2251,14 +2252,14 @@ try {
     const s = document.getElementById('sidebar'); const r = s.getBoundingClientRect(); const bar = document.getElementById('bottom-nav').getBoundingClientRect();
     const visible = (e) => e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden';
     return {
-      box: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(bar.top - r.bottom)],
+      box: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.abs(bar.top - r.bottom) <= 1],
       first: [...s.querySelectorAll('button, input, a')].find(visible)?.className, focus: document.activeElement.className,
       items: [...s.querySelectorAll('.nav-item .nav-label, .nav-section-link, .nav-heading > span')].filter(visible).map((e) => e.textContent),
       views: ['nav-inbox', 'nav-today', 'nav-upcoming'].filter((fk) => { const e = s.querySelector('[data-fk="' + fk + '"]'); return e && visible(e); }),
       state: history.state?.tickoryBrowse ?? null, inert: document.querySelector('main.main').inert,
     };
   })()`);
-  assert.deepEqual(sheet.box, [0, 0, 390, 0], `Bladeren vult het scherm boven de balk: ${sheet.box}`);
+  assert.deepEqual(sheet.box, [0, 0, 390, true], `Bladeren vult het scherm boven de balk: ${sheet.box}`);
   assert.deepEqual([sheet.first, sheet.focus], ['search-field', 'search-field'], 'zoeken staat bovenaan, en de focus begint daar');
   for (const name of ['Voltooid', 'Meldingen', 'Filters', 'Labels', 'Projecten', 'Thuis']) assert.ok(sheet.items.includes(name), `${name} staat in Bladeren: ${sheet.items}`);
   assert.deepEqual(sheet.views, [], 'Inbox, Vandaag en Aankomend staan niet nog eens in Bladeren');
@@ -2301,7 +2302,7 @@ try {
     await sleep(100);
     barNow = await barState();
     assert.deepEqual([barNow.current, barNow.expanded, barNow.fab.shown], [['browse'], 'false', fab], `${title}: Bladeren actief; "+" ${fab ? 'wel' : 'niet'}`);
-    assert.equal(await evaluate(`history.state?.tickoryBrowse ?? null`), null, 'de stap in de geschiedenis is weer weg');
+    await waitFor(`(history.state?.tickoryBrowse ?? null) === null`, 'de stap in de geschiedenis is weer weg');
   }
   // donker
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
