@@ -28,6 +28,8 @@ import { FILTER_EXAMPLES, FILTER_TERM_GROUPS } from '../client/core/filterText.j
 import dutchTexts from '../client/i18n/nl.js';
 import en from '../client/i18n/en.js';
 import { dragAndDropScenario } from './e2e-dnd.ts';
+import { attachmentScenario } from './e2e-attachments.ts';
+import { createAttachments } from '../server/attachments.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -65,10 +67,12 @@ const PASSWORD_ALICE = 'alice-wachtwoord-1';
 const PASSWORD_BOB = 'bob-wachtwoord-123';
 const alice = createUser(db, { username: 'alice', name: 'Alice', passwordHash: await hashPassword(PASSWORD_ALICE) });
 const bob = createUser(db, { username: 'bob', name: 'Bob', passwordHash: await hashPassword(PASSWORD_BOB) });
+// Bijlagen: de bestanden staan in een map naast de testgegevens; een bestand mag hier hooguit 5 MB zijn
+const attachments = createAttachments(db, { dir: `${workDir}attachments`, maxUploadBytes: 5_000_000, quotaBytes: 50_000_000 });
 let app: App | null = null;
 async function startServer() {
   // met meldingen in de browser, zoals de echte server; de klok staat uit (niets wordt verstuurd, er is ook geen apparaat aangemeld)
-  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0 });
+  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0, attachments, attachmentSweepMs: 0 });
   await new Promise<void>((r) => app!.server.listen(APP_PORT, '127.0.0.1', r));
 }
 async function stopServer() {
@@ -642,7 +646,7 @@ try {
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Deadline']);
-  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Post comment', 'Delete', 'Cancel', 'Save']);
+  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Cancel', 'Save']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask', 'Write a comment…']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['Inbox', 'Thuis', '(no section)']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prio-option')].map((l) => [l.title, l.querySelector('input').checked])`), [['P1 – highest', true], ['P2', false], ['P3', false], ['P4 – none', false]], 'vier prioriteitsknoppen; de taak "Call the dentist" is P1');
@@ -1336,6 +1340,13 @@ try {
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   step('opmerkingen: toevoegen (ook met Ctrl+Enter), regeleinden en webadressen als gewone link, HTML blijft tekst, bewerken en verwijderen alleen van jezelf, een opmerking van Bob verschijnt vanzelf, teller in de lijst, opmerkingen bij een project');
 
+  // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
+  await attachmentScenario({
+    send, evaluate, waitFor, sleep, js, shot, step, serverState, startServer, stopServer, workDir, BASE, bobToken, alice, aliceToken: createSession(db, alice.id, 'Controle bijlagen').token,
+    openTask, click, clickText, noDialog, SYNCED, attachments,
+    strangerToken: createSession(db, createUser(db, { username: 'eve', name: 'Eve', passwordHash: 'x' }).id, 'Vreemde').token, // geen lid van Thuis
+  });
+
   // ---- 8h. het taakvenster: prioriteitsknoppen, snelle datums, labels, Ctrl+Enter, Esc ----
   await openTask('Afwasmachine uitruimen');
   assert.equal(await evaluate(`document.querySelector('#task-dialog .task-created').textContent`), 'Gemaakt door Alice, vandaag', 'wie de taak maakte en wanneer');
@@ -1359,7 +1370,7 @@ try {
   assert.deepEqual([afwasNu.priority, afwasNu.due.date, afwasNu.assignee_id], [2, tomorrow, bob.id], 'Ctrl+Enter heeft alles bewaard');
   assert.equal((serverState().labels as any[]).filter((l) => l.name === 'schoonmaak').length, 1);
   assert.equal(afwasNu.labels.length, 1);
-  assert.deepEqual(await taskMeta('Afwasmachine uitruimen'), ['morgen', '0/1', '2', '@schoonmaak', 'voor Bob']);
+  assert.deepEqual(await taskMeta('Afwasmachine uitruimen'), ['morgen', '0/1', '2', '4', '@schoonmaak', 'voor Bob']);
   assert.equal(await evaluate(`${row('Afwasmachine uitruimen')}.classList.contains('prio-2')`), true);
   // datum zonder snelle knoppen, en "Geen datum"
   await openTask('Afwasmachine uitruimen');
