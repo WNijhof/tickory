@@ -4,7 +4,7 @@ De Android-app van Tickory: de web-app van je eigen server in een eigen app, met
 de app dicht is en ook zonder internet. Zonder Google Play, zonder Firebase, zonder trackers of statistieken.
 
 De app haalt je taken en herinneringen op bij je server en zet ze als alarmen op het toestel zelf. Daardoor gaat een
-herinnering ook af als de server even niet bereikbaar is. Met de **widgets** (vanaf de volgende versie) zie je je taken op het
+herinnering ook af als de server even niet bereikbaar is. Met de **widgets** (vanaf versie 0.3.0) zie je je taken op het
 startscherm en vink je ze daar af; zie [Widgets](#widgets).
 
 ## Installeren op een telefoon
