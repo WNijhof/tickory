@@ -318,7 +318,7 @@ class WidgetUiTest : WidgetTestBase() {
     // ---------- de knoppen ----------
 
     @Test
-    fun `de plusknop opent Taak toevoegen in het project van de lijst`() {
+    fun `de plusknop opent het kleine venster Taak toevoegen in het project van de lijst`() {
         signIn(withData = data)
         val today = place(TodayWidgetProvider::class.java)
         val upcoming = place(UpcomingWidgetProvider::class.java)
@@ -331,7 +331,7 @@ class WidgetUiTest : WidgetTestBase() {
         fun target(id: Int): String? {
             view(id).findViewById<View>(R.id.add).performClick()
             val started = shadowOf(app).nextStartedActivity
-            assertEquals(MainActivity::class.java.name, started.component!!.className)
+            assertEquals(io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java.name, started.component!!.className)
             assertTrue(started.hasExtra(DeepLink.EXTRA_ADD))
             return started.getStringExtra(DeepLink.EXTRA_ADD)
         }
@@ -355,7 +355,7 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `de knop Taak toevoegen - Inbox, en alleen een plusteken als hij smal is`() {
+    fun `de knop Taak toevoegen - het kleine venster in het laatst gekozen project, en alleen een plusteken als hij smal is`() {
         signIn(withData = data)
         val id = place(AddWidgetProvider::class.java, R.layout.widget_add)
         WidgetUpdater.updateAll(app)
@@ -363,7 +363,8 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("Taak toevoegen", v.findViewById<View>(R.id.add_root).contentDescription)
         v.findViewById<View>(R.id.add_root).performClick()
         val started = shadowOf(app).nextStartedActivity
-        assertEquals("inbox-project", started.getStringExtra(DeepLink.EXTRA_ADD))
+        assertEquals(io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java.name, started.component!!.className)
+        assertEquals("geen vast project: het venster kiest het laatst gekozen (eerst de Inbox)", "", started.getStringExtra(DeepLink.EXTRA_ADD))
 
         assertEquals(View.VISIBLE, view(id).findViewById<View>(R.id.add_label).visibility)
         size(id, 60, 60)
@@ -375,11 +376,12 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `de knop Taak toevoegen werkt ook zonder aanmelding - dan zonder doel`() {
+    fun `de knop Taak toevoegen werkt ook zonder aanmelding - dan zonder doel (het venster opent dan de app)`() {
         val id = place(AddWidgetProvider::class.java, R.layout.widget_add)
         WidgetUpdater.updateAll(app)
         view(id).findViewById<View>(R.id.add_root).performClick()
         val started = shadowOf(app).nextStartedActivity
+        assertEquals(io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java.name, started.component!!.className)
         assertTrue(started.hasExtra(DeepLink.EXTRA_ADD))
         assertEquals("", started.getStringExtra(DeepLink.EXTRA_ADD))
     }

@@ -22,11 +22,11 @@ class AddTaskTileTest {
     private val app: android.app.Application = ApplicationProvider.getApplicationContext()
 
     @Test
-    fun `de tegel start de app op Taak toevoegen, expliciet en als nieuwe taak`() {
+    fun `de tegel start het kleine venster Taak toevoegen, expliciet en als nieuwe taak`() {
         val intent = AddTaskTileService.launchIntent(app)
-        assertEquals(ComponentName(app, MainActivity::class.java), intent.component)
+        assertEquals(ComponentName(app, io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java), intent.component)
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
-        assertTrue("MainActivity moet er een 'add' in herkennen", intent.hasExtra(DeepLink.EXTRA_ADD))
+        assertTrue("zonder aanmelding geeft het venster dit door aan de app: 'add'", intent.hasExtra(DeepLink.EXTRA_ADD))
         assertEquals("add", DeepLink.add(intent.getStringExtra(DeepLink.EXTRA_ADD)))
         assertNull("geen taak-id: het is Taak toevoegen, niet een taak openen", intent.getStringExtra(io.github.wnijhof.tickory.reminders.Notifications.EXTRA_TASK_ID))
     }
