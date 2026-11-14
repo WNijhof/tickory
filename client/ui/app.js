@@ -7,7 +7,8 @@ import { createActions, newId } from '../core/actions.js';
 import { createUndo } from '../core/undo.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
 import { fetchSharedFiles, shareFromHash } from '../core/share.js';
-import { deviceName } from '../core/auth.js';
+import { ApiError, deviceName } from '../core/auth.js';
+import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
 import { isArchivedProject, roleIn } from '../core/selectors.js';
@@ -471,7 +472,9 @@ async function chooseLanguage() {
 
 /** Het accountscherm, met doorverwijzing naar gebruikersbeheer of afmelden. */
 async function accountFlow() {
-  const next = await accountDialog({ me: store.me, api });
+  // koppelen met SSO: naar de inlogdienst en terug (core/sso.js); de terugkeer handelt finishSso af
+  const startLink = ({ password, code }) => startSso({ api, purpose: 'link', bridge, storage: localStorage, location, lang: getLanguage(), password, code });
+  const next = await accountDialog({ me: store.me, api, startLink });
   if (next === 'admin') {
     await adminDialog({ me: store.me, api, inApp: bridge.available }); // in de Android-app kan een back-up niet worden gedownload
     return accountFlow();
@@ -490,15 +493,24 @@ async function askLogin(note = '') {
   if (ui.askingLogin) return;
   ui.askingLogin = true;
   try {
+    // Hoe kan er op deze server worden ingelogd (wachtwoord, SSO)? Zonder verbinding: gewoon het wachtwoord.
+    let methods = { password: true, sso: null };
+    try {
+      methods = await api.sso.methods();
+    } catch { /* offline of een oudere server */ }
+    const device = () => deviceName(navigator.userAgent, { app: Boolean(window.TickoryAndroid) });
     await loginDialog({
       username: store.me?.username ?? '',
       note: note || (store.me ? t('login.sessionEnded') : ''),
+      sso: methods.sso ?? null,
+      passwordLogin: methods.password !== false || !methods.sso,
+      onSso: () => startSso({ api, purpose: 'login', bridge, storage: localStorage, location, deviceName: device(), lang: getLanguage() }),
       attempt: async (username, password) => {
-        const res = await api.login(username, password, deviceName(navigator.userAgent, { app: Boolean(window.TickoryAndroid) }));
-        return res.two_factor_required ? res : adopt(res);
+        const res = await api.login(username, password, device());
+        return res.two_factor_required ? res : adoptLogin(res);
       },
       attemptCode: async (challenge, code) => {
-        const res = await adopt(await api.loginCode(challenge, code));
+        const res = await adoptLogin(await api.loginCode(challenge, code));
         if (res.recovery_code_used) toast(t('login.recoveryLeft', { count: res.recovery_codes_left ?? 0 }), { timeout: 12_000 });
         return res;
       },
@@ -506,36 +518,67 @@ async function askLogin(note = '') {
   } finally {
     ui.askingLogin = false;
   }
+}
 
-  /** Een gelukte aanmelding overnemen (na het wachtwoord, of na de code). */
-  async function adopt(res) {
-    const other = store.me && store.me.id !== res.me.id;
-    if (other) {
-      const waiting = store.queueLength;
-      const ok = await confirmDialog({
-        title: t('login.switchTitle', { name: res.me.name }),
-        text: waiting > 0 ? t('login.switchTextWaiting', { name: store.me.name, count: waiting }) : t('login.switchText', { name: store.me.name }),
-        okText: t('login.switchOk'),
-      });
-      if (!ok) {
-        api.logout(res.token).catch(() => {});
-        throw new Error('geannuleerd');
-      }
-      events.stop();
-      sync.stop();
-      localStorage.removeItem(ROUTE_KEY);
-      if (adapter.clear) await adapter.clear();
-      await attachments.clear();
+/**
+ * Een gelukte aanmelding overnemen (na het wachtwoord, na de code, of na de terugkeer van SSO). Logt er iemand anders in dan wiens
+ * gegevens op dit apparaat staan, dan wissen we die eerst (na bevestiging als er nog wijzigingen wachten): gegevens van de één horen
+ * nooit bij de ander terecht te komen.
+ */
+async function adoptLogin(res) {
+  const other = store.me && store.me.id !== res.me.id;
+  if (other) {
+    const waiting = store.queueLength;
+    const ok = await confirmDialog({
+      title: t('login.switchTitle', { name: res.me.name }),
+      text: waiting > 0 ? t('login.switchTextWaiting', { name: store.me.name, count: waiting }) : t('login.switchText', { name: store.me.name }),
+      okText: t('login.switchOk'),
+    });
+    if (!ok) {
+      api.logout(res.token).catch(() => {});
+      throw new Error('geannuleerd');
     }
-    backend.setToken(res.token);
-    bridge.setSession(res.token);
-    if (other) {
-      location.reload();
-      return res;
-    }
-    events.restart();
-    sync.requestSync(0);
+    events.stop();
+    sync.stop();
+    localStorage.removeItem(ROUTE_KEY);
+    if (adapter.clear) await adapter.clear();
+    await attachments.clear();
+  }
+  backend.setToken(res.token);
+  bridge.setSession(res.token);
+  if (other) {
+    location.reload();
     return res;
+  }
+  events.restart();
+  sync.requestSync(0);
+  return res;
+}
+
+/**
+ * Terug van de inlogdienst (`#oidc=…` of `#oidc-error=…`, zie core/sso.js) of de noodcode van een beheerder (`#signin=…`). De code
+ * wordt ingewisseld met het geheim van de poging die hier begon. Geeft een melding voor het inlogscherm terug als het niet lukte
+ * (ingelogd: dan als melding in beeld), anders null.
+ */
+async function finishSso(ret) {
+  const pending = ret.kind === 'signin' ? null : takePending(localStorage);
+  const fail = (text) => {
+    if (getToken()) toast(text, { kind: 'error', timeout: 12_000 });
+    return text;
+  };
+  if (ret.kind === 'error') return fail(ssoErrorText(ret.error));
+  if (ret.kind === 'code' && !pending) return fail(ssoErrorText('EXPIRED')); // niet hier begonnen: niet inwisselen
+  try {
+    const res = await api.sso.handoff(ret.code, pending?.binding);
+    if (res.linked) {
+      toast(t('sso.linkedToast', { name: res.name }), { timeout: 8000 });
+      return null;
+    }
+    await adoptLogin(res);
+    return null;
+  } catch (err) {
+    if (!(err instanceof ApiError)) return null; // geannuleerd bij het wisselen van account
+    return fail(err.message);
   }
 }
 
@@ -770,12 +813,16 @@ async function boot() {
   attachments.init().catch(() => {});
   render();
   document.body.classList.add('ready');
+  // terug van de inlogdienst (SSO) of een noodcode: eerst afhandelen, en het fragment meteen uit de adresbalk (en de geschiedenis)
+  const ssoReturn = parseSsoHash(location.hash);
+  if (ssoReturn) history.replaceState(null, '', location.pathname + location.search);
+  const ssoNote = ssoReturn ? await finishSso(ssoReturn) : null;
   if (getToken()) {
     bridge.setSession(getToken()); // bij elke start, ook als de app al was ingelogd
     if (usesPush()) pushClient.refresh().catch(() => {});
     sync.requestSync(0);
   } else {
-    askLogin();
+    askLogin(ssoNote ?? '');
   }
 
   // Een melding aangetikt: de taak openen, via de adresbalk (#task=…, Android en nieuwe vensters) of via de service worker.

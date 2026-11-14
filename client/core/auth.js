@@ -32,17 +32,22 @@ function ownMessage(action, code) {
     case 'TOO_MANY_ATTEMPTS': return t('api.tooManyAttempts');
     case 'TOO_MANY_REQUESTS': return action === 'admin.backup' ? t('api.tooManyBackups') : null;
     case 'BUSY': return t('api.busy');
+    case 'PASSWORD_LOGIN_OFF': return t('api.passwordLoginOff');
+    case 'CODE_INVALID': return t('sso.error.expired');
+    case 'UNAVAILABLE': return t('sso.error.unavailable');
     case 'UNAUTHORIZED': return t('error.unauthorized');
     case 'INTERNAL': return t('error.internal');
     case 'FORBIDDEN':
       if (action === 'changePassword') return t('api.wrongCurrentPassword');
-      if (action.startsWith('twoFactor.') || action === 'admin.backup') return t('api.wrongPassword');
+      if (action.startsWith('twoFactor.') || action === 'admin.backup' || action === 'sso.start') return t('api.wrongPassword');
       return admin ? t('api.adminOnly') : t('error.forbidden');
     case 'NOT_FOUND': return action === 'revokeSession' ? t('api.sessionGone') : admin ? t('api.userGone') : null;
     case 'DUPLICATE': return action === 'admin.createUser' ? t('api.usernameTaken') : null;
     case 'CONFLICT':
       if (action === 'admin.updateUser') return t('api.lastAdmin');
       if (action === 'twoFactor.enable') return t('api.twoFactorStartOver');
+      if (action === 'sso.start') return t('api.ssoAlreadyLinked');
+      if (action === 'sso.unlink') return t('api.ssoUnlinkOnly');
       return null;
     default: return null;
   }
@@ -103,6 +108,17 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       disable: (password, code) => call('twoFactor.disable', 'POST', '/api/v1/auth/2fa/disable', { password, code }),
       newRecoveryCodes: (password, code) => call('twoFactor.recovery', 'POST', '/api/v1/auth/2fa/recovery-codes', { password, code }),
     },
+    /** Inloggen via SSO (OpenID Connect; server/sso.ts en core/sso.js). */
+    sso: {
+      /** Hoe je op deze server inlogt: `{ password, sso: { name } | null }`. */
+      methods: () => call('sso.methods', 'GET', '/api/v1/auth/methods', undefined, { token: null }),
+      /** Begint een poging (`purpose` 'login' of 'link'; koppelen met `password` en zo nodig `code`): `{ url, binding }`. */
+      start: (input) => call('sso.start', 'POST', '/api/v1/auth/oidc/start', input, input?.purpose === 'link' ? undefined : { token: null }),
+      /** Wisselt de eenmalige code na de terugkeer in: `{ token, me }`, of na koppelen `{ linked: true }`. */
+      handoff: (code, binding) => call('sso.handoff', 'POST', '/api/v1/auth/login/handoff', { code, ...(binding ? { binding } : {}) }, { token: null }),
+      status: () => call('sso.status', 'GET', '/api/v1/auth/oidc/link'),
+      unlink: () => call('sso.unlink', 'POST', '/api/v1/auth/oidc/unlink', {}),
+    },
     /** Een pagina van het activiteitenlogboek van een project (server/activity.ts): `{ entries, next }`, de nieuwste eerst. */
     activity: (projectId, { before = null, limit = null, kinds = null } = {}) => {
       const q = new URLSearchParams();
@@ -126,6 +142,7 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       updateUser: (id, changes) => call('admin.updateUser', 'POST', '/api/v1/admin/users/update', { id, ...changes }),
       resetPassword: (id, new_password) => call('admin.resetPassword', 'POST', '/api/v1/admin/users/password', { id, new_password }),
       resetTwoFactor: (id) => call('admin.resetTwoFactor', 'POST', '/api/v1/admin/users/2fa-reset', { id }),
+      unlinkSso: (id) => call('admin.unlinkSso', 'POST', '/api/v1/admin/users/sso-unlink', { id }),
       /** Een eenmalig downloadbewijs; `backupUrl` maakt er het adres van dat de browser zelf downloadt. */
       backupTicket: (password, code) => call('admin.backup', 'POST', '/api/v1/admin/backup', { password, ...(code ? { code } : {}) }),
       backupUrl: (ticket) => `${baseUrl}/api/v1/admin/backup/download?ticket=${encodeURIComponent(ticket)}`,

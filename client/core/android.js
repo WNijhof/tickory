@@ -44,6 +44,13 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     openAttachment: (id, name, mime) => call('openAttachment', id, name, mime),
     /** Haalt een bijlage op en laat de gebruiker kiezen waar hij wordt opgeslagen. */
     saveAttachment: (id, name, mime) => call('saveAttachment', id, name, mime),
+    /** Kan de app een SSO-poging in de browser van het toestel openen? (Een oudere versie van de app kan dat niet.) */
+    canOpenSignIn: () => typeof host?.openSignIn === 'function',
+    /**
+     * Opent het begin van een SSO-poging (een adres op de eigen server, /api/v1/auth/oidc/authorize?state=…) in de browser van het
+     * toestel; de inlogdienst keert terug via tickory://oidc en de app laadt de web-app dan opnieuw met de uitkomst achter de #.
+     */
+    openSignIn: (url) => call('openSignIn', url),
     canSaveText: () => typeof host?.saveText === 'function',
     saveText: (name, mime, text) => call('saveText', name, mime, text),
 

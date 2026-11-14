@@ -741,7 +741,7 @@ export class DemoServer {
   // ---------- account, apparaten en beheer (wat de app buiten de sync om vraagt) ----------
 
   api() {
-    const view = (u) => ({ id: u.id, username: u.username, name: u.name, is_admin: u.is_admin, inbox_project_id: u.inbox_project_id, is_disabled: u.is_disabled, created_at: u.created_at, two_factor: false });
+    const view = (u) => ({ id: u.id, username: u.username, name: u.name, is_admin: u.is_admin, inbox_project_id: u.inbox_project_id, is_disabled: u.is_disabled, created_at: u.created_at, two_factor: false, sso: false });
     const demoOnly = async () => { throw apiError(403, 'DEMO', notInDemo()); };
     const account = (id) => {
       const u = this.accounts.find((a) => a.id === id);
@@ -768,6 +768,14 @@ export class DemoServer {
         enable: demoOnly,
         disable: demoOnly,
         newRecoveryCodes: demoOnly,
+      },
+      // De demo kent geen inloggen via SSO: geen knop, geen stuk in Account.
+      sso: {
+        methods: async () => ({ password: true, sso: null }),
+        start: demoOnly,
+        handoff: demoOnly,
+        status: async () => ({ enabled: false }),
+        unlink: demoOnly,
       },
       activity: async (projectId, q) => this.activityPage(projectId, q),
       stats: async (q) => this.statsPage(q),
@@ -810,6 +818,10 @@ export class DemoServer {
           throw apiError(403, 'DEMO', notInDemo());
         },
         resetTwoFactor: async (id) => {
+          account(id);
+          throw apiError(403, 'DEMO', notInDemo());
+        },
+        unlinkSso: async (id) => {
           account(id);
           throw apiError(403, 'DEMO', notInDemo());
         },

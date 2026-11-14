@@ -29,9 +29,39 @@ export function errorText(err) {
  * Heeft het account tweestapsverificatie, dan geeft `attempt` `{two_factor_required, challenge}` terug: dan volgt in hetzelfde
  * scherm de tweede stap, met `attemptCode(challenge, code)` (een code uit de app of een herstelcode).
  * Geeft het resultaat van `attempt` (of `attemptCode`) terug zodra het gelukt is.
+ * Kan de server ook inloggen via SSO (`sso`: `{ name }`), dan staat er een knop "Inloggen met …" boven; `onSso()` begint die
+ * poging (de pagina gaat dan naar de inlogdienst). Staat inloggen met een wachtwoord uit (`passwordLogin: false`), dan is die knop
+ * het enige.
  */
-export function loginDialog({ attempt, attemptCode, username = '', note = '' }) {
+export function loginDialog({ attempt, attemptCode, username = '', note = '', sso = null, passwordLogin = true, onSso = null }) {
   return openDialog((finish) => {
+    // inloggen via SSO: een knop, en een eigen regel voor een melding
+    const ssoError = h('p', { class: 'error', role: 'alert' });
+    const ssoLabel = sso ? t('login.sso', { name: sso.name }) : '';
+    const ssoButton = sso && h('button', {
+      type: 'button', class: 'button button-primary sso-button', onclick: async () => {
+        ssoError.textContent = '';
+        ssoButton.disabled = true;
+        ssoButton.textContent = t('login.ssoBusy', { name: sso.name });
+        try {
+          if ((await onSso()) === 'update-app') ssoError.textContent = t('login.ssoUpdateApp', { name: sso.name });
+        } catch (err) {
+          ssoError.textContent = errorText(err);
+        } finally {
+          ssoButton.disabled = false;
+          ssoButton.textContent = ssoLabel;
+        }
+      },
+    }, ssoLabel);
+    const ssoPart = sso ? [h('div', { class: 'dialog-buttons sso-row' }, ssoButton), ssoError] : [];
+    if (!passwordLogin && sso) {
+      queueMicrotask(() => ssoButton.focus());
+      return h('div', { class: 'login' }, h('div', { class: 'dialog-form' },
+        h('h2', {}, t('login.title')),
+        note && h('p', { class: 'hint' }, note),
+        h('p', {}, t('login.passwordOff', { name: sso.name })),
+        ...ssoPart));
+    }
     const user = h('input', { class: 'field', type: 'text', value: username, required: true, autocomplete: 'username', autocapitalize: 'none', spellcheck: false, 'aria-label': t('account.username') });
     const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password') });
     const error = h('p', { class: 'error', role: 'alert' });
@@ -126,6 +156,8 @@ export function loginDialog({ attempt, attemptCode, username = '', note = '' }) 
     },
     h('h2', {}, t('login.title')),
     note && h('p', { class: 'hint' }, note),
+    ...ssoPart,
+    sso && h('p', { class: 'login-or' }, t('login.or')),
     h('label', { class: 'field-label' }, t('account.username'), user),
     h('label', { class: 'field-label' }, t('account.password'), pass),
     error,
@@ -415,20 +447,100 @@ function twoFactorSection({ api }) {
 }
 
 /**
- * Het accountscherm. Geeft 'logout' of 'admin' terug als de gebruiker dat kiest, anders null.
- * @param {{ me: object, api: object }} options
+ * Inloggen via SSO (alleen als de server dat kent): koppelen (eerst het wachtwoord, en de code bij tweestapsverificatie; daarna
+ * naar de inlogdienst en terug) of de koppeling verwijderen. `startLink({ password, code })` begint het koppelen (zie core/sso.js).
+ * Heeft het account geen wachtwoord (gemaakt via SSO), dan zegt `onPasswordless` dat (het accountscherm laat dan "Wachtwoord wijzigen" weg).
  */
-export function accountDialog({ me, api }) {
-  return openDialog((finish) => h('div', { class: 'dialog-form' },
-    h('h2', {}, t('account.title')),
-    h('p', {}, h('strong', {}, me.name), ' ', h('span', { class: 'hint' }, `@${me.username}${me.is_admin ? ` · ${t('account.admin')}` : ''}`)),
-    devicesSection({ api, onCurrentRevoked: () => finish('relogin') }),
-    passwordSection({ me, api }),
-    twoFactorSection({ api }),
-    h('div', { class: 'dialog-buttons' },
-      h('button', { type: 'button', class: 'button button-danger button-left', onclick: () => finish('logout') }, t('account.signOut')),
-      me.is_admin && h('button', { type: 'button', class: 'button', onclick: () => finish('admin') }, t('admin.title')),
-      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close')))), { wide: true });
+function ssoSection({ api, startLink, onPasswordless }) {
+  const summary = h('summary', {});
+  const body = h('div', { class: 'sso' }, h('p', { class: 'hint' }, t('common.loading')));
+  const message = h('p', { class: 'hint', role: 'status' });
+  const section = h('details', { class: 'section sso-section', hidden: true }, summary, body, message);
+
+  async function load() {
+    let s;
+    try {
+      s = await api.sso.status();
+    } catch {
+      return; // zonder antwoord geen stuk over SSO
+    }
+    if (!s?.enabled) return;
+    const name = s.name;
+    section.hidden = false;
+    summary.textContent = t('sso.section', { name });
+    if (!s.has_password) onPasswordless(name);
+    if (s.linked) {
+      replace(body,
+        h('p', {}, t('sso.linked', { name, when: when(s.linked_at) })),
+        s.can_unlink
+          ? h('div', { class: 'dialog-buttons' }, h('button', {
+            type: 'button', class: 'button button-danger', onclick: async () => {
+              try {
+                await api.sso.unlink();
+                message.textContent = t('sso.unlinked', { name });
+                load();
+              } catch (err) {
+                message.textContent = errorText(err);
+              }
+            },
+          }, t('sso.unlink')))
+          : h('p', { class: 'hint' }, t('sso.onlyWay', { name })));
+      return;
+    }
+    const pass = s.has_password && h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password') });
+    const code = s.two_factor && h('input', { class: 'field', type: 'text', required: true, autocomplete: 'one-time-code', autocapitalize: 'none', spellcheck: false, maxLength: 24, 'aria-label': t('twoFactor.codeOrRecovery') });
+    const error = h('p', { class: 'error', role: 'alert' });
+    const submit = h('button', { type: 'submit', class: 'button button-primary' }, t('sso.link', { name }));
+    replace(body, h('form', {
+      class: 'section-form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        error.textContent = '';
+        submit.disabled = true;
+        try {
+          if ((await startLink({ password: pass ? pass.value : undefined, code: code ? code.value.trim() : undefined })) === 'update-app') error.textContent = t('login.ssoUpdateApp', { name });
+        } catch (err) {
+          error.textContent = errorText(err);
+          if (pass) pass.value = '';
+          if (code) code.value = '';
+        } finally {
+          submit.disabled = false;
+        }
+      },
+    },
+    h('p', {}, t('sso.off', { name })),
+    (pass || code) && h('p', { class: 'hint' }, t('sso.linkHint', { name })),
+    pass && h('label', { class: 'field-label' }, t('account.password'), pass),
+    code && h('label', { class: 'field-label' }, t('twoFactor.codeOrRecovery'), code),
+    error,
+    h('div', { class: 'dialog-buttons' }, submit)));
+  }
+
+  load();
+  return section;
+}
+
+/**
+ * Het accountscherm. Geeft 'logout' of 'admin' terug als de gebruiker dat kiest, anders null.
+ * @param {{ me: object, api: object, startLink?: (input: { password?: string, code?: string }) => Promise<string> }} options
+ */
+export function accountDialog({ me, api, startLink = async () => 'away' }) {
+  return openDialog((finish) => {
+    const password = passwordSection({ me, api });
+    // een account zonder wachtwoord (gemaakt via SSO): geen "Wachtwoord wijzigen", wel de uitleg
+    const onPasswordless = (name) => password.replaceWith(h('p', { class: 'hint' }, t('sso.noPassword', { name })));
+    return h('div', { class: 'dialog-form' },
+      h('h2', {}, t('account.title')),
+      h('p', {}, h('strong', {}, me.name), ' ', h('span', { class: 'hint' }, `@${me.username}${me.is_admin ? ` · ${t('account.admin')}` : ''}`)),
+      devicesSection({ api, onCurrentRevoked: () => finish('relogin') }),
+      password,
+      twoFactorSection({ api }),
+      ssoSection({ api, startLink, onPasswordless }),
+      h('div', { class: 'dialog-buttons' },
+        h('button', { type: 'button', class: 'button button-danger button-left', onclick: () => finish('logout') }, t('account.signOut')),
+        me.is_admin && h('button', { type: 'button', class: 'button', onclick: () => finish('admin') }, t('admin.title')),
+        h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
+  }, { wide: true });
 }
 
 /**
@@ -509,6 +621,7 @@ export function adminDialog({ me, api, inApp = false }) {
         u.id !== me.id && { value: 'block', label: u.is_disabled ? t('admin.unblock') : t('admin.block'), danger: !u.is_disabled },
         u.id !== me.id && { value: 'admin', label: u.is_admin ? t('admin.revokeAdmin') : t('admin.makeAdmin') },
         u.two_factor && u.id !== me.id && { value: 'twoFactor', label: t('admin.resetTwoFactor'), danger: true },
+        u.sso && { value: 'sso', label: t('admin.unlinkSso'), danger: true },
       ].filter(Boolean);
       const choice = await menuDialog({ title: `${u.name} (@${u.username})`, items });
       if (choice === 'password') {
@@ -525,6 +638,9 @@ export function adminDialog({ me, api, inApp = false }) {
       } else if (choice === 'twoFactor') {
         const ok = await confirmDialog({ title: t('admin.resetTwoFactorTitle', { name: u.name }), text: t('admin.resetTwoFactorText', { name: u.name }), okText: t('admin.resetTwoFactorOk') });
         if (ok) run(() => api.admin.resetTwoFactor(u.id), t('admin.twoFactorReset', { name: u.name }));
+      } else if (choice === 'sso') {
+        const ok = await confirmDialog({ title: t('admin.unlinkSsoTitle', { name: u.name }), text: t('admin.unlinkSsoText', { name: u.name }), okText: t('admin.unlinkSsoOk') });
+        if (ok) run(() => api.admin.unlinkSso(u.id), t('admin.ssoUnlinked', { name: u.name }));
       }
     }
 
@@ -533,7 +649,7 @@ export function adminDialog({ me, api, inApp = false }) {
         const { users } = await api.admin.users();
         replace(list, users.map((u) => h('li', { class: 'device' },
           h('div', { class: 'device-info' },
-            h('strong', {}, u.name, u.is_admin && h('span', { class: 'badge' }, t('account.admin')), u.two_factor && h('span', { class: 'badge' }, t('admin.twoFactorBadge')), u.is_disabled && h('span', { class: 'badge badge-bad' }, t('account.blocked'))),
+            h('strong', {}, u.name, u.is_admin && h('span', { class: 'badge' }, t('account.admin')), u.two_factor && h('span', { class: 'badge' }, t('admin.twoFactorBadge')), u.sso && h('span', { class: 'badge' }, t('admin.ssoBadge')), u.is_disabled && h('span', { class: 'badge badge-bad' }, t('account.blocked'))),
             h('span', { class: 'hint' }, `@${u.username}`)),
           h('button', { type: 'button', class: 'button button-small', onclick: () => userMenu(u) }, t('admin.manage')))));
       } catch (err) {

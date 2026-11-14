@@ -551,6 +551,11 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .two-factor-secret code, .recovery-codes { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.04em; overflow-wrap: anywhere; }
 .recovery-codes { resize: none; line-height: 1.5; }
 .login-code { font-size: 1.2rem; letter-spacing: 0.15em; }
+/* inloggen via SSO: de knop over de hele breedte, en een scheiding met "of met je gebruikersnaam" (ui/accountDialogs.js) */
+.sso-row { justify-content: stretch; }
+.sso-row .sso-button { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; white-space: normal; }
+.login-or { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: 0.85rem; color: var(--text-soft); }
+.login-or::before, .login-or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }
 .warning { padding: 8px 10px; border-left: 3px solid var(--danger); background: var(--bg-soft); }
 .check-row { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
