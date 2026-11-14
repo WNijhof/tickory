@@ -286,6 +286,58 @@ function taskUncomplete(state, args, now) {
   patch(state, 'tasks', row.id, { checked: false, completed_at: null }, now);
 }
 
+// ---- terugzetten (task_restore, section_restore) ----
+
+/**
+ * Zet een verwijderde taak (met subtaken, opmerkingen, bijlagen en herinneringen) of sectie terug. De client houdt verwijderde
+ * rijen niet bij, dus het commando draagt de rijen zelf mee in `cmd.local.rows` (alleen op dit apparaat; de sync stuurt `local` nooit
+ * naar de server, die de rijen zelf nog heeft). Zonder die rijen doet het niets. Dezelfde weigeringen als de server: de plek (project,
+ * bovenliggende taak, sectie) moet er nog zijn, wat al terug is blijft zoals het is, labels en toegewezen personen die er
+ * intussen niet meer zijn komen niet terug.
+ */
+function restore(state, cmd, now, userId) {
+  const rows = cmd.local?.rows;
+  const id = cmd.args?.id;
+  if (!rows || typeof id !== 'string') return;
+  const members = (projectId) => new Set([...state.members.values()].filter((m) => m.project_id === projectId).map((m) => m.user_id));
+  const put = (resource, row, changes = {}) => {
+    if (!state[resource].has(row.id)) state[resource].set(row.id, { ...row, ...changes, is_deleted: false, updated_at: now });
+  };
+  const putTasks = (tasks, sectionId) => {
+    for (const t of tasks) {
+      if (state.tasks.has(t.id)) continue;
+      const changes = {};
+      if (sectionId !== undefined) changes.section_id = sectionId;
+      const labels = (t.labels ?? []).filter((l) => state.labels.has(l));
+      if (labels.length !== (t.labels ?? []).length) changes.labels = labels;
+      if (t.assignee_id && userId && !members(t.project_id).has(t.assignee_id)) changes.assignee_id = null;
+      put('tasks', t, changes);
+    }
+    const ids = new Set(tasks.map((t) => t.id));
+    for (const c of rows.comments ?? []) if (ids.has(c.task_id) && state.tasks.has(c.task_id)) put('comments', c);
+    for (const a of rows.attachments ?? []) if (ids.has(a.task_id) && state.tasks.has(a.task_id)) put('attachments', a);
+    for (const r of rows.reminders ?? []) {
+      if (ids.has(r.task_id) && state.tasks.has(r.task_id) && (!r.place_id || state.places.has(r.place_id))) put('reminders', r);
+    }
+  };
+  if (cmd.type === 'task_restore') {
+    const root = (rows.tasks ?? []).find((t) => t.id === id);
+    if (!root || state.tasks.has(id) || !state.projects.has(root.project_id)) return;
+    let sectionId = root.section_id ?? null;
+    if (root.parent_id) {
+      const parent = state.tasks.get(root.parent_id);
+      if (!parent || parent.project_id !== root.project_id) return;
+      sectionId = parent.section_id ?? null;
+    } else if (sectionId !== null && !state.sections.has(sectionId)) return;
+    putTasks(rows.tasks, sectionId);
+    return;
+  }
+  const section = (rows.sections ?? []).find((s) => s.id === id);
+  if (!section || state.sections.has(id) || !state.projects.has(section.project_id)) return;
+  put('sections', section);
+  putTasks(rows.tasks ?? [], undefined);
+}
+
 const GENERIC = /^([a-z]+)_(add|update|delete)$/;
 /** Zoveel bijlagen kan een taak hebben (gelijk aan LIMITS.attachmentsPerTask op de server). */
 export const MAX_ATTACHMENTS_PER_TASK = 20;
@@ -305,6 +357,7 @@ export function applyCommand(state, cmd, now, userId = null) {
     case 'task_move': return taskMove(state, args, now);
     case 'task_complete': return taskComplete(state, args, now);
     case 'task_uncomplete': return taskUncomplete(state, args, now);
+    case 'task_restore': case 'section_restore': return restore(state, cmd, now, userId);
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;

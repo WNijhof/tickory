@@ -24,6 +24,12 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Het commando zoals het naar de server gaat: type, uuid en argumenten. Een commando in de wachtrij kan er een veld `local`
+ * bij hebben (alleen voor dit apparaat, bijvoorbeeld de rijen om een verwijdering terug te zetten, zie core/reducer.js); dat gaat nooit mee.
+ */
+export const wireCommand = ({ cmd }) => (cmd.args === undefined ? { type: cmd.type, uuid: cmd.uuid } : { type: cmd.type, uuid: cmd.uuid, args: cmd.args });
+
 /** @typedef {'idle' | 'syncing' | 'offline' | 'unauthorized' | 'error'} SyncState */
 
 export class SyncClient {
@@ -102,7 +108,7 @@ export class SyncClient {
           const batch = this.store.peek(size);
           let res;
           try {
-            res = await this.callTransport({ sync_token: this.store.token, commands: batch.map((item) => item.cmd) });
+            res = await this.callTransport({ sync_token: this.store.token, commands: batch.map(wireCommand) });
           } catch (err) {
             if (!(err instanceof HttpError && err.status === 413)) throw err;
             if (batch.length > 1) {

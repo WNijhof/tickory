@@ -1,0 +1,49 @@
+<!--
+title: Meerdere taken selecteren
+description: Meerdere taken tegelijk kiezen en bewerken: met Ctrl-klik, Shift-klik, de knop Selecteren, het toetsenbord en op een telefoon; afvinken, verplaatsen, een datum, prioriteit, labels, toewijzen en verwijderen in één keer, met ongedaan maken.
+-->
+<h1>Meerdere taken selecteren</h1>
+<p class="intro">Een stapel taken naar morgen verzetten, een heel rijtje naar een ander project brengen of tien taken tegelijk afvinken: kies ze, en doe het in één keer. Het werkt in de lijst, op het bord, in de kalender en in Vandaag, Binnenkort, <a href="voltooid.html">Voltooid</a>, filters en labels.</p>
+
+<x-shot name="selecteren" alt="Het project Huishouden als lijst in de selectiemodus: bij elke taak staat een vakje, drie taken zijn gekozen (Weekmenu maken, Lamp in de gang vervangen en Kamer opruimen) en bovenaan de lijst staat de balk met 3 taken geselecteerd en de knoppen Afvinken, Verplaatsen, Datum, Prioriteit, Labels, Toewijzen en Verwijderen.">Drie taken gekozen: de balk bovenaan laat zien wat je ermee kunt doen.</x-shot>
+
+<h2 id="kiezen">Taken kiezen</h2>
+<ul>
+  <li><strong>Met de knop <x-ui k="bulk.select"></x-ui></strong> (een vinkvakje-pictogram naast de knoppen rechtsboven; de naam staat in de tooltip). Elke taak krijgt dan een vakje links; vink de taken aan die je wilt. Het afvinkrondje blijft gewoon afvinken. Zolang je aan het kiezen bent, kiest een klik op de regel zelf ook (het taakvenster gaat dan niet open). Met <x-ui k="bulk.selectDone"></x-ui> stop je.</li>
+  <li><strong>Ctrl-klik</strong> (op een Mac <kbd>Cmd</kbd>-klik) op een taak kiest haar of laat haar los, zonder de knop. <strong>Shift-klik</strong> kiest alles van de vorige gekozen taak tot de taak waarop je klikt, ook omhoog.</li>
+  <li><strong>Met het toetsenbord:</strong> <kbd>x</kbd> kiest de taak onder de aanwijzer, of onder de focus als je het laatst met <kbd>Tab</kbd> bewoog. Zodra je aan het kiezen bent, doet <kbd>Spatie</kbd> hetzelfde. <kbd>Ctrl</kbd>+<kbd>A</kbd> kiest alle taken die in beeld zijn, en <kbd>Esc</kbd> stopt. In een invoerveld doen deze toetsen niets.</li>
+  <li><strong>Op een telefoon:</strong> houd een taak even ingedrukt. Ze is gekozen en de balk komt onderaan; een tik kiest daarna meer. Beweeg je na het lang indrukken verder, dan sleep je de taak in plaats van haar te kiezen (zie <a href="#slepen">Slepen</a>).</li>
+</ul>
+<p>Bovenaan de balk staat hoeveel taken gekozen zijn; een schermlezer leest dat voor, net als <em>Alles geselecteerd</em> na <kbd>Ctrl</kbd>+<kbd>A</kbd>. <x-ui k="bulk.selectAll"></x-ui> in de balk doet hetzelfde als die toets. Naar een ander scherm gaan maakt de keuze leeg, en een taak die verdwijnt (bijvoorbeeld omdat iemand anders haar verwijdert) valt er vanzelf uit. Taken die niet in beeld zijn, doen niet mee: een ingeklapte sectie of een subtaak achter een gesloten pijltje wordt dus niet gekozen.</p>
+
+<h2 id="de-balk">Wat je ermee kunt doen</h2>
+<p>De balk staat op een computer bovenaan de lijst en op een telefoon vast onderaan het scherm. Een knop is grijs zolang er niets gekozen is.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Knop</th><th>Wat er gebeurt</th></tr></thead>
+    <tbody>
+      <tr><td><x-ui k="bulk.complete"></x-ui> / <x-ui k="bulk.reopen"></x-ui></td><td class="wrap-ok">Vinkt de open taken af, of heropent de afgevinkte. Een terugkerende taak schuift door naar de volgende keer, precies als bij één taak. Een subtaak gaat met haar taak mee.</td></tr>
+      <tr><td><x-ui k="bulk.move"></x-ui></td><td class="wrap-ok">Een venster met al je projecten en hun secties; typ om te zoeken. De taken komen achteraan het gekozen project of de gekozen sectie, in dezelfde volgorde als in de lijst. Subtaken gaan met hun taak mee; een subtaak die je alleen kiest, wordt een gewone taak in het doel. Staat een taak er al, dan blijft ze liggen en zegt de melding dat.</td></tr>
+      <tr><td><x-ui k="bulk.date"></x-ui></td><td class="wrap-ok"><x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui>, <x-ui k="task.quickNone"></x-ui> of een eigen datum. Het tijdstip en de herhaling van elke taak blijven zoals ze waren.</td></tr>
+      <tr><td><x-ui k="bulk.priority"></x-ui></td><td class="wrap-ok">Alle gekozen taken krijgen P1 tot en met P4.</td></tr>
+      <tr><td><x-ui k="bulk.labels"></x-ui></td><td class="wrap-ok">Een lijst met je labels, elk met een vakje: aanvinken voegt het label toe aan alle gekozen taken, uitvinken haalt het eraf; een label dat op een deel van de taken staat, laat je onaangeroerd tot je het aan- of uitzet. Een nieuw label typ je op naam (meer, met komma's ertussen).</td></tr>
+      <tr><td><x-ui k="bulk.assign"></x-ui></td><td class="wrap-ok">Alleen als er een gedeeld project bij is. Kies een lid, of niemand. Een taak in een project waar die persoon geen lid van is, wordt overgeslagen (de melding noemt welke) en de rest gaat door.</td></tr>
+      <tr><td><x-ui k="bulk.delete"></x-ui></td><td class="wrap-ok">Eerst een vraag met het aantal taken en subtaken. Daarna kun je het nog enkele minuten <a href="ongedaan-maken.html">ongedaan maken</a>.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="rechten">Rechten en wat niet lukt</h2>
+<p>Elke actie is gewoon een reeks van dezelfde wijzigingen als voor één taak, met dezelfde regels: je kunt alleen doen wat je ook bij één taak mocht. Alles gaat in één keer naar de server (en wacht netjes als je offline bent), en je ziet het resultaat meteen.</p>
+<p>Weigert de server een deel, bijvoorbeeld omdat een collega een taak intussen heeft verwijderd, dan krijg je <strong>één melding</strong>: hoeveel van hoeveel niet lukte, welke taken dat waren en waarom. De rest is wel gelukt.</p>
+
+<h2 id="slepen">Slepen en selecteren</h2>
+<p>Slepen en kiezen werken naast elkaar: met de muis begint slepen pas na een paar millimeter bewegen, en een klik blijft een klik. Sleep je een <strong>gekozen</strong> taak terwijl er meer gekozen zijn, dan gaan <strong>alle gekozen taken samen mee</strong>, in de volgorde van de lijst, naar waar je loslaat (een sectie, een project in de zijbalk, een kolom op het bord, of een dag in de kalender). Een teller bij de gesleepte regel zegt hoeveel het er zijn. Sleep je een taak die niet gekozen is, dan verplaats je alleen die ene.</p>
+<p>Samen slepen kan tot 100 taken tegelijk en alleen als ze allemaal op die plek passen. Laat je ze los op een van de gekozen taken zelf of een subtaak daarvan, of zijn het er meer dan 100, dan verplaatst alleen de taak die je vasthield en zegt een melding waarom; de rest blijft gekozen en gaat met <x-ui k="bulk.move"></x-ui> in één keer.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Alle taken van een project kiezen die niet in beeld zijn (bijvoorbeeld achter een ingeklapte sectie): klap eerst open.</li>
+  <li>Herinneringen, deadlines of een duur voor meerdere taken tegelijk instellen, of ze samen een opmerking geven.</li>
+  <li>Een eigen selectie bewaren of tussen schermen meenemen.</li>
+</ul>

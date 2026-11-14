@@ -12,6 +12,7 @@ import { todayString } from './format.js';
 import { projectDescendantIds } from './selectors.js';
 import { cleanFileName } from '../../shared/attachments.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
+import { inverseCommands } from './inverse.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -27,13 +28,40 @@ const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.orde
 
 /**
  * @param {import('./store.js').Store} store
- * @param {{ requestSync?: () => void, makeId?: () => string, makeUuid?: () => string }} [options]
+ * @param {{ requestSync?: () => void, makeId?: () => string, makeUuid?: () => string, undo?: ReturnType<typeof import('./undo.js').createUndo> }} [options]
  */
-export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = () => crypto.randomUUID() } = {}) {
+export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = () => crypto.randomUUID(), undo = null } = {}) {
+  /** Zolang `track` loopt: de omgekeerde commando's van alles wat er in die tijd wordt verstuurd (zie hieronder). */
+  let capture = null;
   const send = async (commands) => {
     // Alle tekst in NFC (zie shared/text.js), zodat wat hier optimistisch wordt getoond exact gelijk is aan wat de server bewaart.
-    await store.enqueue(commands.map((c) => ({ type: c.type, uuid: c.uuid ?? makeUuid(), args: deepNormalize(c.args) })));
+    // `local` (alleen voor dit apparaat, bv. de rijen om een verwijdering terug te zetten) gaat mee in de wachtrij, maar nooit naar de server.
+    const queued = commands.map((c) => ({ type: c.type, uuid: c.uuid ?? makeUuid(), args: deepNormalize(c.args), ...(c.local ? { local: c.local } : {}) }));
+    if (capture && !capture.broken) {
+      const inverse = inverseCommands(store.view, queued, { userId: store.userId, now: store.now(), makeId });
+      if (inverse === null) capture.broken = true;
+      else capture.parts.unshift(inverse);
+    }
+    await store.enqueue(queued);
     requestSync();
+  };
+  /**
+   * Voert `fn` uit en legt de omgekeerde commando's van alles wat daarin wordt verstuurd op de stapel "ongedaan maken".
+   * Geeft de stap terug (voor een melding met "Ongedaan maken"), of null als er niets te herstellen valt of het niet kan.
+   */
+  const track = async (label, fn) => {
+    if (capture) return { result: await fn(), entry: null }; // geneste aanroep: de buitenste neemt het mee
+    capture = { parts: [], broken: false };
+    const mine = capture;
+    let result;
+    try {
+      result = await fn();
+    } finally {
+      capture = null;
+    }
+    const commands = mine.parts.flat();
+    const entry = !mine.broken && commands.length > 0 && undo ? undo.push({ label, commands }) : null;
+    return { result, entry };
   };
   const endKey = (resource, entity, scope, exceptId = null) => keyAfter(maxKey(store.view[resource], scopeOf(entity, scope), exceptId));
 
@@ -86,7 +114,52 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     return hasTime(due?.date) && auto >= 0 ? [reminderCommand(taskId, { type: 'relative', minute_offset: auto })] : [];
   };
 
+  const updateCommands = (id, changes) => {
+    const commands = [{ type: 'task_update', args: { id, ...changes } }];
+    if (Object.hasOwn(changes, 'due')) {
+      const before = hasTime(store.view.tasks.get(id)?.due?.date);
+      const after = hasTime(changes.due?.date);
+      const mine = myReminders(id).filter((r) => r.type !== 'location'); // een herinnering op een plek telt niet als tijdherinnering
+      const auto = autoReminder();
+      if (!before && after && mine.length === 0 && auto >= 0) commands.push(reminderCommand(id, { type: 'relative', minute_offset: auto }));
+      if (before && !after) for (const r of mine) if (r.type === 'relative') commands.push({ type: 'reminder_delete', args: { id: r.id } });
+    }
+    return commands;
+  };
+  const completeCommand = (id) => {
+    // Een terugkerende taak sturen we mee met de datum die we zagen (if_due): zo schuift hij niet twee keer door als de
+    // widget van de Android-app of een ander apparaat hem tegelijk afvinkt.
+    const due = store.view.tasks.get(id)?.due;
+    // bij "elke!" telt de volgende keer vanaf vandaag: de afzender geeft zijn eigen datum mee (zijn tijdzone)
+    return { type: 'task_complete', args: due?.recurrence ? { id, if_due: due.date, ...(due.recurrence.fromCompletion ? { completed_on: todayString() } : {}) } : { id } };
+  };
+
   return {
+    // ---- ongedaan maken en bulkacties ----
+    track,
+    /** Legt een stap van de stapel terug: voert de omgekeerde commando's uit. Geeft false als de stap er niet meer was. */
+    async runUndo(item) {
+      if (!undo || !undo.takeItem(item)) return false;
+      await send(item.commands);
+      return true;
+    },
+    /** Voert de laatste stap van de stapel uit (Ctrl/Cmd+Z). Geeft de stap terug, of null als er niets is. */
+    async undoLast() {
+      const item = undo?.take() ?? null;
+      if (item) await send(item.commands);
+      return item;
+    },
+    /**
+     * Stuurt een hele reeks commando's in één keer (één wachtrij-schrijfactie, één optimistische stap) en legt de omgekeerde
+     * reeks op de stapel. `bulk` is een naam waaronder weigeringen van de server worden verzameld tot één melding (zie ui/app.js).
+     * @returns {Promise<{ entry: object | null }>}
+     */
+    async batch(commands, { label, bulk = null } = {}) {
+      const tagged = bulk ? commands.map((c) => ({ ...c, local: { ...(c.local ?? {}), bulk } })) : commands;
+      const { entry } = await track(label, () => send(tagged));
+      return { entry };
+    },
+
     // ---- taken ----
     async addTask({ content, project_id, section_id = null, parent_id = null, newLabels = [], labels = [], reminders = null, ...rest }) {
       const id = makeId();
@@ -107,17 +180,14 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
      * "vooraf" (een herinnering op een eigen datum en tijd blijft staan).
      */
     async updateTask(id, changes) {
-      const commands = [{ type: 'task_update', args: { id, ...changes } }];
-      if (Object.hasOwn(changes, 'due')) {
-        const before = hasTime(store.view.tasks.get(id)?.due?.date);
-        const after = hasTime(changes.due?.date);
-        const mine = myReminders(id).filter((r) => r.type !== 'location'); // een herinnering op een plek telt niet als tijdherinnering
-        const auto = autoReminder();
-        if (!before && after && mine.length === 0 && auto >= 0) commands.push(reminderCommand(id, { type: 'relative', minute_offset: auto }));
-        if (before && !after) for (const r of mine) if (r.type === 'relative') commands.push({ type: 'reminder_delete', args: { id: r.id } });
-      }
-      await send(commands);
+      await send(updateCommands(id, changes));
     },
+    /** De commando's van `updateTask` zonder ze te versturen (voor bulkacties, zie core/bulk.js). */
+    planUpdateTask: updateCommands,
+    /** De commando's om een taak af te vinken, zonder ze te versturen. */
+    planComplete: completeCommand,
+    /** Labels op naam vinden of aanmaken: `{ ids, commands }` (de commando's maken de ontbrekende labels aan). */
+    resolveLabels: labelCommands,
     /**
      * Voegt een herinnering toe: `{ type: 'relative', minute_offset }`, `{ type: 'absolute', due: { date } }` of
      * `{ type: 'location', place_id, trigger: 'enter' | 'leave' }`.
@@ -158,13 +228,7 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       const parent = parent_id ? store.view.tasks.get(parent_id) : null;
       return send(taskMoveCommands(store.view, id, { project_id, section_id: parent ? parent.section_id ?? null : section_id, parent_id, beforeId }));
     },
-    completeTask(id) {
-      // Een terugkerende taak sturen we mee met de datum die we zagen (if_due): zo schuift hij niet twee keer door als de
-      // widget van de Android-app of een ander apparaat hem tegelijk afvinkt.
-      const due = store.view.tasks.get(id)?.due;
-      // bij "elke!" telt de volgende keer vanaf vandaag: de afzender geeft zijn eigen datum mee (zijn tijdzone)
-      return send([{ type: 'task_complete', args: due?.recurrence ? { id, if_due: due.date, ...(due.recurrence.fromCompletion ? { completed_on: todayString() } : {}) } : { id } }]);
-    },
+    completeTask: (id) => send([completeCommand(id)]),
     uncompleteTask: (id) => send([{ type: 'task_uncomplete', args: { id } }]),
     deleteTask: (id) => send([{ type: 'task_delete', args: { id } }]),
 

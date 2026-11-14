@@ -25,6 +25,8 @@ import { DEFAULT_MIME, effectiveMime, isInlineMime } from '../../shared/attachme
 import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
 
 const MAX_COMMANDS = 100;
+/** Hoe lang na het verwijderen een taak of sectie nog kan worden teruggezet (gelijk aan RESTORE.windowMs op de server, server/limits.ts). */
+const RESTORE_WINDOW_MS = 5 * 60_000;
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const USERNAME_RE = /^[\p{L}\p{N}][\p{L}\p{N}._-]{1,39}$/u;
 const MIN_PASSWORD = 10;
@@ -107,6 +109,8 @@ export class DemoServer {
     this.rev = 1;
     this.revs = new Map();
     this.gone = new Map(); // verwijderde rijen: "resource/id" -> versienummer van het verwijderen
+    /** Wat er verwijderd is, met inhoud, zodat `task_restore` en `section_restore` het kunnen terugzetten: "resource/id" -> { row, rev, at }. */
+    this.trash = new Map();
     for (const r of RESOURCE_NAMES) for (const id of this.state[r].keys()) this.revs.set(`${r}/${id}`, 1);
     /** Uitkomst per uuid: een herhaald commando wordt niet opnieuw uitgevoerd. */
     this.seen = new Map();
@@ -183,6 +187,17 @@ export class DemoServer {
       return { error_code: 'INTERNAL', error: 'interne fout' };
     }
     this.rev += 1;
+    // wat dit commando verwijderde, bewaren we even (inhoud, versienummer, tijdstip) om het terug te kunnen zetten
+    for (const r of RESOURCE_NAMES) {
+      for (const [id, row] of this.state[r]) if (!next[r].has(id)) this.trash.set(`${r}/${id}`, { row, rev: this.rev, at });
+      for (const id of next[r].keys()) this.trash.delete(`${r}/${id}`);
+    }
+    const nowMs = Date.parse(at);
+    for (const [key, entry] of this.trash) {
+      if (nowMs - Date.parse(entry.at) <= RESTORE_WINDOW_MS) continue;
+      this.trash.delete(key);
+      if (key.startsWith('attachments/')) this.files.delete(key.slice('attachments/'.length));
+    }
     for (const r of RESOURCE_NAMES) {
       for (const [id, row] of next[r]) {
         if (this.state[r].get(id) === row) continue; // rij-objecten worden altijd vervangen, nooit aangepast
@@ -197,7 +212,7 @@ export class DemoServer {
     }
     this.state = next;
     // bestanden van bijlagen die er niet meer zijn (verwijderd, of met hun taak of project verdwenen)
-    for (const [id, f] of this.files) if (f.linked && !next.attachments.has(id)) this.files.delete(id);
+    for (const [id, f] of this.files) if (f.linked && !next.attachments.has(id) && !this.trash.has(`attachments/${id}`)) this.files.delete(id);
     return 'ok';
   }
 
@@ -208,11 +223,13 @@ export class DemoServer {
       case 'task_move': this.checkTaskMove(state, args); apply(); return this.dropStrangers(state, args.id, at);
       case 'task_complete':
         // zoals de server: `if_due` is de datum die de afzender zag (de reducer doet er hetzelfde mee)
-        exactArgs(args, ['id', 'if_due']);
+        exactArgs(args, ['id', 'if_due', 'completed_on']);
         if (args.if_due !== undefined && !isValidDate(args.if_due)) fail('INVALID_ARG', 'if_due moet een geldige datum zijn');
+        if (args.completed_on !== undefined && !(typeof args.completed_on === 'string' && args.completed_on.length === 10 && isValidDate(args.completed_on))) fail('INVALID_ARG', 'completed_on moet een datum zijn (JJJJ-MM-DD)');
         requireLive(state, 'task', args.id, 'task.id');
         return apply();
       case 'task_uncomplete': exactArgs(args, ['id']); requireLive(state, 'task', args.id, 'task.id'); return apply();
+      case 'task_restore': case 'section_restore': return this.restore(state, type, args, at);
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
       case 'project_leave': return this.projectLeave(state, args, at);
@@ -247,6 +264,48 @@ export class DemoServer {
       this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verwijderen; gebruik "verlaten" om er zelf uit te gaan');
     }
     return apply();
+  }
+
+  // ---------- terugzetten (zoals server/restore.ts) ----------
+
+  /** Zet een zojuist verwijderde taak (met alles eraan) of sectie terug, met dezelfde controles en meldingen als de server. */
+  restore(state, type, args, at) {
+    exactArgs(args, ['id']);
+    if (typeof args.id !== 'string' || !ID_RE.test(args.id)) fail('INVALID_ARG', 'ongeldig id');
+    const task = type === 'task_restore';
+    const resource = task ? 'tasks' : 'sections';
+    const what = task ? 'de taak' : 'de sectie';
+    if (state[resource].has(args.id)) return undefined; // al terug (of nooit weg)
+    const entry = this.trash.get(`${resource}/${args.id}`);
+    if (!entry || !state.projects.has(entry.row.project_id)) fail('NOT_FOUND', task ? 'task.id: taak bestaat niet' : 'section.id: sectie bestaat niet');
+    if (Date.parse(at) - Date.parse(entry.at) > RESTORE_WINDOW_MS) {
+      fail('CONFLICT', `${task ? 'task.id' : 'section.id'}: ${what} is te lang geleden verwijderd om terug te zetten (binnen ${Math.round(RESTORE_WINDOW_MS / 60_000)} minuten kan het nog)`);
+    }
+    const same = (resourceName, pred) => [...this.trash].filter(([key, e]) => key.startsWith(`${resourceName}/`) && e.rev === entry.rev && pred(e.row)).map(([, e]) => e.row);
+    const rows = { tasks: [], comments: [], attachments: [], reminders: [] };
+    if (task) {
+      const row = entry.row;
+      if (row.parent_id) {
+        const parent = state.tasks.get(row.parent_id);
+        if (!parent) fail('CONFLICT', 'de bovenliggende taak is verwijderd; zet die eerst terug');
+        if (parent.project_id !== row.project_id) fail('CONFLICT', 'de bovenliggende taak staat intussen in een ander project');
+      } else if (row.section_id && !state.sections.has(row.section_id)) fail('CONFLICT', 'de sectie van deze taak is verwijderd; zet die eerst terug');
+      const ids = new Set([row.id]);
+      for (let grew = true; grew;) {
+        grew = false;
+        for (const t of same('tasks', (x) => x.parent_id && ids.has(x.parent_id))) if (!ids.has(t.id)) { ids.add(t.id); grew = true; }
+      }
+      rows.tasks = same('tasks', (x) => ids.has(x.id));
+    } else {
+      rows.sections = [entry.row];
+      rows.tasks = same('tasks', (x) => x.section_id === entry.row.id);
+    }
+    const taskIds = new Set(rows.tasks.map((x) => x.id));
+    rows.comments = same('comments', (x) => taskIds.has(x.task_id));
+    rows.attachments = same('attachments', (x) => taskIds.has(x.task_id) && x.name !== '');
+    rows.reminders = same('reminders', (x) => taskIds.has(x.task_id));
+    if (task && rows.tasks.length + [...state.tasks.values()].filter((x) => x.project_id === entry.row.project_id).length > 10_000) fail('LIMIT_REACHED', 'taken per project: de grens van 10000 is bereikt');
+    return applyCommand(state, { type, args, local: { rows } }, at, this.me.id);
   }
 
   // ---------- controles, gelijk aan de server ----------

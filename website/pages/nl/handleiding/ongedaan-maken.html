@@ -1,0 +1,41 @@
+<!--
+title: Ongedaan maken
+description: De laatste wijziging ongedaan maken met de knop in de melding of Ctrl+Z: verplaatsen, een andere datum, prioriteit, labels, afvinken, een taak of sectie verwijderen en acties op meerdere taken; en wat niet terug kan.
+-->
+<h1>Ongedaan maken</h1>
+<p class="intro">Per ongeluk een taak verwijderd, naar het verkeerde project gesleept of tien taken op de verkeerde dag gezet? Na elke wijziging die je bewust doet, kun je haar terugdraaien: met de knop in de melding, of met <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</p>
+
+<h2 id="hoe">Hoe het werkt</h2>
+<ul>
+  <li>Na een wijziging verschijnt onderaan een paar seconden een melding met de knop <x-ui k="task.undo"></x-ui>. Klik erop en alles staat weer zoals het was.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> (op een Mac <kbd>Cmd</kbd>+<kbd>Z</kbd>) maakt de laatste wijziging ongedaan, ook als de melding al weg is. Druk je er nog eens op, dan gaat de wijziging daarvoor terug. In een invoerveld, bijvoorbeeld terwijl je een titel typt, doet <kbd>Ctrl</kbd>+<kbd>Z</kbd> zijn gewone werk: tekst terugdraaien.</li>
+  <li>De app onthoudt de laatste <strong>tien</strong> wijzigingen, en die blijven <strong>vijf minuten</strong> terugdraaibaar. Daarna, of na het herladen van de pagina, kan het niet meer.</li>
+  <li>Ongedaan maken werkt ook zonder verbinding en wordt, net als elke wijziging, later verstuurd.</li>
+</ul>
+
+<h2 id="wat">Wat je ongedaan kunt maken</h2>
+<ul>
+  <li><strong>Afvinken</strong>, ook van meerdere taken tegelijk. Bij een taak met subtaken gaan de subtaken die openstonden weer open. Bij een terugkerende taak komt de oude datum terug (de teller van het aantal keer afgevinkt loopt wel door).</li>
+  <li><strong>Verplaatsen:</strong> slepen, het menu <x-ui k="board.move"></x-ui> op het bord, en <x-ui k="bulk.move"></x-ui> bij meerdere taken. De taak staat weer op haar oude plek, met haar oude volgorde en toewijzing.</li>
+  <li><strong>Een andere dag</strong> kiezen of slepen in de kalender, een andere <strong>prioriteit</strong>, andere <strong>labels</strong>, <strong>toewijzen</strong>, en wat je in het taakvenster met <x-ui k="common.save"></x-ui> bewaart. Alles uit één keer opslaan is één stap.</li>
+  <li><strong>Een taak verwijderen</strong>, met haar subtaken, opmerkingen, bijlagen en herinneringen. Ook als je meerdere taken tegelijk verwijderde.</li>
+  <li><strong>Een sectie verwijderen</strong>, met de taken die erin stonden.</li>
+  <li><strong>Acties op meerdere taken</strong> (zie <a href="meerdere-taken.html">Meerdere taken selecteren</a>): elke actie is één stap.</li>
+</ul>
+
+<h2 id="verwijderen">Verwijderen terugzetten</h2>
+<p>Een verwijderde taak is niet echt weg: de server houdt haar nog even bij, en <strong>vijf minuten</strong> lang kan ze worden teruggezet, met alles wat erbij hoorde: subtaken, opmerkingen, bijlagen en herinneringen (ook die van anderen in een gedeeld project). Wie het project deelt, ziet de taak dan gewoon weer verschijnen.</p>
+<ul>
+  <li><strong>Wie kan het terugzetten?</strong> Wie de taak verwijderde, en de eigenaar van het project. Een ander lid kan een taak die iemand anders verwijderde niet terugzetten.</li>
+  <li><strong>Als je te laat bent</strong>, of als de plek er niet meer is, zegt de app dat: <em>Terugzetten lukt niet meer</em>. Dat gebeurt na vijf minuten, of als de sectie of de bovenliggende taak intussen ook is verwijderd (zet die dan eerst terug).</li>
+  <li>Wat intussen niet meer klopt, wordt netjes rechtgezet: een label dat je tussendoor hebt verwijderd komt niet terug, en wie inmiddels uit het project is gehaald, is niet meer toegewezen en krijgt zijn herinneringen niet terug.</li>
+  <li>De <strong>bijlagen</strong> van een verwijderde taak blijven op de server bewaard tot de vijf minuten voorbij zijn, zodat ze met de taak terugkomen. Daarna worden ze echt gewist.</li>
+</ul>
+
+<h2 id="niet">Wat niet kan</h2>
+<ul>
+  <li><strong>Een project verwijderen, een label verwijderen, iemand uit een project halen of een project delen</strong> maak je niet ongedaan: daar vraagt de app vooraf om bevestiging. (Een project <em>archiveren</em> kan wel ongedaan, met de knop in de melding of via <x-ui k="nav.archived"></x-ui>.)</li>
+  <li>Een bijlage verwijderen en een opmerking verwijderen kunnen niet ongedaan worden gemaakt.</li>
+  <li><strong>Opnieuw uitvoeren</strong> (<em>redo</em>) bestaat niet; wat je ongedaan maakte, doe je zelf nog eens.</li>
+  <li>De lijst met stappen overleeft een herstart van de pagina niet, en verschillende tabbladen of apparaten hebben elk hun eigen lijst.</li>
+</ul>

@@ -71,6 +71,7 @@ async function scenario(c: any): Promise<void> {
     send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse' });
   /** Een echt muisgebaar: indrukken, in stappen naar het doel, (optioneel iets controleren terwijl je vasthoudt), loslaten. */
   async function drag(from: { x: number; y: number }, to: { x: number; y: number }, during?: () => Promise<void>, steps = 10) {
+    await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de onderste regels
     await mouse('mouseMoved', from.x, from.y, 0);
     await mouse('mousePressed', from.x, from.y, 1);
     for (let i = 1; i <= steps; i++) await mouse('mouseMoved', Math.round(from.x + ((to.x - from.x) * i) / steps), Math.round(from.y + ((to.y - from.y) * i) / steps), 1);

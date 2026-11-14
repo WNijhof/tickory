@@ -8,13 +8,14 @@ import { RESOURCES } from './reducer.js';
 import { MemoryAdapter, Store } from './store.js';
 import { AuthError, HttpError, SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
+import { createUndo } from './undo.js';
 import { planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey } from './dnd.js';
 
 /** Een server met één account ("tester") dat de Inbox "inbox-project" heeft; de client logt daar impliciet mee in. */
 const makeServer = mkdb;
 
 let counter = 0;
-function makeClient(db, { adapter = new MemoryAdapter(), batchSize } = {}) {
+function makeClient(db, { adapter = new MemoryAdapter(), batchSize, undo = null } = {}) {
   let clock = Date.parse('2026-11-13T10:00:00Z');
   const store = new Store(adapter, { now: () => new Date((clock += 1000)).toISOString(), onPersistError: () => {} });
   const net = { online: true, loseResponse: false, calls: 0, sizes: [], maxCommands: Infinity, db };
@@ -35,6 +36,7 @@ function makeClient(db, { adapter = new MemoryAdapter(), batchSize } = {}) {
   const actions = createActions(store, {
     makeId: () => `id${String(++counter).padStart(10, '0')}`,
     makeUuid: () => `uuid-${String(++counter).padStart(10, '0')}`,
+    undo,
   });
   return { adapter, store, net, sync, actions, errors };
 }
@@ -694,23 +696,34 @@ async function randomGeoAction(c, rnd) {
 
 // De eerste vier reeksen zijn ongewijzigd; de volgende drie voegen slepen en verplaatsen toe (met eigen reeks getallen, zodat de
 // eerste reeksen precies hetzelfde blijven doen) en eisen daarvoor andere handelingen.
-const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }, { seed: 77, every: 1, geo: true }, { seed: 123, every: 6, geo: true }];
+const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }, { seed: 77, every: 1, geo: true }, { seed: 123, every: 6, geo: true }, { seed: 9, every: 1, undo: true }, { seed: 64, every: 5, undo: true }, { seed: 4096, every: 25, undo: true }];
 const BASE_KINDS = ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject'];
 const GEO_KINDS = ['addPlace', 'updatePlace', 'deletePlace', 'addLocationReminder', 'deleteLocationReminder', 'invalidLocationReminder'];
 const DND_KINDS = ['dragTask', 'keyTask', 'dropTask', 'dragProject', 'tieTasks'];
 
-for (const { seed, every, dnd = false, geo = false } of RUNS) {
-  test(`differentieel${dnd ? ' met slepen' : ''}${geo ? ' met plaatsen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
+for (const { seed, every, dnd = false, geo = false, undo = false } of RUNS) {
+  test(`differentieel${dnd ? ' met slepen' : ''}${geo ? ' met plaatsen' : ''}${undo ? ' met ongedaan maken en terugzetten' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
     const db = makeServer();
-    const c = makeClient(db);
+    const c = makeClient(db, { undo: undo ? createUndo({ max: 3 }) : null });
     await c.store.init();
     await c.sync.syncNow();
     const rnd = rng(seed);
+    const rndUndo = rngMixed(seed + 77);
     const rndDnd = rngMixed(seed + 999);
     const rndGeo = rngMixed(seed + 4242);
     const log = [];
     for (let i = 1; i <= 400; i++) {
-      log.push(await randomAction(c, rnd));
+      if (undo) {
+        // elke handeling als bewuste wijziging bijhouden, en vaak meteen ongedaan maken (verwijderen komt dan terug via task_restore)
+        const { result, entry } = await c.actions.track('test', () => randomAction(c, rnd));
+        log.push(result);
+        if (entry && rndUndo(3) === 0) {
+          await c.actions.undoLast();
+          log.push(`undo:${result}`);
+        }
+      } else {
+        log.push(await randomAction(c, rnd));
+      }
       if (dnd && rndDnd(2) === 0) log.push(await randomDndAction(c, rndDnd));
       if (geo) log.push(await randomGeoAction(c, rndGeo));
       if (i % every !== 0) continue;
@@ -728,7 +741,8 @@ for (const { seed, every, dnd = false, geo = false } of RUNS) {
     await fresh.sync.syncNow();
     assert.deepEqual(snapshot(fresh.store.view), snapshot(c.store.view), 'een nieuw apparaat ziet hetzelfde');
     const kinds = new Set(log);
-    for (const k of dnd ? DND_KINDS : geo ? GEO_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
+    for (const k of dnd ? DND_KINDS : geo ? GEO_KINDS : undo ? ['addTask', 'deleteTask', 'moveTask', 'completeTask'] : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
     if (dnd) assert.ok(log.filter((k) => DND_KINDS.includes(k)).length >= 60, 'genoeg verplaatsingen in de reeks');
+    if (undo) for (const k of ['undo:deleteTask', 'undo:deleteSection', 'undo:moveTask', 'undo:completeTask', 'undo:updateTask', 'undo:setTaskLabels']) assert.ok(kinds.has(k), `${k} kwam niet voor in deze reeks`);
   });
 }

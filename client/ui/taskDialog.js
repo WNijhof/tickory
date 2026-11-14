@@ -26,10 +26,11 @@ const INDENT = String.fromCharCode(160, 160);
  * @param {{
  *   task: object, store: import('../core/store.js').Store, actions: object, today: () => string,
  *   toggle?: (task: object) => Promise<void>,   // afvinken zoals in de lijst (met melding); zonder: de acties zelf
+ *   onUndoable?: (text: string, entry: object | null) => void,   // een melding met "Ongedaan maken" na opslaan of verwijderen
  * }} options
  * @returns {Promise<void>} klaar zodra het venster gesloten is
  */
-export function openTaskDialog({ task, store, actions, today, toggle = null }) {
+export function openTaskDialog({ task, store, actions, today, toggle = null, onUndoable = null }) {
   return new Promise((resolve) => {
     const view = store.view;
     const current = () => store.view.tasks.get(task.id) ?? task;
@@ -198,13 +199,17 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
       const assigneeValue = assignee.value || null;
       const assigneeChanged = !assigneeField.hidden && assigneeValue !== (task.assignee_id ?? null);
       if (assigneeChanged && !projectChanges) changes.assignee_id = assigneeValue;
-      if (Object.keys(changes).length > 0) await actions.updateTask(task.id, changes);
-      if (!parent && (projectChanges || (section.value || null) !== (task.section_id ?? null))) {
-        await actions.moveTask(task.id, { project_id: project.value, section_id: section.value || null });
-      }
-      if (assigneeChanged && projectChanges) await actions.assignTask(task.id, assigneeValue);
-      if (JSON.stringify(labelNames) !== JSON.stringify(initialLabelNames)) await actions.setTaskLabels(task.id, labelNames);
+      // alles wat hier verandert is één stap voor "Ongedaan maken"
+      const { entry } = await actions.track(task.content, async () => {
+        if (Object.keys(changes).length > 0) await actions.updateTask(task.id, changes);
+        if (!parent && (projectChanges || (section.value || null) !== (task.section_id ?? null))) {
+          await actions.moveTask(task.id, { project_id: project.value, section_id: section.value || null });
+        }
+        if (assigneeChanged && projectChanges) await actions.assignTask(task.id, assigneeValue);
+        if (JSON.stringify(labelNames) !== JSON.stringify(initialLabelNames)) await actions.setTaskLabels(task.id, labelNames);
+      });
       close();
+      if (entry && onUndoable) onUndoable(t('undo.taskSaved', { name: newContent }), entry);
       return true;
     };
 
@@ -277,8 +282,9 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
     const remove = async () => {
       const ok = await confirmDialog({ title: t('task.deleteTitle'), text: t('task.deleteText', { name: task.content }) });
       if (!ok) return;
-      await actions.deleteTask(task.id);
+      const { entry } = await actions.track(task.content, () => actions.deleteTask(task.id));
       close();
+      if (onUndoable) onUndoable(t('undo.taskDeleted', { name: task.content }), entry);
     };
 
     const field = (label, control, extra = null) => h('label', { class: 'field-label prop', dataset: { prop: label } }, h('span', { class: 'prop-label' }, label), control, extra);

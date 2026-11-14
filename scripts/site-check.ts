@@ -513,6 +513,24 @@ if (wants('demo')) {
       ['task_complete', { id: T3 }, 'ok'],
       ['task_complete', { id: T3 }, 'ok'],
       ['task_uncomplete', { id: T3 }, 'ok'],
+      // verwijderen terugzetten (task_restore, section_restore): zelfde uitkomsten en meldingen als de server, ook als de plek intussen weg is
+      ['task_add', { id: 'check-task-8001', project_id: P, content: 'Café-lamp', priority: 2 }, 'ok'],
+      ['task_add', { id: 'check-task-8002', project_id: P, parent_id: 'check-task-8001', content: 'Kind van de lamp' }, 'ok'],
+      ['comment_add', { id: 'check-comm-8001', task_id: 'check-task-8001', content: 'Even terugzetten' }, 'ok'],
+      ['task_delete', { id: 'check-task-8001' }, 'ok'],
+      ['task_restore', { id: 'check-task-8002' }, 'CONFLICT'],
+      ['task_restore', { id: 'check-task-8001' }, 'ok'],
+      ['task_restore', { id: 'check-task-8001' }, 'ok'],
+      ['task_restore', { id: 'check-task-8001', iets: 1 }, 'UNKNOWN_ARG'],
+      ['task_restore', { id: 'check-task-geen' }, 'NOT_FOUND'],
+      ['task_restore', { id: 'x' }, 'INVALID_ARG'],
+      ['section_add', { id: 'check-sect-8001', project_id: P, name: 'Tijdelijk' }, 'ok'],
+      ['task_add', { id: 'check-task-8003', project_id: P, section_id: 'check-sect-8001', content: 'In een tijdelijke sectie' }, 'ok'],
+      ['section_delete', { id: 'check-sect-8001' }, 'ok'],
+      ['task_restore', { id: 'check-task-8003' }, 'CONFLICT'],
+      ['section_restore', { id: 'check-sect-8001' }, 'ok'],
+      ['task_restore', { id: 'check-task-8003' }, 'ok'],
+      ['section_restore', { id: 'check-sect-geen' }, 'NOT_FOUND'],
       ['task_add', { id: T4, project_id: P, content: 'Aannemer bellen', assignee_id: x.bram }, 'ok'],
       ['task_move', { id: T4, project_id: x.inbox }, 'ok'],
       ['task_move', { id: T1, parent_id: T2 }, 'CYCLE'],
@@ -1040,7 +1058,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo();
         assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'er staat geen (inlog)venster open');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
@@ -1144,13 +1162,13 @@ if (wants('browser')) {
         assert.deepEqual(await chips('Vergunning aanvragen bij de gemeente'), [await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Vergunning aanvragen bij de gemeente').querySelector('.chip').textContent`), '@buurt', 'voor Joost']);
         await clickText('Project…');
         await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Leden bekijken', 'Project verlaten']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten']);
         await clickText('Project verlaten', `document.querySelector('dialog[open]')`);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Project verlaten?')`, 'bevestiging');
         await clickText('Verlaten', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
         await viewTitle('Inbox');
         await waitFor(`await ${SYNCED}`, 'bijgewerkt');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Anna']);
         assert.deepEqual(b.errors, []);
         assertClean('delen en verlaten');
       });
@@ -1438,7 +1456,7 @@ if (wants('browser')) {
 
         // favoriet: uit de lijst halen en weer in
         await openProjectMenu();
-        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Delen…', 'Archiveren', 'Project verwijderen']);
+        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen']);
         await clickText('Uit favorieten halen', `document.querySelector('dialog[open]')`);
         await waitFor(`![...document.querySelectorAll('.nav-heading span')].some((e) => e.textContent === 'Favorieten')`, 'Favorieten verdwenen');
         await openProjectMenu();
@@ -1504,7 +1522,7 @@ if (wants('browser')) {
         await go('i', 'Inbox');
         await press('?', true);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sneltoetsen')`, 'overzicht van sneltoetsen');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
         await clickText('Sluiten', `document.querySelector('dialog[open]')`);
         await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
         // in een invoerveld doen de toetsen niets
@@ -1524,6 +1542,7 @@ if (wants('browser')) {
           return { from: box(rows[0], 0.5), to: box(rows[Math.min(3, rows.length - 1)], 0.9) };
         })()`);
         const mouse = (type: string, x: number, y: number, buttons: number) => b.send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+        await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de lijst
         await mouse('mouseMoved', rects.from.x, rects.from.y, 0);
         await mouse('mousePressed', rects.from.x, rects.from.y, 1);
         for (let i = 1; i <= 10; i++) await mouse('mouseMoved', rects.from.x, Math.round(rects.from.y + ((rects.to.y - rects.from.y) * i) / 10), 1);
@@ -1633,6 +1652,7 @@ if (wants('browser')) {
           b.send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse' });
         /** Een echt muisgebaar via het DevTools-protocol, in stappen naar het doel. */
         const drag = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+          await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de lijst
           await mouse('mouseMoved', from.x, from.y, 0);
           await mouse('mousePressed', from.x, from.y, 1);
           for (let i = 1; i <= 10; i++) await mouse('mouseMoved', Math.round(from.x + ((to.x - from.x) * i) / 10), Math.round(from.y + ((to.y - from.y) * i) / 10), 1);
@@ -1702,6 +1722,7 @@ if (wants('browser')) {
           const candidate = await evaluate<{ id: string; date: string } | null>(`(() => { const e = [...document.querySelectorAll('li.cal-item[data-real="true"]')].find((i) => !i.closest('.cal-overdue') && i.dataset.date >= ${js(today)} && i.getBoundingClientRect().height > 0); return e ? { id: e.dataset.taskId, date: e.dataset.date } : null; })()`);
           assert.ok(candidate, 'een taak om te verzetten');
           const target = await evaluate<string>(`[...document.querySelectorAll('td.cal-day')].filter((d) => d.dataset.date !== ${js(candidate!.date)} && d.getBoundingClientRect().height > 0 && d.dataset.date >= ${js(today)})[1].dataset.date`);
+          await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de kalender
           const taskFrom = await rectOf(`document.querySelector('li.cal-item[data-task-id="${candidate!.id}"][data-real="true"] .cal-open')`);
           const dayTo = await rectOf(`document.querySelector('td.cal-day[data-date="${target}"]')`);
           await drag(grab(taskFrom), middle(dayTo));
@@ -1746,7 +1767,7 @@ if (wants('browser')) {
         await b.send('Page.reload');
         await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'de demo is opnieuw gestart');
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag', 'ook het laatst bekeken scherm is vergeten');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
         await nav('Huishouden');
         await viewTitle('Huishouden');
         const list = await titles();
@@ -1799,7 +1820,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo('?lang=en');
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Today');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-long').textContent`), 'This is a demo: changes are not saved.');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-link').href`), `${site.url}en/`, 'de link in de balk gaat naar de Engelse website');

@@ -18,7 +18,7 @@ description: Organizing tasks in Tickory: making and editing projects with a col
 <p>The color, the favorite mark and collapsing or expanding subprojects belong to the project itself, not to you: in a shared project the others see the same color and the same favorites.</p>
 
 <h2 id="the-project-menu">The project menu</h2>
-<x-shot name="projectmenu" alt="The menu of the project Huishouden with the choices Edit, Add subproject, Remove from favorites, Share, Archive and Delete project (in red).">The project menu of the owner. A member sees a shorter list.</x-shot>
+<x-shot name="projectmenu" alt="The menu of the project Huishouden with the choices Edit, Add subproject, Remove from favorites, View completed tasks, Share, Archive and Delete project (in red).">The project menu of the owner. A member sees a shorter list.</x-shot>
 <p>Open it with <x-ui k="project.menu"></x-ui> at the top right of the project. What you see depends on whether you are the owner or a member (see <a href="sharing.html#owner-and-member">owner and member</a>):</p>
 <div class="table-wrap">
   <table>
@@ -29,6 +29,7 @@ description: Organizing tasks in Tickory: making and editing projects with a col
       <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: name, color, favorite</td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui></td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (see <a href="completed.html">Completed</a>)</td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (for a member: <x-ui k="project.members"></x-ui>)</td><td>yes</td><td>view only</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>yes</td><td>no</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>yes</td><td>no</td></tr>
@@ -67,7 +68,7 @@ description: Organizing tasks in Tickory: making and editing projects with a col
 <h2 id="sections">Sections</h2>
 <ul>
   <li><strong>Making:</strong> open the project and choose <x-ui k="section.add"></x-ui> at the bottom.</li>
-  <li><strong>Renaming or deleting:</strong> click the <strong>⋯</strong> to the right of the name of the section. If you delete a section, all tasks in it disappear too.</li>
+  <li><strong>Renaming or deleting:</strong> click the <strong>⋯</strong> to the right of the name of the section. If you delete a section, all tasks in it disappear too; right afterwards you can <a href="undo.html">undo</a> that.</li>
   <li><strong>Collapsing and expanding:</strong> with the arrow in front of the name. See <a href="the-screen.html#sections-in-the-list">The screen</a>.</li>
   <li><strong>Putting a task in a section:</strong> type <code>/name of the section</code> when adding, choose <x-ui k="quick.addTask"></x-ui> under the section, or choose the section in the task window.</li>
 </ul>

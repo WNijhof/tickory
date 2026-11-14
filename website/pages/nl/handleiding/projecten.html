@@ -18,7 +18,7 @@ description: Taken indelen in Tickory: projecten maken en bewerken met een kleur
 <p>De kleur, de favorietmarkering en het in- of uitklappen van subprojecten horen bij het project zelf, niet bij jou: in een gedeeld project zien de anderen dezelfde kleur en dezelfde favorieten.</p>
 
 <h2 id="het-projectmenu">Het projectmenu</h2>
-<x-shot name="projectmenu" alt="Het menu van het project Huishouden met de keuzes Bewerken, Subproject toevoegen, Uit favorieten halen, Delen, Archiveren en Project verwijderen (in het rood).">Het projectmenu van de eigenaar. Een lid ziet een kortere lijst.</x-shot>
+<x-shot name="projectmenu" alt="Het menu van het project Huishouden met de keuzes Bewerken, Subproject toevoegen, Uit favorieten halen, Voltooide taken bekijken, Delen, Archiveren en Project verwijderen (in het rood).">Het projectmenu van de eigenaar. Een lid ziet een kortere lijst.</x-shot>
 <p>Open het met <x-ui k="project.menu"></x-ui> rechtsboven in het project. Wat je ziet, hangt af van of je eigenaar of lid bent (zie <a href="delen.html#eigenaar-en-lid">eigenaar en lid</a>):</p>
 <div class="table-wrap">
   <table>
@@ -29,6 +29,7 @@ description: Taken indelen in Tickory: projecten maken en bewerken met een kleur
       <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: naam, kleur, favoriet</td><td>ja</td><td>ja</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>ja</td><td>ja</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> of <x-ui k="project.unfavorite"></x-ui></td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (zie <a href="voltooid.html">Voltooid</a>)</td><td>ja</td><td>ja</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (voor een lid: <x-ui k="project.members"></x-ui>)</td><td>ja</td><td>alleen bekijken</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>ja</td><td>nee</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>ja</td><td>nee</td></tr>
@@ -67,7 +68,7 @@ description: Taken indelen in Tickory: projecten maken en bewerken met een kleur
 <h2 id="secties">Secties</h2>
 <ul>
   <li><strong>Maken:</strong> open het project en kies onderaan <x-ui k="section.add"></x-ui>.</li>
-  <li><strong>Naam wijzigen of verwijderen:</strong> klik op de <strong>⋯</strong> rechts van de naam van de sectie. Verwijder je een sectie, dan verdwijnen ook alle taken die erin staan.</li>
+  <li><strong>Naam wijzigen of verwijderen:</strong> klik op de <strong>⋯</strong> rechts van de naam van de sectie. Verwijder je een sectie, dan verdwijnen ook alle taken die erin staan; direct daarna kun je dat <a href="ongedaan-maken.html">ongedaan maken</a>.</li>
   <li><strong>In- en uitklappen:</strong> met het pijltje voor de naam. Zie <a href="het-scherm.html#secties-in-de-lijst">Het scherm</a>.</li>
   <li><strong>Een taak in een sectie zetten:</strong> typ bij het toevoegen <code>/naam van de sectie</code>, kies <x-ui k="quick.addTask"></x-ui> onder de sectie, of kies de sectie in het taakvenster.</li>
 </ul>

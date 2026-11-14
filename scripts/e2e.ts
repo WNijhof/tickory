@@ -31,6 +31,7 @@ import { dragAndDropScenario } from './e2e-dnd.ts';
 import { attachmentScenario } from './e2e-attachments.ts';
 import { createAttachments } from '../server/attachments.ts';
 import { geoScenario } from './e2e-geo.ts';
+import { bulkScenario } from './e2e-bulk.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -347,6 +348,7 @@ try {
   // ---- 5. afvinken, ongedaan maken, terugkerende taak ----
   const check = (content: string) =>
     evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(content)}).querySelector('.check').click()`);
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // ook opslaan en verwijderen hebben nu een melding met Ongedaan maken
   await check('Glazen apart');
   await waitFor(`document.querySelectorAll('.task').length === 2`, 'subtaak verdwenen na afvinken');
   await waitFor(`document.querySelector('.toast-action')`, 'melding met Ongedaan maken');
@@ -405,6 +407,14 @@ try {
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
   if (process.env.E2E_DND_ONLY) {
     try { await dndScenario(); console.log('ALLEEN SLEPEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-slepen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // meerdere taken selecteren, ongedaan maken en Voltooid (scripts/e2e-bulk.ts); met E2E_BULK_ONLY=1 alleen dat onderdeel
+  const bulkCtx = { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer };
+  if (process.env.E2E_BULK_ONLY) {
+    try { await bulkScenario(bulkCtx); console.log('ALLEEN SELECTEREN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-selecteren'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -589,7 +599,7 @@ try {
 
   // zijbalk en projectscherm
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'project Thuis in het Engels');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projects', 'Settings']);
   assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('menu-button').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
     ['Navigation', 'Views', 'Menu', 'Add project', 'Shared project', 'Click to sync now']);
@@ -693,6 +703,7 @@ try {
   assert.equal(serverTask('Call the dentist'), undefined);
 
   // afvinken met ongedaan maken
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
   await check('Boodschappen doen');
   await waitFor(`document.querySelector('.toast-action')?.textContent === 'Undo'`, 'melding met Undo');
   assert.ok((await texts('.toast-text')).includes('Task completed'));
@@ -732,7 +743,7 @@ try {
   // het projectmenu
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Delete project');
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete project?')`, 'bevestiging project verwijderen');
   assert.ok(await evaluate(`document.querySelector('dialog[open] p').textContent === '"Thuis" will be deleted, along with all its sections, tasks and subprojects — also for the people you share it with.'`));
@@ -877,7 +888,7 @@ try {
   await clickText('Nederlands');
   await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
@@ -1092,7 +1103,7 @@ try {
 
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort, dan de projecten');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort, dan de projecten');
   await click('.nav-heading button');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw project'`, 'projectvenster');
   assert.equal(await evaluate(`document.querySelectorAll('dialog[open] input[name="project-color"]').length`), 16, 'zestien kleuren');
@@ -1109,7 +1120,7 @@ try {
   const tuin = projectOnServer('Tuin');
   assert.deepEqual([tuin.color, tuin.is_favorite, tuin.parent_id], ['green', true, thuisId], 'kleur, favoriet en bovenliggend project staan op de server');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorieten', 'Projecten']);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
   assert.ok(await evaluate(`document.querySelector('.nav-row[data-depth="1"] .dot').classList.contains('pc-green')`), 'het bolletje heeft de kleur van het project');
   assert.equal(await evaluate(`document.querySelector('#view-lead .dot').classList.contains('pc-green')`), true, 'ook in de kop');
   await shot('zijbalk-projecten');
@@ -1118,16 +1129,16 @@ try {
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, true);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-expanded')`), 'false');
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, false);
-  assert.equal((await labelsOfNav()).length, 7);
+  assert.equal((await labelsOfNav()).length, 8);
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
   await clickText('Bewerken…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Project bewerken'`, 'projectvenster (bewerken)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] input[name="project-color"]:checked').value`), 'green');
@@ -1401,7 +1412,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1528,8 +1539,8 @@ try {
   await shot('engels-nieuwe-lijst');
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Keyboard shortcuts'`, 'sneltoetsen (Engels)');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Save the task in the task window', 'Move a task or project one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
-  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Select the task under the pointer or focus', 'Select all tasks in view', 'Stop selecting', 'Undo the last change', 'Save the task in the task window', 'Move a task or project one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
+  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+', '+', '+']);
   await noDutch('sneltoetsen', mine);
   await press('Escape');
   await noDialog();
@@ -1543,7 +1554,7 @@ try {
   await noDialog();
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Edit…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Edit project'`, 'projectvenster (Engels)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] input[name="project-color"]')].map((e) => e.getAttribute('aria-label'))`),
@@ -2552,6 +2563,9 @@ try {
   // ---- 9c. slepen en verplaatsen van taken en projecten: muis, aanraking en toetsenbord ----
   await dndScenario();
 
+  // ---- 9d. meerdere taken selecteren en bewerken, ongedaan maken, Voltooid ----
+  await bulkScenario(bulkCtx);
+
   // ---- 10. installeerbaar als app ----
   try {
     const manifest = await send('Page.getAppManifest');
@@ -2593,7 +2607,7 @@ try {
   // Bob is lid, geen eigenaar: hij kan het project niet archiveren of verwijderen, en ziet de opmerkingen van Alice (niet te wijzigen)
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van Bob');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);

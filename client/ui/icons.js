@@ -37,6 +37,10 @@ const SHAPES = {
   list: [{ d: 'M10 6h10M10 12h10M10 18h10' }, { dot: [5, 6, 1.4] }, { dot: [5, 12, 1.4] }, { dot: [5, 18, 1.4] }],
   board: [{ rect: [3, 4, 5, 16, 1.4] }, { rect: [9.5, 4, 5, 10, 1.4] }, { rect: [16, 4, 5, 13, 1.4] }],
   move: [{ d: 'M5 12h13M13 6.5l5.5 5.5-5.5 5.5' }],
+  flag: [{ d: 'M5 21V4M5 4h11l-2 4 2 4H5' }],
+  undo: [{ d: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3' }],
+  selectAll: [{ rect: [3.5, 3.5, 17, 17, 3] }, { d: 'M8 12.5l3 3 5-6' }],
+  completed: [{ dot: [12, 12, 9], stroke: true }, { d: 'M8 12.5l3 3 5-6' }],
   settings: [{ d: 'M4 7h9M17 7h3M4 17h3M11 17h9' }, { dot: [15, 7, 2], stroke: true }, { dot: [9, 17, 2], stroke: true }],
 };
 

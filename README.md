@@ -70,7 +70,9 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - The interface in English and Dutch.
 - A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
 - **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Cards can be dragged to another column and tasks to another day in the calendar (the time and repeat stay; for a repeating task only the current date moves), also with `Alt` + arrow keys.
-- Ticking off with undo; showing or hiding completed tasks.
+- **Selecting several tasks** (Ctrl or Shift click, the Select button, `x`, `Ctrl+A`, press and hold on a phone) and changing them together: complete, move, date, priority, labels, assign, delete, with one message if the server refuses part of it. Dragging a picked task takes the other picked ones along.
+- **Undo** after every deliberate change (the button in the message, or `Ctrl+Z`): moving, a new date, priority, labels, completing, deleting a task or section (the server restores it, with subtasks, comments, attachments and reminders, for five minutes) and every action on several tasks. Not for deleting a project or a label.
+- **Completed**: everything you ticked off, per day with the newest first, searchable, per project, with Restore; showing or hiding completed tasks per project stays as well.
 - **Dragging**: change the order of tasks, move them to another section, make a task a subtask of another (and back), or drop it on a project in the sidebar; in the sidebar, change the order of projects and make or undo sub-projects (owner only; favourites can be reordered among each other). With the mouse or a pen, with a finger (press and hold, or use the handle), or from the keyboard with `Alt` + arrow keys, announced to screen readers. It works offline like every other change. Today and Upcoming are sorted by date and priority, so tasks there can only be dragged to a project.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
 - Installable as an app (PWA) on phone and computer, and an Android app of its own (see below).
@@ -284,11 +286,11 @@ The tests include a property test for the order keys and a **differential test**
 
 ```
 shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js, attachments.js   shared by server and client
-server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, attachments.ts, main.ts, backup.ts
+server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, attachments.ts, restore.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, search.css, attachments.css, sw.js, manifest             the web app
-client/core/   reducer, store, idb, syncClient, attachments, attachmentsApi, imageResize, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
-client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
+client/    index.html, app.css, search.css, attachments.css, bulk.css, sw.js, manifest             the web app
+client/core/   reducer, store, idb, syncClient, inverse, undo, selection, bulk, completed, attachments, attachmentsApi, imageResize, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
+client/ui/     app, render, selection, bulkDialogs, completed, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)
