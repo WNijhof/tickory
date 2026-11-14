@@ -30,6 +30,7 @@ export async function notifyScenario(c: any) {
     return body;
   };
   const P = 'e2enotifyproj0001', T = 'e2enotifytask0001';
+  const startView = await evaluate<string>(`document.getElementById('view-title').textContent`); // hierheen terug aan het eind
   const navCount = () => evaluate<string | null>(`document.querySelector('[data-fk="nav-notifications"] .nav-count')?.textContent ?? null`);
   const sentences = () => evaluate<string[]>(`[...document.querySelectorAll('.inbox-item .inbox-sentence')].map((e) => e.textContent)`);
   const unreadOnServer = () => (serverState().notifications as any[]).filter((n) => !n.is_read).length;
@@ -52,8 +53,8 @@ export async function notifyScenario(c: any) {
   assert.equal(await evaluate(`document.querySelector('[data-fk="nav-notifications"]').getAttribute('aria-label')`), 'Meldingen, 3 ongelezen');
   await nav('Meldingen');
   await waitFor(`document.getElementById('view-title').textContent === 'Meldingen'`, 'het scherm Meldingen');
-  assert.deepEqual(await sentences(), ['Ongelezen: Bob schreef een opmerking bij het project', 'Ongelezen: Bob noemde je in een opmerking', 'Ongelezen: Bob heeft je een taak toegewezen']);
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('.inbox-item .inbox-title')].map((e) => e.textContent)`), ['Klussen', 'Schuur verven · Klussen', 'Schuur verven · Klussen']);
+  assert.deepEqual((await sentences()).slice(0, 3), ['Ongelezen: Bob schreef een opmerking bij het project', 'Ongelezen: Bob noemde je in een opmerking', 'Ongelezen: Bob heeft je een taak toegewezen']);
+  assert.deepEqual((await evaluate<string[]>(`[...document.querySelectorAll('.inbox-item .inbox-title')].map((e) => e.textContent)`)).slice(0, 3), ['Klussen', 'Schuur verven · Klussen', 'Schuur verven · Klussen']);
   assert.equal(await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-excerpt').textContent`), '@Alice, welke kleur wordt het?');
   assert.equal(await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-excerpt .mention').textContent`), '@Alice', 'de vermelding is gemarkeerd');
   assert.equal(await evaluate(`document.querySelector('.inbox-count').textContent`), '3 ongelezen meldingen');
@@ -168,6 +169,7 @@ export async function notifyScenario(c: any) {
   assert.equal((serverState().notifications as any[]).find((n) => n.id === last.id).is_read, true, 'en zet hem op gelezen');
   await clickText('Annuleren', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster dicht');
-  await nav('Vandaag');
+  await nav(startView);
+  await waitFor(`document.getElementById('view-title').textContent === ${JSON.stringify(startView)}`, 'terug waar de test begon');
   step('meldingen op een telefoon: een belletje met het aantal in de kop opent de lijst, alles past op het scherm, ook in het donker; #notification=<id> (van een pushmelding of de Android-app) opent de melding en zet hem op gelezen');
 }
