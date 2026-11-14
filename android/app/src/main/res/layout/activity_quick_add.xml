@@ -8,7 +8,8 @@
     android:id="@+id/quick_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:importantForAccessibility="no">
+    android:importantForAccessibility="no"
+    tools:ignore="MergeRootFrame">
 
     <LinearLayout
         android:id="@+id/quick_sheet"
@@ -25,6 +26,7 @@
         android:paddingTop="8dp"
         android:paddingEnd="16dp"
         android:paddingBottom="12dp"
+        tools:ignore="UselessParent"
         tools:targetApi="28">
 
         <View
@@ -130,6 +132,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:minHeight="48dp"
+                android:paddingStart="0dp"
                 android:paddingEnd="8dp"
                 android:switchPadding="8dp"
                 android:text="@string/quick_keep_open"

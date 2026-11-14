@@ -14,7 +14,6 @@ import android.text.format.DateFormat
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
@@ -28,6 +27,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
+import androidx.core.view.isVisible
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import io.github.wnijhof.tickory.MainActivity
@@ -115,7 +115,6 @@ class QuickAddActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         setContentView(R.layout.activity_quick_add)
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE or WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         input = findViewById(R.id.quick_input)
         projectButton = findViewById(R.id.quick_project)
@@ -145,7 +144,7 @@ class QuickAddActivity : ComponentActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
             override fun afterTextChanged(s: Editable?) {
                 updateAddButton()
-                if (status.visibility == View.VISIBLE && !s.isNullOrBlank()) status.visibility = View.GONE
+                if (status.isVisible && !s.isNullOrBlank()) status.isVisible = false
                 schedulePreview()
             }
         })

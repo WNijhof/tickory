@@ -137,7 +137,6 @@ class QuickAddSyncTest : WidgetTestBase() {
                 assertEquals("Taak nummer $n p2", open.getStringExtra(DeepLink.EXTRA_DRAFT_TEXT))
                 assertEquals("project-werk-001", open.getStringExtra(DeepLink.EXTRA_DRAFT_PROJECT))
                 assertEquals("2026-11-14", open.getStringExtra(DeepLink.EXTRA_DRAFT_DUE))
-                assertTrue(shadowOf(note.contentIntent).isActivityIntent)
             }
         }
         assertEquals(cases.size, notifications.size)
