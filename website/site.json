@@ -112,6 +112,7 @@
       "pages": [
         { "nl": "handleiding/installeren.html", "en": "guide/installing.html" },
         { "nl": "handleiding/gebruikers-beheren.html", "en": "guide/managing-users.html" },
+        { "nl": "handleiding/inloggen-met-sso.html", "en": "guide/sign-in-with-sso.html" },
         { "nl": "handleiding/https.html", "en": "guide/https.html" },
         { "nl": "handleiding/bijwerken.html", "en": "guide/updating.html" },
         { "nl": "handleiding/back-up.html", "en": "guide/backup.html" },

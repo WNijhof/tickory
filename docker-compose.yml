@@ -40,6 +40,20 @@ services:
       # Aangemelde apparaten: afgemeld na zoveel dagen zonder gebruik, en hoe dan ook na zoveel dagen opnieuw inloggen (0 = uit).
       SESSION_IDLE_DAYS: ${SESSION_IDLE_DAYS:-90}
       SESSION_MAX_DAYS: ${SESSION_MAX_DAYS:-365}
+      # Inloggen met SSO (OpenID Connect); leeg = uit. Zie .env.example en het README ("Inloggen met SSO").
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_CLIENT_SECRET_FILE: ${OIDC_CLIENT_SECRET_FILE:-}
+      OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
+      OIDC_SCOPES: ${OIDC_SCOPES:-}
+      OIDC_BUTTON_NAME: ${OIDC_BUTTON_NAME:-}
+      OIDC_AUTO_CREATE: ${OIDC_AUTO_CREATE:-0}
+      OIDC_ALLOWED_GROUPS: ${OIDC_ALLOWED_GROUPS:-}
+      OIDC_ADMIN_GROUPS: ${OIDC_ADMIN_GROUPS:-}
+      OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-}
+      OIDC_ONLY: ${OIDC_ONLY:-0}
       # Het sleutelbestand voor tweestapsverificatie; leeg = /data/secret.key (maakt de server zelf). Het zit niet in een back-up:
       # bewaar er zelf een kopie van, apart van je back-ups.
       SECRET_KEY_FILE: ${SECRET_KEY_FILE:-}

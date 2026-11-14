@@ -1,0 +1,99 @@
+<!--
+title: Inloggen met SSO
+description: Inloggen bij Tickory met jullie eigen inlogdienst via OpenID Connect (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, Google, Microsoft): je account koppelen, inloggen, en voor beheerders de instellingen.
+-->
+<h1>Inloggen met SSO</h1>
+<p class="intro">Heeft jullie server een eigen inlogdienst (single sign-on, via OpenID Connect), dan kun je daarmee ook bij Tickory inloggen: één account en één wachtwoord voor al je diensten. De beheerder zet het aan; jij koppelt je account één keer.</p>
+
+<h2 id="voor-gebruikers">Voor gebruikers</h2>
+
+<h3 id="koppelen">Je account koppelen</h3>
+<p>Heb je al een Tickory-account met een wachtwoord, dan koppel je dat één keer aan je account bij de inlogdienst:</p>
+<ol>
+  <li>Log in met je gebruikersnaam en wachtwoord.</li>
+  <li>Klik onderaan de zijbalk op je naam en kies <x-ui k="settings.account"></x-ui>.</li>
+  <li>Klap het deel “Inloggen met …” open (met de naam van jullie inlogdienst). Vul je wachtwoord in, en de code uit je authenticator-app als je <a href="account.html#tweestapsverificatie">tweestapsverificatie</a> hebt, en kies “Koppelen met …”.</li>
+  <li>Je gaat naar de inlogdienst. Log daar in; daarna kom je vanzelf terug in Tickory, met de melding dat je account gekoppeld is.</li>
+</ol>
+<p>Tickory koppelt nooit vanzelf op e-mailadres of naam. Anders zou iemand die bij de inlogdienst jouw e-mailadres of naam kan kiezen, in jouw account terechtkomen. Daarom bevestig je het koppelen met je eigen wachtwoord.</p>
+
+<h3 id="inloggen">Inloggen</h3>
+<p>Op het inlogscherm staat de knop “Inloggen met …”. Kies die, log in bij de inlogdienst (ben je daar al ingelogd, dan gaat dit meteen), en je bent terug in Tickory. Je gebruikersnaam en wachtwoord van Tickory blijven werken, tenzij de beheerder inloggen met een wachtwoord heeft uitgezet; dan is de knop de enige manier.</p>
+<p>In de <a href="android-app.html">Android-app</a> opent de inlogdienst in de browser van je telefoon (niet in de app zelf: zo ziet de app je wachtwoord nooit). Na het inloggen spring je terug naar de app; soms staat er eerst een knop <em>Terug naar Tickory</em>.</p>
+<div class="note">
+  <span class="note-label">Tweestapsverificatie</span>
+  <p>Log je in via de inlogdienst, dan vraagt Tickory niet nog eens zijn eigen code: daar gelden de regels van de inlogdienst. Zet tweestapsverificatie dus bij de inlogdienst aan.</p>
+</div>
+
+<h3 id="als-het-niet-lukt">Als het niet lukt</h3>
+<dl>
+  <dt>“<x-ui k="sso.error.noAccount"></x-ui>”</dt>
+  <dd>Je account bij de inlogdienst is nog niet aan een Tickory-account gekoppeld. Log in met je wachtwoord en <a href="#koppelen">koppel het</a>, of vraag de beheerder.</dd>
+  <dt>“<x-ui k="sso.error.notAllowed"></x-ui>”</dt>
+  <dd>De beheerder laat alleen bepaalde groepen bij de inlogdienst toe, en jij zit daar (nog) niet in.</dd>
+  <dt>“<x-ui k="sso.error.expired"></x-ui>”</dt>
+  <dd>Je hebt er te lang over gedaan (meer dan tien minuten), of de terugkeerlink is al eens gebruikt. Begin opnieuw met de knop.</dd>
+  <dt>“<x-ui k="sso.error.provider"></x-ui>”</dt>
+  <dd>Er ging iets mis tussen Tickory en de inlogdienst. Wat precies, staat alleen in het log van de server, niet op je scherm.</dd>
+</dl>
+
+<h3 id="ontkoppelen">De koppeling verwijderen</h3>
+<p>In <x-ui k="settings.account"></x-ui> kies je <x-ui k="sso.unlink"></x-ui>. Dat kan alleen als je ook een wachtwoord hebt en de server inloggen met een wachtwoord toestaat: anders zou je jezelf buitensluiten. Een beheerder kan een koppeling ook weghalen in <a href="gebruikers-beheren.html">Gebruikersbeheer</a> (<x-ui k="admin.unlinkSso"></x-ui>).</p>
+
+<h2 id="voor-beheerders">Voor beheerders</h2>
+<p>Tickory is zelf de OIDC-client: er hoeft niets bij geïnstalleerd te worden en er gaat geen verkeer via een derde partij. Je hebt een inlogdienst nodig die OpenID Connect spreekt en via https bereikbaar is.</p>
+
+<h3 id="instellen">Instellen</h3>
+<ol>
+  <li>Maak bij de inlogdienst een applicatie (client) voor Tickory: vertrouwelijk (met een clientgeheim) of publiek (alleen PKCE), met als redirect-URI het adres van Tickory plus <code>/api/v1/auth/oidc/callback</code>, en de scopes <code>openid profile email</code> (en <code>groups</code> als je groepen wilt gebruiken).</li>
+  <li>Zet in <code>.env</code>:
+<pre><code>PUBLIC_URL=https://taken.voorbeeld.nl
+OIDC_ISSUER=https://auth.voorbeeld.nl/application/o/tickory/
+OIDC_CLIENT_ID=tickory
+OIDC_CLIENT_SECRET=het-geheim-van-de-inlogdienst
+OIDC_BUTTON_NAME=Authentik</code></pre>
+  </li>
+  <li>Start de container opnieuw (<code>docker compose up -d</code>). In het log staat “Inloggen via OIDC staat aan”; is de inlogdienst niet bereikbaar of klopt er iets niet, dan staat daar waarom.</li>
+</ol>
+<p>Het clientgeheim kan ook uit een bestand komen, bijvoorbeeld een Docker-secret: <code>OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc</code>.</p>
+
+<h3 id="per-inlogdienst">Per inlogdienst</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Inlogdienst</th><th>Instellingen</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Authentik</td><td class="wrap-ok"><code>OIDC_ISSUER=https://auth.voorbeeld.nl/application/o/&lt;slug&gt;/</code>. Providertype OAuth2/OpenID; groepen komen mee met de scope <code>profile</code>.</td></tr>
+      <tr><td>Authelia</td><td class="wrap-ok"><code>OIDC_ISSUER=https://auth.voorbeeld.nl</code>. Een client met <code>redirect_uris</code>, <code>scopes: [openid, profile, email, groups]</code> en <code>token_endpoint_auth_method: client_secret_basic</code>. Naam en groepen staan bij Authelia in userinfo; Tickory leest ze daar.</td></tr>
+      <tr><td>Keycloak</td><td class="wrap-ok"><code>OIDC_ISSUER=https://keycloak.voorbeeld.nl/realms/&lt;realm&gt;</code>. Client authentication aan. Voor groepen een mapper “Group Membership” met claimnaam <code>groups</code> en “Full group path” uit.</td></tr>
+      <tr><td>Pocket ID</td><td class="wrap-ok"><code>OIDC_ISSUER=https://id.voorbeeld.nl</code>. Voor groepen <code>OIDC_SCOPES=openid profile email groups</code>.</td></tr>
+      <tr><td>Zitadel</td><td class="wrap-ok"><code>OIDC_ISSUER=https://&lt;instantie&gt;.zitadel.cloud</code>. Rollen staan in een eigen claim: <code>OIDC_GROUPS_CLAIM=urn:zitadel:iam:org:project:roles</code>.</td></tr>
+      <tr><td>Google</td><td class="wrap-ok"><code>OIDC_ISSUER=https://accounts.google.com</code>. Geen groepen; zet hier nooit <code>OIDC_AUTO_CREATE</code> aan, want dan komt iedereen met een Google-account binnen.</td></tr>
+      <tr><td>Microsoft</td><td class="wrap-ok"><code>OIDC_ISSUER=https://login.microsoftonline.com/&lt;tenant-id&gt;/v2.0</code>, met je eigen tenant-id (niet <code>common</code>).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="opties">Meer instellingen</h3>
+<dl>
+  <dt><code>OIDC_AUTO_CREATE=1</code></dt>
+  <dd>Wie voor het eerst via de inlogdienst inlogt en nog geen gekoppeld account heeft, krijgt een nieuw account: de gebruikersnaam uit de inlogdienst (opgeschoond, en met -2 erachter als hij al bestaat), zonder wachtwoord. Standaard staat dit uit. Een bestaand account met dezelfde naam wordt nooit overgenomen. Kreeg iemand zo een tweede account terwijl hij er al een had, haal dan in Gebruikersbeheer de koppeling van het nieuwe account weg en laat hem zijn eigen account koppelen.</dd>
+  <dt><code>OIDC_ALLOWED_GROUPS=tickory,familie</code></dt>
+  <dd>Alleen wie in een van deze groepen zit, komt via de inlogdienst binnen.</dd>
+  <dt><code>OIDC_ADMIN_GROUPS=tickory-beheer</code></dt>
+  <dd>Wie in een van deze groepen zit, is beheerder; wie er niet (meer) in zit, verliest dat bij de volgende keer inloggen via de inlogdienst. De laatste actieve beheerder blijft altijd beheerder.</dd>
+  <dt><code>OIDC_GROUPS_CLAIM</code>, <code>OIDC_SCOPES</code>, <code>OIDC_REDIRECT_URL</code></dt>
+  <dd>De claim met de groepen (standaard <code>groups</code>), de scopes (standaard <code>openid profile email</code>) en de redirect-URI als die niet <code>PUBLIC_URL</code> plus <code>/api/v1/auth/oidc/callback</code> is.</dd>
+  <dt><code>OIDC_ONLY=1</code></dt>
+  <dd>Inloggen met een wachtwoord staat uit; het inlogscherm toont alleen de knop. Doet de inlogdienst het niet, dan maak je op de server een eenmalige inloglink (een kwartier geldig):
+<pre><code>docker compose exec tickory node server/main.ts user signin-code anna</code></pre>
+  Zet dit pas aan als iedereen zijn account heeft gekoppeld, of samen met <code>OIDC_AUTO_CREATE</code>.</dd>
+</dl>
+
+<h3 id="goed-om-te-weten">Goed om te weten</h3>
+<ul>
+  <li>Afmelden in Tickory meldt je niet af bij de inlogdienst, en iemand blokkeren bij de inlogdienst beëindigt zijn bestaande aanmeldingen in Tickory niet: blokkeer het account dan ook in <a href="gebruikers-beheren.html">Gebruikersbeheer</a>.</li>
+  <li>Een account zonder wachtwoord (gemaakt via de inlogdienst) kan in de app geen back-up downloaden, want daarvoor vraagt Tickory het wachtwoord. Geef het er een met <code>user passwd</code>, of maak de back-up op de server (zie <a href="back-up.html">Back-up</a>).</li>
+  <li>Het log van de server zegt wie er via de inlogdienst inlogt en waarom een poging werd geweigerd, zonder codes of tokens.</li>
+</ul>

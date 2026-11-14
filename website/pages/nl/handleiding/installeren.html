@@ -80,10 +80,11 @@ docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
       <tr><td><code>ATTACHMENT_QUOTA_MB</code></td><td class="wrap-ok">De opslagruimte voor bijlagen per gebruiker, in megabytes; standaard 1024.</td></tr>
       <tr><td><code>ATTACHMENTS_DIR</code></td><td class="wrap-ok">Waar de bijlagen staan; standaard de map <code>attachments</code> naast de database, in de container <code>/data/attachments</code> (dus in het volume en in je <a href="back-up.html#bijlagen">back-up</a>).</td></tr>
       <tr><td><code>CORS_ORIGIN</code></td><td class="wrap-ok">Optioneel: één exact adres dat de server vanaf een andere herkomst mag aanroepen. Normaal niet nodig.</td></tr>
+      <tr><td><code>PUBLIC_URL</code><br><code>OIDC_ISSUER</code> en verder</td><td class="wrap-ok">Inloggen met jullie eigen inlogdienst (OpenID Connect); zie <a href="inloggen-met-sso.html">Inloggen met SSO</a>.</td></tr>
     </tbody>
   </table>
 </div>
-<p>Het meegeleverde <code>docker-compose.yml</code> geeft het eerste account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code> en <code>ATTACHMENT_QUOTA_MB</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
+<p>Het meegeleverde <code>docker-compose.yml</code> geeft het eerste account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code>, <code>ATTACHMENT_QUOTA_MB</code>, de sessies, het sleutelbestand en de instellingen voor SSO (<code>PUBLIC_URL</code>, <code>OIDC_…</code>) door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
 
 <h2>De image is nog privé</h2>
 <p>Zolang de repo en de image op GitHub privé staan, moet je server één keer inloggen om ze te kunnen ophalen:</p>

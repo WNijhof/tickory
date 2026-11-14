@@ -122,6 +122,48 @@ ook `notifications`, `settings` en `comments`; een oudere server die dat weigert
 - *Alleen op een toestel te controleren:* of het kanaal en de knop er goed uitzien, of een melding in de slaapstand op tijd
   komt (WorkManager kan een kwartier uitstellen), en hoe merken met strenge batterijbesparing het verversen beperken.
 
+## Inloggen met SSO
+
+Staat op de server inloggen via OpenID Connect aan (zie het README van de repo, "Inloggen met SSO"), dan heeft het inlogscherm
+in de app een knop "Inloggen met …".
+
+### Wat is gekozen, en waarom
+
+- **De inlogpagina van de provider opent in de browser van het toestel, niet in de WebView.** In een ingebouwde WebView zou de
+  app het wachtwoord bij de provider kunnen meelezen, en Google, Microsoft en andere providers weigeren daar in te loggen. De
+  browser opent als Custom Tab als hij dat kent (een venster over de app heen, met de adresbalk van de browser zelf), anders
+  gewoon; daarvoor is geen extra bibliotheek nodig (alleen de afgesproken extra `android.support.customtabs.extra.SESSION`). Een
+  bijkomend voordeel: ben je in de browser al bij de provider ingelogd, dan hoef je dat niet nog eens.
+- **De app opent alleen het startadres op de eigen server.** De web-app vraagt via de brug `openSignIn` om
+  `<server>/api/v1/auth/oidc/authorize?state=…` te openen; de server stuurt de browser zelf door naar de provider. De app weet
+  dus niet welke provider het is, en een pagina kan de app geen ander adres laten openen (`core/SignInLink.kt`, `allowedStart`).
+  De WebView zelf blijft alles buiten de eigen server weigeren, zoals altijd.
+- **Terug via `tickory://oidc?code=…`.** Na het inloggen keert de browser terug via die link (intent-filter op het hoofdscherm,
+  alleen deze host); de app laadt de web-app opnieuw met `#oidc=<code>` en die wisselt de code in voor een sessie. De code is
+  eenmalig, twee minuten geldig en werkt alleen samen met een geheim dat de web-app bij het begin van de poging van de server
+  kreeg en in de WebView bewaart. Een andere app die ook `tickory://` claimt en de link onderschept, heeft er dus niets aan; het
+  inloggen mislukt dan alleen (zoals PKCE bij RFC 8252). Een fout komt terug als `?error=<CODE>` en staat als melding in de app.
+- Een oudere versie van de app (zonder `openSignIn`) zegt dat de app moet worden bijgewerkt.
+
+### Handmatig testen op een toestel
+
+Op een nagebootst Android is getest: het intent-filter, de terugkeer bij een nieuwe en een open app, en dat de brug niets
+anders opent dan het startadres (`SignInTest`, `SignInLinkTest`). Alleen op een toestel, met een echte provider (Authentik,
+Authelia, Keycloak of Pocket ID achter https):
+
+1. **Inloggen.** Tik op "Inloggen met …": opent een Custom Tab (of de browser) bij de provider? Log in: springt de browser terug
+   naar Tickory (of staat er een knop "Terug naar Tickory" die werkt), en ben je ingelogd zonder het wachtwoord van Tickory?
+2. **Al ingelogd bij de provider.** Log in de app uit en tik opnieuw op de knop: komt de app meteen terug, zonder inlogscherm
+   van de provider?
+3. **Annuleren.** Sluit de Custom Tab met de pijl of de terugknop: staat het inlogscherm van de app er nog, en werkt de knop opnieuw?
+4. **Koppelen.** Log in met je wachtwoord, ga naar Account, "Inloggen met …", vul het wachtwoord in en koppel: na de provider
+   staat de melding "Je account is gekoppeld" in de app.
+5. **Andere browser.** Zet een andere standaardbrowser (Firefox, Samsung Internet) en herhaal 1.
+6. **App gesloten tijdens het inloggen.** Laat Android de app afsluiten terwijl je bij de provider bent (bijvoorbeeld met
+   "Activiteiten niet bewaren" in de ontwikkelaarsopties): komt de app na het inloggen goed terug en ben je ingelogd?
+7. **Fout.** Log bij de provider in met een account zonder koppeling: staat de melding "Aan dit account bij de inlogdienst is nog
+   geen Tickory-account gekoppeld" in de app?
+
 ## Wat de app wel en niet deelt
 
 - De app praat alleen met de server die jij invult. Er zit geen dienst van Google of een ander bedrijf tussen.
@@ -385,7 +427,8 @@ emulator kon op de ontwikkelmachine niet starten en er is niets op een telefoon 
 - **Eigen certificaten.** De app vertrouwt alleen certificaten die Android zelf vertrouwt (zoals Let's Encrypt), geen
   zelfgemaakte of zelf toegevoegde.
 - **Een inlogpagina vóór de server** (Authelia, Cloudflare Access en dergelijke) werkt niet: de app opent alleen het
-  ingestelde adres en kan `/health` en `/api/` dan niet bereiken.
+  ingestelde adres en kan `/health` en `/api/` dan niet bereiken. Inloggen via SSO in Tickory zelf (zie "Inloggen met SSO")
+  werkt wel: dan staat de server open en doet Tickory het inloggen bij de provider.
 - **Herinneringen van meer dan een uur geleden** (toestel stond uit) worden niet alsnog getoond.
 - **Meldingen bij samenwerken komen tot een kwartier later**: zonder pushdienst haalt de app ze op bij het verversen.
 - De app plant hooguit 200 herinneringen, tot 30 dagen vooruit; bij elke verversing schuift dat venster mee.

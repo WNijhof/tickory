@@ -1,0 +1,99 @@
+<!--
+title: Signing in with SSO
+description: Signing in to Tickory with your own sign-in service through OpenID Connect (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, Google, Microsoft): linking your account, signing in, and the settings for administrators.
+-->
+<h1>Signing in with SSO</h1>
+<p class="intro">If your server has its own sign-in service (single sign-on, through OpenID Connect), you can use it to sign in to Tickory as well: one account and one password for all your services. The administrator turns it on; you link your account once.</p>
+
+<h2 id="for-users">For users</h2>
+
+<h3 id="linking">Linking your account</h3>
+<p>If you already have a Tickory account with a password, you link it once to your account at the sign-in service:</p>
+<ol>
+  <li>Sign in with your username and password.</li>
+  <li>At the bottom of the sidebar, click your name and choose <x-ui k="settings.account"></x-ui>.</li>
+  <li>Open the part “Sign in with …” (with the name of your sign-in service). Enter your password, and the code from your authenticator app if you use <a href="account.html#two-step-verification">two-step verification</a>, and choose “Link with …”.</li>
+  <li>You go to the sign-in service. Sign in there; afterwards you come back to Tickory by itself, with a message that your account is linked.</li>
+</ol>
+<p>Tickory never links an account by e-mail address or name on its own. Otherwise someone who can pick your e-mail address or name at the sign-in service would end up in your account. That is why you confirm the link with your own password.</p>
+
+<h3 id="signing-in">Signing in</h3>
+<p>The sign-in screen has the button “Sign in with …”. Choose it, sign in at the sign-in service (if you are already signed in there, this is immediate), and you are back in Tickory. Your Tickory username and password keep working, unless the administrator has turned signing in with a password off; then the button is the only way.</p>
+<p>In the <a href="android-app.html">Android app</a> the sign-in service opens in your phone's browser (not in the app itself: that way the app never sees your password). After signing in you jump back to the app; sometimes there is a button <em>Back to Tickory</em> first.</p>
+<div class="note">
+  <span class="note-label">Two-step verification</span>
+  <p>When you sign in through the sign-in service, Tickory does not ask for its own code again: the rules of the sign-in service apply. So turn on two-step verification at the sign-in service.</p>
+</div>
+
+<h3 id="when-it-fails">When it does not work</h3>
+<dl>
+  <dt>“<x-ui k="sso.error.noAccount"></x-ui>”</dt>
+  <dd>Your account at the sign-in service is not linked to a Tickory account yet. Sign in with your password and <a href="#linking">link it</a>, or ask the administrator.</dd>
+  <dt>“<x-ui k="sso.error.notAllowed"></x-ui>”</dt>
+  <dd>The administrator only lets certain groups of the sign-in service in, and you are not (yet) in one of them.</dd>
+  <dt>“<x-ui k="sso.error.expired"></x-ui>”</dt>
+  <dd>It took too long (more than ten minutes), or the return link was already used. Start again with the button.</dd>
+  <dt>“<x-ui k="sso.error.provider"></x-ui>”</dt>
+  <dd>Something went wrong between Tickory and the sign-in service. The details are only in the server log, not on your screen.</dd>
+</dl>
+
+<h3 id="unlinking">Removing the link</h3>
+<p>In <x-ui k="settings.account"></x-ui>, choose <x-ui k="sso.unlink"></x-ui>. That is only possible if you also have a password and the server allows signing in with a password: otherwise you would lock yourself out. An administrator can also remove a link in <a href="managing-users.html">User management</a> (<x-ui k="admin.unlinkSso"></x-ui>).</p>
+
+<h2 id="for-administrators">For administrators</h2>
+<p>Tickory itself is the OIDC client: there is nothing extra to install and no traffic goes through a third party. You need a sign-in service that speaks OpenID Connect and can be reached over https.</p>
+
+<h3 id="setting-up">Setting up</h3>
+<ol>
+  <li>At the sign-in service, create an application (client) for Tickory: confidential (with a client secret) or public (PKCE only), with the address of Tickory plus <code>/api/v1/auth/oidc/callback</code> as redirect URI, and the scopes <code>openid profile email</code> (and <code>groups</code> if you want to use groups).</li>
+  <li>Put in <code>.env</code>:
+<pre><code>PUBLIC_URL=https://tasks.example.org
+OIDC_ISSUER=https://auth.example.org/application/o/tickory/
+OIDC_CLIENT_ID=tickory
+OIDC_CLIENT_SECRET=the-secret-from-the-sign-in-service
+OIDC_BUTTON_NAME=Authentik</code></pre>
+  </li>
+  <li>Restart the container (<code>docker compose up -d</code>). The log says “Inloggen via OIDC staat aan”; if the sign-in service cannot be reached or something is wrong, it says why.</li>
+</ol>
+<p>The client secret can also come from a file, for example a Docker secret: <code>OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc</code>.</p>
+
+<h3 id="per-service">Per sign-in service</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Sign-in service</th><th>Settings</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Authentik</td><td class="wrap-ok"><code>OIDC_ISSUER=https://auth.example.org/application/o/&lt;slug&gt;/</code>. Provider type OAuth2/OpenID; groups come with the <code>profile</code> scope.</td></tr>
+      <tr><td>Authelia</td><td class="wrap-ok"><code>OIDC_ISSUER=https://auth.example.org</code>. A client with <code>redirect_uris</code>, <code>scopes: [openid, profile, email, groups]</code> and <code>token_endpoint_auth_method: client_secret_basic</code>. Authelia puts name and groups in userinfo; Tickory reads them there.</td></tr>
+      <tr><td>Keycloak</td><td class="wrap-ok"><code>OIDC_ISSUER=https://keycloak.example.org/realms/&lt;realm&gt;</code>. Client authentication on. For groups, a “Group Membership” mapper with claim name <code>groups</code> and “Full group path” off.</td></tr>
+      <tr><td>Pocket ID</td><td class="wrap-ok"><code>OIDC_ISSUER=https://id.example.org</code>. For groups, <code>OIDC_SCOPES=openid profile email groups</code>.</td></tr>
+      <tr><td>Zitadel</td><td class="wrap-ok"><code>OIDC_ISSUER=https://&lt;instance&gt;.zitadel.cloud</code>. Roles are in a claim of their own: <code>OIDC_GROUPS_CLAIM=urn:zitadel:iam:org:project:roles</code>.</td></tr>
+      <tr><td>Google</td><td class="wrap-ok"><code>OIDC_ISSUER=https://accounts.google.com</code>. No groups; never turn on <code>OIDC_AUTO_CREATE</code> here, or everyone with a Google account gets in.</td></tr>
+      <tr><td>Microsoft</td><td class="wrap-ok"><code>OIDC_ISSUER=https://login.microsoftonline.com/&lt;tenant-id&gt;/v2.0</code>, with your own tenant id (not <code>common</code>).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="options">More settings</h3>
+<dl>
+  <dt><code>OIDC_AUTO_CREATE=1</code></dt>
+  <dd>Someone who signs in through the sign-in service for the first time and has no linked account yet gets a new account: the username from the sign-in service (cleaned up, with -2 added if it already exists), without a password. Off by default. An existing account with the same name is never taken over. If someone got a second account this way while they already had one, remove the link of the new account in User management and let them link their own account.</dd>
+  <dt><code>OIDC_ALLOWED_GROUPS=tickory,family</code></dt>
+  <dd>Only members of one of these groups get in through the sign-in service.</dd>
+  <dt><code>OIDC_ADMIN_GROUPS=tickory-admins</code></dt>
+  <dd>Members of one of these groups are administrators; someone who is not (or no longer) a member loses that at their next sign-in through the sign-in service. The last active administrator always stays an administrator.</dd>
+  <dt><code>OIDC_GROUPS_CLAIM</code>, <code>OIDC_SCOPES</code>, <code>OIDC_REDIRECT_URL</code></dt>
+  <dd>The claim with the groups (default <code>groups</code>), the scopes (default <code>openid profile email</code>) and the redirect URI when it is not <code>PUBLIC_URL</code> plus <code>/api/v1/auth/oidc/callback</code>.</dd>
+  <dt><code>OIDC_ONLY=1</code></dt>
+  <dd>Signing in with a password is off; the sign-in screen only shows the button. If the sign-in service is down, create a one-time sign-in link on the server (valid for fifteen minutes):
+<pre><code>docker compose exec tickory node server/main.ts user signin-code anna</code></pre>
+  Only turn this on when everyone has linked their account, or together with <code>OIDC_AUTO_CREATE</code>.</dd>
+</dl>
+
+<h3 id="good-to-know">Good to know</h3>
+<ul>
+  <li>Signing out of Tickory does not sign you out at the sign-in service, and blocking someone at the sign-in service does not end their existing Tickory sessions: block the account in <a href="managing-users.html">User management</a> too.</li>
+  <li>An account without a password (created through the sign-in service) cannot download a backup in the app, because Tickory asks for the password there. Give it one with <code>user passwd</code>, or make the backup on the server (see <a href="backup.html">Backup</a>).</li>
+  <li>The server log says who signs in through the sign-in service and why an attempt was refused, without codes or tokens.</li>
+</ul>

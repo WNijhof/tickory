@@ -80,10 +80,11 @@ docker compose logs -f     # follow the log; stop with Ctrl+C</code></pre>
       <tr><td><code>ATTACHMENT_QUOTA_MB</code></td><td class="wrap-ok">The storage for attachments per user, in megabytes; 1024 by default.</td></tr>
       <tr><td><code>ATTACHMENTS_DIR</code></td><td class="wrap-ok">Where the attachments are stored; by default the folder <code>attachments</code> next to the database, in the container <code>/data/attachments</code> (so in the volume and in your <a href="backup.html#attachments">backup</a>).</td></tr>
       <tr><td><code>CORS_ORIGIN</code></td><td class="wrap-ok">Optional: one exact address that may call the server from another origin. Normally not needed.</td></tr>
+      <tr><td><code>PUBLIC_URL</code><br><code>OIDC_ISSUER</code> and more</td><td class="wrap-ok">Signing in with your own sign-in service (OpenID Connect); see <a href="sign-in-with-sso.html">Signing in with SSO</a>.</td></tr>
     </tbody>
   </table>
 </div>
-<p>The supplied <code>docker-compose.yml</code> passes the first account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code> and <code>ATTACHMENT_QUOTA_MB</code> on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
+<p>The supplied <code>docker-compose.yml</code> passes the first account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code>, <code>ATTACHMENT_QUOTA_MB</code>, the sessions, the key file and the settings for SSO (<code>PUBLIC_URL</code>, <code>OIDC_…</code>) on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
 
 <h2>The image is still private</h2>
 <p>As long as the repository and the image are private on GitHub, your server has to sign in once to be able to fetch them:</p>

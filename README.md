@@ -132,6 +132,37 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 - An administrator manages accounts, not other people's tasks: an administrator, too, only sees the projects they are a member of.
 - **Two-step verification** keeps its secrets encrypted in the database with a key from the file `/data/secret.key` (made by the server on first start; `SECRET_KEY_FILE` points elsewhere). That file is deliberately not part of a backup, so a stolen backup does not give away the second factor. **Keep a copy of `secret.key` separately** (for example in your password manager). Restoring onto a new server without it works, but users with two-step verification then need `user reset-2fa`.
 
+### Signing in with SSO (OpenID Connect)
+
+Tickory can let people sign in with your own identity provider (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, or Google and Microsoft), next to a password or instead of it. Tickory itself is the OIDC client (authorization code flow with PKCE, `state` and `nonce`, the ID token checked without libraries); there is nothing extra to install.
+
+1. At the provider, create an OIDC application ("client") for Tickory: confidential (with a client secret) or public (PKCE only), redirect URI `https://tasks.example.com/api/v1/auth/oidc/callback`, scopes `openid profile email` (and `groups` if you want to use groups).
+2. In `.env`:
+
+   ```sh
+   PUBLIC_URL=https://tasks.example.com
+   OIDC_ISSUER=https://auth.example.com/application/o/tickory/
+   OIDC_CLIENT_ID=tickory
+   OIDC_CLIENT_SECRET=the-secret-from-the-provider   # or OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc
+   OIDC_BUTTON_NAME=Authentik                        # the button reads "Sign in with Authentik"
+   ```
+
+3. `docker compose up -d`. The sign-in screen now has a button. Existing users link their account once: Settings, Account, "Sign in with …" (after their password, and their code if they use two-step verification). Tickory never links an account by e-mail address or name on its own: that would let anyone who can pick that address or name at the provider take over the account.
+
+Optional: `OIDC_AUTO_CREATE=1` creates an account at the first sign-in of an unknown identity (username from `preferred_username` or the e-mail address, cleaned up and made unique; no password). `OIDC_ALLOWED_GROUPS=tickory` only lets members of those groups in; `OIDC_ADMIN_GROUPS=tickory-admins` makes members administrators (and takes it away from others at their next SSO sign-in; there is always at least one active administrator). `OIDC_GROUPS_CLAIM` names the claim with the groups (default `groups`), `OIDC_SCOPES` the scopes (default `openid profile email`). `OIDC_ONLY=1` turns signing in with a password off; the emergency route is then `docker compose exec tickory node server/main.ts user signin-code <name>` (a one-time link, valid for fifteen minutes).
+
+| Provider | `OIDC_ISSUER` | Notes |
+|---|---|---|
+| Authentik | `https://auth.example.com/application/o/<slug>/` | Provider type OAuth2/OpenID; groups come with the `profile` scope. |
+| Authelia | `https://auth.example.com` | Client with `redirect_uris`, `scopes: [openid, profile, email, groups]`, `token_endpoint_auth_method: client_secret_basic`. Authelia puts name and groups in userinfo; Tickory reads them there. |
+| Keycloak | `https://keycloak.example.com/realms/<realm>` | Client authentication on. Groups need a "Group Membership" mapper with claim name `groups` and "Full group path" off. |
+| Pocket ID | `https://id.example.com` | Add the scope `groups` for groups. |
+| Zitadel | `https://<instance>.zitadel.cloud` | Roles are in `urn:zitadel:iam:org:project:roles`: set that as `OIDC_GROUPS_CLAIM`. |
+| Google | `https://accounts.google.com` | No groups. Never use `OIDC_AUTO_CREATE` here: anyone with a Google account would get in. |
+| Microsoft Entra ID | `https://login.microsoftonline.com/<tenant-id>/v2.0` | Use your own tenant id, not `common`. |
+
+Good to know: signing in through the provider skips Tickory's own two-step verification (the provider's rules and 2FA apply). Signing out of Tickory does not sign you out at the provider, and blocking someone at the provider does not end their existing Tickory sessions: block the account in Tickory too. The Android app opens the provider in the phone's browser and comes back through `tickory://oidc`. Details are in chapter 9 of [SPEC.md](SPEC.md) and in the guide ("Signing in with SSO").
+
 ### Sharing and working together
 
 - Open a project, choose **Share**, and type the username of someone else on this server. That person sees the project with everything in it (including what was already there), and everyone works in the same tasks and sections. Whoever created the project is the **owner**; the others are **members**.

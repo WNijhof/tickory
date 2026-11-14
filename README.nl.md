@@ -72,6 +72,37 @@ Open de app en log in met het eerste account.
 - Een beheerder beheert accounts, niet andermans taken: ook een beheerder ziet alleen projecten waar die zelf lid van is.
 - **Tweestapsverificatie** bewaart de geheimen versleuteld in de database, met een sleutel uit het bestand `/data/secret.key` (maakt de server bij de eerste start; `SECRET_KEY_FILE` wijst een ander bestand aan). Dat bestand zit bewust niet in een back-up: een gestolen back-up geeft zo de tweede stap niet weg. **Bewaar zelf een kopie van `secret.key`**, apart van je back-ups (bijvoorbeeld in je wachtwoordbeheerder). Terugzetten op een nieuwe server zonder dat bestand kan, maar gebruikers met tweestapsverificatie hebben dan `user reset-2fa` nodig.
 
+### Inloggen met SSO (OpenID Connect)
+
+Tickory kan mensen laten inloggen met je eigen identiteitsprovider (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, of Google en Microsoft), naast een wachtwoord of in plaats daarvan. Tickory is zelf de OIDC-client (Authorization Code Flow met PKCE, `state` en `nonce`, het ID-token zonder bibliotheken gecontroleerd); er hoeft niets bij geïnstalleerd te worden.
+
+1. Maak bij de provider een OIDC-applicatie ("client") voor Tickory: vertrouwelijk (met een clientgeheim) of publiek (alleen PKCE), redirect-URI `https://taken.voorbeeld.nl/api/v1/auth/oidc/callback`, scopes `openid profile email` (en `groups` als je groepen wilt gebruiken).
+2. In `.env`:
+
+   ```sh
+   PUBLIC_URL=https://taken.voorbeeld.nl
+   OIDC_ISSUER=https://auth.voorbeeld.nl/application/o/tickory/
+   OIDC_CLIENT_ID=tickory
+   OIDC_CLIENT_SECRET=het-geheim-van-de-provider   # of OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc
+   OIDC_BUTTON_NAME=Authentik                      # de knop heet dan "Inloggen met Authentik"
+   ```
+
+3. `docker compose up -d`. Op het inlogscherm staat nu een knop. Bestaande gebruikers koppelen hun account één keer: Instellingen, Account, "Inloggen met …" (na hun wachtwoord, en hun code als ze tweestapsverificatie gebruiken). Tickory koppelt nooit vanzelf op e-mailadres of naam: dan zou wie dat adres of die naam bij de provider kan kiezen, het account overnemen.
+
+Optioneel: `OIDC_AUTO_CREATE=1` maakt bij de eerste keer inloggen van een onbekende identiteit een account (gebruikersnaam uit `preferred_username` of het e-mailadres, opgeschoond en uniek; zonder wachtwoord). `OIDC_ALLOWED_GROUPS=tickory` laat alleen leden van die groepen binnen; `OIDC_ADMIN_GROUPS=tickory-admins` maakt leden beheerder (en neemt het anderen bij hun volgende keer inloggen via SSO af; er blijft altijd minstens één actieve beheerder). `OIDC_GROUPS_CLAIM` is de claim met de groepen (standaard `groups`), `OIDC_SCOPES` de scopes (standaard `openid profile email`). `OIDC_ONLY=1` zet inloggen met een wachtwoord uit; de noodroute is dan `docker compose exec tickory node server/main.ts user signin-code <naam>` (een eenmalige link, een kwartier geldig).
+
+| Provider | `OIDC_ISSUER` | Let op |
+|---|---|---|
+| Authentik | `https://auth.voorbeeld.nl/application/o/<slug>/` | Providertype OAuth2/OpenID; groepen komen mee met de scope `profile`. |
+| Authelia | `https://auth.voorbeeld.nl` | Client met `redirect_uris`, `scopes: [openid, profile, email, groups]`, `token_endpoint_auth_method: client_secret_basic`. Authelia zet naam en groepen in userinfo; Tickory leest ze daar. |
+| Keycloak | `https://keycloak.voorbeeld.nl/realms/<realm>` | Client authentication aan. Voor groepen een mapper "Group Membership" met claimnaam `groups` en "Full group path" uit. |
+| Pocket ID | `https://id.voorbeeld.nl` | Voeg voor groepen de scope `groups` toe. |
+| Zitadel | `https://<instantie>.zitadel.cloud` | Rollen staan in `urn:zitadel:iam:org:project:roles`: zet dat als `OIDC_GROUPS_CLAIM`. |
+| Google | `https://accounts.google.com` | Geen groepen. Gebruik hier nooit `OIDC_AUTO_CREATE`: dan komt iedereen met een Google-account binnen. |
+| Microsoft Entra ID | `https://login.microsoftonline.com/<tenant-id>/v2.0` | Gebruik je eigen tenant-id, niet `common`. |
+
+Goed om te weten: wie via de provider inlogt, krijgt de tweestapsverificatie van Tickory niet nog eens (de regels en de 2FA van de provider gelden). Afmelden bij Tickory meldt je niet af bij de provider, en iemand blokkeren bij de provider beëindigt diens bestaande sessies in Tickory niet: blokkeer het account ook in Tickory. De Android-app opent de provider in de browser van de telefoon en komt terug via `tickory://oidc`. Meer in hoofdstuk 9 van [SPEC.md](SPEC.md) en in de handleiding ("Inloggen met SSO").
+
 ### Delen en samenwerken
 
 - Open een project, kies **Delen**, en typ de gebruikersnaam van iemand anders van deze server. Die persoon ziet het project met alles erin (ook wat er al stond), en iedereen werkt in dezelfde taken, secties en subprojecten. Wie het project maakte is **eigenaar**; de anderen krijgen een **rol**: **kan bewerken** (de standaard) of **alleen lezen**. Een lezer ziet alles, reageert en zet eigen herinneringen, maar wijzigt niets (geen taken toevoegen, wijzigen, afvinken of verplaatsen, geen bijlagen); de eigenaar kiest en wijzigt de rol in het venster Delen.
