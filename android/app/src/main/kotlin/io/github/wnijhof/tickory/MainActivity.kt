@@ -12,6 +12,7 @@ import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.speech.RecognizerIntent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -43,6 +44,7 @@ import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.core.ShareLink
+import io.github.wnijhof.tickory.core.VoiceScript
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
 import io.github.wnijhof.tickory.reminders.Background
@@ -85,6 +87,10 @@ class MainActivity : ComponentActivity() {
         onNotificationPermissionResult(granted)
     }
 
+    private val voiceInput = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val spoken = if (result.resultCode == RESULT_OK) result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() else null
+        runScript(if (result.resultCode == RESULT_OK) VoiceScript.result(spoken) else VoiceScript.error("cancelled"))
+    }
     private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             SyncScheduler.refreshNow(applicationContext)
@@ -417,6 +423,34 @@ class MainActivity : ComponentActivity() {
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
+    }
+
+    // ---------- spraakinvoer ----------
+
+    private fun speechIntent(language: String?): Intent =
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (language == "en") "en-US" else "nl-NL")
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+
+    fun hasSpeechRecognizer(): Boolean = speechIntent(null).resolveActivity(packageManager) != null
+
+    /** Opent de spraakherkenner van het toestel (gewoon een scherm van Android; de microfoon is van dat scherm, niet van Tickory). */
+    fun startVoiceInput(language: String?) {
+        if (!hasSpeechRecognizer()) {
+            runScript(VoiceScript.error("unavailable"))
+            return
+        }
+        try {
+            voiceInput.launch(speechIntent(language))
+        } catch (_: ActivityNotFoundException) {
+            runScript(VoiceScript.error("unavailable"))
+        }
+    }
+
+    /** Een stukje JavaScript in de web-app uitvoeren; alleen scripts uit [VoiceScript], die al hun tekst ontsnappen. */
+    private fun runScript(script: String) {
+        if (pageReady) webView?.evaluateJavascript(script, null)
     }
 
     // ---------- toestemmingen en instellingen (aangeroepen vanuit de brug, op de hoofddraad) ----------

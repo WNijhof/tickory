@@ -61,7 +61,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - Sharing a project with other users of the same server, and assigning tasks to members.
 - Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, and **comments** on tasks and projects.
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
-- Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`.
+- Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile.
 - **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
 - **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
 - **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).

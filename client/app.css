@@ -364,6 +364,13 @@ textarea.field { resize: vertical; }
 .menu-danger { color: var(--danger); }
 .dialog-quick { width: min(620px, calc(100vw - 24px)); }
 .quick-big { font-size: 1.1rem; min-height: 46px; }
+.quick-row { display: flex; align-items: center; gap: 8px; }
+.quick-row .field { flex: 1; min-width: 0; }
+.voice-button { flex: none; width: 46px; height: 46px; border: 1px solid var(--border); border-radius: 50%; }
+.voice-button .icon { width: 22px; height: 22px; }
+.voice-button.listening { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); animation: voice-pulse 1.4s ease-in-out infinite; }
+@keyframes voice-pulse { 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 25%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .voice-button.listening { animation: none; } }
 .quick-options { display: flex; gap: 12px; }
 .quick-options .field-label { flex: 1; }
 

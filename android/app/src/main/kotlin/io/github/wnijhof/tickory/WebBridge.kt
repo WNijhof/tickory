@@ -75,6 +75,17 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.openBatterySettings() }
     }
 
+    /** Is er een spraakherkenner op dit toestel? Zo niet, dan toont de web-app geen microfoonknop. */
+    @JavascriptInterface
+    fun voiceAvailable(): Boolean = activity.isTrustedPage() && activity.hasSpeechRecognizer()
+
+    /** Opent het spraakscherm van Android; de herkende tekst komt als gebeurtenis `tickory-voice` terug in de pagina. */
+    @JavascriptInterface
+    fun startVoiceInput(language: String?) {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.startVoiceInput(language) }
+    }
+
     /** Terug naar het instelscherm, na bevestiging in een dialoog van Android. */
     @JavascriptInterface
     fun changeServer() {

@@ -1407,6 +1407,20 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   const tand = serverTask('Tandenborstel kopen');
   assert.deepEqual([tand.project_id, tand.priority, tand.due.date, tand.description], [thuisId, 2, tomorrow, 'Een zachte.']);
+  // spraakinvoer: met een nagebootste spraakherkenner van de browser komt de herkende tekst in het veld (en er wordt niets aangemaakt)
+  await evaluate(`window.SpeechRecognition = class { start() { this.lang0 = this.lang; setTimeout(() => this.onresult({ results: [[{ transcript: 'Bel de tandarts morgen p1' }]] }), 30); } stop() { this.onend?.(); } }`);
+  await press('q');
+  await waitFor(`document.querySelector('.dialog-quick[open] .voice-button')`, 'microfoonknop in het venster Taak toevoegen');
+  assert.equal(await evaluate(`document.querySelector('.voice-button').getAttribute('aria-label')`), 'Spreek een taak in');
+  await click('.dialog-quick[open] .voice-button');
+  await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]').value === 'Bel de tandarts morgen p1'`, 'de gesproken tekst staat in het veld');
+  await waitFor(`document.querySelectorAll('.dialog-quick[open] .chip').length === 3`, 'voorvertoning van de gesproken taak');
+  assert.deepEqual(await texts('.dialog-quick[open] .chip'), ['Bel de tandarts', 'morgen', 'P1']);
+  assert.equal(await evaluate(`document.querySelector('.voice-button').getAttribute('aria-pressed')`), 'false', 'de knop is weer uit');
+  assert.equal(serverTask('Bel de tandarts'), undefined, 'er is nog niets aangemaakt');
+  await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
+  await noDialog();
+  await evaluate(`delete window.SpeechRecognition`);
   // een letter in een invoerveld is gewoon een letter
   await evaluate(`document.getElementById('quick-input').focus()`);
   await press('q');

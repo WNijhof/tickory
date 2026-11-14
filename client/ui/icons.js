@@ -7,6 +7,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 /** Per pictogram: de tekenopdrachten. `d` is een pad, `dot` een gevuld bolletje [x, y, straal], `rect` een rechthoek [x, y, b, h, r]. */
 const SHAPES = {
   plus: [{ d: 'M12 5v14M5 12h14' }],
+  mic: [{ d: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 11a6 6 0 0 0 12 0M12 17v4M9 21h6' }],
   chevronLeft: [{ d: 'M15 6l-6 6 6 6' }],
   chevronRight: [{ d: 'M9 6l6 6-6 6' }],
   chevronDown: [{ d: 'M6 9l6 6 6-6' }],

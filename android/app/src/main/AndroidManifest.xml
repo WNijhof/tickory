@@ -3,6 +3,13 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- De server bereiken (de web-app in de WebView en het verversen van herinneringen op de achtergrond). -->
+    <!-- Om te kunnen zien of het toestel een spraakherkenner heeft (spraakinvoer in Taak toevoegen). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
+
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!-- Herinneringen als melding tonen. Op Android 13 en nieuwer vraagt de app hier eerst toestemming voor. -->

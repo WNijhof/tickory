@@ -3,11 +3,13 @@
 
 import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
 import { formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
-import { t } from '../core/i18n.js';
+import { getLanguage, t } from '../core/i18n.js';
 import { offsetText } from '../core/reminderText.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { projectList } from '../core/selectors.js';
+import { startVoice, voiceSupport } from '../core/voice.js';
 import { h, openDialog, replace, toast } from './dom.js';
+import { icon } from './icons.js';
 
 const INDENT = String.fromCharCode(160, 160);
 
@@ -43,10 +45,22 @@ export function previewChips(text, { view, context }) {
  * @param {{ store: import('../core/store.js').Store, actions: object, context: { projectId?: string | null, sectionId?: string | null, due?: 'today' | string | null, text?: string } }} options
  * @returns {Promise<string | null>} het id van de nieuwe taak, of null bij annuleren
  */
+/** De melding bij een mislukte spraakopname (elke tekst letterlijk, zodat de vertaaltests ze kunnen controleren). */
+function voiceErrorText(code) {
+  switch (code) {
+    case 'no-speech': return t('voice.error.noSpeech');
+    case 'denied': return t('voice.error.denied');
+    case 'network': return t('voice.error.network');
+    case 'unavailable': return t('voice.error.unavailable');
+    default: return t('voice.error.error');
+  }
+}
+
 export function openQuickAddDialog({ store, actions, context = {} }) {
   const view = store.view;
   const inbox = store.me?.inbox_project_id ?? null;
   const startProject = context.projectId && view.projects.has(context.projectId) ? context.projectId : inbox;
+  let voice = null; // de lopende spraakopname, als die er is
   return openDialog((finish) => {
     const input = h('input', {
       class: 'field quick-big', type: 'text', maxLength: 4000, value: context.text ?? '', placeholder: t('quick.placeholder'), 'aria-label': t('quick.label'), autocomplete: 'off', enterkeyhint: 'done', autofocus: true,
@@ -64,6 +78,44 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);
+
+    // Spraakinvoer: alleen een knop als dit apparaat het kan. De herkende tekst komt in het veld; er wordt niets aangemaakt.
+    let mic = null;
+    if (voiceSupport()) {
+      mic = h('button', { type: 'button', class: 'icon-button voice-button', 'aria-pressed': 'false', 'aria-label': t('voice.start'), title: t('voice.start') }, icon('mic'));
+      const reset = () => {
+        voice = null;
+        mic.classList.remove('listening');
+        mic.setAttribute('aria-pressed', 'false');
+        mic.setAttribute('aria-label', t('voice.start'));
+        mic.title = t('voice.start');
+      };
+      mic.addEventListener('click', () => {
+        if (voice) {
+          voice.stop();
+          return;
+        }
+        mic.classList.add('listening');
+        mic.setAttribute('aria-pressed', 'true');
+        mic.setAttribute('aria-label', t('voice.stop'));
+        mic.title = t('voice.stop');
+        toast(t('voice.listening'), { timeout: 3000 });
+        voice = startVoice({
+          lang: getLanguage(),
+          onResult: (text) => {
+            input.value = input.value.trim() ? `${input.value.trim()} ${text}` : text;
+            draw();
+            input.focus();
+            toast(t('voice.heard'), { timeout: 4000 });
+          },
+          onError: (code) => {
+            if (code !== 'cancelled') toast(voiceErrorText(code), { kind: 'error' });
+          },
+          onEnd: reset,
+        });
+        if (!voice) reset();
+      });
+    }
     if (input.value) {
       draw(); // een begintekst (bijvoorbeeld het label waar je bij staat): meteen de voorvertoning, de cursor erachter
       queueMicrotask(() => input.setSelectionRange(input.value.length, input.value.length));
@@ -88,12 +140,12 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     },
     h('h2', {}, t('quick.addTask')),
     day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: formatDayHeading(day, todayString()) })),
-    input,
+    mic ? h('div', { class: 'quick-row' }, input, mic) : input,
     description,
     preview,
     h('div', { class: 'quick-options' }, h('label', { class: 'field-label' }, t('task.project'), project)),
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-primary' }, t('common.add'))));
-  }, { wide: true, className: 'dialog-quick' });
+  }, { wide: true, className: 'dialog-quick', onClose: () => voice?.stop() });
 }
