@@ -27,6 +27,7 @@ import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from '
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
+import { placesDialog } from './placesUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
@@ -353,6 +354,7 @@ const handlers = {
       items: [
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
+        { value: 'places', label: t('settings.places') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
@@ -361,6 +363,7 @@ const handlers = {
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
+    else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;

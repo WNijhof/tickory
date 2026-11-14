@@ -18,7 +18,7 @@
 import { addDays, dueStatus, nowString, todayString } from './format.js';
 import { parseDateText } from './dateNl.js';
 import { isValidDate } from '../../shared/recurrence.js';
-import { reminderMoment } from '../../shared/reminders.js';
+import { isLocationActive, reminderMoment } from '../../shared/reminders.js';
 import { nameKey, normalizeText } from '../../shared/text.js';
 import { byOrder } from './selectors.js';
 import { foldText, foldWords, foldedField } from './fold.js';
@@ -442,7 +442,7 @@ function makeEnv(ctx) {
         }
         return index;
       })();
-      return (this.reminderIndex.get(task.id) ?? []).some((r) => reminderMoment(r, task) !== null);
+      return (this.reminderIndex.get(task.id) ?? []).some((r) => reminderMoment(r, task) !== null || isLocationActive(r, task));
     },
     reminderIndex: null,
   };

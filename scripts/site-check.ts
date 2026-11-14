@@ -470,7 +470,7 @@ if (wants('demo')) {
       real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
       demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
     };
-    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
+    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
     const weekly = { date: '2030-01-07', string: 'elke maandag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [1] } };
     /** De commando's, met de id's van de ene of de andere kant ingevuld. Bij elk commando de verwachte uitkomst. */
     const script = (x: typeof sides.real): [string, object, string][] => [
@@ -525,6 +525,29 @@ if (wants('demo')) {
       ['reminder_add', { id: 'check-remi-0008', task_id: T3, type: 'relative', minute_offset: 5, owner_id: x.bram }, 'READONLY'],
       ['reminder_delete', { id: R2 }, 'ok'],
       ['reminder_delete', { id: R2 }, 'NOT_FOUND'],
+      // plaatsen en herinneringen op een locatie: grenzen, ontbrekende velden, en opruimen met de plaats
+      ['place_add', { id: PL1, name: 'Thuis', lat: 52.0907, lon: 5.1214 }, 'ok'],
+      ['place_add', { id: PL1, name: 'Dubbel', lat: 1, lon: 1 }, 'ID_EXISTS'],
+      ['place_add', { id: 'check-plac-0003', name: 'Te noord', lat: 91, lon: 0 }, 'INVALID_ARG'],
+      ['place_add', { id: 'check-plac-0004', name: 'Smal', lat: 1, lon: 1, radius: 99 }, 'INVALID_ARG'],
+      ['place_add', { id: 'check-plac-0005', name: 'Breed', lat: 1, lon: 1, radius: 5001 }, 'INVALID_ARG'],
+      ['place_add', { id: 'check-plac-0006', lat: 1, lon: 1 }, 'MISSING_ARG'],
+      ['place_add', { id: 'check-plac-0007', name: 'Zonder lon', lat: 1 }, 'MISSING_ARG'],
+      ['place_add', { id: 'check-plac-0008', name: 'Van Bram', lat: 1, lon: 1, owner_id: x.bram }, 'READONLY'],
+      ['place_add', { id: 'check-plac-0009', name: 'Kleur', lat: 1, lon: 1, kleur: 'rood' }, 'UNKNOWN_ARG'],
+      ['place_add', { id: PL2, name: 'Werk', lat: -33.8688, lon: 151.2093, radius: 500 }, 'ok'],
+      ['place_update', { id: PL1, name: 'Ons huis', radius: 300 }, 'ok'],
+      ['place_update', { id: 'check-plac-geen', radius: 300 }, 'NOT_FOUND'],
+      ['reminder_add', { id: R3, task_id: T3, type: 'location', place_id: PL1, trigger: 'enter' }, 'ok'],
+      ['reminder_add', { id: R4, task_id: T3, type: 'location', place_id: PL2, trigger: 'leave' }, 'ok'],
+      ['reminder_add', { id: 'check-remi-0011', task_id: T3, type: 'location', trigger: 'enter' }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0012', task_id: T3, type: 'location', place_id: PL1 }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0013', task_id: T3, type: 'location', place_id: PL1, trigger: 'binnen' }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0014', task_id: T3, type: 'location', place_id: 'check-plac-geen', trigger: 'enter' }, 'NOT_FOUND'],
+      ['reminder_add', { id: 'check-remi-0015', task_id: T3, type: 'location', place_id: PL1, trigger: 'enter', minute_offset: 5 }, 'INVALID_ARG'],
+      ['reminder_add', { id: 'check-remi-0016', task_id: T3, type: 'relative', minute_offset: 5, place_id: PL1 }, 'INVALID_ARG'],
+      ['place_delete', { id: PL1 }, 'ok'],
+      ['place_delete', { id: PL1 }, 'NOT_FOUND'],
       // opmerkingen: bij een taak of bij een project; de schrijver vult de server in, en alleen de schrijver wijzigt of verwijdert
       ['comment_add', { id: C1, task_id: T3, content: 'Eerste opmerking' }, 'ok'],
       ['comment_add', { id: C2, project_id: P, content: 'Over het hele project' }, 'ok'],
@@ -579,7 +602,9 @@ if (wants('demo')) {
     const outcome = (x: typeof sides.real) => {
       const steps = script(x);
       const commands = steps.map(([type, args], i) => ({ type, uuid: `check-diff-${String(i).padStart(4, '0')}`, args }));
-      const status = x.run(commands).sync_status;
+      // een verzoek neemt hooguit 100 commando's aan; de reeks gaat dus in porties, in dezelfde volgorde
+      const status: Record<string, any> = {};
+      for (let i = 0; i < commands.length; i += 100) Object.assign(status, x.run(commands.slice(i, i + 100)).sync_status);
       return steps.map(([type, , expected], i) => {
         const s = status[commands[i].uuid];
         const code = s === 'ok' ? 'ok' : s.error_code;
@@ -591,7 +616,7 @@ if (wants('demo')) {
     const demoStatus = outcome(sides.demo);
     assert.deepEqual(demoStatus, realStatus, 'de demo geeft per commando dezelfde status en dezelfde foutmelding als de echte server');
 
-    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, C1, C2]);
+    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, PL1, PL2]);
     const state = (x: typeof sides.real) => {
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
       const projects = new Set([P, x.feest]);
@@ -602,6 +627,7 @@ if (wants('demo')) {
         labels: normalize(x, full.labels as any[], (r) => own.has(r.id), 'labels'),
         members: normalize(x, full.members as any[], (r) => r.project_id === P, 'members'),
         reminders: normalize(x, full.reminders as any[], (r) => own.has(r.id), 'reminders'),
+        places: normalize(x, full.places as any[], (r) => own.has(r.id), 'places'),
         comments: normalize(x, full.comments as any[], (r) => own.has(r.id), 'comments'),
         settings: normalize(x, full.settings as any[], () => true, 'settings'),
       };
@@ -611,6 +637,8 @@ if (wants('demo')) {
     const loose = (s: typeof a) => ({ ...s, tasks: s.tasks.map((t: any) => ({ ...t, order_key: t.project_id === 'INBOX' ? '?' : t.order_key })), labels: s.labels.map((l: any) => ({ ...l, order_key: '?' })), projects: s.projects.map((p: any) => ({ ...p, order_key: '?' })) });
     assert.deepEqual(loose(b), loose(a), 'na dezelfde commando\'s staan in de demo dezelfde rijen als op de echte server');
     assert.equal(a.tasks.length, 4);
+    assert.deepEqual(a.places.map((p: any) => [p.id, p.name, p.radius]), [[PL2, 'Werk', 500]], 'de verwijderde plaats is weg, de andere staat er nog');
+    assert.deepEqual(a.reminders.filter((r: any) => r.type === 'location').map((r: any) => [r.id, r.place_id, r.trigger]), [[R4, PL2, 'leave']], 'de herinnering op de verwijderde plaats is mee verdwenen');
     const t1 = b.tasks.find((t: any) => t.id === T1) as any;
     assert.equal(t1.due.date, '2030-01-14', 'een terugkerende taak schuift door bij afvinken');
     assert.equal(t1.assignee_id, 'BRAM');

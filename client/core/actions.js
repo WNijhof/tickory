@@ -5,6 +5,7 @@ import { keyAfter } from '../../shared/orderKey.js';
 import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
+import { PLACE_RADIUS_DEFAULT } from '../../shared/places.js';
 import { settingsId } from '../../shared/schema.js';
 import { ENTITIES, validateValue } from '../../shared/schema.js';
 import { projectDescendantIds } from './selectors.js';
@@ -66,12 +67,15 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
   const isMine = (row) => !row.owner_id || !store.userId || row.owner_id === store.userId;
   const myReminders = (taskId) => [...store.view.reminders.values()].filter((r) => r.task_id === taskId && isMine(r));
   const sameReminder = (r, spec) => r.type === spec.type
-    && (spec.type === 'absolute' ? r.due?.date === spec.due.date : r.minute_offset === spec.minute_offset);
+    && (spec.type === 'location' ? r.place_id === spec.place_id && r.trigger === spec.trigger
+      : spec.type === 'absolute' ? r.due?.date === spec.due.date : r.minute_offset === spec.minute_offset);
   const reminderCommand = (taskId, spec) => ({
     type: 'reminder_add',
-    args: spec.type === 'absolute'
-      ? { id: makeId(), task_id: taskId, type: 'absolute', due: { date: spec.due.date } }
-      : { id: makeId(), task_id: taskId, type: 'relative', minute_offset: spec.minute_offset },
+    args: spec.type === 'location'
+      ? { id: makeId(), task_id: taskId, type: 'location', place_id: spec.place_id, trigger: spec.trigger }
+      : spec.type === 'absolute'
+        ? { id: makeId(), task_id: taskId, type: 'absolute', due: { date: spec.due.date } }
+        : { id: makeId(), task_id: taskId, type: 'relative', minute_offset: spec.minute_offset },
   });
   /** Bij een nieuwe taak: de herinneringen die zijn opgegeven, en anders de automatische als de taak een tijd heeft. */
   const remindersForNewTask = (taskId, due, given) => {
@@ -105,7 +109,7 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       if (Object.hasOwn(changes, 'due')) {
         const before = hasTime(store.view.tasks.get(id)?.due?.date);
         const after = hasTime(changes.due?.date);
-        const mine = myReminders(id);
+        const mine = myReminders(id).filter((r) => r.type !== 'location'); // een herinnering op een plek telt niet als tijdherinnering
         const auto = autoReminder();
         if (!before && after && mine.length === 0 && auto >= 0) commands.push(reminderCommand(id, { type: 'relative', minute_offset: auto }));
         if (before && !after) for (const r of mine) if (r.type === 'relative') commands.push({ type: 'reminder_delete', args: { id: r.id } });
@@ -113,7 +117,8 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       await send(commands);
     },
     /**
-     * Voegt een herinnering toe: `{ type: 'relative', minute_offset }` of `{ type: 'absolute', due: { date } }`.
+     * Voegt een herinnering toe: `{ type: 'relative', minute_offset }`, `{ type: 'absolute', due: { date } }` of
+     * `{ type: 'location', place_id, trigger: 'enter' | 'leave' }`.
      * Bestaat precies dezelfde al, dan gebeurt er niets. Geeft het id terug.
      */
     async addReminder(taskId, spec) {
@@ -124,6 +129,17 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       return command.args.id;
     },
     deleteReminder: (id) => send([{ type: 'reminder_delete', args: { id } }]),
+
+    // ---- plaatsen (herinneringen op een locatie) ----
+    /** Voegt een plaats toe (naam, lat, lon en straal in meters). Geeft het id terug. */
+    async addPlace({ name, lat, lon, radius = PLACE_RADIUS_DEFAULT }) {
+      const id = makeId();
+      await send([{ type: 'place_add', args: { id, name: normalizeText(String(name ?? '')).trim(), lat, lon, radius } }]);
+      return id;
+    },
+    updatePlace: (id, changes) => send([{ type: 'place_update', args: { id, ...(Object.hasOwn(changes, 'name') ? { ...changes, name: normalizeText(String(changes.name ?? '')).trim() } : changes) } }]),
+    /** Verwijdert een plaats; de herinneringen op die plaats gaan mee. */
+    deletePlace: (id) => send([{ type: 'place_delete', args: { id } }]),
     /** Wijzigt je persoonlijke instellingen, bijvoorbeeld `{ auto_reminder: 10 }` (-1 = geen automatische herinnering). */
     updateSettings: (changes) => send([{ type: 'settings_update', args: { id: settingsId(store.userId), ...changes } }]),
     /** Zet de labels van een taak op basis van namen; onbekende namen worden als label aangemaakt. */
