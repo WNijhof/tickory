@@ -29,6 +29,7 @@ import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
+import { exportDialog } from './exportDialog.js';
 import { placesDialog } from './placesUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
@@ -358,6 +359,7 @@ const handlers = {
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
         { value: 'places', label: t('settings.places') },
+        { value: 'export', label: t('settings.export') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
@@ -367,6 +369,7 @@ const handlers = {
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
+    else if (choice === 'export') await exportDialog({ store, bridge });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;

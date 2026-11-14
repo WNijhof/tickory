@@ -573,9 +573,32 @@ try {
   assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null);
   await typeInto('#quick-input', '');
 
+  // exporteren: de bestanden worden op het apparaat gemaakt (een blob-download); hier onderscheppen we ze
+  await evaluate(`window.__downloads = []; const orig = URL.createObjectURL.bind(URL); URL.createObjectURL = (blob) => { blob.arrayBuffer().then((buf) => window.__downloads.push({ type: blob.type, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(buf) })); return orig(blob); }; HTMLAnchorElement.prototype.click = function () { window.__downloads.names = [...(window.__downloads.names || []), this.download]; };`);
+  await openMenu('Alice');
+  await clickText('Gegevens exporteren');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Gegevens exporteren'`, 'exportscherm');
+  await click('dialog[open] [data-role="export-json"]');
+  await click('dialog[open] [data-role="export-csv-all"]');
+  await waitFor(`window.__downloads.length === 2`, 'twee bestanden gemaakt');
+  const exported = await evaluate<{ type: string; text: string }[]>(`window.__downloads.map((d) => ({ type: d.type, text: d.text }))`);
+  const names = await evaluate<string[]>(`window.__downloads.names`);
+  assert.match(names[0], /^tickory-export-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(names[1], /^tickory-taken-\d{4}-\d{2}-\d{2}\.csv$/);
+  const parsed = JSON.parse(exported[0].text);
+  assert.equal(parsed.format, 'tickory-export');
+  assert.equal(parsed.user.username, 'alice');
+  assert.ok(parsed.tasks.length > 0 && parsed.projects.length > 0, 'taken en projecten staan erin');
+  assert.ok(exported[1].text.startsWith('﻿PROJECT,TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE\r\n'), 'CSV met BOM en kopregel');
+  const someTask = parsed.tasks.find((t: any) => !t.is_deleted && t.content);
+  assert.ok(someTask && exported[1].text.includes(someTask.content), 'een taak uit de JSON staat ook in de CSV');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'exportscherm gesloten');
+  await evaluate(`delete HTMLAnchorElement.prototype.click`);
+
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -742,7 +765,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');

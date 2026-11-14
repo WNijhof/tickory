@@ -44,6 +44,8 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     openAttachment: (id, name, mime) => call('openAttachment', id, name, mime),
     /** Haalt een bijlage op en laat de gebruiker kiezen waar hij wordt opgeslagen. */
     saveAttachment: (id, name, mime) => call('saveAttachment', id, name, mime),
+    canSaveText: () => typeof host?.saveText === 'function',
+    saveText: (name, mime, text) => call('saveText', name, mime, text),
 
     // ---- herinneringen op een locatie (zie locationStatusText in core/places.js voor de vorm van de status) ----
     /**

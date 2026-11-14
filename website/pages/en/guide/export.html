@@ -1,0 +1,36 @@
+<!--
+title: Exporting
+description: A copy of your tasks: everything as JSON to keep, or tasks as CSV (in the Todoist template format) to use elsewhere. It happens on your own device.
+-->
+<h1>Exporting</h1>
+<p class="intro">Your data is yours. Under <em>Settings</em> and <x-ui k="settings.export"></x-ui> you make a copy of your tasks, to keep or to use in another program. It happens on your own device from the data the app already has: nothing goes to a server, and it also works without internet.</p>
+
+<h2>What you can choose</h2>
+<ul>
+  <li><strong><x-ui k="export.json"></x-ui></strong>: all your projects, sections, tasks, labels, comments, reminders, filters and places, with all fields, in one JSON file. Meant for keeping (your own backup of your lists) or for editing with a script.</li>
+  <li><strong><x-ui k="export.csvAll"></x-ui></strong>: one CSV file with a <code>PROJECT</code> column followed by the columns of the Todoist template format: <code>TYPE</code>, <code>CONTENT</code>, <code>DESCRIPTION</code>, <code>PRIORITY</code>, <code>INDENT</code>, <code>AUTHOR</code>, <code>RESPONSIBLE</code>, <code>DATE</code>, <code>DATE_LANG</code>, <code>TIMEZONE</code>.</li>
+  <li><strong><x-ui k="export.csvProject"></x-ui></strong>: the same columns for one project, without the <code>PROJECT</code> column.</li>
+</ul>
+
+<h2>How the CSV is built</h2>
+<ul>
+  <li>First the tasks without a section, then for each section a <code>section</code> line and its tasks, in the order of the app.</li>
+  <li>A subtask sits under its task, with <code>INDENT</code> 2, 3 or 4 (deeper than four levels becomes 4).</li>
+  <li>A comment is a <code>note</code> line under its task. Comments on a whole project and attachments (the files themselves) are not included; the JSON has the list of attachments.</li>
+  <li>Labels follow the title as <code>@label</code>; spaces in a label name become <code>_</code>.</li>
+  <li><code>DATE</code> is the text as you typed it (<code>vrijdag</code>, <code>elke maandag</code>), or the date if there was no text; <code>DATE_LANG</code> is <code>nl</code> or <code>en</code>.</li>
+  <li>The file is UTF-8, with a marker for Excel so letters such as é and ï stay intact.</li>
+</ul>
+<div class="note">
+  <span class="note-label">Formulas in a spreadsheet</span>
+  <p>If a text starts with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>, a spreadsheet could turn it into a formula. That is why the export puts a <code>'</code> in front of such text. The JSON always has the text as it is.</p>
+</div>
+
+<h2>In the Android app</h2>
+<p>The app opens the Android screen where you choose where the file is saved. In a browser it is a normal download.</p>
+
+<h2>What it cannot do yet</h2>
+<ul>
+  <li>Importing such a file into Tickory itself (that is still on the list).</li>
+  <li>One file per project in one go, or an export of the attachments themselves.</li>
+</ul>

@@ -85,6 +85,28 @@ object AttachmentFiles {
         }
     }
 
+    /** Het grootste tekstbestand dat de web-app via de brug laat opslaan (een export van al je taken). */
+    const val MAX_TEXT_CHARS = 50_000_000
+
+    /**
+     * Zet tekst (bijvoorbeeld een export) als bestand klaar in de cache, in een eigen willekeurige map, om het via het
+     * opslaan-scherm van Android op een plek naar keuze te bewaren. De naam is nooit een pad; te grote tekst geeft null.
+     */
+    fun prepareText(context: Context, name: String?, mime: String?, text: String?): Ready? {
+        if (text == null || text.length > MAX_TEXT_CHARS) return null
+        val clean = AttachmentName.clean(name)
+        val folder = File(File(context.cacheDir, DIR), randomName())
+        val target = File(folder, clean)
+        return try {
+            folder.mkdirs()
+            target.writeText(text, Charsets.UTF_8)
+            Ready(target, clean, AttachmentName.mime(mime))
+        } catch (e: java.io.IOException) {
+            folder.deleteRecursively()
+            null
+        }
+    }
+
     private fun randomName(): String {
         val bytes = ByteArray(8)
         SecureRandom().nextBytes(bytes)

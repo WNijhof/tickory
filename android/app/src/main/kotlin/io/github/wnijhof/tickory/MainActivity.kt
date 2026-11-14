@@ -645,6 +645,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Een tekstbestand (een export uit de web-app) opslaan op een plek naar keuze. */
+    fun saveText(name: String?, mime: String?, text: String?) {
+        val ready = AttachmentFiles.prepareText(this, name, mime, text)
+        if (ready == null) {
+            Toast.makeText(this, R.string.attachment_save_failed, Toast.LENGTH_LONG).show()
+            return
+        }
+        saveToDevice(ready)
+    }
+
     private fun saveToDevice(ready: AttachmentFiles.Ready) {
         pendingSave?.file?.parentFile?.deleteRecursively()
         pendingSave = ready

@@ -95,6 +95,13 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.transferAttachment(id, name, mime, save = false) }
     }
 
+    /** Tekst (bijvoorbeeld een export van je taken) als bestand opslaan op een plek naar keuze. */
+    @JavascriptInterface
+    fun saveText(name: String?, mime: String?, text: String?) {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.saveText(name, mime, text) }
+    }
+
     /** Een bijlage ophalen en opslaan op een plek naar keuze. */
     @JavascriptInterface
     fun saveAttachment(id: String?, name: String?, mime: String?) {
