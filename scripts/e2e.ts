@@ -622,7 +622,7 @@ try {
 
   // zijbalk en projectscherm
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'project Thuis in het Engels');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Notifications', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projects', 'Settings']);
   assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('menu-button').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
     ['Navigation', 'Views', 'Menu', 'Add project', 'Shared project', 'Click to sync now']);
@@ -910,7 +910,7 @@ try {
   await clickText('Nederlands');
   await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Meldingen', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
