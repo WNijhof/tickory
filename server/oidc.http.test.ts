@@ -252,6 +252,15 @@ test('het ID-token: verkeerde nonce, aud, azp, iss, verlopen, uit de toekomst, n
       ['nbf', (c) => { c.nbf = now() + 600; }],
       ['zonder sub', (c) => { delete c.sub; }],
     ];
+    const headers: [string, (h: Record<string, unknown>) => void][] = [
+      ['typ at+jwt (een toegangstoken, geen ID-token)', (h) => { h.typ = 'at+jwt'; }],
+      ['een onbekende kritieke kop', (h) => { h.crit = ['iets']; }],
+      ['kid geen tekst', (h) => { h.kid = 5; }],
+    ];
+    for (const [name, change] of headers) {
+      w.idp.tweak = (_c, h) => change(h);
+      assert.equal((await w.ssoLogin()).error, 'PROVIDER', name);
+    }
     for (const [name, tweak] of cases) {
       w.idp.tweak = tweak;
       const r = await w.ssoLogin();
@@ -388,9 +397,12 @@ test('groepen: OIDC_ALLOWED_GROUPS laat alleen leden binnen, OIDC_ADMIN_GROUPS m
     linkIdentity(w.db, w.config.issuer, 'sub-alice', w.alice.id, new Date().toISOString());
     assert.equal((await w.ssoLogin()).handoff!.body.me.is_admin, true, 'de laatste beheerder blijft beheerder');
     assert.match(w.lines.join('\n'), /"alice" blijft beheerder/);
-    // groepen die alleen in userinfo staan (zoals bij Authelia) tellen ook
+    // groepen die alleen in userinfo staan (zoals bij Authelia) tellen ook, maar alleen als userinfo over dezelfde sub gaat
     w.idp.user = { sub: 'sub-dirk', preferred_username: 'dirk' };
     w.idp.userinfo = { groups: ['tickory'] };
+    w.idp.userinfoSub = 'sub-iemand-anders';
+    assert.equal((await w.ssoLogin()).error, 'NOT_ALLOWED', 'userinfo van een andere sub telt niet');
+    w.idp.userinfoSub = null;
     assert.equal((await w.ssoLogin()).handoff?.status, 200);
   } finally { await w.close(); }
 });
@@ -419,6 +431,13 @@ test('koppelen: een identiteit die al bij een ander account hoort, kan niet; ont
     assert.equal(admin.body.user.sso, false);
     assert.match(w.lines.join('\n'), /koppeling met de identiteitsprovider van "bob" verwijderd door beheerder "alice"/);
     assert.equal((await w.call('/api/v1/admin/users/sso-unlink', { id: w.bob.id }, bobToken)).status, 403, 'alleen voor beheerders');
+    // koppelen terwijl de sessie die het begon intussen is afgemeld: niet gekoppeld
+    const s = await w.call('/api/v1/auth/oidc/start', { purpose: 'link', client: 'web', password: PW }, bobToken);
+    const toIdp = (await fetch(`${w.base}${s.body.url}`, { redirect: 'manual' })).headers.get('location')!;
+    const back = (await fetch(toIdp, { redirect: 'manual' })).headers.get('location')!;
+    await w.call('/api/v1/auth/logout', {}, bobToken);
+    assert.equal((await fetch(back, { redirect: 'manual' })).headers.get('location'), '/#oidc-error=EXPIRED');
+    assert.equal((w.db.prepare('SELECT COUNT(*) AS n FROM oidc_identities WHERE user_id = ?').get(w.bob.id) as any).n, 0);
   } finally { await w.close(); }
 });
 
@@ -529,6 +548,9 @@ test('een trage, onbereikbare of te grote provider: een tijdslimiet en een groot
     assert.equal((await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' })).status, 503);
     assert.match(w.lines.join('\n'), /te groot/);
     w.idp.huge.clear();
+    w.idp.redirect.add('discovery');
+    assert.equal((await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' })).status, 503, 'een omleiding wordt niet gevolgd');
+    w.idp.redirect.clear();
     await w.linkAlice();
     w.idp.slow.add('token');
     assert.equal((await w.ssoLogin()).error, 'UNAVAILABLE');

@@ -45,6 +45,10 @@ export interface FakeIdp {
   /** Welke eindpunten niet (tijdig) antwoorden, of veel te veel terugsturen. */
   slow: Set<Endpoint>;
   huge: Set<Endpoint>;
+  /** Welke eindpunten met een omleiding antwoorden (de server mag die niet volgen). */
+  redirect: Set<Endpoint>;
+  /** Een andere `sub` in userinfo dan in het ID-token (dan mag de server userinfo niet gebruiken). */
+  userinfoSub: string | null;
   /** Welke methoden voor het clientgeheim de discovery noemt. */
   authMethods: string[];
   /** Tellers en wat er binnenkwam. */
@@ -86,7 +90,7 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
     issuer: '', base: '', clientId: opts.clientId ?? 'tickory-test', clientSecret: opts.clientSecret === undefined ? 'geheim-van-de-test' : opts.clientSecret,
     user: { sub: 'sub-alice', preferred_username: 'alice', name: 'Alice', email: 'alice@voorbeeld.test' }, userinfo: {},
     signWith: 'rsa', tweak: null, tweakOnce: true, algNone: false, tamper: false, hmacWithPublicKey: false, deny: false, addIss: false, issParam: null,
-    interactive: false, slow: new Set(), huge: new Set(), authMethods: ['client_secret_basic', 'client_secret_post'],
+    interactive: false, slow: new Set(), huge: new Set(), redirect: new Set(), userinfoSub: null, authMethods: ['client_secret_basic', 'client_secret_post'],
     seen: { discovery: 0, jwks: 0, token: 0, userinfo: 0, authorize: [], tokenAuth: [] },
     keys: [makeKey('rsa'), makeKey('ec'), makeKey('ed')],
     addKey: ({ publish = true, kind = 'rsa' } = {}) => {
@@ -165,6 +169,10 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
     const endpointOf: Record<string, Endpoint> = { [`${path.replace(/\/$/, '')}/.well-known/openid-configuration`]: 'discovery', '/jwks': 'jwks', '/token': 'token', '/userinfo': 'userinfo' };
     const ep = endpointOf[p];
     if (ep && idp.slow.has(ep)) return; // nooit antwoorden: de tijdslimiet van de server moet ingrijpen
+    if (ep && idp.redirect.has(ep) && !url.searchParams.has('na-omleiding')) {
+      res.writeHead(302, { Location: `${url.pathname}?na-omleiding=1` });
+      return res.end();
+    }
     if (ep === 'discovery') {
       idp.seen.discovery++;
       return json(res, 200, {
@@ -232,7 +240,7 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
       idp.seen.userinfo++;
       const user = access.get((req.headers.authorization ?? '').replace(/^Bearer /, ''));
       if (!user) return json(res, 401, { error: 'invalid_token' });
-      return json(res, 200, { sub: user.sub, ...idp.userinfo }, 'userinfo');
+      return json(res, 200, { sub: idp.userinfoSub ?? user.sub, ...idp.userinfo }, 'userinfo');
     }
     // een browser vraagt om een pictogram; zonder antwoord staat er een fout in de console van de e2e
     res.writeHead(p === '/favicon.ico' ? 204 : 404);
