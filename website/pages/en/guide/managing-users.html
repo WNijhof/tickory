@@ -34,7 +34,11 @@ description: Managing accounts in Tickory: in the app under User management, or 
   <dd>The person can no longer sign in and is signed out everywhere immediately. The data is kept, and tasks in shared projects stay. Devices registered for notifications get no more. <x-ui k="admin.unblock"></x-ui> reverses it.</dd>
   <dt><x-ui k="admin.makeAdmin"></x-ui> or <x-ui k="admin.revokeAdmin"></x-ui></dt>
   <dd>Turns an ordinary user into an administrator, or the other way round.</dd>
+  <dt><x-ui k="admin.resetTwoFactor"></x-ui></dt>
+  <dd>Only for an account with two-step verification (the label <x-ui k="admin.twoFactorBadge"></x-ui>). For someone who lost both the phone and the recovery codes: afterwards they sign in with just the password and can turn it on again. Only do this when you are sure it really is that person asking. It is written to the server log.</dd>
 </dl>
+<h3>Downloading a backup</h3>
+<p>Under <x-ui k="admin.backup"></x-ui> you download a copy of the whole server as one file; see <a href="backup.html#download">Backup</a>.</p>
 <p>You cannot block yourself or take away your own administrator rights. Deleting an account completely is not possible either; blocking is the alternative.</p>
 
 <h2>From the server</h2>
@@ -44,7 +48,8 @@ docker compose exec -e TODO_PASSWORD='a-good-password' tickory node server/main.
 docker compose exec -it tickory node server/main.ts user passwd anna        # asks for the password, hidden
 docker compose exec tickory node server/main.ts user disable anna
 docker compose exec tickory node server/main.ts user enable anna
-docker compose exec tickory node server/main.ts user logout-all anna</code></pre>
+docker compose exec tickory node server/main.ts user logout-all anna
+docker compose exec tickory node server/main.ts user reset-2fa anna</code></pre>
 <div class="table-wrap">
   <table>
     <thead>
@@ -57,6 +62,7 @@ docker compose exec tickory node server/main.ts user logout-all anna</code></pre
       <tr><td><code>user disable &lt;name&gt;</code></td><td class="wrap-ok">Blocks the account and signs it out everywhere.</td></tr>
       <tr><td><code>user enable &lt;name&gt;</code></td><td class="wrap-ok">Makes a blocked account active again.</td></tr>
       <tr><td><code>user logout-all &lt;name&gt;</code></td><td class="wrap-ok">Signs out all devices of that user, without changing the password.</td></tr>
+      <tr><td><code>user reset-2fa &lt;name&gt;</code></td><td class="wrap-ok">Turns off two-step verification for that user, for example for the only administrator who lost both phone and recovery codes.</td></tr>
     </tbody>
   </table>
 </div>

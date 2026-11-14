@@ -55,7 +55,7 @@ Open de app en log in met het eerste account.
 
 ### Accounts en gebruikers
 
-- **In de app:** Instellingen, "Account, wachtwoord en apparaten". Daar wijzig je je wachtwoord en zie je op welke apparaten je bent aangemeld (en meld je er een af). Als beheerder staat daar ook "Gebruikersbeheer": accounts aanmaken, blokkeren, beheerder maken en wachtwoorden herstellen.
+- **In de app:** Instellingen, "Account, wachtwoord en apparaten". Daar wijzig je je wachtwoord, zie je op welke apparaten je bent aangemeld (soort apparaat, laatst gebruikt, aangemeld sinds; meld er een af, of alle andere tegelijk) en zet je **tweestapsverificatie** aan (een code uit een authenticator-app zoals Aegis, FreeOTP of Google Authenticator, plus tien eenmalige herstelcodes). Als beheerder staat daar ook "Gebruikersbeheer": accounts aanmaken, blokkeren, beheerder maken, wachtwoorden herstellen, tweestapsverificatie van iemand uitzetten (die telefoon én herstelcodes kwijt is) en **een back-up downloaden**.
 - **Vanaf de server**, bijvoorbeeld als je je wachtwoord kwijt bent:
 
   ```sh
@@ -63,12 +63,14 @@ Open de app en log in met het eerste account.
   docker compose exec -e TODO_PASSWORD='een-goed-wachtwoord' tickory node server/main.ts user add anna --name "Anna de Vries"
   docker compose exec -it tickory node server/main.ts user passwd anna        # vraagt om het wachtwoord, ongezien
   docker compose exec tickory node server/main.ts user disable anna           # of: enable, logout-all
+  docker compose exec tickory node server/main.ts user reset-2fa anna         # tweestapsverificatie uitzetten
   ```
 
   Met `--admin` achter `user add` maak je een beheerder. Zonder `TODO_PASSWORD` en zonder terminal (`-it`) kan er geen wachtwoord worden gevraagd.
 - Er is geen open registratie en geen wachtwoordherstel per e-mail: een beheerder maakt accounts aan en herstelt wachtwoorden. Er blijft altijd minstens één actieve beheerder.
-- Elk apparaat krijgt bij het inloggen een eigen sessie die je kunt intrekken. Inloggen is per kwartier begrensd: na acht mislukte pogingen op één account vanaf één adres, na veertig vanaf één adres (een IPv6-netwerk telt als één adres) of na zestig op één account in totaal, wordt inloggen geweigerd tot dat kwartier voorbij is. Pogingen worden geteld vóórdat het wachtwoord wordt gecontroleerd, dus een stroom gelijktijdige pogingen komt er niet doorheen. Omdat de teller van het account per adres is, kan een ander je vanaf zijn adres niet buitensluiten van je eigen account. De grenzen staan in `server/limits.ts` en in de SPEC; ook kan elke gebruiker maar een redelijke hoeveelheid opslaan (taken, labels, herinneringen, apparaten).
+- Elk apparaat krijgt bij het inloggen een eigen sessie die je kunt intrekken. Een sessie verloopt na 90 dagen zonder gebruik en hoe dan ook 365 dagen na het inloggen (`SESSION_IDLE_DAYS` en `SESSION_MAX_DAYS` in `.env`; 0 zet een grens uit); de app vraagt dan gewoon opnieuw om in te loggen. Inloggen is per kwartier begrensd: na acht mislukte pogingen op één account vanaf één adres, na veertig vanaf één adres (een IPv6-netwerk telt als één adres) of na zestig op één account in totaal, wordt inloggen geweigerd tot dat kwartier voorbij is. Pogingen worden geteld vóórdat het wachtwoord wordt gecontroleerd, dus een stroom gelijktijdige pogingen komt er niet doorheen. Omdat de teller van het account per adres is, kan een ander je vanaf zijn adres niet buitensluiten van je eigen account. De grenzen staan in `server/limits.ts` en in de SPEC; ook kan elke gebruiker maar een redelijke hoeveelheid opslaan (taken, labels, herinneringen, apparaten).
 - Een beheerder beheert accounts, niet andermans taken: ook een beheerder ziet alleen projecten waar die zelf lid van is.
+- **Tweestapsverificatie** bewaart de geheimen versleuteld in de database, met een sleutel uit het bestand `/data/secret.key` (maakt de server bij de eerste start; `SECRET_KEY_FILE` wijst een ander bestand aan). Dat bestand zit bewust niet in een back-up: een gestolen back-up geeft zo de tweede stap niet weg. **Bewaar zelf een kopie van `secret.key`**, apart van je back-ups (bijvoorbeeld in je wachtwoordbeheerder). Terugzetten op een nieuwe server zonder dat bestand kan, maar gebruikers met tweestapsverificatie hebben dan `user reset-2fa` nodig.
 
 ### Delen en samenwerken
 
@@ -155,7 +157,18 @@ Je gegevens staan in een Docker-volume en blijven behouden. Bouw je zelf: `git p
 
 ### Back-up en terugzetten
 
-De database is één SQLite-bestand in het volume. Maak een consistente kopie terwijl de app draait:
+**Vanuit de app (beheerders):** Instellingen, "Account, wachtwoord en apparaten", "Gebruikersbeheer", "Back-up". Na opnieuw je wachtwoord (en een code, als je tweestapsverificatie gebruikt) downloadt de browser één bestand, `tickory-backup-<datum>.tar`, met een consistente kopie van de database (`tickory.db`) en alle bijlagen (`attachments/`), plus een korte `LEESMIJ.txt` met de stappen om terug te zetten. De server streamt het (niets staat in het geheugen), hooguit vijf keer per uur, en schrijft in het log wie het downloadde. In de Android-app kan het niet; gebruik daarvoor een browser. Terugzetten:
+
+```sh
+docker compose down
+mkdir herstel && tar -xf tickory-backup-2026-11-14.tar -C herstel
+docker run --rm -v tickory_tickory-data:/data -v "$PWD/herstel":/herstel:ro alpine sh -c   "rm -f /data/todo.db-wal /data/todo.db-shm && cp /herstel/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /herstel/attachments /data/attachments && chown -R 1000:1000 /data/todo.db /data/attachments"
+docker compose up -d
+```
+
+`tar` zit in Linux, macOS en Windows 10 en nieuwer (7-Zip opent het ook). Het archief bevat dezelfde gevoelige gegevens als de kopieën hieronder: de wachtwoord-hashes en de sleutels van de server voor meldingen. Bewaar het net zo zorgvuldig als de server zelf. `secret.key` zit er niet in (zie "Accounts en gebruikers").
+
+**Vanaf de opdrachtregel:** de database is één SQLite-bestand in het volume. Maak een consistente kopie terwijl de app draait:
 
 ```sh
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db

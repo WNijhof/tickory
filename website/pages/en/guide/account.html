@@ -1,6 +1,6 @@
 <!--
 title: Account, password and devices
-description: Your account in Tickory: changing your password, seeing which devices you are signed in on, signing a device out, signing out yourself, and choosing the language of the app.
+description: Your account in Tickory: changing your password, seeing which devices you are signed in on, signing a device out, turning on two-step verification, signing out yourself, and choosing the language of the app.
 -->
 <h1>Account, password and devices</h1>
 <p class="intro">Click your name at the bottom of the sidebar to open the settings, and choose <x-ui k="settings.account"></x-ui>.</p>
@@ -19,9 +19,11 @@ description: Your account in Tickory: changing your password, seeing which devic
 </ul>
 
 <h2>Signed-in devices</h2>
-<p>Every browser and every device you sign in on gets its own session. The list shows a name for each session, such as “Chrome on Android”, and when it was last used. The session you are working with now is marked <x-ui k="account.thisDevice"></x-ui>.</p>
+<p>Every browser and every device you sign in on gets its own session. The list shows a name for each session, such as “Chrome on Android”, the kind of device (<x-ui k="account.deviceKind.browser"></x-ui>, <x-ui k="account.deviceKind.app"></x-ui> or <x-ui k="account.deviceKind.other"></x-ui>, with the browser and system, without version numbers), when it was last used and since when you have been signed in there. The session you are working with now is marked <x-ui k="account.thisDevice"></x-ui>.</p>
 <ul>
   <li>Choose <x-ui k="account.signOut"></x-ui> next to another device to sign it out immediately, for example when you have lost a phone. That device then has to sign in again.</li>
+  <li><x-ui k="account.signOutOthers"></x-ui> signs out every device except the one you are using now, after you confirm. Useful after turning on two-step verification, or when you no longer know where you are signed in.</li>
+  <li>A device that has not been used for 90 days is signed out automatically, and after 365 days every device has to sign in again anyway. The administrator can set other periods; the line below the list says what applies on your server. A signed-out device simply asks you to sign in again; the widgets of the Android app then show <em>Sign in again via the app</em>.</li>
   <li>If you do not recognise a device, sign it out and change your password.</li>
   <li>The name is determined when signing in and cannot be changed. The same name twice means you signed in twice with the same kind of browser.</li>
 </ul>
@@ -34,6 +36,26 @@ description: Your account in Tickory: changing your password, seeing which devic
 </ol>
 <p>A password has at least 10 characters, may not be the same as your username and may not be easy to guess (no common word or password, not too few different characters); a long phrase works well. You can only enter a wrong current password a few times per fifteen minutes. After changing it you stay signed in on this device; <strong>all your other devices are signed out</strong> and have to sign in again with the new password.</p>
 <p>If you no longer know your current password, ask an administrator for a new one; see <a href="signing-in.html#forgotten-password">forgotten password</a>.</p>
+
+<h2 id="two-step-verification">Two-step verification</h2>
+<p>With two-step verification, Tickory asks for a 6-digit code from an app on your phone as well as your password when you sign in, such as Aegis, FreeOTP, Google Authenticator or the app of your password manager. Someone who only knows your password then cannot get in. The code changes every 30 seconds and works only once.</p>
+<h3>Turning it on</h3>
+<ol>
+  <li>Expand <x-ui k="twoFactor.title"></x-ui> and choose <x-ui k="twoFactor.turnOn"></x-ui>.</li>
+  <li>Enter your password and choose <x-ui k="twoFactor.continue"></x-ui>.</li>
+  <li>Scan the QR code with your authenticator app. If scanning does not work (or you are on your phone itself), type in the <x-ui k="twoFactor.secret"></x-ui>, or tap <x-ui k="twoFactor.openLink"></x-ui>: that link hands the key straight to an authenticator app on the same device, also in the Android app.</li>
+  <li>Enter the code the app shows under <x-ui k="twoFactor.confirmCode"></x-ui> and choose <x-ui k="twoFactor.confirm"></x-ui>.</li>
+  <li>You get ten <strong>recovery codes</strong>. Keep them somewhere safe, for example in your password manager or on paper; you only see them once. Then choose <x-ui k="twoFactor.saved"></x-ui>.</li>
+</ol>
+<p>If the code is not accepted, check that the time on your phone is set automatically: the code depends on the time. Devices that were already signed in stay signed in; if you want them to sign in again too, choose <x-ui k="account.signOutOthers"></x-ui>.</p>
+<h3>Signing in with a code</h3>
+<p>After your password the sign-in window asks for the code from the app. Lost your phone? Choose <x-ui k="login.useRecovery"></x-ui> and enter one of your recovery codes (capitals, spaces and dashes do not matter). Each recovery code works once; the app tells you how many are left. See also <a href="signing-in.html">Signing in</a>.</p>
+<h3>New recovery codes, or turning it off</h3>
+<p>Under <x-ui k="twoFactor.title"></x-ui> you see since when it has been on and how many recovery codes you have left. <x-ui k="twoFactor.newCodes"></x-ui> makes ten new ones (the old ones stop working); <x-ui k="twoFactor.turnOff"></x-ui> turns it off. Both ask for your password and a code from the app (or a recovery code).</p>
+<div class="note warn">
+  <span class="note-label">Lost both your phone and your recovery codes?</span>
+  <p>Then you cannot get in by yourself. An administrator can turn off two-step verification for you (see <a href="managing-users.html">Managing users</a>); after that you sign in with just your password and turn it on again.</p>
+</div>
 
 <h2 id="language">The language of the app</h2>
 <p>The app is available in English and in Dutch. As long as you choose nothing, it follows your browser: if one of your browser's languages is Dutch, the app is Dutch, otherwise English. To decide for yourself, choose <x-ui k="settings.language"></x-ui> and then <em>English</em> or <em>Nederlands</em>; those two names are the same in every language, so you can always find the choice.</p>

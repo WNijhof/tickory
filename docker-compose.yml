@@ -37,6 +37,12 @@ services:
       # (nginx: client_max_body_size, standaard maar 1 MB).
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
       ATTACHMENT_QUOTA_MB: ${ATTACHMENT_QUOTA_MB:-1024}
+      # Aangemelde apparaten: afgemeld na zoveel dagen zonder gebruik, en hoe dan ook na zoveel dagen opnieuw inloggen (0 = uit).
+      SESSION_IDLE_DAYS: ${SESSION_IDLE_DAYS:-90}
+      SESSION_MAX_DAYS: ${SESSION_MAX_DAYS:-365}
+      # Het sleutelbestand voor tweestapsverificatie; leeg = /data/secret.key (maakt de server zelf). Het zit niet in een back-up:
+      # bewaar er zelf een kopie van, apart van je back-ups.
+      SECRET_KEY_FILE: ${SECRET_KEY_FILE:-}
     ports:
       # Alleen bereikbaar vanaf de server zelf: zet er een reverse proxy met HTTPS voor (zie README).
       # Wil je het zonder proxy op je thuisnetwerk gebruiken, maak er dan "8787:8787" van.

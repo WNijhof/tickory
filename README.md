@@ -113,7 +113,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 
 ### Accounts and users
 
-- **In the app:** Settings, "Account, password and devices". There you change your password and see which devices you are signed in on (and sign one out). Administrators also find "User management" there: creating and blocking accounts, making someone an administrator and resetting passwords.
+- **In the app:** Settings, "Account, password and devices". There you change your password, see which devices you are signed in on (what kind of device, last used, signed in since; sign one out, or all others at once) and turn on **two-step verification** (a code from an authenticator app such as Aegis, FreeOTP or Google Authenticator, plus ten one-time recovery codes). Administrators also find "User management" there: creating and blocking accounts, making someone an administrator, resetting passwords, turning off someone's two-step verification (when they lost both phone and recovery codes) and **downloading a backup**.
 - **From the server**, for example when you have lost your password:
 
   ```sh
@@ -121,12 +121,14 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
   docker compose exec -e TODO_PASSWORD='a-good-password' tickory node server/main.ts user add anna --name "Anna de Vries"
   docker compose exec -it tickory node server/main.ts user passwd anna        # asks for the password, hidden
   docker compose exec tickory node server/main.ts user disable anna           # or: enable, logout-all
+  docker compose exec tickory node server/main.ts user reset-2fa anna         # turn off two-step verification
   ```
 
   `--admin` after `user add` creates an administrator. Without `TODO_PASSWORD` and without a terminal (`-it`) no password can be asked for.
 - There is no open sign-up and no password reset by e-mail: an administrator creates accounts and resets passwords. There is always at least one active administrator.
-- Every device gets its own session when signing in, which you can revoke. Signing in is limited per fifteen minutes: after eight failed attempts on one account from one address, after forty from one address (an IPv6 network counts as one address), or after sixty on one account in total, further attempts are refused until those fifteen minutes have passed. Attempts are counted before the password is checked, so a burst of simultaneous attempts does not get through. Because the account counter is per address, someone else cannot lock you out of your own account from their address. The limits are in `server/limits.ts` and in the SPEC; each user can also store only a reasonable amount (tasks, labels, reminders, devices).
+- Every device gets its own session when signing in, which you can revoke. A session expires after 90 days without use and, in any case, 365 days after signing in (`SESSION_IDLE_DAYS` and `SESSION_MAX_DAYS` in `.env`; 0 turns a limit off); the app then simply asks you to sign in again. Signing in is limited per fifteen minutes: after eight failed attempts on one account from one address, after forty from one address (an IPv6 network counts as one address), or after sixty on one account in total, further attempts are refused until those fifteen minutes have passed. Attempts are counted before the password is checked, so a burst of simultaneous attempts does not get through. Because the account counter is per address, someone else cannot lock you out of your own account from their address. The limits are in `server/limits.ts` and in the SPEC; each user can also store only a reasonable amount (tasks, labels, reminders, devices).
 - An administrator manages accounts, not other people's tasks: an administrator, too, only sees the projects they are a member of.
+- **Two-step verification** keeps its secrets encrypted in the database with a key from the file `/data/secret.key` (made by the server on first start; `SECRET_KEY_FILE` points elsewhere). That file is deliberately not part of a backup, so a stolen backup does not give away the second factor. **Keep a copy of `secret.key` separately** (for example in your password manager). Restoring onto a new server without it works, but users with two-step verification then need `user reset-2fa`.
 
 ### Sharing and working together
 
@@ -213,7 +215,18 @@ Version 0.1 had one token for one person. Put `TODO_ADMIN_USER` and `TODO_ADMIN_
 
 ### Backup and restore
 
-The database is a single SQLite file in the volume. Make a consistent copy while the app is running:
+**From the app (administrators):** Settings, "Account, password and devices", "User management", "Backup". After entering your password again (and a code, if you use two-step verification) the browser downloads one file, `tickory-backup-<date>.tar`, with a consistent copy of the database (`tickory.db`) and all attachments (`attachments/`), plus a short `LEESMIJ.txt` with the restore steps. The server streams it (nothing is held in memory), at most five per hour, and logs who downloaded it. It does not work inside the Android app; use a browser. To restore it:
+
+```sh
+docker compose down
+mkdir restore && tar -xf tickory-backup-2026-11-14.tar -C restore
+docker run --rm -v tickory_tickory-data:/data -v "$PWD/restore":/restore:ro alpine sh -c   "rm -f /data/todo.db-wal /data/todo.db-shm && cp /restore/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /restore/attachments /data/attachments && chown -R 1000:1000 /data/todo.db /data/attachments"
+docker compose up -d
+```
+
+`tar` is built into Linux, macOS and Windows 10 and later (7-Zip opens it too). The archive holds the same sensitive data as the copies below: the password hashes and the server's keys for notifications. Keep it as carefully as the server itself. `secret.key` is not in it (see "Accounts and users").
+
+**From the command line:** the database is a single SQLite file in the volume. Make a consistent copy while the app is running:
 
 ```sh
 docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db

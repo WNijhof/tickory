@@ -45,6 +45,7 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.AttachmentName
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.core.ExternalLink
 import io.github.wnijhof.tickory.inbox.AppVisibility
 import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.core.Ids
@@ -458,8 +459,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openExternally(uri: Uri) {
-        val scheme = uri.scheme?.lowercase()
-        if (scheme != "http" && scheme != "https" && scheme != "mailto" && scheme != "tel") return
+        if (!ExternalLink.allowed(uri.scheme)) return // zie ExternalLink: ook otpauth, voor tweestapsverificatie
         try {
             startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
         } catch (e: ActivityNotFoundException) {

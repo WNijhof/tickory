@@ -15,9 +15,10 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
 <ol>
   <li>Open the address in your browser. You see the window <x-ui k="login.title"></x-ui>.</li>
   <li>Enter your username and password and choose <x-ui k="login.title"></x-ui>. Capitals do not matter in the username.</li>
+  <li>If you have <a href="account.html#two-step-verification">two-step verification</a> on, <x-ui k="login.codeTitle"></x-ui> follows: enter the 6-digit code from your authenticator app and choose <x-ui k="login.verify"></x-ui>. Lost your phone? Choose <x-ui k="login.useRecovery"></x-ui>. You have five minutes for this step; after that you start again with your password.</li>
   <li>The app fetches your tasks. The top right shows <x-ui k="sync.upToDate"></x-ui> once everything is in.</li>
 </ol>
-<p>You stay signed in on this device until you sign out yourself or someone revokes the session. Every device and every browser gets its own session; you can see them all in <a href="account.html">your account</a>.</p>
+<p>You stay signed in on this device until you sign out yourself, someone revokes the session, or you have not used the device for 90 days (and after 365 days in any case; the administrator can set other periods). Every device and every browser gets its own session; you can see them all in <a href="account.html">your account</a>.</p>
 
 <h2>When signing in fails</h2>
 <dl>
@@ -25,6 +26,8 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
   <dd>One of the two is wrong. You get the same message when the account does not exist or is blocked: the server does not reveal which usernames exist.</dd>
   <dt>“<x-ui k="api.tooManyAttempts"></x-ui>”</dt>
   <dd>After eight failed attempts within fifteen minutes on the same username from the same address (or forty from the same address, or sixty on that username in total) you cannot sign in for a while. The message says how long to wait; that is fifteen minutes at most. Someone else cannot lock you out from their own address: your counter is the one for your address.</dd>
+  <dt>“<x-ui k="api.invalidCode"></x-ui>”</dt>
+  <dd>The two-step verification code is wrong, too old, or you just used it (a code works once). Wait for the next code. If it keeps failing, check that the time on your phone is set automatically. After five wrong codes you start again with your password.</dd>
   <dt>“No connection to the server”</dt>
   <dd>The app cannot reach the server. Check your internet connection and whether the address is right.</dd>
 </dl>
@@ -40,7 +43,7 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
 </div>
 
 <h2>Having to sign in again</h2>
-<p>If the sign-in window appears by itself and the top right says <x-ui k="sync.signInNeeded"></x-ui>, your session on this device has been revoked. That happens when you changed your password on another device, when you or an administrator signed this device out, or when your account was blocked. Your username is already filled in; sign in again to continue. Changes that were still waiting are sent after that.</p>
+<p>If the sign-in window appears by itself and the top right says <x-ui k="sync.signInNeeded"></x-ui>, your session on this device has been revoked. That happens when you changed your password on another device, when you or an administrator signed this device out, when you have not used the device for a long time (90 days by default) or the session is too old (365 days by default), or when your account was blocked. Your username is already filled in; sign in again to continue. Changes that were still waiting are sent after that.</p>
 
 <h2>A different account on the same device</h2>
 <p>If someone else signs in on a device that still holds your data, the app first asks for confirmation and then erases your local copy. That way one person's tasks never end up with another.</p>

@@ -120,12 +120,14 @@ Dit archief bevat de database (tickory.db) en de bijlagen (attachments/). Het be
 (gehashte) sessies en de sleutels van de server voor meldingen (VAPID-privesleutel en HMAC-geheim): bewaar het net zo
 zorgvuldig als de server zelf. Het sleutelbestand voor tweestapsverificatie (secret.key) zit er bewust niet in.
 
-Terugzetten met Docker (zie de handleiding, "Back-up"):
-  1. docker compose stop tickory
+Terugzetten met Docker (zie de handleiding, "Back-up"; het volume heet bij de standaardopstelling tickory_tickory-data,
+controleer met "docker volume ls"):
+  1. docker compose down
   2. mkdir herstel && tar -xf <dit bestand>.tar -C herstel
-  3. docker compose run --rm --no-deps -v "$PWD/herstel:/herstel:ro" --entrypoint sh tickory -c \\
-       'rm -f /data/todo.db /data/todo.db-wal /data/todo.db-shm && cp /herstel/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /herstel/attachments /data/attachments'
-  4. docker compose start tickory
+  3. docker run --rm -v tickory_tickory-data:/data -v "$PWD/herstel":/herstel:ro alpine sh -c \\
+       "rm -f /data/todo.db-wal /data/todo.db-shm && cp /herstel/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /herstel/attachments /data/attachments && chown -R 1000:1000 /data/todo.db /data/attachments"
+  4. docker compose up -d
+  5. Meld je op elk apparaat af en weer aan.
 
 Tickory - backup of ${date}
 

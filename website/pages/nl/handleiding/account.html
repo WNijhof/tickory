@@ -1,6 +1,6 @@
 <!--
 title: Account, wachtwoord en apparaten
-description: Je account in Tickory: je wachtwoord wijzigen, zien op welke apparaten je bent aangemeld, een apparaat afmelden en zelf afmelden.
+description: Je account in Tickory: je wachtwoord wijzigen, zien op welke apparaten je bent aangemeld, een apparaat afmelden, tweestapsverificatie aanzetten en zelf afmelden.
 -->
 <h1>Account, wachtwoord en apparaten</h1>
 <p class="intro">Klik onderaan de zijbalk op je naam om de instellingen te openen, en kies <x-ui k="settings.account"></x-ui>.</p>
@@ -19,9 +19,11 @@ description: Je account in Tickory: je wachtwoord wijzigen, zien op welke appara
 </ul>
 
 <h2>Aangemelde apparaten</h2>
-<p>Elke browser en elk apparaat waarop je inlogt, krijgt een eigen aanmelding. In de lijst staat per aanmelding een naam zoals “Chrome op Android” en wanneer ze voor het laatst is gebruikt. Bij de aanmelding waar je nu mee werkt staat <x-ui k="account.thisDevice"></x-ui>.</p>
+<p>Elke browser en elk apparaat waarop je inlogt, krijgt een eigen aanmelding. In de lijst staat per aanmelding een naam zoals “Chrome op Android”, het soort apparaat (<x-ui k="account.deviceKind.browser"></x-ui>, <x-ui k="account.deviceKind.app"></x-ui> of <x-ui k="account.deviceKind.other"></x-ui>, met de browser en het systeem, zonder versienummers), wanneer ze voor het laatst is gebruikt en sinds wanneer je er bent aangemeld. Bij de aanmelding waar je nu mee werkt staat <x-ui k="account.thisDevice"></x-ui>.</p>
 <ul>
   <li>Kies <x-ui k="account.signOut"></x-ui> achter een ander apparaat om het direct af te melden, bijvoorbeeld als je een telefoon kwijt bent. Dat apparaat moet daarna opnieuw inloggen.</li>
+  <li>Met <x-ui k="account.signOutOthers"></x-ui> meld je in één keer alle apparaten af behalve het apparaat waar je nu mee werkt (na bevestiging). Handig nadat je tweestapsverificatie hebt aangezet, of als je niet meer weet waar je overal bent ingelogd.</li>
+  <li>Een apparaat dat 90 dagen niet is gebruikt, wordt vanzelf afgemeld, en na 365 dagen moet elk apparaat hoe dan ook opnieuw inloggen. De beheerder kan die termijnen anders instellen; onder de lijst staat wat er op jouw server geldt. Een afgemeld apparaat vraagt gewoon opnieuw om in te loggen; de widgets van de Android-app tonen dan <em>Log opnieuw in in de app</em>.</li>
   <li>Herken je een apparaat niet, meld het dan af en wijzig je wachtwoord.</li>
   <li>De naam wordt bepaald bij het inloggen en is niet te wijzigen. Twee keer dezelfde naam betekent dat je twee keer met dezelfde soort browser bent ingelogd.</li>
 </ul>
@@ -34,6 +36,26 @@ description: Je account in Tickory: je wachtwoord wijzigen, zien op welke appara
 </ol>
 <p>Een wachtwoord heeft minimaal 10 tekens, mag niet gelijk zijn aan je gebruikersnaam en mag niet makkelijk te raden zijn (geen veelgebruikt woord of wachtwoord, niet te weinig verschillende tekens); een lange zin werkt goed. Je kunt per kwartier maar een paar keer een verkeerd huidig wachtwoord invullen. Na het wijzigen blijf je op dit apparaat aangemeld; <strong>al je andere apparaten worden afgemeld</strong> en moeten opnieuw inloggen met het nieuwe wachtwoord.</p>
 <p>Weet je je huidige wachtwoord niet meer, vraag dan een beheerder om een nieuw; zie <a href="inloggen.html#wachtwoord-vergeten">wachtwoord vergeten</a>.</p>
+
+<h2 id="tweestapsverificatie">Tweestapsverificatie</h2>
+<p>Met tweestapsverificatie vraagt Tickory bij het inloggen naast je wachtwoord om een code van 6 cijfers uit een app op je telefoon, zoals Aegis, FreeOTP, Google Authenticator of de app van je wachtwoordbeheerder. Wie alleen je wachtwoord kent, komt er dan niet in. De code verandert elke 30 seconden en werkt maar één keer.</p>
+<h3>Aanzetten</h3>
+<ol>
+  <li>Klap <x-ui k="twoFactor.title"></x-ui> open en kies <x-ui k="twoFactor.turnOn"></x-ui>.</li>
+  <li>Vul je wachtwoord in en kies <x-ui k="twoFactor.continue"></x-ui>.</li>
+  <li>Scan de QR-code met je authenticator-app. Lukt scannen niet (of zit je op je telefoon zelf), typ dan de <x-ui k="twoFactor.secret"></x-ui> over, of tik op <x-ui k="twoFactor.openLink"></x-ui>: die link geeft de sleutel rechtstreeks aan een authenticator-app op hetzelfde apparaat, ook in de Android-app.</li>
+  <li>Typ de code die de app toont bij <x-ui k="twoFactor.confirmCode"></x-ui> en kies <x-ui k="twoFactor.confirm"></x-ui>.</li>
+  <li>Je krijgt tien <strong>herstelcodes</strong>. Bewaar ze op een veilige plek, bijvoorbeeld in je wachtwoordbeheerder of op papier; je ziet ze maar één keer. Kies daarna <x-ui k="twoFactor.saved"></x-ui>.</li>
+</ol>
+<p>Klopt de code niet, controleer dan of de tijd op je telefoon automatisch wordt ingesteld: de code hangt af van de tijd. Je apparaten die al waren aangemeld, blijven aangemeld; wil je dat ook die opnieuw moeten inloggen, kies dan <x-ui k="account.signOutOthers"></x-ui>.</p>
+<h3>Inloggen met een code</h3>
+<p>Na je wachtwoord vraagt het inlogvenster om de code uit de app. Ben je je telefoon kwijt, kies dan <x-ui k="login.useRecovery"></x-ui> en typ een van je herstelcodes (hoofdletters, spaties en streepjes maken niet uit). Elke herstelcode werkt één keer; de app zegt hoeveel er nog over zijn. Zie ook <a href="inloggen.html">Inloggen</a>.</p>
+<h3>Nieuwe herstelcodes, of uitzetten</h3>
+<p>Onder <x-ui k="twoFactor.title"></x-ui> staat sinds wanneer het aan staat en hoeveel herstelcodes je nog hebt. Met <x-ui k="twoFactor.newCodes"></x-ui> maak je tien nieuwe (de oude werken dan niet meer); met <x-ui k="twoFactor.turnOff"></x-ui> zet je het uit. Voor allebei vul je je wachtwoord in en een code uit de app (of een herstelcode).</p>
+<div class="note warn">
+  <span class="note-label">Telefoon én herstelcodes kwijt?</span>
+  <p>Dan kom je er zelf niet meer in. Een beheerder kan tweestapsverificatie voor je uitzetten (zie <a href="gebruikers-beheren.html">Gebruikers beheren</a>); daarna log je in met alleen je wachtwoord en zet je het opnieuw aan.</p>
+</div>
 
 <h2 id="taal">De taal van de app</h2>
 <p>De app is er in het Nederlands en in het Engels. Zolang je niets kiest, volgt hij je browser: staat er een Nederlandse taal bij de talen van je browser, dan is het Nederlands, anders Engels. Wil je het zelf bepalen, kies dan <x-ui k="settings.language"></x-ui> en daarna <em>Nederlands</em> of <em>English</em>; die beide namen staan in elke taal hetzelfde, zodat je de keuze altijd terugvindt.</p>

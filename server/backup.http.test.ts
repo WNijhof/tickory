@@ -121,7 +121,7 @@ test('het archief: een tar met de database (te openen, met de gegevens) en de bi
     assert.equal(manifest.schema_version, SCHEMA_VERSION);
     assert.equal(manifest.attachments, 1);
     assert.equal(manifest.attachments_missing, 0);
-    assert.match(files.get('LEESMIJ.txt')!.toString(), /docker compose stop tickory/);
+    assert.match(files.get('LEESMIJ.txt')!.toString(), /docker compose down[\s\S]*tar -xf[\s\S]*cp \/herstel\/tickory\.db \/data\/todo\.db/);
     // de database uit het archief openen
     const out = join(w.root, 'uit.db');
     writeFileSync(out, files.get('tickory.db')!);

@@ -1,11 +1,31 @@
 <!--
 title: Backup and restore
-description: Making a backup of Tickory while the app is running, getting the copy off the server, scheduling it automatically, and restoring a backup.
+description: Downloading a backup of Tickory in the app or making one with a command while the app is running, getting the copy off the server, scheduling it automatically, and restoring a backup.
 -->
 <h1>Backup and restore</h1>
-<p class="intro">Everything is in one SQLite file in the Docker volume. A backup is a copy of that file, made with a command that also works while the app is in use.</p>
+<p class="intro">Everything is in one SQLite file in the Docker volume, with the attachments in a folder next to it. A backup is a copy of those, made while the app is in use: as an administrator you download it in the app, or you make it with a command on the server.</p>
 
-<h2>Making a backup</h2>
+<h2 id="download">Downloading in the app</h2>
+<ol>
+  <li>Open <x-ui k="settings.account"></x-ui> and choose <x-ui k="admin.title"></x-ui>.</li>
+  <li>Expand <x-ui k="admin.backup"></x-ui> and read the warning.</li>
+  <li>Enter your password (and a code from your authenticator app if you use <a href="account.html#two-step-verification">two-step verification</a>) and choose <x-ui k="admin.backupDownload"></x-ui>.</li>
+</ol>
+<p>Your browser saves one file, <code>tickory-backup-2026-11-17.tar</code>, containing:</p>
+<ul>
+  <li><code>tickory.db</code>: a complete, consistent copy of the database;</li>
+  <li><code>attachments/</code>: the files of all attachments in that copy;</li>
+  <li><code>tickory-backup.json</code> (when it was made, how many attachments) and <code>LEESMIJ.txt</code> (the restore steps, in Dutch and English).</li>
+</ul>
+<p>A tar file is a plain archive without compression: Linux, macOS and Windows 10 and later unpack it with <code>tar -xf</code>, and 7-Zip opens it too. The server sends it in parts, so a large backup does not fill up the server's memory. You can download at most five backups per hour, and every download is written to the server log with your name. It does not work in the Android app; open Tickory in a browser for this.</p>
+<div class="note warn">
+  <span class="note-label">What is in it</span>
+  <p>The backup contains the tasks and attachments of all users, the password hashes, the private key for notifications (VAPID) and the secret behind the buttons in notifications (HMAC). Keep it as carefully as the server itself. The key file for two-step verification (<code>secret.key</code>) is deliberately not included, so a stolen backup does not give away the second step. Keep your own copy of it, separately from your backups; see below.</p>
+</div>
+
+<h2>With a command on the server</h2>
+
+<h3>Making a backup</h3>
 <pre><code>docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db</code></pre>
 <p>This makes a complete, consistent copy with today's date in its name, for example <code>todo-2026-11-17.db</code>.</p>
 <ul>
@@ -42,6 +62,15 @@ docker compose up -d</code></pre>
 </ul>
 
 <p>If you also restore the attachments, copy the folder <code>todo-2026-11-17.attachments</code> back to <code>/data/attachments</code> of the volume, for example in the same command (<code>cp -r /backup/todo-2026-11-17.attachments/. /data/attachments/</code>, then <code>chown -R 1000:1000 /data/attachments</code>). At start-up the server checks that the database and the files fit together: files without an attachment are cleaned up, and an attachment whose file is missing (because you did not restore the folder) is reported in the log and stays in the list, but cannot be opened.</p>
+
+<h3 id="restore-tar">Restoring a downloaded backup (tar)</h3>
+<p>Put the file in the folder where you run the commands, and adjust the file name:</p>
+<pre><code>docker compose down
+mkdir restore &amp;&amp; tar -xf tickory-backup-2026-11-17.tar -C restore
+docker run --rm -v tickory_tickory-data:/data -v "$PWD/restore":/restore:ro alpine sh -c \
+  "rm -f /data/todo.db-wal /data/todo.db-shm &amp;&amp; cp /restore/tickory.db /data/todo.db &amp;&amp; rm -rf /data/attachments &amp;&amp; cp -R /restore/attachments /data/attachments &amp;&amp; chown -R 1000:1000 /data/todo.db /data/attachments"
+docker compose up -d</code></pre>
+<p>This replaces both the database and the attachments folder with the ones from the backup. The key file <code>secret.key</code> in the volume stays. Restoring onto a <strong>new</strong> server? Then also copy your saved <code>secret.key</code> to <code>/data/secret.key</code> (with <code>chown 1000:1000</code>); without that file two-step verification no longer works and has to be turned off per user with <code>user reset-2fa</code> (see <a href="managing-users.html">Managing users</a>).</p>
 
 <h3>After that: sign in again on every device</h3>
 <p>After restoring, sign out and in again on every device (<x-ui k="settings.title"></x-ui>, then <x-ui k="settings.signOut"></x-ui>). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past that device's state. Signing in again is the sure way, and it costs nothing: everything is on the server.</p>

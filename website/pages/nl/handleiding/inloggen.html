@@ -15,9 +15,10 @@ description: Inloggen bij Tickory: wat je nodig hebt, wat er gebeurt bij een fou
 <ol>
   <li>Open het adres in je browser. Je ziet het venster <x-ui k="login.title"></x-ui>.</li>
   <li>Vul je gebruikersnaam en wachtwoord in en kies <x-ui k="login.title"></x-ui>. Bij de gebruikersnaam maken hoofdletters niet uit.</li>
+  <li>Heb je <a href="account.html#tweestapsverificatie">tweestapsverificatie</a> aan, dan volgt <x-ui k="login.codeTitle"></x-ui>: typ de code van 6 cijfers uit je authenticator-app en kies <x-ui k="login.verify"></x-ui>. Telefoon kwijt? Kies <x-ui k="login.useRecovery"></x-ui>. Je hebt vijf minuten voor deze stap; daarna begin je opnieuw met je wachtwoord.</li>
   <li>De app haalt je taken op. Rechtsboven staat <x-ui k="sync.upToDate"></x-ui> zodra alles binnen is.</li>
 </ol>
-<p>Je blijft op dit apparaat aangemeld tot je zelf afmeldt of iemand de aanmelding intrekt. Elk apparaat en elke browser krijgt een eigen aanmelding; in <a href="account.html">je account</a> zie je ze allemaal.</p>
+<p>Je blijft op dit apparaat aangemeld tot je zelf afmeldt, iemand de aanmelding intrekt, of je het apparaat 90 dagen niet hebt gebruikt (en na 365 dagen hoe dan ook opnieuw; de beheerder kan dat anders instellen). Elk apparaat en elke browser krijgt een eigen aanmelding; in <a href="account.html">je account</a> zie je ze allemaal.</p>
 
 <h2>Als inloggen niet lukt</h2>
 <dl>
@@ -25,6 +26,8 @@ description: Inloggen bij Tickory: wat je nodig hebt, wat er gebeurt bij een fou
   <dd>Een van de twee is onjuist. Je krijgt dezelfde melding als het account niet bestaat of geblokkeerd is: de server verklapt niet welke gebruikersnamen er zijn.</dd>
   <dt>“Te veel mislukte pogingen”</dt>
   <dd>Na acht mislukte pogingen binnen een kwartier op dezelfde gebruikersnaam vanaf hetzelfde adres (of veertig vanaf hetzelfde adres, of zestig op die gebruikersnaam in totaal) kun je even niet inloggen. In de melding staat hoe lang je moet wachten; dat is hooguit een kwartier. Een ander kan je vanaf zijn eigen adres niet buitensluiten: jouw teller is die van jouw adres.</dd>
+  <dt>“De code klopt niet (of is al gebruikt)”</dt>
+  <dd>De code van tweestapsverificatie is fout, te oud, of je hebt hem net al gebruikt (een code werkt één keer). Wacht op de volgende code. Blijft het mislukken, controleer dan of de tijd op je telefoon automatisch wordt ingesteld. Na vijf foute codes begin je opnieuw met je wachtwoord.</dd>
   <dt>“Geen verbinding met de server”</dt>
   <dd>De app kan de server niet bereiken. Controleer je internetverbinding en of het adres klopt.</dd>
 </dl>
@@ -40,7 +43,7 @@ description: Inloggen bij Tickory: wat je nodig hebt, wat er gebeurt bij een fou
 </div>
 
 <h2>Opnieuw moeten inloggen</h2>
-<p>Verschijnt het inlogvenster vanzelf en staat er rechtsboven <x-ui k="sync.signInNeeded"></x-ui>, dan is je aanmelding op dit apparaat ingetrokken. Dat gebeurt als je je wachtwoord op een ander apparaat hebt gewijzigd, als jij of een beheerder dit apparaat heeft afgemeld, of als je account is geblokkeerd. Je gebruikersnaam is al ingevuld; log opnieuw in om verder te gaan. Wijzigingen die nog stonden te wachten, worden daarna alsnog verstuurd.</p>
+<p>Verschijnt het inlogvenster vanzelf en staat er rechtsboven <x-ui k="sync.signInNeeded"></x-ui>, dan is je aanmelding op dit apparaat ingetrokken. Dat gebeurt als je je wachtwoord op een ander apparaat hebt gewijzigd, als jij of een beheerder dit apparaat heeft afgemeld, als je het apparaat lang niet hebt gebruikt (standaard 90 dagen) of de aanmelding te oud is (standaard 365 dagen), of als je account is geblokkeerd. Je gebruikersnaam is al ingevuld; log opnieuw in om verder te gaan. Wijzigingen die nog stonden te wachten, worden daarna alsnog verstuurd.</p>
 
 <h2>Met een ander account op hetzelfde apparaat</h2>
 <p>Logt er iemand anders in op een apparaat waar nog jouw gegevens staan, dan vraagt de app eerst om bevestiging en wist daarna jouw lokale kopie. Zo komen de taken van de één nooit bij de ander terecht.</p>

@@ -232,6 +232,15 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
 - `MainActivity` (de WebView), `SetupActivity` (het serveradres) en `WebBridge`.
 
+**Inloggen** doet de app nooit zelf: `SetupActivity` controleert alleen of het adres een Tickory-server is (`/health`), en het
+inlogscherm is dat van de web-app in de WebView, met de tweede stap van tweestapsverificatie (code of herstelcode) erbij. Na het
+inloggen geeft de web-app het token door met `setSession`. Verloopt de sessie (standaard 90 dagen zonder gebruik, 365 dagen na
+het inloggen) of wordt ze ingetrokken, dan krijgt de app `401`: hij stopt met verversen, de widgets tonen "Log opnieuw in in de
+app", en de web-app toont haar inlogscherm. Een link waar de gebruiker op tikt en die buiten de server gaat, geeft de app aan
+een andere app (`core/ExternalLink.kt`): webadressen, `mailto:`, `tel:` en `otpauth:`, zodat "Openen in een app op dit
+apparaat" bij het aanzetten van tweestapsverificatie de sleutel aan een authenticator-app (Aegis, FreeOTP) geeft; je kunt de
+QR-code op je eigen scherm niet scannen. Een back-up downloaden (beheer) kan in de app niet: de WebView kent geen downloads.
+
 De web-app praat met de app via `window.TickoryAndroid`. De brug doet alleen iets als de geladen pagina van de
 ingestelde server komt.
 

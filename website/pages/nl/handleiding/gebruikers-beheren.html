@@ -34,7 +34,11 @@ description: Accounts beheren in Tickory: in de app onder Gebruikersbeheer, of v
   <dd>De persoon kan niet meer inloggen en is direct overal afgemeld. De gegevens blijven bewaard, en taken in gedeelde projecten blijven staan. Zijn apparaten bij meldingen aangemeld, dan krijgen die er geen meer. Met <x-ui k="admin.unblock"></x-ui> draai je het terug.</dd>
   <dt>Beheerder maken of Beheerdersrechten afnemen</dt>
   <dd>Maakt van een gewone gebruiker een beheerder, of andersom.</dd>
+  <dt><x-ui k="admin.resetTwoFactor"></x-ui></dt>
+  <dd>Alleen bij een account met tweestapsverificatie (het label <x-ui k="admin.twoFactorBadge"></x-ui>). Voor iemand die telefoon én herstelcodes kwijt is: daarna logt die in met alleen het wachtwoord en kan het zelf weer aanzetten. Doe het alleen als je zeker weet dat het echt die persoon is die erom vraagt. Het komt in het logboek van de server.</dd>
 </dl>
+<h3>Back-up downloaden</h3>
+<p>Onder <x-ui k="admin.backup"></x-ui> download je een kopie van de hele server als één bestand; zie <a href="back-up.html#downloaden">Back-up</a>.</p>
 <p>Jezelf blokkeren of je eigen beheerdersrechten afnemen kan niet. Een account helemaal verwijderen kan ook niet; blokkeren is het alternatief.</p>
 
 <h2>Vanaf de server</h2>
@@ -44,7 +48,8 @@ docker compose exec -e TODO_PASSWORD='een-goed-wachtwoord' tickory node server/m
 docker compose exec -it tickory node server/main.ts user passwd anna        # vraagt om het wachtwoord, ongezien
 docker compose exec tickory node server/main.ts user disable anna
 docker compose exec tickory node server/main.ts user enable anna
-docker compose exec tickory node server/main.ts user logout-all anna</code></pre>
+docker compose exec tickory node server/main.ts user logout-all anna
+docker compose exec tickory node server/main.ts user reset-2fa anna</code></pre>
 <div class="table-wrap">
   <table>
     <thead>
@@ -57,6 +62,7 @@ docker compose exec tickory node server/main.ts user logout-all anna</code></pre
       <tr><td><code>user disable &lt;naam&gt;</code></td><td class="wrap-ok">Blokkeert het account en meldt het overal af.</td></tr>
       <tr><td><code>user enable &lt;naam&gt;</code></td><td class="wrap-ok">Maakt een geblokkeerd account weer actief.</td></tr>
       <tr><td><code>user logout-all &lt;naam&gt;</code></td><td class="wrap-ok">Meldt alle apparaten van die gebruiker af, zonder het wachtwoord te wijzigen.</td></tr>
+      <tr><td><code>user reset-2fa &lt;naam&gt;</code></td><td class="wrap-ok">Zet tweestapsverificatie van die gebruiker uit, bijvoorbeeld voor de enige beheerder die telefoon en herstelcodes kwijt is.</td></tr>
     </tbody>
   </table>
 </div>

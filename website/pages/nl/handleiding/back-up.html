@@ -1,11 +1,31 @@
 <!--
 title: Back-up en terugzetten
-description: Een back-up maken van Tickory terwijl de app draait, de kopie van de server halen, automatisch inplannen, en een back-up weer terugzetten.
+description: Een back-up van Tickory downloaden in de app of maken met een opdracht terwijl de app draait, de kopie van de server halen, automatisch inplannen, en een back-up weer terugzetten.
 -->
 <h1>Back-up en terugzetten</h1>
-<p class="intro">Alles staat in één SQLite-bestand in het Docker-volume. Een back-up is een kopie van dat bestand, gemaakt met een opdracht die ook werkt terwijl de app in gebruik is.</p>
+<p class="intro">Alles staat in één SQLite-bestand in het Docker-volume, met de bijlagen in een map ernaast. Een back-up is een kopie daarvan, gemaakt terwijl de app in gebruik is: als beheerder download je hem in de app, of je maakt hem met een opdracht op de server.</p>
 
-<h2>Een back-up maken</h2>
+<h2 id="downloaden">Downloaden in de app</h2>
+<ol>
+  <li>Open <x-ui k="settings.account"></x-ui> en kies <x-ui k="admin.title"></x-ui>.</li>
+  <li>Klap <x-ui k="admin.backup"></x-ui> open en lees de waarschuwing.</li>
+  <li>Vul je wachtwoord in (en een code uit je authenticator-app als je <a href="account.html#tweestapsverificatie">tweestapsverificatie</a> gebruikt) en kies <x-ui k="admin.backupDownload"></x-ui>.</li>
+</ol>
+<p>Je browser slaat één bestand op, <code>tickory-backup-2026-11-17.tar</code>, met daarin:</p>
+<ul>
+  <li><code>tickory.db</code>: een complete, consistente kopie van de database;</li>
+  <li><code>attachments/</code>: de bestanden van alle bijlagen in die kopie;</li>
+  <li><code>tickory-backup.json</code> (wanneer gemaakt, hoeveel bijlagen) en <code>LEESMIJ.txt</code> (de stappen om terug te zetten).</li>
+</ul>
+<p>Een tar-bestand is een gewoon archief zonder compressie: Linux, macOS en Windows 10 en nieuwer pakken het uit met <code>tar -xf</code>, en 7-Zip opent het ook. De server stuurt het in delen, zodat ook een grote back-up de server niet vol laat lopen. Je kunt hooguit vijf back-ups per uur downloaden, en elke download komt met je naam in het logboek van de server. In de Android-app kan het niet; open Tickory daarvoor in een browser.</p>
+<div class="note warn">
+  <span class="note-label">Wat erin staat</span>
+  <p>De back-up bevat de taken en bijlagen van alle gebruikers, de wachtwoord-hashes, de privésleutel voor meldingen (VAPID) en het geheim van de knoppen in meldingen (HMAC). Bewaar hem net zo zorgvuldig als de server zelf. Het sleutelbestand voor tweestapsverificatie (<code>secret.key</code>) zit er bewust niet in: zo geeft een gestolen back-up de tweede stap niet weg. Bewaar er zelf een kopie van, apart van je back-ups; zie hieronder.</p>
+</div>
+
+<h2>Met een opdracht op de server</h2>
+
+<h3>Een back-up maken</h3>
 <pre><code>docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db</code></pre>
 <p>Dit maakt een complete, consistente kopie met de datum van vandaag in de naam, bijvoorbeeld <code>todo-2026-11-17.db</code>.</p>
 <ul>
@@ -42,6 +62,15 @@ docker compose up -d</code></pre>
 </ul>
 
 <p>Zet je ook de bijlagen terug, kopieer dan de map <code>todo-2026-11-17.attachments</code> terug naar <code>/data/attachments</code> van het volume, bijvoorbeeld in dezelfde opdracht (<code>cp -r /backup/todo-2026-11-17.attachments/. /data/attachments/</code>, daarna <code>chown -R 1000:1000 /data/attachments</code>). Bij het opstarten controleert de server of database en bestanden bij elkaar passen: bestanden zonder bijlage worden opgeruimd, en een bijlage waarvan het bestand ontbreekt (omdat je de map niet terugzette) wordt gemeld in het logboek en blijft in de lijst staan, maar laat zich niet openen.</p>
+
+<h3 id="tar-terugzetten">Een gedownloade back-up (tar) terugzetten</h3>
+<p>Zet het bestand in de map waar je de opdrachten draait, en pas de bestandsnaam aan:</p>
+<pre><code>docker compose down
+mkdir herstel &amp;&amp; tar -xf tickory-backup-2026-11-17.tar -C herstel
+docker run --rm -v tickory_tickory-data:/data -v "$PWD/herstel":/herstel:ro alpine sh -c \
+  "rm -f /data/todo.db-wal /data/todo.db-shm &amp;&amp; cp /herstel/tickory.db /data/todo.db &amp;&amp; rm -rf /data/attachments &amp;&amp; cp -R /herstel/attachments /data/attachments &amp;&amp; chown -R 1000:1000 /data/todo.db /data/attachments"
+docker compose up -d</code></pre>
+<p>Dit vervangt de database én de map met bijlagen door die uit de back-up. Het sleutelbestand <code>secret.key</code> in het volume blijft staan. Zet je terug op een <strong>nieuwe</strong> server, kopieer dan ook je bewaarde <code>secret.key</code> naar <code>/data/secret.key</code> (met <code>chown 1000:1000</code>); zonder dat bestand werkt tweestapsverificatie niet meer en moet die per gebruiker worden uitgezet met <code>user reset-2fa</code> (zie <a href="gebruikers-beheren.html">Gebruikers beheren</a>).</p>
 
 <h3>Daarna: op elk apparaat opnieuw aanmelden</h3>
 <p>Meld na het terugzetten op elk apparaat af en weer aan (<x-ui k="settings.title"></x-ui>, dan <x-ui k="settings.signOut"></x-ui>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>
