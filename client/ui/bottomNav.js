@@ -65,11 +65,9 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
     }
     const id = inboxId();
     if (tab === 'inbox' && !id) return; // nog niet ingelogd: er is (nog) geen Inbox
-    const before = activeTab(getRoute(), { inboxId: id, browseOpen: isOpen() });
     handlers.navigate(tab === 'inbox' ? { type: 'project', id } : { type: tab }); // sluit ook Bladeren
     buttons[tab].focus({ preventScroll: true }); // de focus blijft op de knop (ook als het scherm opnieuw is getekend)
-    // een ander scherm begint bovenaan; nog eens op dezelfde knop tikken gaat ook terug naar boven
-    if (before !== tab || window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'instant' }); // een ander scherm begint bovenaan; nog eens op dezelfde knop tikken gaat ook naar boven
   }
 
   function add() {
