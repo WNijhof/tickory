@@ -282,7 +282,7 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.
 
 Op Windows: dubbelklik op `start.cmd`, of draai `.\start.cmd` in PowerShell. Bij de eerste keer vraagt dat om een gebruikersnaam en een wachtwoord (ongezien getypt) voor het eerste account, en daarna start de server; het scriptbeleid van Windows blijft ongewijzigd (zie `start.cmd`).
 
-Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PASSWORD_FILE`, het pad van een bestand met het wachtwoord) en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel) en `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). Zie `.env.example`.
+Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PASSWORD_FILE`, het pad van een bestand met het wachtwoord) en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel), `DEFAULT_TIMEZONE` (`Europe/Amsterdam`), en `PUBLIC_URL` met `OIDC_ISSUER` en de andere `OIDC_*`-instellingen voor inloggen met SSO (zie "Inloggen met SSO" hierboven). Zie `.env.example`.
 
 ## Testen
 

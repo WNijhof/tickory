@@ -318,7 +318,7 @@ TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='a-good-password' node server/main.ts  
 
 On Windows: double-click `start.cmd`, or run `.\start.cmd` in PowerShell. The first time it asks for a username and a password (typed hidden) for the first account, and then the server starts; the Windows script policy stays unchanged (see `start.cmd`).
 
-Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_PASSWORD_FILE`, the path of a file with the password) and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional) and `DEFAULT_TIMEZONE` (`Europe/Amsterdam`). See `.env.example`.
+Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_PASSWORD_FILE`, the path of a file with the password) and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional), `DEFAULT_TIMEZONE` (`Europe/Amsterdam`), and `PUBLIC_URL` with `OIDC_ISSUER` and the other `OIDC_*` settings for signing in with SSO (see "Signing in with SSO" above). See `.env.example`.
 
 ## Tests
 
