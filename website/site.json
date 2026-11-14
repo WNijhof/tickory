@@ -81,6 +81,7 @@
         { "nl": "handleiding/datums-en-herhalingen.html", "en": "guide/dates-and-recurrence.html" },
         { "nl": "handleiding/het-scherm.html", "en": "guide/the-screen.html" },
         { "nl": "handleiding/projecten.html", "en": "guide/projects.html" },
+        { "nl": "handleiding/sjablonen.html", "en": "guide/templates.html" },
         { "nl": "handleiding/weergaven.html", "en": "guide/views.html" },
         { "nl": "handleiding/labels.html", "en": "guide/labels.html" },
         { "nl": "handleiding/zoeken.html", "en": "guide/search.html" },

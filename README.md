@@ -65,6 +65,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
 - **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
 - **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).
+- **Templates**: save a project, or a task with its subtasks, as a template, and create a new project or tasks from one. Dates in a template are relative ("day 0", "+3 days", "+1 week") from a start date you choose, or you pick "no dates"; recurrences are kept. You see what you get first (number of sections and tasks, the first lines), and the whole thing is one undoable step that also works offline. Six templates come with the app, in Dutch and English (moving house, a holiday packing list, weekly menu and groceries, a child's birthday party, onboarding a new employee, a renovation), plus two for tasks. A template is private to you; you share one as a JSON file (or copy and paste it), and Todoist CSV templates can be imported (tasks, sections, subtasks and priority, without dates).
 - **Reminders**: several per task, relative to the time of the task (10 minutes before, 1 day before, ...) or at a fixed time; an automatic reminder for every task with a time (30 minutes before unless you change it); your own time zone. They are personal, also in shared projects.
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app (buttons Complete, In 10 minutes and In 1 hour).
 - The interface in English and Dutch.
@@ -92,7 +93,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Missing entirely:**
 
-- Attachments, statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
+- Attachments, statistics, import and export of whole projects or accounts (only templates travel as a file), an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
 
@@ -152,7 +153,7 @@ An app of its own (Kotlin, in [`android/`](android/README.md)) that shows the we
 
 - **No release yet.** The first APK comes with the next version, attached to that version on the [releases page](https://github.com/WNijhof/tickory/releases). Until then use the web app in your phone's browser, or build it yourself: see [android/README.md](android/README.md) (JDK 21 and the Android SDK).
 - **Installing** (when there is an APK): download it on the phone, open it and allow "install unknown apps" for the app you opened it with, then enter the address of your server and sign in. Updating: install the new APK over the old one; that only works when both are signed with the same key (a debug APK cannot update, uninstall it first).
-- **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work; there is no file picker (attachments do not exist yet anyway). Android 8 or newer.
+- **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work; there is no file picker (attachments do not exist yet anyway; to import a template, paste its text instead of choosing a file). Android 8 or newer.
 - **Not tested on a phone.** It has been tested on a computer (calculation rules, a simulated Android and one test against a real server), but the maker has not tried it on a real device yet. Please report what you notice.
 - **Widgets (next version).** Four home screen widgets: **Today** (overdue and due today), **Project or list** (you choose the Inbox, a project, Today or Upcoming when you place it; saved filters come later), **Upcoming** (the next two weeks, by day) and an **Add task** button. Tap the circle to complete a task, also without internet (it waits in a queue on the phone and is sent when there is a connection; a recurring task comes back with the new date from the server), tap the title to open the task, tap + to add one. Resizable, light and dark, Material You colours on Android 12 and newer, TalkBack descriptions, Dutch and English. They read the data on the device, not the web view; signing out or switching account clears everything. Not tried on a phone yet: how they look per launcher, resizing and battery saving. See [the guide](https://wnijhof.github.io/tickory/en/guide/widgets.html) and [android/README.md](android/README.md).
 
@@ -255,7 +256,7 @@ Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_
 
 ```sh
 npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
-npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 37 steps
+npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 79 steps
 node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
 ```
@@ -265,17 +266,18 @@ The tests include a property test for the order keys and a **differential test**
 ## Layout
 
 ```
-shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   shared by server and client
+shared/    orderKey.js, recurrence.js, reminders.js, schema.js, template.js, text.js   shared by server and client
 server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, search.css, sw.js, manifest             the web app
+client/    index.html, app.css, search.css, dnd.css, templates.css, sw.js, manifest   the web app
+client/core/starters/   nl.js, en.js, build.js               the built-in templates, per language
 client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
 client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)
 website/       pages (nl, en), assets, layout.html, site.json, demo/   the website, the guide and the demo backend
-scripts/       e2e.ts, docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
+scripts/       e2e.ts (with e2e-templates.ts), docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
                build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts
 ```
 

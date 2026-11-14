@@ -28,6 +28,7 @@ description: Organizing tasks in Tickory: making and editing projects with a col
     <tbody>
       <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: name, color, favorite</td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="template.menu.insert"></x-ui> and <x-ui k="template.menu.save"></x-ui></td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui></td><td>yes</td><td>yes</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (for a member: <x-ui k="project.members"></x-ui>)</td><td>yes</td><td>view only</td></tr>
       <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>yes</td><td>no</td></tr>
@@ -76,6 +77,9 @@ description: Organizing tasks in Tickory: making and editing projects with a col
 <h2 id="labels">Labels</h2>
 <p>A label is a keyword on a task, such as <code>@bellen</code> or <code>@buiten</code>. You set a label with <code>@name</code> when adding, or in the Labels field of the task window. In the list the labels appear under the name of the task.</p>
 <p>Choose a label in the sidebar and you see all tasks with it. Renaming, coloring and deleting labels is possible too. See <a href="labels.html">Labels</a>.</p>
+
+<h2 id="templates-in-projects">Templates</h2>
+<p>A project you need more than once can be saved as a template with <x-ui k="template.menu.save"></x-ui>. With the button <x-ui k="template.menu.fromTemplate"></x-ui> next to the <strong>+</strong> under <x-ui k="nav.projects"></x-ui> you create a new project from one in a single step, with the dates counted from a start date you choose; six templates also come with the app. See <a href="templates.html">Templates</a>.</p>
 
 <h2 id="order-and-subprojects">The order and subprojects</h2>
 <p>You drag projects in the sidebar: above or below another project for another place, onto another project to become a subproject of it, and onto the heading <x-ui k="nav.projects"></x-ui> to be an ordinary project again. Only the owner can do this. With the keyboard it works with <kbd>Alt</kbd> and the arrow keys. See <a href="the-screen.html#moving-tasks-and-projects">Moving tasks and projects</a>.</p>
