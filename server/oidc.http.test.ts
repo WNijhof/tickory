@@ -222,6 +222,14 @@ test('geweigerd: verkeerde of hergebruikte state, geannuleerd bij de provider, e
     const back3 = new URL((await fetch(toIdp3, { redirect: 'manual' })).headers.get('location')!);
     back3.searchParams.set('state', state2);
     assert.equal((await fetch(back3, { redirect: 'manual' })).headers.get('location'), '/#oidc-error=PROVIDER', 'code-injectie: PKCE houdt het tegen');
+    // een poging verloopt na tien minuten: het startadres en de terugkeer zeggen dan EXPIRED (ook met een geldige code van de provider)
+    const late = await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' });
+    const lateIdp = (await fetch(`${w.base}${late.body.url}`, { redirect: 'manual' })).headers.get('location')!;
+    const lateBack = (await fetch(lateIdp, { redirect: 'manual' })).headers.get('location')!;
+    w.time.shift += 10 * 60_000 + 1000;
+    assert.equal((await fetch(`${w.base}${late.body.url}`, { redirect: 'manual' })).headers.get('location'), '/#oidc-error=EXPIRED');
+    assert.equal((await fetch(lateBack, { redirect: 'manual' })).headers.get('location'), '/#oidc-error=EXPIRED');
+    w.time.shift = 0;
     // geannuleerd
     w.idp.deny = true;
     assert.equal((await w.flow()).ret!.error, 'CANCELLED');
