@@ -10,7 +10,7 @@ import { startFakeIdp } from '../server/fakeIdp.ts';
 import { createOidcClient, oidcConfigFrom } from '../server/oidc.ts';
 
 export async function oidcScenario(c: any) {
-  const { evaluate, waitFor, step, shot, sleep, SYNCED, db, alice, typeInto, clickText, nav, PASSWORD_ALICE, BASE, startServer, stopServer } = c;
+  const { send, evaluate, waitFor, step, shot, sleep, SYNCED, db, alice, typeInto, clickText, nav, PASSWORD_ALICE, BASE, startServer, stopServer } = c;
   const top = `[...document.querySelectorAll('dialog[open]')].at(-1)`;
   const idp = await startFakeIdp({ clientSecret: 'e2e-geheim-van-de-test' });
   idp.interactive = true;
@@ -18,8 +18,14 @@ export async function oidcScenario(c: any) {
   const config = oidcConfigFrom({
     OIDC_ISSUER: idp.issuer, OIDC_CLIENT_ID: idp.clientId, OIDC_CLIENT_SECRET: 'e2e-geheim-van-de-test', PUBLIC_URL: BASE, OIDC_BUTTON_NAME: 'Nep-inlogdienst',
   })!;
-  await stopServer();
-  await startServer({ oidc: createOidcClient(config) });
+  /** De server opnieuw starten (met of zonder SSO) en de app opnieuw laden: verse verbindingen, en bijgewerkt voordat we verdergaan. */
+  const restart = async (extra: object = {}) => {
+    await stopServer();
+    await startServer(extra);
+    await send('Page.reload');
+    await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'opnieuw geladen en bijgewerkt na het herstarten van de server', 20_000);
+  };
+  await restart({ oidc: createOidcClient(config) });
   try {
     const browserSession = async () => {
       const token = await evaluate<string>(`localStorage.getItem('tickory.token')`);
@@ -101,8 +107,7 @@ export async function oidcScenario(c: any) {
     }
     step('de koppeling verwijderen in Account (er is een wachtwoord, dus dat mag)');
   } finally {
-    await stopServer();
-    await startServer();
+    await restart();
     await idp.close();
   }
 }
