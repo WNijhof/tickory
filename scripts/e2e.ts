@@ -806,8 +806,12 @@ try {
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
-  assert.deepEqual(await texts('dialog[open] summary'), ['Signed-in devices', 'Change password']);
-  assert.ok((await texts('dialog[open] .device .hint')).every((x) => /^Last used: \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'datum en tijd in het Engels');
+  assert.deepEqual(await texts('dialog[open] summary'), ['Signed-in devices', 'Change password', 'Two-step verification']);
+  const deviceHints = await texts('dialog[open] .device .hint');
+  assert.ok(deviceHints.filter((x) => x.startsWith('Last used')).every((x) => /^Last used: \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'datum en tijd in het Engels');
+  assert.ok(deviceHints.filter((x) => x.startsWith('Signed in since')).every((x) => /^Signed in since \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'aangemeld sinds, in het Engels');
+  assert.ok(deviceHints.some((x) => /^Web browser · (Chrome|Edge) · Windows$/.test(x)), 'het soort apparaat in het Engels');
+  await waitFor(`document.querySelector('dialog[open] .two-factor button')`, 'de status van tweestapsverificatie is geladen');
   await evaluate(`document.querySelectorAll('dialog[open] details')[1].open = true`);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] details')[1].querySelectorAll('.field-label')].map((l) => l.firstChild.textContent)`), ['Current password', 'New password', 'Repeat new password']);
   await typeInto('dialog[open] input[aria-label="Current password"]', PASSWORD_ALICE);
@@ -821,14 +825,14 @@ try {
   await submit('dialog[open] details:nth-of-type(2) form');
   await waitFor(`document.querySelector('dialog[open] .section-form .error')?.textContent === 'The current password is incorrect.'`, 'fout huidig wachtwoord: eigen Engelse vertaling van de servermelding');
   // één ander apparaat (de "Telefoon" van eerder) met een eigen knop, het formulier, en de knoppen van het venster
-  assert.deepEqual(await buttons(), ['Sign out', 'Change password', 'Sign out', 'User management', 'Close']);
+  assert.deepEqual(await buttons(), ['Sign out', 'Sign out all other devices', 'Change password', 'Turn on two-step verification', 'Sign out', 'User management', 'Close']);
   await noDutch('account');
   await fits('account');
   await shot('engels-account');
   await clickText('User management');
   await waitFor(`[...document.querySelectorAll('dialog[open] .device strong')].some((e) => e.textContent.startsWith('Carol de Vries'))`, 'gebruikerslijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'User management');
-  assert.deepEqual(await texts('dialog[open] summary'), ['Accounts', 'New account']);
+  assert.deepEqual(await texts('dialog[open] summary'), ['Accounts', 'New account', 'Backup']);
   assert.ok((await texts('dialog[open] .badge')).includes('admin'));
   await evaluate(`document.querySelectorAll('dialog[open] details')[1].open = true`);
   await typeInto('dialog[open] input[aria-label="Username"]', '.dave');
@@ -2634,6 +2638,8 @@ try {
 
   // ---- 11. afmelden wist de lokale gegevens ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
+  const revokedSessions = () => (db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND revoked_at IS NOT NULL').get(alice.id) as any).n as number;
+  const revokedBefore = revokedSessions(); // eerdere stappen (scripts/e2e-account.ts) trokken er al een paar in
   await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
   await clickText('Afmelden en lokale gegevens wissen');
@@ -2644,7 +2650,7 @@ try {
   const leftovers = await evaluate<number>(`new Promise((res, rej) => { const r = indexedDB.open('tickory'); r.onsuccess = () => { const tx = r.result.transaction(['rows', 'queue'], 'readonly'); const a = tx.objectStore('rows').count(); const b = tx.objectStore('queue').count(); tx.oncomplete = () => res(a.result + b.result); }; r.onerror = () => rej(r.error); })`);
   assert.equal(leftovers, 0, 'geen taken meer in de lokale opslag');
   assert.ok((serverState().tasks as any[]).length >= 6, 'op de server staat alles nog');
-  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND revoked_at IS NOT NULL").get(alice.id) as any).n, 1, 'de sessie van dit apparaat is op de server ingetrokken');
+  assert.equal(revokedSessions(), revokedBefore + 1, 'de sessie van dit apparaat is op de server ingetrokken');
   step('afmelden: sessie ingetrokken, token en lokale kopie gewist, de server heeft alles nog');
 
   // ---- 12. een ander account op hetzelfde apparaat ----
@@ -2701,7 +2707,7 @@ try {
   // ---- fouten in de console ----
   const own = consoleErrors.filter((e) => !/adguard/i.test(e));
   // Een te kort wachtwoord of een ongeldige gebruikersnaam hoort hier niet meer bij: dat houdt de app zelf tegen vóór het versturen.
-  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 403 .*\/api\/v1\/auth\/password|status of 409 .*\/api\/v1\/admin\/users/i.test(e));
+  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 403 .*\/api\/v1\/auth\/(password|2fa\/)|status of 409 .*\/api\/v1\/admin\/users/i.test(e)); // 2fa: een bewust fout wachtwoord en een foute code (e2e-account.ts)
   const unexpected = own.filter((e) => !expected.includes(e));
   assert.deepEqual(unexpected, [], 'onverwachte fouten in de console van de browser');
   step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-tests, de foute wachtwoorden, de bestaande gebruikersnaam en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);

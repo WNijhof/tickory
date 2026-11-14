@@ -572,8 +572,8 @@ export function adminDialog({ me, api, inApp = false }) {
       h('h2', {}, t('admin.title')),
       h('details', { class: 'section', open: true }, h('summary', {}, t('admin.accounts')), list),
       h('details', { class: 'section' }, h('summary', {}, t('admin.newAccount')), create),
+      message, // de melding hoort bij de accounts hierboven; de back-up heeft een eigen regel
       backupSection({ api, inApp }),
-      message,
       h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
   }, { wide: true });
 }
