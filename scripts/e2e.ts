@@ -299,8 +299,8 @@ try {
   await submit('#quick-add');
   await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
   assert.deepEqual(await taskTitles(), [], 'de taak is voor morgen en hoort niet in Vandaag');
-  await nav('Binnenkort');
-  await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Binnenkort');
+  await nav('Aankomend');
+  await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Aankomend');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@bellen', '🔔', 'Inbox']);
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const tandarts = serverTask('Tandarts bellen');
@@ -714,8 +714,8 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'project Thuis in het Engels');
   assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projects', 'Settings']);
-  assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('menu-button').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
-    ['Navigation', 'Views', 'Menu', 'Add project', 'Shared project', 'Click to sync now']);
+  assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('bottom-nav').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
+    ['Navigation', 'Views', 'Main menu', 'Add project', 'Shared project', 'Click to sync now']);
   assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent]`),
     [en['quick.placeholder'], 'Add task', 'Add']);
   assert.deepEqual(await buttons('.view-actions'), ['List', 'Board', 'Calendar', 'Comments', 'Shared', 'Project…']);
@@ -730,7 +730,7 @@ try {
   await fits('project');
   await shot('engels-project');
 
-  // Vandaag en Binnenkort
+  // Vandaag en Aankomend
   await nav('Today');
   await waitFor(`document.getElementById('view-title').textContent === 'Today'`, 'scherm Today');
   assert.ok((await texts('.group-title')).some((x) => x === `Today · ${inEnglish(() => formatDueLong({ date: today }, today))}`), 'de kop van vandaag');
@@ -930,11 +930,29 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await sleep(300);
   await fits('telefoon: project');
+  // de menubalk onderaan in het Engels: kort genoeg, niets afgekapt (ook met grotere letters)
+  assert.deepEqual(await texts('.bnav-label'), ['Inbox', 'Today', 'Upcoming', 'Browse']);
+  assert.deepEqual(await evaluate(`[document.querySelector('.bnav-item[aria-current="page"]').dataset.tab, document.getElementById('fab').getAttribute('aria-label')]`), ['browse', 'Add task']);
+  const enTodayCount = await evaluate<string>(`document.querySelector('[data-fk="nav-today"] .nav-count')?.textContent ?? ''`);
+  assert.equal(await evaluate(`document.querySelector('[data-tab="today"]').getAttribute('aria-label')`), enTodayCount ? `Today, ${enTodayCount} ${enTodayCount === '1' ? 'task' : 'tasks'}` : null);
+  const enLabelsClipped = `[...document.querySelectorAll('.bnav-label')].filter((l) => l.scrollWidth > l.clientWidth + 1).map((l) => l.textContent)`;
+  assert.deepEqual(await evaluate(enLabelsClipped), [], 'de knoppen van de balk zijn niet afgekapt');
+  await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 3, mobile: true });
+  await evaluate(`document.documentElement.style.fontSize = '20px'`); // grote letters (125 %) op een smal toestel
+  await sleep(200);
+  assert.deepEqual(await evaluate(enLabelsClipped), [], 'ook op 360 pixels met grote letters niet afgekapt');
+  assert.equal(await evaluate(`document.documentElement.scrollWidth`), 360);
+  await shot('engels-telefoon-balk-groot');
+  await evaluate(`document.documentElement.style.removeProperty('font-size')`);
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(200);
   await shot('engels-telefoon-project');
-  await click('#menu-button');
+  await click('[data-tab="browse"]');
   await sleep(350);
+  await noDutch('bladeren (telefoon)', ['Thuis']);
+  await fits('telefoon: bladeren');
   await shot('engels-telefoon-menu');
-  await click('#scrim');
+  await click('[data-tab="browse"]');
   await openTask('Afwasmachine uitruimen');
   await typeInto(`#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`, 'next friday');
   await waitFor(`document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'onbekende datum (telefoon)');
@@ -949,14 +967,16 @@ try {
   await fits('telefoon: deelvenster');
   await shot('engels-telefoon-delen');
   await clickText('Close', `document.querySelector('dialog[open]')`);
-  await click('#menu-button');
+  await click('[data-tab="browse"]');
   await sleep(350);
   await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu (telefoon)');
   await fits('telefoon: instellingen');
   await shot('engels-telefoon-instellingen');
   await clickText('Close', `document.querySelector('dialog[open]')`);
-  await click('#scrim');
+  assert.equal(await evaluate(`document.body.classList.contains('nav-open')`), true, 'na het venster staat Bladeren nog open');
+  await click('[data-tab="browse"]');
+  await waitFor(`!document.body.classList.contains('nav-open')`, 'Bladeren dicht');
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   await sleep(200);
 
@@ -1005,7 +1025,7 @@ try {
   await clickText('Nederlands');
   await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
@@ -1239,7 +1259,7 @@ try {
 
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort (en Meldingen: Thuis is gedeeld), dan de projecten');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Aankomend (en Meldingen: Thuis is gedeeld), dan de projecten');
   await click('.nav-heading button');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw project'`, 'projectvenster');
   assert.equal(await evaluate(`document.querySelectorAll('dialog[open] input[name="project-color"]').length`), 16, 'zestien kleuren');
@@ -1256,7 +1276,7 @@ try {
   const tuin = projectOnServer('Tuin');
   assert.deepEqual([tuin.color, tuin.is_favorite, tuin.parent_id], ['green', true, thuisId], 'kleur, favoriet en bovenliggend project staan op de server');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorieten', 'Projecten']);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
   assert.ok(await evaluate(`document.querySelector('.nav-row[data-depth="1"] .dot').classList.contains('pc-green')`), 'het bolletje heeft de kleur van het project');
   assert.equal(await evaluate(`document.querySelector('#view-lead .dot').classList.contains('pc-green')`), true, 'ook in de kop');
   await shot('zijbalk-projecten');
@@ -1265,7 +1285,7 @@ try {
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, true);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-expanded')`), 'false');
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
@@ -1558,7 +1578,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1601,7 +1621,7 @@ try {
   await typeInto('#quick-input', '');
   await evaluate(`document.activeElement?.blur()`);
   // g en dan t, u of i
-  for (const [second, title] of [['t', 'Vandaag'], ['u', 'Binnenkort'], ['i', 'Inbox']] as const) {
+  for (const [second, title] of [['t', 'Vandaag'], ['u', 'Aankomend'], ['i', 'Inbox']] as const) {
     await press('g');
     await press(second);
     await waitFor(`document.getElementById('view-title').textContent === ${js(title)}`, `g ${second}: ${title}`);
@@ -1981,21 +2001,21 @@ try {
 
   await calendarDragScenario(viewsCtx);
 
-  // Binnenkort als kalender: taken uit alle projecten, de keuze hoort bij dit apparaat
-  await nav('Binnenkort');
-  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  // Aankomend als kalender: taken uit alle projecten, de keuze hoort bij dit apparaat
+  await nav('Aankomend');
+  await waitFor(`document.getElementById('view-title').textContent === 'Aankomend'`, 'Aankomend');
   assert.ok(await evaluate(`!document.querySelector('.cal')`));
-  assert.deepEqual(await texts('.view-actions .view-switch button'), ['Lijst', 'Kalender'], 'Binnenkort kent geen bord');
+  assert.deepEqual(await texts('.view-actions .view-switch button'), ['Lijst', 'Kalender'], 'Aankomend kent geen bord');
   await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
-  await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'kalender bij Binnenkort');
+  await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'kalender bij Aankomend');
   const projectsOnCal = await evaluate<string[]>(`[...new Set([...document.querySelectorAll('.cal-item .cal-project-name')].map((e) => e.textContent))]`);
   assert.ok(projectsOnCal.length >= 2, `taken van meer projecten: ${JSON.stringify(projectsOnCal)}`);
   assert.equal(await evaluate(`localStorage.getItem('tickory.upcomingView')`), 'calendar');
   await shot('kalender-binnenkort');
   await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
-  await waitFor(`!document.querySelector('.cal') && document.querySelector('.group-title')`, 'terug naar de lijst bij Binnenkort');
-  assert.equal(serverProject(thuisId).view_style, 'calendar', 'Binnenkort verandert het project niet');
-  step('kalender: maand en week (maandag eerst, Nederlandse namen, ISO-weeknummers), vandaag gemarkeerd, te late taken apart, herhaling op de komende voorkomens zonder opslag, plus bij een dag voegt toe op die dag, openen en afvinken, vorige / volgende / vandaag, Maand of Week bewaard op dit apparaat, toetsenbord (pijlen, PageUp/PageDown, Home, Enter), Binnenkort als kalender met taken van alle projecten');
+  await waitFor(`!document.querySelector('.cal') && document.querySelector('.group-title')`, 'terug naar de lijst bij Aankomend');
+  assert.equal(serverProject(thuisId).view_style, 'calendar', 'Aankomend verandert het project niet');
+  step('kalender: maand en week (maandag eerst, Nederlandse namen, ISO-weeknummers), vandaag gemarkeerd, te late taken apart, herhaling op de komende voorkomens zonder opslag, plus bij een dag voegt toe op die dag, openen en afvinken, vorige / volgende / vandaag, Maand of Week bewaard op dit apparaat, toetsenbord (pijlen, PageUp/PageDown, Home, Enter), Aankomend als kalender met taken van alle projecten');
 
   // telefoon: een lijst per dag in plaats van een maandtabel
   await nav('Thuis');
@@ -2068,22 +2088,25 @@ try {
   await nav('Thuis');
   await sleep(300);
   await shot('telefoon-project');
-  assert.equal(await evaluate(`getComputedStyle(document.getElementById('sidebar')).position`), 'fixed', 'op de telefoon is de zijbalk een uitschuifmenu');
+  assert.equal(await evaluate(`getComputedStyle(document.getElementById('sidebar')).position`), 'fixed', 'op de telefoon is de zijbalk het scherm Bladeren');
+  assert.equal(await evaluate(`getComputedStyle(document.getElementById('sidebar')).visibility`), 'hidden', 'Bladeren is dicht');
+  assert.equal(await evaluate(`document.getElementById('menu-button')`), null, 'geen menuknop meer: de balk onderaan vervangt het uitschuifmenu');
   assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390, 'geen horizontaal scrollen op de telefoon: de pagina is precies zo breed als het scherm');
   // grote tikvlakken: alles wat je met een vinger aantikt is minstens 44 bij 44 (en met de zijbalk dicht niet te bereiken met Tab)
   const smallest = (selector: string) => evaluate<{ w: number; h: number; n: number }>(`(() => { const list = [...document.querySelectorAll(${js(selector)})].filter((e) => e.offsetParent !== null || getComputedStyle(e).position === 'fixed'); return { w: Math.min(...list.map((e) => Math.round(e.getBoundingClientRect().width))), h: Math.min(...list.map((e) => Math.round(e.getBoundingClientRect().height))), n: list.length }; })()`);
-  for (const selector of ['.check', '#menu-button', '.add-inline', '.group-toggle', '.view-actions button', '#quick-add button', '.task']) {
+  for (const selector of ['.check', '.bnav-item', '#fab', '.add-inline', '.group-toggle', '.view-actions button', '#quick-add button', '.task']) {
     const size = await smallest(selector);
     assert.ok(size.n > 0, `${selector}: niets gevonden`);
     assert.ok(size.h >= 44 && size.w >= 40, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
   }
   assert.equal(await evaluate(`[...document.querySelectorAll('.task')].every((l) => !l.querySelector('.task-actions') || getComputedStyle(l.querySelector('.task-actions')).display === 'none')`), true, 'op een telefoon geen snelle knoppen die een aanwijzer nodig hebben');
-  await click('#menu-button');
+  await click('[data-tab="browse"]');
   await sleep(350);
   await shot('telefoon-menu');
-  const drawer = await smallest('.sidebar .nav-item, .sidebar .nav-link, .sidebar-add, .sidebar .nav-toggle');
-  assert.ok(drawer.h >= 44, `een regel in het uitschuifmenu is te laag: ${drawer.h}`);
-  await click('#scrim');
+  const drawer = await smallest('.sidebar .nav-item, .sidebar .nav-link, .sidebar .find-item, .sidebar .search-field, .sidebar .nav-toggle');
+  assert.ok(drawer.h >= 44, `een regel in Bladeren is te laag: ${drawer.h}`);
+  await click('[data-tab="browse"]');
+  await waitFor(`!document.body.classList.contains('nav-open')`, 'Bladeren dicht');
   await openTask('Afwasmachine uitruimen');
   const full = await evaluate<{ w: number; h: number }>(`(() => { const r = document.getElementById('task-dialog').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })()`);
   assert.deepEqual(full, { w: 390, h: 844 }, 'het taakvenster vult op een telefoon het hele scherm');
@@ -2115,11 +2138,225 @@ try {
   await click('#task-dialog .task-top .icon-button');
   await noDialog();
   await send('Emulation.setEmulatedMedia', { features: [] });
-  step('telefoonformaat: uitschuifmenu, geen horizontaal scrollen, alles aan te tikken is minstens 44 px, het taakvenster vult het scherm in één kolom, geen snelle knoppen die een aanwijzer vragen; "minder beweging" slaat de afvinkanimatie over; donkere modus werkt');
+  step('telefoonformaat: Bladeren in plaats van een uitschuifmenu, geen horizontaal scrollen, alles aan te tikken is minstens 44 px, het taakvenster vult het scherm in één kolom, geen snelle knoppen die een aanwijzer vragen; "minder beweging" slaat de afvinkanimatie over; donkere modus werkt');
+
+  // ---- 9a. de menubalk onderaan (telefoon): vier knoppen, Bladeren, de ronde knop "+", ruimte onderaan, meldingen, selecteren, typen ----
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true }); // focus en focusin zoals in een echt venster
+  await evaluate(`document.activeElement?.blur()`);
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (telefoon)');
+  const barState = () => evaluate<any>(`(() => {
+    const bar = document.getElementById('bottom-nav');
+    const r = bar.getBoundingClientRect();
+    const items = [...bar.querySelectorAll('.bnav-item')];
+    const f = document.getElementById('fab');
+    const q = f.getBoundingClientRect();
+    return {
+      display: getComputedStyle(bar).display, position: getComputedStyle(bar).position, bottom: Math.round(innerHeight - r.bottom), label: bar.getAttribute('aria-label'),
+      tabs: items.map((b) => b.dataset.tab), labels: items.map((b) => b.querySelector('.bnav-label').textContent),
+      current: items.filter((b) => b.getAttribute('aria-current') === 'page').map((b) => b.dataset.tab),
+      active: items.filter((b) => b.classList.contains('active')).map((b) => b.dataset.tab),
+      expanded: bar.querySelector('[data-tab="browse"]').getAttribute('aria-expanded'),
+      sizes: items.map((b) => { const x = b.getBoundingClientRect(); return [Math.round(x.width), Math.round(x.height)]; }),
+      clipped: items.filter((b) => { const l = b.querySelector('.bnav-label'); return l.scrollWidth > l.clientWidth + 1; }).length,
+      color: getComputedStyle(bar.querySelector('.bnav-item.active')).color, soft: getComputedStyle(bar.querySelector('.bnav-item:not(.active)')).color,
+      background: getComputedStyle(bar).backgroundColor, page: getComputedStyle(document.body).backgroundColor,
+      fab: { shown: !f.hidden && getComputedStyle(f).display !== 'none', w: Math.round(q.width), h: Math.round(q.height), right: Math.round(innerWidth - q.right), above: Math.round(r.top - q.bottom), label: f.getAttribute('aria-label') },
+    };
+  })()`);
+  let barNow = await barState();
+  assert.deepEqual([barNow.display, barNow.position, barNow.bottom, barNow.label], ['flex', 'fixed', 0, 'Hoofdmenu'], 'de balk staat vast onderaan');
+  assert.deepEqual(barNow.tabs, ['inbox', 'today', 'upcoming', 'browse']);
+  assert.deepEqual(barNow.labels, ['Inbox', 'Vandaag', 'Aankomend', 'Bladeren'], 'vier knoppen, geen aparte knop Zoeken');
+  assert.deepEqual([barNow.current, barNow.active, barNow.expanded], [['browse'], ['browse'], 'false'], 'een project (niet de Inbox) hoort bij Bladeren');
+  assert.ok(barNow.sizes.every(([w, h]: number[]) => w >= 48 && h >= 48), `tikvlakken van de balk: ${JSON.stringify(barNow.sizes)}`);
+  assert.equal(barNow.clipped, 0, 'geen afgekapte namen in de balk');
+  // ook op een smal toestel (360 pixels) met grote letters (125 %) past "Aankomend"
+  await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 3, mobile: true });
+  await evaluate(`document.documentElement.style.fontSize = '20px'`);
+  await sleep(200);
+  assert.deepEqual([(await barState()).clipped, await evaluate(`document.documentElement.scrollWidth`)], [0, 360], 'op 360 pixels met grote letters niets afgekapt en niets dat uitsteekt');
+  await shot('telefoon-balk-groot');
+  await evaluate(`document.documentElement.style.removeProperty('font-size')`);
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(200);
+  assert.equal(barNow.color, await cssColor('--accent'), 'de actieve knop in de accentkleur');
+  assert.notEqual(barNow.soft, barNow.color, 'de andere knoppen niet');
+  assert.equal(barNow.background, barNow.page, 'de balk heeft de achtergrond van de pagina (die van de Android-app loopt eronder door)');
+  assert.ok(barNow.fab.shown && barNow.fab.w >= 48 && barNow.fab.h >= 48 && barNow.fab.above >= 8 && barNow.fab.right >= 12, `de ronde knop "+" rechtsonder boven de balk: ${JSON.stringify(barNow.fab)}`);
+  assert.equal(barNow.fab.label, 'Taak toevoegen');
+  const sideToday = await evaluate<string>(`document.querySelector('[data-fk="nav-today"] .nav-count')?.textContent ?? ''`);
+  assert.equal(await evaluate(`document.querySelector('[data-tab="today"] .bnav-badge').textContent`), sideToday, 'Vandaag heeft in de balk hetzelfde aantal als in de zijbalk');
+  if (sideToday) assert.equal(await evaluate(`document.querySelector('[data-tab="today"]').getAttribute('aria-label')`), `Vandaag, ${sideToday} ${sideToday === '1' ? 'taak' : 'taken'}`);
+  // een andere accentkleur volgt meteen
+  await evaluate(`document.documentElement.dataset.accent = 'rose'`);
+  assert.equal((await barState()).color, await cssColor('--accent'), 'de actieve knop volgt de accentkleur');
+  await evaluate(`delete document.documentElement.dataset.accent`);
+  // de "+" in een project: Taak toevoegen in dat project
+  await click('#fab');
+  await waitFor(`document.querySelector('dialog[open] .quick-big')`, 'Taak toevoegen via de "+"');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Project"]').value`), thuisId, 'de "+" voegt toe in het project dat open staat');
+  await press('Escape');
+  await noDialog();
+  // navigeren via de balk; de focus blijft op de knop
+  for (const [tab, title] of [['today', 'Vandaag'], ['upcoming', 'Aankomend'], ['inbox', 'Inbox']] as const) {
+    await click(`[data-tab="${tab}"]`);
+    await waitFor(`document.getElementById('view-title').textContent === ${js(title)}`, `${title} via de balk`);
+    barNow = await barState();
+    assert.deepEqual([barNow.current, barNow.fab.shown], [[tab], true], `${title} is actief, met de "+"`);
+    assert.equal(await evaluate(`document.activeElement.dataset.tab`), tab, 'de focus blijft op de knop');
+  }
+  // in Vandaag zet de "+" de taak op vandaag (in de Inbox)
+  await click('[data-tab="today"]');
+  await waitFor(`document.getElementById('view-title').textContent === 'Vandaag'`, 'Vandaag');
+  await click('#fab');
+  await waitFor(`document.querySelector('dialog[open] .quick-big')`, 'Taak toevoegen in Vandaag');
+  await typeInto('dialog[open] .quick-big', 'Balkproef');
+  await submit('dialog[open] form');
+  await noDialog();
+  await waitFor(row('Balkproef'), 'Balkproef in Vandaag');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Balkproef').due?.date, today, 'de "+" in Vandaag voegt toe voor vandaag');
+  // de laatste taak (en de laatste knop) vallen niet onder de balk of de "+", ook op een laag scherm
+  await closeToasts(); // een melding tilt de "+" tijdelijk op (zie hieronder)
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 520, deviceScaleFactor: 2, mobile: true });
+  await sleep(300);
+  await evaluate(`window.scrollTo(0, document.documentElement.scrollHeight)`);
+  await sleep(200);
+  const cover = await evaluate<any>(`(() => {
+    const shown = [...document.querySelectorAll('#content li.task, #content button')].filter((e) => e.offsetParent !== null);
+    return { last: Math.round(Math.max(...shown.map((e) => e.getBoundingClientRect().bottom))), fab: Math.round(document.getElementById('fab').getBoundingClientRect().top), bar: Math.round(document.getElementById('bottom-nav').getBoundingClientRect().top), scrolled: scrollY > 0 };
+  })()`);
+  assert.ok(cover.scrolled && cover.last <= cover.fab && cover.last <= cover.bar, `de laatste regel valt niet onder de balk of de "+": ${JSON.stringify(cover)}`);
+  await shot('telefoon-balk-onderaan');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(200);
+  // een melding met "Ongedaan maken" staat boven de balk, en de "+" schuift erboven
+  await evaluate(`${row('Balkproef')}.querySelector('.check').click()`);
+  await waitFor(`document.querySelector('.toast-action')`, 'melding met Ongedaan maken');
+  await sleep(300);
+  const lifted = await evaluate<any>(`(() => { const t = document.querySelector('.toast').getBoundingClientRect(); const b = document.getElementById('bottom-nav').getBoundingClientRect(); const f = document.getElementById('fab').getBoundingClientRect(); return { toastTop: Math.round(t.top), toastBottom: Math.round(t.bottom), barTop: Math.round(b.top), fabBottom: Math.round(f.bottom) }; })()`);
+  assert.ok(lifted.toastBottom <= lifted.barTop && lifted.fabBottom <= lifted.toastTop, `melding boven de balk, de "+" boven de melding: ${JSON.stringify(lifted)}`);
+  await shot('telefoon-balk-melding');
+  await click('.toast-action');
+  await waitFor(`${row('Balkproef')} && !document.querySelector('.toast-action')`, 'ongedaan gemaakt');
+  await closeToasts();
+  await sleep(300);
+  barNow = await barState();
+  assert.ok(barNow.fab.above >= 8 && barNow.fab.above <= 24, `zonder melding staat de "+" weer vlak boven de balk: ${barNow.fab.above}`);
+  // typen: het toetsenbord is open, dan geen balk en geen "+" die boven het toetsenbord over het veld schuiven. Het toetsenbord nabootsen
+  // zoals de Android-app het doet: de WebView wordt lager (de app geeft het toetsenbord ruimte onderaan).
+  const barShown = `getComputedStyle(document.getElementById('bottom-nav')).display === 'flex' && getComputedStyle(document.getElementById('fab')).display === 'flex'`;
+  await evaluate(`document.getElementById('quick-input').focus()`);
+  await sleep(150);
+  assert.equal(await evaluate(barShown), true, 'alleen de focus (zonder toetsenbord, of met een hardwaretoetsenbord): de balk blijft');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 520, deviceScaleFactor: 2, mobile: true });
+  await waitFor(`getComputedStyle(document.getElementById('bottom-nav')).display === 'none' && getComputedStyle(document.getElementById('fab')).display === 'none'`, 'met het toetsenbord open geen balk en geen "+"');
+  await shot('telefoon-balk-typen');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await waitFor(barShown, 'toetsenbord dicht (het veld houdt de focus): de balk is terug');
+  await evaluate(`document.getElementById('quick-input').blur()`);
+  // selecteren: de actiebalk staat onderaan in de plaats van de balk
+  await click('.bulk-toggle');
+  await waitFor(`document.body.classList.contains('select-mode')`, 'selecteren (telefoon)');
+  await evaluate(`${row('Balkproef')}.querySelector('.sel-box').click()`);
+  await waitFor(`!document.getElementById('bulk-bar').hidden && document.querySelector('li.task.is-selected')`, 'actiebalk');
+  const selecting = await evaluate<any>(`(() => { const r = document.getElementById('bulk-bar').getBoundingClientRect(); return { nav: getComputedStyle(document.getElementById('bottom-nav')).display, fab: getComputedStyle(document.getElementById('fab')).display, bulk: getComputedStyle(document.getElementById('bulk-bar')).position, bottom: Math.round(innerHeight - r.bottom) }; })()`);
+  assert.deepEqual(selecting, { nav: 'none', fab: 'none', bulk: 'fixed', bottom: 0 }, 'tijdens het selecteren de actiebalk onderaan, zonder de menubalk en de "+"');
+  await shot('telefoon-balk-selecteren');
+  await click('#bulk-bar [data-bulk="stop"]');
+  await waitFor(`document.getElementById('bulk-bar').hidden && getComputedStyle(document.getElementById('bottom-nav')).display === 'flex' && !document.getElementById('fab').hidden`, 'na het selecteren de balk en de "+" terug');
+  // Bladeren: een scherm boven de balk, met zoeken bovenaan, en zonder Inbox, Vandaag en Aankomend (die staan in de balk)
+  await click('[data-tab="browse"]');
+  await waitFor(`document.body.classList.contains('nav-open') && getComputedStyle(document.getElementById('sidebar')).visibility === 'visible'`, 'Bladeren open');
+  await sleep(300);
+  const sheet = await evaluate<any>(`(() => {
+    const s = document.getElementById('sidebar'); const r = s.getBoundingClientRect(); const bar = document.getElementById('bottom-nav').getBoundingClientRect();
+    const visible = (e) => e.offsetParent !== null && getComputedStyle(e).visibility !== 'hidden';
+    return {
+      box: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.abs(bar.top - r.bottom) <= 1],
+      first: [...s.querySelectorAll('button, input, a')].find(visible)?.className, focus: document.activeElement.className,
+      items: [...s.querySelectorAll('.nav-item .nav-label, .nav-section-link, .nav-heading > span')].filter(visible).map((e) => e.textContent),
+      views: ['nav-inbox', 'nav-today', 'nav-upcoming'].filter((fk) => { const e = s.querySelector('[data-fk="' + fk + '"]'); return e && visible(e); }),
+      state: history.state?.tickoryBrowse ?? null, inert: document.querySelector('main.main').inert,
+    };
+  })()`);
+  assert.deepEqual(sheet.box, [0, 0, 390, true], `Bladeren vult het scherm boven de balk: ${sheet.box}`);
+  assert.deepEqual([sheet.first, sheet.focus], ['search-field', 'search-field'], 'zoeken staat bovenaan, en de focus begint daar');
+  for (const name of ['Voltooid', 'Meldingen', 'Filters', 'Labels', 'Projecten', 'Thuis']) assert.ok(sheet.items.includes(name), `${name} staat in Bladeren: ${sheet.items}`);
+  assert.deepEqual(sheet.views, [], 'Inbox, Vandaag en Aankomend staan niet nog eens in Bladeren');
+  assert.equal(sheet.state, true, 'Bladeren is een stap in de geschiedenis (de terugknop sluit het)');
+  assert.equal(sheet.inert, true, 'wat Bladeren afdekt, is niet te bereiken met Tab of een schermlezer');
+  barNow = await barState();
+  assert.deepEqual([barNow.current, barNow.expanded, barNow.fab.shown], [['browse'], 'true', false]);
+  await shot('telefoon-bladeren');
+  // zoeken vanuit Bladeren: annuleren brengt je terug in Bladeren, een treffer opent de taak en sluit Bladeren
+  await click('#sidebar .search-field');
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoeken vanuit Bladeren');
+  await press('Escape');
+  await noDialog();
+  assert.equal(await evaluate(`document.body.classList.contains('nav-open')`), true, 'na annuleren staat Bladeren nog open');
+  await waitFor(`!document.querySelector('#search-dialog')`, 'het vorige zoekvenster is weg'); // anders typen we in het oude
+  await click('#sidebar .search-field');
+  await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoeken vanuit Bladeren');
+  await typeInto('#search-dialog[open] .search-input', 'Balkproef');
+  await waitFor(`document.querySelector('#search-dialog[open] .search-hit')`, 'treffer');
+  await press('Enter');
+  await waitFor(`document.querySelector('#task-dialog[open]') && !document.body.classList.contains('nav-open')`, 'de treffer opent de taak en Bladeren gaat dicht');
+  await click('#task-dialog .task-top .icon-button');
+  await noDialog();
+  // de terugknop (van Android of de browser) en Escape sluiten Bladeren
+  await click('[data-tab="browse"]');
+  await waitFor(`document.body.classList.contains('nav-open')`, 'Bladeren open');
+  await evaluate(`history.back()`);
+  await waitFor(`!document.body.classList.contains('nav-open')`, 'terug sluit Bladeren');
+  assert.equal(await evaluate(`document.activeElement.dataset.tab`), 'browse', 'de focus staat daarna op de knop Bladeren');
+  assert.equal(await evaluate(`document.querySelector('main.main').inert`), false, 'de lijst is weer te bereiken');
+  await click('[data-tab="browse"]');
+  await waitFor(`document.body.classList.contains('nav-open')`, 'Bladeren open');
+  await press('Escape');
+  await waitFor(`!document.body.classList.contains('nav-open')`, 'Escape sluit Bladeren');
+  // vanuit Bladeren een project, de filters, de labels en Voltooid openen; Bladeren blijft dan actief
+  for (const [selector, title, fab] of [[`[data-fk="project:${thuisId}"]`, 'Thuis', true], ['[data-fk="find-head:filters"]', 'Filters', false], ['[data-fk="find-head:labels"]', 'Labels', false], ['[data-fk="nav-completed"]', 'Voltooid', false]] as const) {
+    await click('[data-tab="browse"]');
+    await waitFor(`document.body.classList.contains('nav-open')`, 'Bladeren open');
+    await click(`#sidebar ${selector}`);
+    await waitFor(`document.getElementById('view-title').textContent === ${js(title)} && !document.body.classList.contains('nav-open')`, `${title} vanuit Bladeren`);
+    await sleep(100);
+    barNow = await barState();
+    assert.deepEqual([barNow.current, barNow.expanded, barNow.fab.shown], [['browse'], 'false', fab], `${title}: Bladeren actief; "+" ${fab ? 'wel' : 'niet'}`);
+    await waitFor(`(history.state?.tickoryBrowse ?? null) === null`, 'de stap in de geschiedenis is weer weg');
+  }
+  // donker
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'dark' }] });
+  await click('[data-tab="today"]');
+  await waitFor(`document.getElementById('view-title').textContent === 'Vandaag'`, 'Vandaag');
+  await sleep(200);
+  barNow = await barState();
+  assert.equal(barNow.page, 'rgb(22, 25, 28)', 'donker');
+  assert.deepEqual([barNow.background, barNow.color], [barNow.page, await cssColor('--accent')], 'ook in het donker: de achtergrond van de pagina en de accentkleur');
+  await shot('telefoon-balk-donker');
+  await click('[data-tab="browse"]');
+  await sleep(350);
+  await shot('telefoon-bladeren-donker');
+  await click('[data-tab="browse"]');
+  // minder beweging: Bladeren en de "+" zonder overgang
+  await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+  assert.deepEqual(await evaluate(`[getComputedStyle(document.getElementById('sidebar')).transitionDuration, getComputedStyle(document.getElementById('fab')).transitionDuration].map((d) => d.split(',').every((x) => parseFloat(x) === 0))`), [true, true], 'geen overgang bij "minder beweging"');
+  await send('Emulation.setEmulatedMedia', { features: [] });
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_delete', uuid: 'e2e-opruimen-0003', args: { id: serverTask('Balkproef').id } }]);
+  await waitFor(`!(${row('Balkproef')})`, 'Balkproef opgeruimd');
+  // De focus stond op de knop Bladeren (onderaan, achter de lijst). Chrome begint met Tab bij de plek van de laatste focus, ook na blur();
+  // die plek terug naar de lijst, zodat de toetsenbordstap hieronder (op een computer, zonder balk) gewoon in de pagina begint.
+  await evaluate(`(() => { const q = document.getElementById('quick-input'); q.focus(); q.blur(); })()`);
+  step('menubalk onderaan op een telefoon: Inbox, Vandaag (met het aantal), Aankomend en Bladeren, de actieve in de accentkleur met aria-current, tikvlakken van 48 px; de "+" voegt toe in het project of voor vandaag; de laatste taak valt niet onder balk of "+"; een melding staat boven de balk en de "+" schuift erboven; typen en selecteren verbergen de balk; Bladeren met zoeken bovenaan, projecten, filters, labels en Voltooid, terug en Escape sluiten het; licht, donker, accentkleur en minder beweging');
 
   // ---- 9b. toetsenbord: zichtbare focusring, en de taak openen met Enter ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   await sleep(200);
+  assert.deepEqual(await evaluate(`['bottom-nav', 'fab', 'sidebar'].map((id) => getComputedStyle(document.getElementById(id))).map((c) => c.display + '|' + c.position + '|' + c.visibility)`),
+    ['none|static|visible', 'none|static|visible', 'flex|sticky|visible'], 'op een computer geen balk onderaan en geen "+": de zijbalk blijft zoals hij was');
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
   await evaluate(`document.activeElement?.blur(); document.body.focus()`);
@@ -2409,8 +2646,8 @@ try {
   await waitFor(`document.querySelectorAll('.task').length === ${countOf('bellen')}`, 'de nieuwe taak staat bij het label');
   await syncAs(aliceToken, 'zoek-test', [{ type: 'task_delete', uuid: 'e2e-zoek-opruimen-3', args: { id: serverTask('Notaris bellen').id } }]);
   // het label in een taakregel is een knop die het label opent
-  await nav('Binnenkort');
-  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  await nav('Aankomend');
+  await waitFor(`document.getElementById('view-title').textContent === 'Aankomend'`, 'Aankomend');
   await evaluate(`${row('Tandarts bellen')}.querySelector('.chip-label').click()`);
   await waitFor(`document.getElementById('view-title').textContent === '@bellen'`, 'label via de taakregel');
   // overzicht van labels, toevoegen met controle op dubbele namen
@@ -2463,7 +2700,7 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.deepEqual([serverLabel('telefoneren')?.id, serverLabel('telefoneren')?.color], [bellenId, 'violet'], 'hetzelfde label, nieuwe naam en kleur');
   assert.equal(serverLabel('bellen'), undefined);
-  await nav('Binnenkort');
+  await nav('Aankomend');
   await waitFor(`${row('Tandarts bellen')}`, 'Tandarts bellen');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@telefoneren', '🔔', 'Inbox'], 'de taak toont de nieuwe naam');
   await shot('labels-hernoemd');
@@ -2629,10 +2866,10 @@ try {
   assert.deepEqual(await buttons('.view-actions'), ['Edit', 'More']);
   await noDutch('label', userTexts);
 
-  // telefoon (Engels): zoekknop in de kop, zoekvenster over het hele scherm, zijbalk met lijsten
+  // telefoon (Engels): zoekknop in de kop, zoekvenster over het hele scherm, Bladeren met de lijsten
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await sleep(300);
-  for (const selector of ['.topbar-search', '#menu-button']) {
+  for (const selector of ['.topbar-search', '[data-tab="browse"]']) {
     const size = await smallest(selector);
     assert.ok(size.n === 1 && size.h >= 44 && size.w >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
   }
@@ -2654,10 +2891,10 @@ try {
   await scheme(null);
   await click('#search-dialog .search-close');
   await noDialog();
-  await click('#menu-button');
+  await click('[data-tab="browse"]');
   await sleep(350);
   const drawer2 = await smallest('.sidebar .find-item, .sidebar .nav-section-link, .sidebar .find-toggle, .sidebar .nav-section-head .icon-button, .sidebar .search-field');
-  assert.ok(drawer2.h >= 44, `een regel in het uitschuifmenu is te laag: ${drawer2.h}`);
+  assert.ok(drawer2.h >= 44, `een regel in Bladeren is te laag: ${drawer2.h}`);
   await shot('engels-telefoon-menu');
   await click('button[aria-label="Add filter"]');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'New filter'`, 'filtervenster op een telefoon');

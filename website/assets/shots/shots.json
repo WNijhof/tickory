@@ -21,7 +21,7 @@
   },
   "snel-toevoegen": {
     "width": 1680,
-    "height": 728
+    "height": 732
   },
   "taak-bewerken": {
     "width": 2056,
@@ -33,7 +33,7 @@
   },
   "projectmenu": {
     "width": 976,
-    "height": 1082
+    "height": 1388
   },
   "project-bewerken": {
     "width": 976,
@@ -65,27 +65,27 @@
   },
   "herinneringen": {
     "width": 558,
-    "height": 640
+    "height": 720
   },
   "delen": {
     "width": 1296,
-    "height": 942
+    "height": 1044
   },
   "instellingen": {
     "width": 976,
-    "height": 1388
+    "height": 1490
   },
   "meldingen": {
     "width": 1296,
-    "height": 922
+    "height": 1550
   },
   "account": {
     "width": 1296,
-    "height": 1026
+    "height": 1532
   },
   "gebruikersbeheer": {
     "width": 1296,
-    "height": 1314
+    "height": 1428
   },
   "telefoon-vandaag": {
     "width": 780,
@@ -111,6 +111,22 @@
     "width": 780,
     "height": 1560
   },
+  "selecteren": {
+    "width": 2240,
+    "height": 1440
+  },
+  "voltooid": {
+    "width": 2240,
+    "height": 1440
+  },
+  "productiviteit": {
+    "width": 1680,
+    "height": 3000
+  },
+  "telefoon-productiviteit": {
+    "width": 780,
+    "height": 1560
+  },
   "en/vandaag": {
     "width": 2240,
     "height": 1440
@@ -133,7 +149,7 @@
   },
   "en/snel-toevoegen": {
     "width": 1680,
-    "height": 728
+    "height": 732
   },
   "en/taak-bewerken": {
     "width": 2056,
@@ -145,7 +161,7 @@
   },
   "en/projectmenu": {
     "width": 976,
-    "height": 1082
+    "height": 1388
   },
   "en/project-bewerken": {
     "width": 976,
@@ -177,27 +193,27 @@
   },
   "en/herinneringen": {
     "width": 558,
-    "height": 614
+    "height": 694
   },
   "en/delen": {
     "width": 1296,
-    "height": 942
+    "height": 1044
   },
   "en/instellingen": {
     "width": 976,
-    "height": 1388
+    "height": 1490
   },
   "en/meldingen": {
     "width": 1296,
-    "height": 922
+    "height": 1550
   },
   "en/account": {
     "width": 1296,
-    "height": 1026
+    "height": 1532
   },
   "en/gebruikersbeheer": {
     "width": 1296,
-    "height": 1314
+    "height": 1428
   },
   "en/telefoon-vandaag": {
     "width": 780,
@@ -223,14 +239,6 @@
     "width": 780,
     "height": 1560
   },
-  "selecteren": {
-    "width": 2240,
-    "height": 1440
-  },
-  "voltooid": {
-    "width": 2240,
-    "height": 1440
-  },
   "en/selecteren": {
     "width": 2240,
     "height": 1440
@@ -238,14 +246,6 @@
   "en/voltooid": {
     "width": 2240,
     "height": 1440
-  },
-  "productiviteit": {
-    "width": 1680,
-    "height": 3000
-  },
-  "telefoon-productiviteit": {
-    "width": 780,
-    "height": 1560
   },
   "en/productiviteit": {
     "width": 1680,

@@ -277,6 +277,13 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
 - `MainActivity` (de WebView), `SetupActivity` (het serveradres) en `WebBridge`.
 
+**Systeembalken en toetsenbord.** De app tekent tot onder de systeembalken (`enableEdgeToEdge`, verplicht vanaf Android 15) en
+geeft de buitenste laag van `MainActivity` zelf ruimte voor de statusbalk, de gebarenbalk of navigatieknoppen, een uitsparing en het
+toetsenbord; de randen zijn daarmee verbruikt. De web-app (met op een telefoon haar menubalk onderaan en de ronde knop "+") ziet
+daardoor een veilige rand van 0 en zet niets dubbel; onder de gebarenbalk loopt de achtergrond van het venster door, in dezelfde
+kleur als de pagina (licht en donker volgens het systeem). Gaat het toetsenbord open, dan wordt de WebView lager en verbergt de
+web-app de menubalk, zodat die niet over het invoerveld schuift. `SystemBarsTest` legt dit vast.
+
 **Inloggen** doet de app nooit zelf: `SetupActivity` controleert alleen of het adres een Tickory-server is (`/health`), en het
 inlogscherm is dat van de web-app in de WebView, met de tweede stap van tweestapsverificatie (code of herstelcode) erbij. Na het
 inloggen geeft de web-app het token door met `setSession`. Verloopt de sessie (standaard 90 dagen zonder gebruik, 365 dagen na
@@ -334,8 +341,8 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Widget | Wat |
 |---|---|
 | Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
-| Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Binnenkort; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
-| Binnenkort | Vanaf morgen veertien dagen, per dag met een kop |
+| Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Aankomend; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
+| Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie

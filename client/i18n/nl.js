@@ -19,8 +19,13 @@ export default {
 
   // ---------- het vaste deel van de pagina (index.html) ----------
   'shell.navigation': 'Navigatie',
-  'shell.menu': 'Menu',
   'shell.syncTitle': 'Klik om nu bij te werken',
+
+  // ---------- de menubalk onderaan op een telefoon (ui/bottomNav.js); kort, zodat vier knoppen passen op 360 pixels ----------
+  'bottomNav.label': 'Hoofdmenu',
+  'bottomNav.inbox': 'Inbox',
+  'bottomNav.todayCount': { one: 'Vandaag, {count} taak', other: 'Vandaag, {count} taken' },
+  'bottomNav.browse': 'Bladeren',
 
   // ---------- status van de synchronisatie ----------
   'sync.upToDate': 'Bijgewerkt',
@@ -111,7 +116,7 @@ export default {
   // ---------- zijbalk en overzichten ----------
   'nav.views': 'Overzichten',
   'nav.today': 'Vandaag',
-  'nav.upcoming': 'Binnenkort',
+  'nav.upcoming': 'Aankomend',
   'nav.projects': 'Projecten',
   'nav.addProject': 'Project toevoegen',
   'nav.sharedProject': 'Gedeeld project',
@@ -1088,7 +1093,7 @@ export default {
   'shortcuts.then': 'dan',
   'shortcuts.add': 'Taak toevoegen',
   'shortcuts.goToday': 'Naar Vandaag',
-  'shortcuts.goUpcoming': 'Naar Binnenkort',
+  'shortcuts.goUpcoming': 'Naar Aankomend',
   'shortcuts.goInbox': 'Naar de Inbox',
   'shortcuts.help': 'Dit overzicht tonen',
   'shortcuts.escape': 'Een venster sluiten',

@@ -313,8 +313,8 @@ export async function templatesScenario(c: any) {
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 780, deviceScaleFactor: 2, mobile: true });
   await sleep(300);
   await openPicker().catch(async () => {
-    // op een telefoon staat de zijbalk achter het menu
-    await click('#menu-button');
+    // op een telefoon staat de zijbalk in Bladeren (de balk onderaan)
+    await click('[data-tab="browse"]');
     await sleep(200);
     await openPicker();
   });
