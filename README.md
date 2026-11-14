@@ -274,7 +274,7 @@ Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_
 
 ```sh
 npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
-npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 79 steps
+npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 81 steps
 node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
 ```

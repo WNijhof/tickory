@@ -241,7 +241,7 @@ Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PA
 
 ```sh
 npm test            # protocol, rechten, accounts, server, client, datumtaal, herinneringen en meldingen, filters en zoeken, talen, overzichten, back-up, offline-bestanden
-npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 79 stappen
+npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 81 stappen
 node scripts/docker-smoke.ts tickory:ci    # test van de image (vereist Docker, na: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # de website en de demo (vereist Edge of Chrome)
 ```
