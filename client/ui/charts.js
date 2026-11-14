@@ -60,9 +60,11 @@ export function barChart({ bars, goal = 0, goalLabel = '', caption, columns, cla
   }
   // de uitleg van de stippellijn staat onder de tekening (in de tekening zou hij over een getal kunnen vallen)
   const legend = goal > 0 && goalLabel ? h('p', { class: 'chart-legend', 'aria-hidden': 'true' }, h('span', { class: 'chart-legend-goal' }), goalLabel) : null;
-  const table = h('table', { class: 'sr-only' },
+  // Een tabel trekt zich niets aan van width: 1px (hij wordt zo breed als zijn inhoud) en stak zo op een telefoon met een breed
+  // lettertype buiten het scherm; daarom staat hij in een verborgen blok, waar hij voor schermlezers gewoon een tabel blijft.
+  const table = h('div', { class: 'sr-only' }, h('table', {},
     h('caption', {}, caption),
     h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, columns[0]), h('th', { scope: 'col' }, columns[1]))),
-    h('tbody', {}, bars.map((b) => h('tr', {}, h('th', { scope: 'row' }, b.name), h('td', {}, b.valueText)))));
+    h('tbody', {}, bars.map((b) => h('tr', {}, h('th', { scope: 'row' }, b.name), h('td', {}, b.valueText))))));
   return h('figure', { class: `chart${className ? ` ${className}` : ''}` }, chart, legend, table);
 }
