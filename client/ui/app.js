@@ -42,6 +42,7 @@ import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
+import { installProductivity, isProductivityRoute } from './productivity.js';
 import { canEditProject } from '../core/access.js';
 
 const ROUTE_KEY = 'tickory.route';
@@ -55,7 +56,7 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r))) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
@@ -428,6 +429,7 @@ const handlers = {
       items: [
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
+        { value: 'productivity', label: t('settings.productivity') },
         { value: 'places', label: t('settings.places') },
         { value: 'export', label: t('settings.export') },
         { value: 'templates', label: t('settings.templates') },
@@ -440,6 +442,7 @@ const handlers = {
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
+    else if (choice === 'productivity') navigate({ type: 'productivity' });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'export') await exportDialog({ store, bridge });
     else if (choice === 'templates') await templatesUi().manage();
@@ -719,7 +722,9 @@ async function boot() {
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
-  installCompleted({ store, handlers, getRoute: () => ui.route }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
+  // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
+  const productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
+  installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)

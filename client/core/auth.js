@@ -92,6 +92,14 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       const query = q.toString();
       return call('activity', 'GET', `/api/v1/projects/${encodeURIComponent(projectId)}/activity${query ? `?${query}` : ''}`);
     },
+    /** Het productiviteitsoverzicht (server/stats.ts): alleen je eigen afvinkingen, per dag in tijdzone `tz`. */
+    stats: ({ tz = null, days = null } = {}) => {
+      const q = new URLSearchParams();
+      if (days) q.set('days', String(days));
+      if (tz) q.set('tz', tz);
+      const query = q.toString();
+      return call('stats', 'GET', `/api/v1/stats${query ? `?${query}` : ''}`);
+    },
     admin: {
       users: () => call('admin.users', 'GET', '/api/v1/admin/users'),
       createUser: (input) => call('admin.createUser', 'POST', '/api/v1/admin/users', input),
