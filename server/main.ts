@@ -404,6 +404,7 @@ export function createApp(opts: AppOptions): App {
         const before = currentRev(db);
         const outcome = push.handleAction((await readJson(req)).token);
         if (outcome.userId) broadcast(outcome.userId, null, audienceSince(db, before, outcome.userId));
+        if (outcome.userId) push.flushNotifications().catch((err) => console.error('meldingen versturen mislukt', err));
         return outcome.ok ? send(res, 200, { ok: true }) : send(res, 400, { error_code: 'INVALID_REQUEST', error: outcome.error ?? 'niet gelukt' });
       }
 
@@ -525,6 +526,7 @@ export function createApp(opts: AppOptions): App {
       send(res, 200, result);
       if (after !== before) attachments?.purgeDeleted(); // bestanden van verwijderde bijlagen weg, ruimte terug
       if (after !== before) broadcast(caller.user.id, clientId, audienceSince(db, before, caller.user.id));
+      if (after !== before) push?.flushNotifications().catch((err) => console.error('meldingen versturen mislukt', err)); // meldingen bij samenwerken (notify.ts)
     } catch (err) {
       if (err instanceof SyncError) {
         // De body is op dit punt volledig weggelezen, dus de verbinding kan gewoon open blijven.

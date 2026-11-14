@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -39,7 +39,7 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 5; // 3: plaatsen, 4: bijlagen, 5: sjablonen (alle komen er met CREATE TABLE IF NOT EXISTS bij)
+export const SCHEMA_VERSION = 6; // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken (alle komen er met CREATE TABLE IF NOT EXISTS bij)
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -164,6 +164,14 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS members_project ON project_members (project_id)');
   db.exec('CREATE INDEX IF NOT EXISTS settings_owner ON user_settings (owner_id)');
+  // Meldingen bij samenwerken (versie 6; zie notify.ts). Opmerkingen van vóór de vermeldingen krijgen een lege lijst.
+  db.exec("UPDATE comments SET mentions = '[]' WHERE mentions IS NULL");
+  db.exec('CREATE INDEX IF NOT EXISTS notifications_owner ON notifications (owner_id, is_deleted, created_at)');
+  db.exec('CREATE INDEX IF NOT EXISTS notifications_task ON notifications (task_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS notifications_comment ON notifications (comment_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS notifications_age ON notifications (is_deleted, created_at)');
+  // Welke nieuwe meldingen nog als pushbericht naar de browsers van de ontvanger moeten (zie push.ts).
+  db.exec('CREATE TABLE IF NOT EXISTS notification_outbox (notification_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
 }
 

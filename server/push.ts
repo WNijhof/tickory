@@ -23,6 +23,7 @@ import type { SendResult, VapidKeys } from './webpush.ts';
 import { currentRev, fail, newId } from './rows.ts';
 import type { Row } from './rows.ts';
 import { handleSync } from './sync.ts';
+import { pushChoices } from '../shared/notifications.js';
 
 /** Hoe lang na het tijdstip een herinnering nog verstuurd wordt (bijvoorbeeld na een herstart van de server). */
 export const LATE_WINDOW_MS = 60 * 60_000;
@@ -32,6 +33,10 @@ const MAX_SUBSCRIPTIONS_PER_USER = 20;
 /** Hoeveel herinneringen één gebruiker per ronde krijgt, en hoe lang een ronde hooguit werk begint (de rest volgt de volgende ronde). */
 export const MAX_DUE_PER_OWNER_PER_ROUND = 200;
 const TICK_BUDGET_MS = 20_000;
+/** Hoe lang een pushbericht over een melding bij samenwerken bij de pushdienst mag wachten, en hoe lang we het bij een tijdelijke fout opnieuw proberen. */
+const ACTIVITY_TTL_S = 24 * 3600;
+const ACTIVITY_RETRY_MS = 60 * 60_000;
+const EXCERPT = 200;
 
 export interface PushConfig {
   db: DatabaseSync;
@@ -135,11 +140,11 @@ export function createPush(cfg: PushConfig) {
 
   // ---------- versturen ----------
 
-  async function deliver(sub: Row, payload: object, topic?: string): Promise<SendResult> {
+  async function deliver(sub: Row, payload: object, topic?: string, ttlSeconds = LATE_WINDOW_MS / 1000): Promise<SendResult> {
     const result = await sendWebPush(
       { endpoint: sub.endpoint as string, keys: { p256dh: sub.p256dh as string, auth: sub.auth as string } },
       JSON.stringify({ ...payload, lang: sub.lang }),
-      { vapid, subject, urgency: 'high', ttlSeconds: LATE_WINDOW_MS / 1000, topic, extraAllowedHosts: cfg.extraAllowedHosts, now, ...(cfg.fetch ? { fetch: cfg.fetch } : {}) },
+      { vapid, subject, urgency: 'high', ttlSeconds, topic, extraAllowedHosts: cfg.extraAllowedHosts, now, ...(cfg.fetch ? { fetch: cfg.fetch } : {}) },
     );
     const at = new Date(now()).toISOString();
     if (result.ok) db.prepare('UPDATE push_subscriptions SET last_success_at = ?, last_error = NULL, last_error_at = NULL WHERE id = ?').run(at, sub.id as string);
@@ -220,6 +225,95 @@ export function createPush(cfg: PushConfig) {
     }
   }
 
+  // ---------- meldingen bij samenwerken ----------
+
+  const oneLine = (text: unknown, max: number): string => {
+    const flat = String(text ?? '').replace(/\s+/g, ' ').trim();
+    const chars = [...flat];
+    return chars.length <= max ? flat : `${chars.slice(0, max - 1).join('')}…`;
+  };
+
+  /**
+   * Het pushbericht voor één melding, of null als het niet (meer) hoort te gaan: gelezen, verwijderd, de ontvanger ziet de taak of
+   * het project niet meer, of wil deze soort niet als pushmelding. Alleen wat de ontvanger mag zien gaat mee: de naam van wie het
+   * deed (iemand uit hetzelfde project), de titel van de taak of de naam van het project, en het begin van de opmerking.
+   */
+  function activityMessage(notificationId: string, userId: string): { payload: object; topic: string } | null {
+    const n = db.prepare(
+      `SELECT n.id, n.kind, n.task_id, n.project_id, n.comment_id, u.name AS actor FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
+       WHERE n.id = ? AND n.owner_id = ? AND n.is_deleted = 0 AND n.is_read = 0`,
+    ).get(notificationId, userId) as Row | undefined;
+    if (!n) return null;
+    const settings = db.prepare('SELECT notify_push FROM user_settings WHERE owner_id = ?').get(userId) as Row | undefined;
+    const choices = pushChoices({ notify_push: settings?.notify_push ? JSON.parse(settings.notify_push as string) : null });
+    if (!choices[n.kind as string]) return null;
+    const member = (projectId: unknown): boolean => db.prepare('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(projectId as string, userId) !== undefined;
+    let title: string;
+    let project: string | null = null;
+    if (n.task_id) {
+      const t = db.prepare('SELECT t.content, t.project_id, p.name FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = ? AND t.is_deleted = 0').get(n.task_id as string) as Row | undefined;
+      if (!t || !member(t.project_id)) return null;
+      title = t.content as string;
+      project = t.name as string;
+    } else {
+      const p = db.prepare('SELECT name FROM projects WHERE id = ? AND is_deleted = 0').get(n.project_id as string) as Row | undefined;
+      if (!p || !member(n.project_id)) return null;
+      title = p.name as string;
+    }
+    const comment = n.comment_id ? db.prepare('SELECT content FROM comments WHERE id = ? AND is_deleted = 0').get(n.comment_id as string) as Row | undefined : undefined;
+    if (n.comment_id && !comment) return null; // de opmerking is al weer weg
+    return {
+      payload: {
+        v: 1, type: 'activity', id: n.id, kind: n.kind, actor: oneLine(n.actor, 100), title: oneLine(title, 300), project: project === null ? null : oneLine(project, 200),
+        text: comment ? oneLine(comment.content, EXCERPT) : null, task_id: n.task_id ?? null, project_id: n.task_id ? null : n.project_id,
+      },
+      topic: createHash('sha256').update(`n|${n.id as string}`).digest('base64url').slice(0, 32),
+    };
+  }
+
+  let flushing = false;
+  let flushAgain = false;
+
+  /**
+   * Verstuurt de pushberichten van nieuwe meldingen (de wachtrij `notification_outbox`, gevuld door notify.ts). Loopt er al een ronde,
+   * dan volgt er direct na afloop nog een, zodat een melding die tijdens het versturen binnenkwam niet blijft liggen. Een bericht dat
+   * niet aankwam door een tijdelijke fout, wordt bij de volgende ronde (of de klok) opnieuw geprobeerd, tot een uur na de melding.
+   */
+  async function flushNotifications(): Promise<{ sent: number; failed: number }> {
+    const out = { sent: 0, failed: 0 };
+    if (flushing) {
+      flushAgain = true;
+      return out;
+    }
+    flushing = true;
+    try {
+      do {
+        flushAgain = false;
+        prune();
+        const started = Date.now();
+        const queue = db.prepare('SELECT notification_id, user_id, created_at FROM notification_outbox ORDER BY created_at, notification_id LIMIT 200').all() as Row[];
+        for (const o of queue) {
+          if (Date.now() - started > TICK_BUDGET_MS) break;
+          const done = (): void => { db.prepare('DELETE FROM notification_outbox WHERE notification_id = ?').run(o.notification_id as string); };
+          const message = activityMessage(o.notification_id as string, o.user_id as string);
+          const subs = message ? subscriptionsOf(o.user_id as string) : [];
+          if (!message || subs.length === 0) {
+            done();
+            continue;
+          }
+          const results = await Promise.all(subs.map((s) => deliver(s, message.payload, message.topic, ACTIVITY_TTL_S)));
+          out.sent += results.filter((x) => x.ok).length;
+          out.failed += results.filter((x) => !x.ok).length;
+          const tooOld = now() - Date.parse(o.created_at as string) > ACTIVITY_RETRY_MS;
+          if (results.some((x) => x.ok) || !results.some((x) => x.retryable) || tooOld) done();
+        }
+      } while (flushAgain);
+      return out;
+    } finally {
+      flushing = false;
+    }
+  }
+
   // ---------- de klok ----------
 
   let running = false;
@@ -291,11 +385,15 @@ export function createPush(cfg: PushConfig) {
           }
         }
       }
+      // wat er aan meldingen bij samenwerken nog wacht (na een tijdelijke fout, of als de server net opnieuw is gestart)
+      const activity = await flushNotifications();
+      out.sent += activity.sent;
+      out.failed += activity.failed;
       return out;
     } finally {
       running = false;
     }
   }
 
-  return { publicKey: vapid.publicKey, subscribe, unsubscribe, prune, list, sendTest, handleAction, tick, sign };
+  return { publicKey: vapid.publicKey, subscribe, unsubscribe, prune, list, sendTest, handleAction, tick, sign, flushNotifications };
 }
