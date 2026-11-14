@@ -82,7 +82,7 @@ test('de Engelse teksten zijn ook echt vertaald (alleen bewust gelijke teksten z
     'shell.menu', 'sync.offline', 'task.deadlineChip', 'task.deadline', 'task.labels', 'task.project', 'project.menu', 'view.projectTitle',
     'settings.language', 'account.title', 'admin.accounts', 'command.noun.project', 'command.noun.label', 'command.noun.filter',
     'reminder.line', 'color.magenta', 'calendar.week', 'calendar.weekNumber', 'calendar.weekShort',
-    'search.kind.project', 'search.kind.label', 'search.kind.filter', 'filters.title', 'labels.title', 'filter.queryLabel',
+    'search.kind.project', 'search.kind.label', 'search.kind.filter', 'filters.title', 'labels.title', 'filter.queryLabel', 'attachment.meta',
   ]);
   for (const key of Object.keys(nl)) {
     const equal = JSON.stringify(nl[key]) === JSON.stringify(en[key]);

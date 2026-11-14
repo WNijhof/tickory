@@ -5,18 +5,20 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v9';
+const CACHE = 'tickory-v10';
 const SHELL = [
   '/',
   '/app.css',
   '/search.css',
   '/dnd.css',
+  '/attachments.css',
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
   '/ui/app.js',
   '/ui/accountDialogs.js',
+  '/ui/attachments.js',
   '/ui/board.js',
   '/ui/calendar.js',
   '/ui/comments.js',
@@ -40,6 +42,8 @@ const SHELL = [
   '/ui/viewSwitch.js',
   '/core/actions.js',
   '/core/android.js',
+  '/core/attachments.js',
+  '/core/attachmentsApi.js',
   '/core/auth.js',
   '/core/backend.js',
   '/core/calendar.js',
@@ -56,6 +60,7 @@ const SHELL = [
   '/core/format.js',
   '/core/i18n.js',
   '/core/idb.js',
+  '/core/imageResize.js',
   '/core/labelManage.js',
   '/core/messages.js',
   '/core/projectViews.js',
@@ -77,6 +82,7 @@ const SHELL = [
   '/i18n/en.js',
   '/i18n/nl.js',
   '/vendor/nlDatum.generated.js',
+  '/shared/attachments.js',
   '/shared/orderKey.js',
   '/shared/password.js',
   '/shared/recurrence.js',

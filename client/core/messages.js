@@ -12,7 +12,7 @@ const SERVER_LANGUAGE = DEFAULT_LANGUAGE;
 
 const NOUN = {
   task: () => t('command.noun.task'), project: () => t('command.noun.project'), section: () => t('command.noun.section'), label: () => t('command.noun.label'),
-  comment: () => t('command.noun.comment'), reminder: () => t('command.noun.reminder'), filter: () => t('command.noun.filter'),
+  comment: () => t('command.noun.comment'), attachment: () => t('command.noun.attachment'), reminder: () => t('command.noun.reminder'), filter: () => t('command.noun.filter'),
 };
 const VERB = {
   add: () => t('command.verb.add'), update: () => t('command.verb.update'), delete: () => t('command.verb.delete'),
@@ -55,6 +55,9 @@ const BY_COMMAND_AND_CODE = {
   'filter_delete:FORBIDDEN': () => t('error.filterForeign'),
   'comment_update:FORBIDDEN': () => t('error.commentForeign'),
   'comment_delete:FORBIDDEN': () => t('error.commentForeign'),
+  'attachment_delete:FORBIDDEN': () => t('error.attachmentForeign'),
+  'attachment_add:NOT_FOUND': () => t('error.attachmentUploadGone'),
+  'attachment_add:LIMIT_REACHED': () => t('error.attachmentLimit'),
 };
 /** Codes zonder algemene Nederlandse tekst (daar staat de tekst van de server), met een eigen vertaling voor de andere talen. */
 const BY_CODE_TRANSLATED = {

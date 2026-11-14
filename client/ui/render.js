@@ -16,7 +16,7 @@
 
 import { isInboxId } from '../../shared/schema.js';
 import {
-  archivedList, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
+  archivedList, attachmentCounts, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
   roleIn, subtaskCounts, tasksWithReminder, todayView, upcomingView,
 } from '../core/selectors.js';
 import { formatDayHeading } from '../core/format.js';
@@ -168,6 +168,11 @@ function buildRow(m, variant = '') {
   if (m.comments) {
     const c = chip('chip-comments', icon('comment'), String(m.comments.count));
     c.title = m.comments.label;
+    chips.push(c);
+  }
+  if (m.attachments) {
+    const c = chip('chip-attachments', icon('paperclip'), String(m.attachments.count));
+    c.title = m.attachments.label;
     chips.push(c);
   }
   for (const label of m.labels) {
@@ -333,7 +338,7 @@ const addInline = (handlers, target, label = t('quick.addTask')) =>
  */
 export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null }) {
   const pool = new Map();
-  const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), reminders: tasksWithReminder(view, me?.id) };
+  const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), attachments: attachmentCounts(view), reminders: tasksWithReminder(view, me?.id) };
   const rows = (list, showProject, variant = '') => rowsOf(list, pool, { ...ctx, showProject, variant });
   const finish = (result) => {
     rowCache = pool; // alleen wat nu in beeld is, blijft bewaard

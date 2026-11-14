@@ -189,6 +189,18 @@ export function commentCounts(view) {
   return out;
 }
 
+/** De bijlagen bij een taak, oudste eerst. */
+export function attachmentsOf(view, taskId) {
+  return [...(view.attachments?.values() ?? [])].filter((a) => a.task_id === taskId).sort(byCreated);
+}
+
+/** Het aantal bijlagen per taak, voor de tellers in de lijst. Taken zonder bijlagen staan er niet in. */
+export function attachmentCounts(view) {
+  const out = new Map();
+  for (const a of view.attachments?.values() ?? []) out.set(a.task_id, (out.get(a.task_id) ?? 0) + 1);
+  return out;
+}
+
 /** Het aantal opmerkingen bij een project. */
 export const projectCommentCount = (view, projectId) => commentsOf(view, { projectId }).length;
 

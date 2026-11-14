@@ -218,6 +218,7 @@ export class Store {
       });
     }
     drop('comments', (c) => (c.task_id ? !base.tasks.has(c.task_id) : false));
+    drop('attachments', (a) => !base.tasks.has(a.task_id));
     drop('reminders', (r) => !base.tasks.has(r.task_id));
   }
 

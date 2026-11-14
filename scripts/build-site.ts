@@ -366,7 +366,7 @@ export function demoIndex(source: string): string {
   // De demo is geen installeerbare app en heeft geen service worker.
   change('de verwijzing naar het manifest weghalen', /^[ \t]*<link rel="manifest"[^>]*>\r?\n/m, '');
   change('de regels voor de pagina toevoegen', /(<meta charset="utf-8">\r?\n)/,
-    `$1  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">\n  <meta name="robots" content="noindex">\n`);
+    `$1  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">\n  <meta name="robots" content="noindex">\n`);
   change('de titel aanpassen', /<title>Tickory<\/title>/, '<title>Tickory · demo</title>');
   change('de stijl van de balk toevoegen', /(<link rel="stylesheet" href="app\.css">\r?\n)/, '$1  <link rel="stylesheet" href="demo.css">\n');
   change('de balk toevoegen', /(<body>\r?\n)/, `$1${DEMO_BAR}`);

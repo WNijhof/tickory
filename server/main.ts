@@ -62,7 +62,7 @@ const MIME: Record<string, string> = {
 };
 // Alleen eigen bronnen: geen inline scripts of stijlen, geen externe verbindingen, niet in een frame te laden.
 const CSP = [
-  "default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' data:", "connect-src 'self'",
+  "default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' data: blob:", "connect-src 'self'",
   "manifest-src 'self'", "worker-src 'self'", "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
 ].join('; ');
 const SAFE_SEGMENT = /^[A-Za-z0-9_][A-Za-z0-9._~-]*$/;

@@ -27,6 +27,8 @@ import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from '
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
+import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
+import { configureAttachments } from './attachments.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
@@ -62,6 +64,7 @@ let store;
 let sync;
 let actions;
 let events;
+let attachments;
 
 // ---------- taal ----------
 
@@ -424,6 +427,7 @@ async function askLogin(note = '') {
           sync.stop();
           localStorage.removeItem(ROUTE_KEY);
           if (adapter.clear) await adapter.clear();
+          await attachments.clear();
         }
         backend.setToken(res.token);
         bridge.setSession(res.token);
@@ -457,6 +461,7 @@ async function logout() {
   backend.clearToken();
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
+  await attachments.clear(); // ook de bestanden die nog moesten worden geüpload
   location.reload();
 }
 
@@ -582,14 +587,23 @@ async function boot() {
     },
   });
 
+  // Bijlagen: gekozen bestanden worden lokaal bewaard en geüpload zodra dat kan (core/attachments.js)
+  attachments = createAttachmentManager({
+    store, actions, api: backend.attachments, getToken, makeId: newId,
+    files: backend.demo || !('indexedDB' in window) ? new MemoryFiles() : new IdbFiles(),
+  });
+  configureAttachments({ manager: attachments, bridge });
+
   events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
   store.subscribe(invalidate);
   store.subscribe(maybeSetTimezone);
   store.subscribe(openPendingTask);
   store.subscribe(openPendingShare);
+  store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
   window.addEventListener('online', () => {
+    attachments.process();
     events.restart();
     sync.requestSync(0);
   });
@@ -626,6 +640,7 @@ async function boot() {
     else if (shortcuts.handle(e)) e.preventDefault();
   });
 
+  attachments.init().catch(() => {});
   render();
   document.body.classList.add('ready');
   if (getToken()) {

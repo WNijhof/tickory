@@ -47,7 +47,7 @@ test('rowModel: een kale taak', () => {
   const m = model();
   assert.deepEqual(m, {
     id: 't1', content: 'Taak', description: '', priority: 4, done: false, depth: 0, hasChildren: false, collapsed: false,
-    due: null, deadline: null, subtasks: null, comments: null, labels: [], bell: false, assignee: null, project: null,
+    due: null, deadline: null, subtasks: null, comments: null, attachments: null, labels: [], bell: false, assignee: null, project: null,
   });
 });
 

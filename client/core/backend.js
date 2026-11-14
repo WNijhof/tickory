@@ -5,6 +5,7 @@
 import { createApi } from './auth.js';
 import { listenForChanges } from './events.js';
 import { httpTransport } from './syncClient.js';
+import { createAttachmentsApi } from './attachmentsApi.js';
 
 const TOKEN_KEY = 'tickory.token';
 
@@ -17,6 +18,7 @@ const TOKEN_KEY = 'tickory.token';
  *   clearToken: () => void,
  *   api: ReturnType<typeof createApi>,
  *   transport: (body: object, options?: { signal?: AbortSignal }) => Promise<object>,
+ *   attachments: ReturnType<typeof createAttachmentsApi>,
  *   listen: (handlers: { onSyncNeeded: () => void, onConnected?: () => void }) => { stop: () => void, restart: () => void },
  * }}
  */
@@ -30,6 +32,7 @@ export function createBackend({ clientId, storage = globalThis.localStorage }) {
     clearToken: () => storage.removeItem(TOKEN_KEY),
     api: createApi({ getToken }),
     transport: httpTransport({ getToken, clientId }),
+    attachments: createAttachmentsApi({ getToken }),
     listen: (handlers) => listenForChanges({ getToken, clientId, ...handlers }),
   };
 }

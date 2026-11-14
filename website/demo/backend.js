@@ -20,6 +20,9 @@ import { isValidKey } from '../../shared/orderKey.js';
 import { isValidDate } from '../../shared/recurrence.js';
 import { deepNormalize, nameKey } from '../../shared/text.js';
 import { addMember, createSeed } from './demoSeed.js';
+import { AttachmentError } from './attachmentsApi.js';
+import { DEFAULT_MIME, effectiveMime, isInlineMime } from '../../shared/attachments.js';
+import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
 
 const MAX_COMMANDS = 100;
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
@@ -107,6 +110,13 @@ export class DemoServer {
     for (const r of RESOURCE_NAMES) for (const id of this.state[r].keys()) this.revs.set(`${r}/${id}`, 1);
     /** Uitkomst per uuid: een herhaald commando wordt niet opnieuw uitgevoerd. */
     this.seen = new Map();
+    /**
+     * De bestanden van bijlagen, in het geheugen van deze pagina (ze verdwijnen bij herladen, net als de rest van de demo). De
+     * grenzen zijn kleiner dan op een echte server (daar standaard 25 MB per bestand en 1 GB per gebruiker), de regels dezelfde.
+     */
+    this.files = new Map();
+    this.maxUploadBytes = 5_000_000;
+    this.quotaBytes = 20_000_000;
     const nowMs = now().getTime();
     const ago = (minutes) => new Date(nowMs - minutes * 60_000).toISOString();
     this.sessions = [
@@ -186,6 +196,8 @@ export class DemoServer {
       }
     }
     this.state = next;
+    // bestanden van bijlagen die er niet meer zijn (verwijderd, of met hun taak of project verdwenen)
+    for (const [id, f] of this.files) if (f.linked && !next.attachments.has(id)) this.files.delete(id);
     return 'ok';
   }
 
@@ -221,7 +233,7 @@ export class DemoServer {
     }
     if (m[2] === 'update') {
       const row = requireLive(state, e.name, args.id, `${e.name}.id`);
-      this.requireMayWrite(e, row);
+      this.requireMayWrite(e, row, state);
       const changes = this.collect(state, e, args, 'update');
       if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verplaatsen');
       this.verify(state, e, row.id, { ...row, ...changes }, 'update', changes);
@@ -229,7 +241,7 @@ export class DemoServer {
     }
     exactArgs(args, ['id']);
     const row = requireLive(state, e.name, args.id, `${e.name}.id`);
-    this.requireMayWrite(e, row);
+    this.requireMayWrite(e, row, state);
     if (e.name === 'project') {
       if (isInboxId(row.id)) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
       this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verwijderen; gebruik "verlaten" om er zelf uit te gaan');
@@ -244,11 +256,15 @@ export class DemoServer {
   }
 
   /** Iets zien is niet altijd genoeg om het te wijzigen: een label van een ander lees je alleen. */
-  requireMayWrite(e, row) {
+  requireMayWrite(e, row, state) {
     if ((e.name === 'label' || e.name === 'filter') && row.owner_id !== this.me.id) {
       fail('FORBIDDEN', e.name === 'label' ? 'dit label is van iemand anders; je kunt het alleen lezen' : 'dit filter is van iemand anders');
     }
     if (e.name === 'comment' && row.author_id !== null && row.author_id !== this.me.id) fail('FORBIDDEN', 'je kunt alleen je eigen opmerkingen wijzigen of verwijderen');
+    if (e.name === 'attachment' && row.creator_id !== this.me.id) {
+      const task = state.tasks.get(row.task_id);
+      if (!task || roleOf(state, this.me.id, task.project_id) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
+    }
   }
 
   /** Controleert de meegestuurde argumenten tegen het datamodel (shared/schema.js) en geeft de waarden terug. */
@@ -309,6 +325,17 @@ export class DemoServer {
       case 'comment':
         if (((v.task_id ?? null) === null) === ((v.project_id ?? null) === null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
         break;
+      case 'attachment': {
+        // zoals de server: het bestand moet eerst zijn geüpload en moet kloppen met wat hier wordt opgegeven
+        const f = this.files.get(id);
+        if (!f || f.task_id !== v.task_id || f.linked) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
+        if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
+        let count = 0;
+        for (const a of state.attachments.values()) if (a.task_id === v.task_id) count += 1;
+        if (count >= MAX_ATTACHMENTS_PER_TASK) fail('LIMIT_REACHED', `bijlagen per taak: de grens van ${MAX_ATTACHMENTS_PER_TASK} is bereikt`);
+        f.linked = true;
+        break;
+      }
       case 'reminder': {
         const none = (x) => x === null || x === undefined;
         if (v.type === 'relative') {
@@ -411,8 +438,43 @@ export class DemoServer {
     drop('sections', (s) => left.has(s.project_id));
     drop('members', (m) => left.has(m.project_id));
     drop('comments', (c) => left.has(c.project_id) || tasks.has(c.task_id));
+    drop('attachments', (a) => tasks.has(a.task_id));
     drop('reminders', (r) => tasks.has(r.task_id));
     drop('projects', (p) => left.has(p.id));
+  }
+
+  // ---------- bijlagen: dezelfde regels als server/attachments.ts, met de bestanden in het geheugen ----------
+
+  attachmentsApi() {
+    const used = () => [...this.files.values()].reduce((sum, f) => sum + f.size, 0);
+    const sha256 = async (blob) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map((b) => b.toString(16).padStart(2, '0')).join('');
+    const refuse = (status, code, message, retryable = false) => new AttachmentError(capitalize(message), { status, code, retryable });
+    return {
+      limits: async () => ({ max_upload_bytes: this.maxUploadBytes, quota_bytes: this.quotaBytes, used_bytes: used(), per_task: MAX_ATTACHMENTS_PER_TASK }),
+      upload: async ({ id, taskId, blob, mime, onProgress = () => {} }) => {
+        if (typeof id !== 'string' || !ID_RE.test(id)) throw refuse(400, 'INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+        if (!this.state.tasks.has(taskId)) throw refuse(404, 'NOT_FOUND', 'deze taak bestaat niet');
+        if (blob.size === 0) throw refuse(400, 'INVALID_ARG', 'het bestand is leeg');
+        if (blob.size > this.maxUploadBytes) throw refuse(413, 'TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(this.maxUploadBytes / 1_000_000)} MB)`);
+        const hash = await sha256(blob);
+        const have = this.files.get(id);
+        if (have) {
+          if (have.task_id === taskId && have.sha256 === hash && have.size === blob.size) return { id, size: have.size, sha256: hash, mime: have.mime };
+          throw refuse(409, 'CONFLICT', 'er is al een ander bestand met dit id geüpload');
+        }
+        if (used() + blob.size > this.quotaBytes) throw refuse(409, 'LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+        const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+        const effective = effectiveMime(mime, head);
+        this.files.set(id, { blob, task_id: taskId, size: blob.size, sha256: hash, mime: effective, linked: false });
+        onProgress(1);
+        return { id, size: blob.size, sha256: hash, mime: effective };
+      },
+      download: async (id) => {
+        const f = this.files.get(id);
+        if (!f) throw refuse(404, 'NOT_FOUND', 'deze bijlage bestaat niet');
+        return new Blob([f.blob], { type: isInlineMime(f.mime) ? f.mime : DEFAULT_MIME });
+      },
+    };
   }
 
   // ---------- account, apparaten en beheer (wat de app buiten de sync om vraagt) ----------
@@ -488,6 +550,7 @@ export function createBackend() {
     clearToken: () => {},
     api: server.api(),
     transport: async (body) => server.sync(body),
+    attachments: server.attachmentsApi(),
     listen: () => ({ stop() {}, restart() {} }),
   };
 }
