@@ -25,6 +25,7 @@ import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 import { LIMITS } from './limits.ts';
+import { restoreHandlers } from './restore.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -630,6 +631,7 @@ HANDLERS.task_uncomplete = taskUncomplete;
 HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
+Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
 
 // ---------- wie hoort dat er iets veranderd is ----------
