@@ -8,6 +8,8 @@ import { RESOURCES } from './reducer.js';
 import { MemoryAdapter, Store } from './store.js';
 import { AuthError, HttpError, SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
+import { starterTemplates } from './starters/index.js';
+import { templateFromProject, templateFromTask } from './templates.js';
 import { planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey } from './dnd.js';
 
 /** Een server met één account ("tester") dat de Inbox "inbox-project" heeft; de client logt daar impliciet mee in. */
@@ -692,15 +694,70 @@ async function randomGeoAction(c, rnd) {
   return 'taskWithLocation';
 }
 
+/**
+ * Sjablonen: een project of taak als sjabloon bewaren, een project uit een meegeleverd of eigen sjabloon maken, taken uit een sjabloon in
+ * een project zetten (met bestaande secties en labels), hernoemen en verwijderen. De server moet precies hetzelfde krijgen als wat de
+ * client vooraf toonde (volgorde, secties, labels, datums, herinneringen).
+ */
+async function randomTemplateAction(c, rnd) {
+  const v = c.store.view;
+  const pick = (list) => (list.length ? list[rnd(list.length)] : null);
+  const byId = (a, b) => (a.id < b.id ? -1 : 1);
+  const projects = [...v.projects.values()].sort(byId);
+  const own = [...v.templates.values()].sort(byId);
+  const starters = starterTemplates(rnd(2) ? 'nl' : 'en');
+  const startDate = [null, '2026-12-01', '2027-02-27'][rnd(3)];
+  switch (rnd(7)) {
+    case 0: {
+      const project = pick(projects);
+      const made = templateFromProject(v, project.id, { name: `Sjabloon ${rnd(1000)}`, dates: rnd(2) === 0, userId: c.store.userId });
+      if (made.template) await c.actions.saveTemplate(made.template);
+      return 'saveProjectTemplate';
+    }
+    case 1: {
+      const task = pick([...v.tasks.values()].sort(byId));
+      if (!task) return 'skip';
+      const made = templateFromTask(v, task.id, { name: `Taaksjabloon ${rnd(1000)}`, dates: rnd(2) === 0, withSection: rnd(2) === 0, userId: c.store.userId });
+      if (made.template) await c.actions.saveTemplate(made.template);
+      return 'saveTaskTemplate';
+    }
+    case 2: case 3: {
+      const tpl = pick([...starters.filter((x) => x.kind === 'project'), ...own.filter((x) => x.kind === 'project')]);
+      await c.actions.createProjectFromTemplate(tpl, { name: `Uit sjabloon ${rnd(1000)}`, startDate });
+      return 'createFromTemplate';
+    }
+    case 4: {
+      const tpl = pick([...starters, ...own]);
+      const project = pick(projects.filter((p) => p.id !== INBOX_ID || rnd(2) === 0));
+      const sections = [...v.sections.values()].filter((s) => s.project_id === project.id);
+      await c.actions.insertTemplate(tpl, { projectId: project.id, sectionId: rnd(2) && sections.length ? pick(sections).id : null, startDate });
+      return 'insertTemplate';
+    }
+    case 5: {
+      const tpl = pick(own);
+      if (!tpl) return 'skip';
+      await c.actions.updateTemplate(tpl.id, { name: `Hernoemd ${rnd(1000)}`, description: rnd(2) ? 'omschrijving' : '' });
+      return 'renameTemplate';
+    }
+    default: {
+      const tpl = pick(own);
+      if (!tpl || rnd(3)) return 'skip';
+      await c.actions.deleteTemplate(tpl.id);
+      return 'deleteTemplate';
+    }
+  }
+}
+
 // De eerste vier reeksen zijn ongewijzigd; de volgende drie voegen slepen en verplaatsen toe (met eigen reeks getallen, zodat de
 // eerste reeksen precies hetzelfde blijven doen) en eisen daarvoor andere handelingen.
-const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }, { seed: 77, every: 1, geo: true }, { seed: 123, every: 6, geo: true }];
+const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }, { seed: 77, every: 1, geo: true }, { seed: 123, every: 6, geo: true }, { seed: 9, every: 1, templates: true }, { seed: 314, every: 9, templates: true }];
 const BASE_KINDS = ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject'];
 const GEO_KINDS = ['addPlace', 'updatePlace', 'deletePlace', 'addLocationReminder', 'deleteLocationReminder', 'invalidLocationReminder'];
+const TEMPLATE_KINDS = ['saveProjectTemplate', 'saveTaskTemplate', 'createFromTemplate', 'insertTemplate', 'renameTemplate', 'deleteTemplate'];
 const DND_KINDS = ['dragTask', 'keyTask', 'dropTask', 'dragProject', 'tieTasks'];
 
-for (const { seed, every, dnd = false, geo = false } of RUNS) {
-  test(`differentieel${dnd ? ' met slepen' : ''}${geo ? ' met plaatsen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
+for (const { seed, every, dnd = false, geo = false, templates = false } of RUNS) {
+  test(`differentieel${dnd ? ' met slepen' : ''}${geo ? ' met plaatsen' : ''}${templates ? ' met sjablonen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
     const db = makeServer();
     const c = makeClient(db);
     await c.store.init();
@@ -708,11 +765,13 @@ for (const { seed, every, dnd = false, geo = false } of RUNS) {
     const rnd = rng(seed);
     const rndDnd = rngMixed(seed + 999);
     const rndGeo = rngMixed(seed + 4242);
+    const rndTemplates = rngMixed(seed + 777);
     const log = [];
     for (let i = 1; i <= 400; i++) {
       log.push(await randomAction(c, rnd));
       if (dnd && rndDnd(2) === 0) log.push(await randomDndAction(c, rndDnd));
       if (geo) log.push(await randomGeoAction(c, rndGeo));
+      if (templates && i % 4 === 0) log.push(await randomTemplateAction(c, rndTemplates));
       if (i % every !== 0) continue;
       const optimistic = snapshot(c.store.view);
       assert.equal(await c.sync.syncNow(), true);
@@ -728,7 +787,12 @@ for (const { seed, every, dnd = false, geo = false } of RUNS) {
     await fresh.sync.syncNow();
     assert.deepEqual(snapshot(fresh.store.view), snapshot(c.store.view), 'een nieuw apparaat ziet hetzelfde');
     const kinds = new Set(log);
-    for (const k of dnd ? DND_KINDS : geo ? GEO_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
+    for (const k of dnd ? DND_KINDS : geo ? GEO_KINDS : templates ? TEMPLATE_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
     if (dnd) assert.ok(log.filter((k) => DND_KINDS.includes(k)).length >= 60, 'genoeg verplaatsingen in de reeks');
+    if (templates) {
+      assert.ok([...c.store.view.projects.values()].filter((p) => p.name.startsWith('Uit sjabloon')).length >= 8, 'er zijn echt projecten uit sjablonen gemaakt');
+      assert.ok(c.store.view.templates.size >= 1, 'en er staan sjablonen');
+      assert.equal(c.store.view.templates.size, [...c.store.view.templates.values()].filter((x) => x.owner_id === c.store.userId).length);
+    }
   });
 }

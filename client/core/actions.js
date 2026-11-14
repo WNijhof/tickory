@@ -1,7 +1,7 @@
 // Handelingen van de gebruiker, vertaald naar commando's. Elk commando krijgt een eigen uuid (voor veilig
 // herhalen) en nieuwe rijen krijgen hier al hun definitieve id en volgordesleutel, zodat alles offline werkt.
 
-import { keyAfter } from '../../shared/orderKey.js';
+import { keyAfter, keysAfter } from '../../shared/orderKey.js';
 import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
@@ -11,6 +11,7 @@ import { ENTITIES, validateValue } from '../../shared/schema.js';
 import { todayString } from './format.js';
 import { projectDescendantIds } from './selectors.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
+import { labelNamesOf, planTemplate, quotaProblem } from './templates.js';
 
 const ID_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
 
@@ -40,6 +41,7 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
   const labelCommands = (names) => {
     const ids = [];
     const commands = [];
+    const byName = new Map(); // nameKey -> id, voor alle opgegeven namen (ook de al bestaande)
     let last = maxKey(store.view.labels, (l) => isOwnLabel(l, store.userId));
     // Namen vergelijken via nameKey: hoofdletterongevoelig voor alle Unicode-letters ("Café" = "CAFÉ") en gelijk voor
     // de gewone en de ontleedde schrijfwijze van "é".
@@ -47,19 +49,24 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     const known = new Map();
     const me = store.userId;
     for (const l of [...store.view.labels.values()].sort((a, b) => Number(isOwnLabel(a, me)) - Number(isOwnLabel(b, me)))) known.set(nameKey(l.name), l.id);
+    // nieuwe labels krijgen in één keer een reeks korte sleutels (keyAfter steeds op de vorige wordt bij honderden labels te lang)
+    const fresh = [...new Set(names.map((raw) => normalizeText(raw).trim()).filter((name) => name && !known.has(nameKey(name))).map((name) => nameKey(name)))];
+    let chained = last;
+    const keyList = fresh.length <= 20 ? fresh.map(() => (chained = keyAfter(chained))) : keysAfter(last, fresh.length);
+    const keys = new Map(fresh.map((key, i) => [key, keyList[i]]));
     for (const raw of names) {
       const name = normalizeText(raw).trim();
       if (!name) continue;
       let id = known.get(nameKey(name));
       if (!id) {
         id = makeId();
-        last = keyAfter(last);
-        commands.push({ type: 'label_add', args: { id, name, order_key: last } });
+        commands.push({ type: 'label_add', args: { id, name, order_key: keys.get(nameKey(name)) } });
         known.set(nameKey(name), id);
       }
+      byName.set(nameKey(name), id);
       if (!ids.includes(id)) ids.push(id);
     }
-    return { ids, commands };
+    return { ids, commands, byName };
   };
 
   // ---- herinneringen ----
@@ -251,6 +258,63 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       }
       if (clean !== label.name) await send([{ type: 'label_update', args: { id, name: clean } }]);
       return { ok: true };
+    },
+
+    // ---- sjablonen ----
+    // De logica staat in core/templates.js; hier worden het sjabloon en zijn commando's één reeks in de wachtrij.
+    /**
+     * Bewaart een sjabloon (`kind`: 'project' of 'task'; `content` zoals in shared/template.js). Geeft `{ ok: true, id }`, of
+     * `{ ok: false, problem }` als je al het maximum aantal sjablonen hebt.
+     */
+    async saveTemplate({ kind, name, description = '', color = null, content }) {
+      const problem = quotaProblem(store.view, store.userId, { templates: 1 });
+      if (problem) return { ok: false, problem };
+      const id = makeId();
+      const args = { id, kind, name: normalizeText(String(name)).trim(), content };
+      if (description.trim()) args.description = normalizeText(description).trim();
+      if (color && color !== 'charcoal') args.color = color;
+      await send([{ type: 'template_add', args }]);
+      return { ok: true, id };
+    },
+    updateTemplate: (id, changes) => send([{ type: 'template_update', args: { id, ...changes } }]),
+    deleteTemplate: (id) => send([{ type: 'template_delete', args: { id } }]),
+    /**
+     * Maakt een nieuw project uit een sjabloon: één reeks commando's (labels, project, secties, taken, herinneringen) in de wachtrij.
+     * Past het niet binnen de grenzen van de server, dan gebeurt er niets en komt `{ ok: false, problem }` terug.
+     * `startDate` ('JJJJ-MM-DD' of null = geen datums) is dag 0 van de relatieve datums.
+     * @returns {Promise<{ ok: true, id: string, counts: object, undo: () => Promise<void> } | { ok: false, problem: object }>}
+     */
+    async createProjectFromTemplate(template, { name, startDate = null }) {
+      const plan = planTemplate(store.view, template, {
+        mode: 'project', projectName: name, startDate, today: todayString(), userId: store.userId, autoReminder: autoReminder(), makeId,
+        labels: labelCommands(labelNamesOf(template.content)),
+      });
+      const problem = quotaProblem(store.view, store.userId, {
+        newProject: true, sections: plan.counts.newSections, tasks: plan.counts.tasks, labels: plan.counts.newLabels, reminders: plan.counts.reminders,
+      });
+      if (problem) return { ok: false, problem };
+      await send(plan.commands);
+      return { ok: true, id: plan.projectId, counts: plan.counts, undo: () => send([{ type: 'project_delete', args: { id: plan.projectId } }]) };
+    },
+    /**
+     * Zet de taken van een sjabloon in een bestaand project (secties met dezelfde naam worden hergebruikt, de rest nieuw; taken zonder
+     * sectie komen in `sectionId`). Zelfde uitkomst als bij createProjectFromTemplate; ongedaan maken haalt de taken en nieuwe secties weg.
+     */
+    async insertTemplate(template, { projectId, sectionId = null, startDate = null }) {
+      const plan = planTemplate(store.view, template, {
+        mode: 'insert', projectId, sectionId, startDate, today: todayString(), userId: store.userId, autoReminder: autoReminder(), makeId,
+        labels: labelCommands(labelNamesOf(template.content)),
+      });
+      const problem = quotaProblem(store.view, store.userId, {
+        projectId, sections: plan.counts.newSections, tasks: plan.counts.tasks, labels: plan.counts.newLabels, reminders: plan.counts.reminders,
+      });
+      if (problem) return { ok: false, problem };
+      await send(plan.commands);
+      const undoCommands = [
+        ...plan.newSectionIds.map((id) => ({ type: 'section_delete', args: { id } })),
+        ...plan.rootTaskIds.map((id) => ({ type: 'task_delete', args: { id } })),
+      ];
+      return { ok: true, id: projectId, counts: plan.counts, undo: () => send(undoCommands) };
     },
 
     // ---- filters ----
