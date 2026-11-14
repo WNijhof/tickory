@@ -59,6 +59,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 
 - Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
 - Sharing a project with other users of the same server, and assigning tasks to members.
+- **Collaboration notifications and @-mentions**: when someone assigns you a task, comments on your task or project, mentions you with `@` in a comment, completes your task or adds you to a project, it shows up under Notifications (unread count in the sidebar, a bell on a phone), and if you like as a push notification in the browser or a notification of the Android app. Typing `@` in a comment lists the project's members.
 - Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, **comments** on tasks and projects, and **attachments** on tasks (photos and files, also choosable offline, with a preview of images).
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
 - Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile.
@@ -130,6 +131,7 @@ The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It i
 - Open a project, choose **Share**, and type the username of someone else on this server. That person sees the project with everything in it (including what was already there), and everyone works in the same tasks and sections. Whoever created the project is the **owner**; the others are **members**.
 - The owner can share, remove people, and move or delete the project. A member can work in the project and leave it ("Leave project"). An owner cannot leave without deleting the project.
 - Tasks can be **assigned** to a member ("for Bob"). When someone leaves or is removed, the assignment lapses.
+- **Notifications and mentions.** Assigning, comments, `@`-mentions, completing someone's task and adding someone to a project give the other person a notification (never yourself, and only people who can see the project). They are listed under **Notifications**; per kind you choose whether they also arrive as a push notification (Settings, "Reminders and notifications"; by default everything except "completed"). The Android app fetches them itself when it refreshes, without Google services, so up to fifteen minutes late. See [Notifications and mentions](https://wnijhof.github.io/tickory/en/guide/notifications.html).
 - Your **Inbox** is yours alone and cannot be shared.
 - **Personal:** reminders, filters and labels. Labels that someone else puts on a task in a shared project are visible to you (as `@label`), but you cannot rename or delete them.
 - Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (In the app you make one with "Add subproject" in the project menu.)

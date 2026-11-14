@@ -1,0 +1,73 @@
+<!--
+title: Meldingen en vermeldingen
+description: Meldingen bij samenwerken in Tickory: wanneer je er een krijgt, de lijst Meldingen, iemand noemen met @ in een opmerking, en welke meldingen als pushmelding op je apparaten komen.
+-->
+<h1>Meldingen en vermeldingen</h1>
+<p class="intro">In een gedeeld project hoor je wat anderen doen dat jou aangaat: iemand wijst je een taak toe, reageert, noemt je met @, vinkt jouw taak af of voegt je toe aan een project. Je ziet het in de lijst <x-ui k="inbox.title"></x-ui>, en als je wilt ook als melding op je telefoon of computer.</p>
+
+<h2 id="wanneer">Wanneer krijg je een melding?</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Wat er gebeurt</th><th>Wie een melding krijgt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok">Iemand wijst een taak toe</td><td>wie de taak moet doen</td></tr>
+      <tr><td class="wrap-ok">Iemand schrijft een opmerking bij een taak</td><td>wie de taak moet doen, wie hem maakte en wie er eerder op reageerde</td></tr>
+      <tr><td class="wrap-ok">Iemand schrijft een opmerking bij een project</td><td>alle leden van het project</td></tr>
+      <tr><td class="wrap-ok">Iemand noemt je met @ in een opmerking</td><td>wie genoemd is (dat gaat voor een gewone melding over dezelfde opmerking)</td></tr>
+      <tr><td class="wrap-ok">Iemand vinkt een taak af die aan jou is toegewezen</td><td>wie de taak moest doen</td></tr>
+      <tr><td class="wrap-ok">Iemand voegt je toe aan een project</td><td>wie is toegevoegd</td></tr>
+    </tbody>
+  </table>
+</div>
+<ul>
+  <li>Voor wat je zelf doet, krijg je nooit een melding.</li>
+  <li>Alleen wie het project kan zien, krijgt een melding. Ga je uit een project (of word je eruit gehaald), dan verdwijnen je meldingen daarover; ook als je later weer lid wordt, komen ze niet terug.</li>
+  <li>Verdwijnt de taak, de opmerking of het project, dan verdwijnt de melding mee.</li>
+  <li>Een melding die je hebt gelezen, blijft in de lijst staan. Na 60 dagen ruimt de server meldingen op, en hij bewaart er hooguit 500 per persoon.</li>
+</ul>
+
+<h2 id="de-lijst">De lijst Meldingen</h2>
+<p>Zodra je een project deelt (of er een melding is), staat <x-ui k="inbox.title"></x-ui> in de zijbalk onder <x-ui k="nav.upcoming"></x-ui>, met het aantal ongelezen meldingen erachter. Op een telefoon staat er ook een belletje met dat aantal bovenaan het scherm.</p>
+<ul>
+  <li>Bij elke melding staat wie wat deed, de taak of het project (met het project erachter), het begin van de opmerking en hoe lang geleden het was. Nieuwe meldingen staan bovenaan en zijn vet.</li>
+  <li>Tik op een melding om de taak te openen; bij een opmerking bij een project gaan de opmerkingen van dat project open. De melding staat dan op gelezen.</li>
+  <li>Met het vinkje achter een melding zet je haar op gelezen zonder iets te openen, en met het belletje weer op ongelezen.</li>
+  <li><x-ui k="inbox.readAll"></x-ui> zet alles op gelezen. Wat er binnenkwam nadat je de lijst zag, blijft ongelezen, ook als je even geen verbinding had.</li>
+</ul>
+<p>Gelezen of niet geldt op al je apparaten: wat je op de computer leest, staat op je telefoon ook op gelezen.</p>
+
+<h2 id="vermelden">Iemand noemen met @</h2>
+<p>In een opmerking bij een taak of project in een gedeeld project kun je iemand noemen, zodat die persoon een melding krijgt.</p>
+<ol>
+  <li>Typ <kbd>@</kbd> in het opmerkingenveld. Er verschijnt een lijst met de leden van het project, met hun naam en gebruikersnaam.</li>
+  <li>Typ verder om te zoeken. Hoofdletters en accenten maken niet uit: <code>@jose</code> vindt José en <code>@zoe</code> vindt Zoë. Je kunt ook op de gebruikersnaam zoeken.</li>
+  <li>Kies iemand met de pijltjes en <kbd>Enter</kbd> (of <kbd>Tab</kbd>), of tik erop. In de tekst komt <code>@Naam</code> te staan. <kbd>Esc</kbd> sluit alleen de lijst.</li>
+  <li>Plaats de opmerking zoals altijd. Wie je noemde, staat in de opmerking gemarkeerd en krijgt een melding.</li>
+</ol>
+<ul>
+  <li>Je kunt alleen leden van het project noemen, hooguit 20 per opmerking. Is iemand intussen geen lid meer (bijvoorbeeld terwijl je zonder verbinding schreef), dan wordt de opmerking gewoon geplaatst, maar zonder melding voor die persoon.</li>
+  <li>Haal je <code>@Naam</code> weer uit de tekst voordat je plaatst, dan is die persoon ook niet genoemd.</li>
+  <li>Bewerk je een opmerking en noem je er iemand bij, dan krijgt alleen die nieuwe persoon een melding; wie al genoemd was, krijgt er geen tweede.</li>
+  <li>Een opmerking blijft gewone tekst. Een oudere versie van de app toont <code>@Naam</code> gewoon als tekst, zonder markering.</li>
+</ul>
+
+<h2 id="pushmeldingen">Als melding op je apparaten</h2>
+<p>Dezelfde meldingen kunnen ook als melding op je telefoon of computer komen, net als een <a href="herinneringen.html">herinnering</a>.</p>
+<ul>
+  <li><strong>In de browser</strong> (computer, of de web-app op een telefoon): zet eerst meldingen aan op dat apparaat, zie <a href="herinneringen.html">Herinneringen</a>. De melding komt in de taal van dat apparaat en heeft een knop <x-ui k="sw.open"></x-ui>, die de app opent bij de taak.</li>
+  <li><strong>In de Android-app</strong>: de app haalt de nieuwe meldingen zelf op bij het verversen (zonder Google-diensten). Dat gebeurt als je de app opent en ongeveer elk kwartier met verbinding, dus een melding kan tot een kwartier later komen. Staat de app open, dan zie je het in de app zelf en komt er geen melding van Android bij. Lees je een melding in de app, dan verdwijnt hij bij het volgende verversen ook van het toestel. Zie <a href="android-app.html">De Android-app</a>.</li>
+</ul>
+<p>Welke soorten als melding komen, kies je in <x-ui k="settings.title"></x-ui> › <x-ui k="settings.notifications"></x-ui>, bij <x-ui k="inbox.pushTitle"></x-ui>. Standaard staat alles aan behalve <x-ui k="inbox.kind.completed"></x-ui>. De keuze geldt voor al je apparaten. In de lijst <x-ui k="inbox.title"></x-ui> staan de meldingen altijd, ook de soorten die je hier uitzet.</p>
+
+<h2 id="privacy">Wat er in een melding staat</h2>
+<p>Een melding bevat alleen wat je toch al mag zien: wie het deed (iemand uit hetzelfde project), de naam van de taak of het project en het begin van de opmerking. Een melding naar je browser gaat versleuteld via de pushdienst van je browser; die dienst kan het bericht niet lezen. Een melding op de Android-app gaat helemaal niet via een pushdienst.</p>
+
+<h2>Beperkingen</h2>
+<ul>
+  <li>Geen meldingen per e-mail, en geen samenvatting per dag.</li>
+  <li>Op Android komen meldingen bij samenwerken tot een kwartier later, omdat de app zonder Google-diensten geen pushberichten ontvangt.</li>
+  <li>Je kiest per soort, niet per project, of iets als melding komt.</li>
+  <li>Iemand noemen kan alleen in opmerkingen, niet in de naam of beschrijving van een taak.</li>
+</ul>

@@ -1,0 +1,73 @@
+<!--
+title: Notifications and mentions
+description: Collaboration notifications in Tickory: when you get one, the Notifications list, mentioning someone with @ in a comment, and which notifications show up on your devices.
+-->
+<h1>Notifications and mentions</h1>
+<p class="intro">In a shared project you hear about what others do that concerns you: someone assigns you a task, comments, mentions you with @, completes your task or adds you to a project. You see it in the <x-ui k="inbox.title"></x-ui> list, and if you like also as a notification on your phone or computer.</p>
+
+<h2 id="when">When do you get a notification?</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>What happens</th><th>Who gets a notification</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok">Someone assigns a task</td><td>the person who has to do it</td></tr>
+      <tr><td class="wrap-ok">Someone comments on a task</td><td>the person who has to do it, the person who created it and everyone who commented on it before</td></tr>
+      <tr><td class="wrap-ok">Someone comments on a project</td><td>all members of the project</td></tr>
+      <tr><td class="wrap-ok">Someone mentions you with @ in a comment</td><td>the person mentioned (instead of a regular notification about the same comment)</td></tr>
+      <tr><td class="wrap-ok">Someone completes a task assigned to you</td><td>the person who had to do it</td></tr>
+      <tr><td class="wrap-ok">Someone adds you to a project</td><td>the person added</td></tr>
+    </tbody>
+  </table>
+</div>
+<ul>
+  <li>You never get a notification for something you did yourself.</li>
+  <li>Only people who can see the project get a notification. If you leave a project (or are removed from it), your notifications about it disappear; they do not come back if you become a member again later.</li>
+  <li>If the task, the comment or the project disappears, the notification disappears with it.</li>
+  <li>A notification you have read stays in the list. After 60 days the server cleans notifications up, and it keeps at most 500 per person.</li>
+</ul>
+
+<h2 id="the-list">The Notifications list</h2>
+<p>As soon as you share a project (or there is a notification), <x-ui k="inbox.title"></x-ui> appears in the sidebar below <x-ui k="nav.upcoming"></x-ui>, with the number of unread notifications next to it. On a phone there is also a bell with that number at the top of the screen.</p>
+<ul>
+  <li>Each notification shows who did what, the task or project (with the project after it), the start of the comment and how long ago it was. New notifications are at the top and in bold.</li>
+  <li>Tap a notification to open the task; for a comment on a project, the comments of that project open. The notification is then marked as read.</li>
+  <li>The check mark after a notification marks it as read without opening anything, and the bell marks it as unread again.</li>
+  <li><x-ui k="inbox.readAll"></x-ui> marks everything as read. Anything that arrived after you saw the list stays unread, even if you were briefly offline.</li>
+</ul>
+<p>Read or unread applies on all your devices: what you read on your computer is also marked as read on your phone.</p>
+
+<h2 id="mentions">Mentioning someone with @</h2>
+<p>In a comment on a task or project in a shared project you can mention someone, so that person gets a notification.</p>
+<ol>
+  <li>Type <kbd>@</kbd> in the comment field. A list of the project's members appears, with their name and username.</li>
+  <li>Keep typing to search. Capitals and accents don't matter: <code>@jose</code> finds José and <code>@zoe</code> finds Zoë. You can also search by username.</li>
+  <li>Pick someone with the arrow keys and <kbd>Enter</kbd> (or <kbd>Tab</kbd>), or tap them. <code>@Name</code> appears in the text. <kbd>Esc</kbd> only closes the list.</li>
+  <li>Post the comment as usual. The people you mentioned are highlighted in the comment and get a notification.</li>
+</ol>
+<ul>
+  <li>You can only mention members of the project, at most 20 per comment. If someone is no longer a member by then (for example while you were writing offline), the comment is still posted, but without a notification for that person.</li>
+  <li>If you remove <code>@Name</code> from the text before posting, that person is not mentioned.</li>
+  <li>If you edit a comment and mention someone new, only that new person gets a notification; people already mentioned don't get a second one.</li>
+  <li>A comment stays plain text. An older version of the app simply shows <code>@Name</code> as text, without highlighting.</li>
+</ul>
+
+<h2 id="push">As a notification on your devices</h2>
+<p>The same notifications can also show up as a notification on your phone or computer, just like a <a href="reminders.html">reminder</a>.</p>
+<ul>
+  <li><strong>In the browser</strong> (computer, or the web app on a phone): first turn on notifications on that device, see <a href="reminders.html">Reminders</a>. The notification comes in the language of that device and has an <x-ui k="sw.open"></x-ui> button that opens the app at the task.</li>
+  <li><strong>In the Android app</strong>: the app fetches new notifications itself when it refreshes (without Google services). That happens when you open the app and about every fifteen minutes with a connection, so a notification can be up to fifteen minutes late. If the app is open, you see it in the app itself and Android doesn't add a notification. If you read a notification in the app, it also disappears from the device at the next refresh. See <a href="android-app.html">The Android app</a>.</li>
+</ul>
+<p>Which kinds show up as a notification is chosen in <x-ui k="settings.title"></x-ui> › <x-ui k="settings.notifications"></x-ui>, under <x-ui k="inbox.pushTitle"></x-ui>. By default everything is on except <x-ui k="inbox.kind.completed"></x-ui>. The choice applies to all your devices. The <x-ui k="inbox.title"></x-ui> list always shows all notifications, including the kinds you turn off here.</p>
+
+<h2 id="privacy">What a notification contains</h2>
+<p>A notification only contains what you are allowed to see anyway: who did it (someone from the same project), the name of the task or project and the start of the comment. A notification to your browser is sent encrypted through your browser's push service; that service cannot read the message. A notification in the Android app does not go through a push service at all.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>No notifications by email, and no daily digest.</li>
+  <li>On Android, collaboration notifications can be up to fifteen minutes late, because the app receives no push messages without Google services.</li>
+  <li>You choose per kind, not per project, whether something becomes a notification.</li>
+  <li>Mentioning someone only works in comments, not in the name or description of a task.</li>
+</ul>
