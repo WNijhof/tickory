@@ -42,6 +42,7 @@ import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
+import { installBottomNav } from './bottomNav.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
 import { installProductivity, isProductivityRoute } from './productivity.js';
@@ -84,6 +85,8 @@ let activityUi = null;
 /** De stappen die "Ongedaan maken" kan terugdraaien (core/undo.js), en de selectie van meerdere taken (ui/selection.js). */
 const undo = createUndo();
 let selection;
+/** De menubalk onderaan op een telefoon (ui/bottomNav.js). */
+let bottomNav = null;
 /** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
 let templatesUiInstance = null;
 const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, actions, navigate }));
@@ -97,7 +100,6 @@ const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, ac
 function applyLanguage() {
   document.documentElement.lang = getLanguage();
   $('sidebar').setAttribute('aria-label', t('shell.navigation'));
-  $('menu-button').setAttribute('aria-label', t('shell.menu'));
   $('sync-status').title = t('shell.syncTitle');
   $('quick-input').placeholder = t('quick.placeholder');
   $('quick-input').setAttribute('aria-label', t('quick.label'));
@@ -125,6 +127,7 @@ function render() {
   const focused = document.activeElement?.dataset?.fk ?? null;
   replace($('sidebar'), sidebar({ view: store.view, today, route: ui.route, handlers, me: store.me }));
   for (const hook of sidebarHooks) hook({ search: $('sidebar-search'), extra: $('sidebar-extra') });
+  bottomNav?.render();
   const main = mainView({
     view: store.view, route: ui.route, today, now: nowString(),
     showCompleted: ui.route.type === 'project' && ui.showCompleted.has(ui.route.id), handlers,
@@ -795,9 +798,9 @@ async function boot() {
     content: $('content'), sidebar: $('sidebar'), actions, selection,
     getContext: () => ({ view: store.view, userId: store.userId, showCompleted: (projectId) => ui.showCompleted.has(projectId) }),
   });
+  bottomNav = installBottomNav({ store, handlers, getRoute: () => ui.route, inboxId }); // op een telefoon: de balk onderaan, Bladeren en de "+"
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
-  $('menu-button').addEventListener('click', () => document.body.classList.toggle('nav-open'));
   $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));
   $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' || !getToken() ? askLogin() : sync.requestSync(0)));
 
@@ -812,7 +815,7 @@ async function boot() {
   });
   document.addEventListener('keydown', (e) => {
     if (e.defaultPrevented) return;
-    if (e.key === 'Escape' && document.body.classList.contains('nav-open')) document.body.classList.remove('nav-open');
+    if (e.key === 'Escape' && document.body.classList.contains('nav-open') && !document.querySelector('dialog[open]')) document.body.classList.remove('nav-open'); // in een venster sluit Escape alleen dat venster
     else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e.target) && !document.querySelector('dialog[open]') && store.ready) {
       e.preventDefault(); // buiten invoervelden: de laatste wijziging ongedaan maken (in een invoerveld blijft het eigen "ongedaan maken" van de browser)
       handlers.undoLast();

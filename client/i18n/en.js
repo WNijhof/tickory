@@ -25,8 +25,13 @@ export default {
 
   // ---------- het vaste deel van de pagina (index.html) ----------
   'shell.navigation': 'Navigation',
-  'shell.menu': 'Menu',
   'shell.syncTitle': 'Click to sync now',
+
+  // ---------- the menu bar at the bottom on a phone (ui/bottomNav.js); short, so four buttons fit on 360 pixels ----------
+  'bottomNav.label': 'Main menu',
+  'bottomNav.inbox': 'Inbox',
+  'bottomNav.todayCount': { one: 'Today, {count} task', other: 'Today, {count} tasks' },
+  'bottomNav.browse': 'Browse',
 
   // ---------- status van de synchronisatie ----------
   'sync.upToDate': 'Up to date',

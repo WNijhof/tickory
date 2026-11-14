@@ -57,9 +57,12 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
       open.querySelector('input')?.focus();
       return;
     }
-    document.body.classList.remove('nav-open');
+    // Bladeren (op een telefoon) blijft eronder open: annuleren brengt je daar terug; een keuze sluit het (ui/bottomNav.js)
     const hit = await openSearchDialog({ store, initial });
-    if (hit) pick(hit);
+    if (hit) {
+      document.body.classList.remove('nav-open');
+      pick(hit);
+    }
   }
 
   /** Wat er gebeurt met een gekozen treffer. */

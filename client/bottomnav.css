@@ -1,0 +1,83 @@
+/* De menubalk onderaan en de ronde knop "+" op een telefoon (ui/bottomNav.js), en de zijbalk als scherm Bladeren. Eigen bestand, zodat
+   app.css er niet door verandert. Alleen kleuren uit app.css (--accent, --bg, --line, ...): licht, donker en elke accentkleur kloppen
+   vanzelf. Op een breder scherm (meer dan 760 pixels) zijn balk en knop er niet: daar blijft alles zoals het was.
+
+   --bnav-space: de ruimte die de balk onderaan inneemt, met de veilige rand van het toestel (de gebarenbalk). ui/bottomNav.js meet hem
+   (met grote letters wordt de balk hoger); tot dan geldt de standaardhoogte. In de Android-app is de veilige rand 0: daar geeft de app
+   de WebView zelf al ruimte voor de systeembalken (MainActivity), dus niets dubbel. */
+
+.bottom-nav, .fab { display: none; }
+
+@media (max-width: 760px) {
+  body { --bnav-space-default: calc(56px + env(safe-area-inset-bottom)); }
+
+  /* ---------- de balk ---------- */
+  .bottom-nav {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 12; background: var(--bg); border-top: 1px solid var(--line);
+    padding: 0 max(4px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px, env(safe-area-inset-left));
+  }
+  .bnav-item {
+    flex: 1 1 0; min-width: 0; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 6px 2px 5px; border: 0; border-radius: 10px; background: none; color: var(--text-soft); font-size: 0.75rem; line-height: 1.2;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bnav-item.active { color: var(--accent); font-weight: 650; }
+  .bnav-item:active { background: var(--bg-hover); }
+  .bnav-item:focus-visible { outline-offset: -3px; }
+  .bnav-icon { position: relative; display: inline-flex; }
+  .bnav-icon .icon { width: 24px; height: 24px; }
+  .bnav-item.active .bnav-icon .icon { stroke-width: 2.3; }
+  .bnav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* het aantal bij Vandaag, zoals in de zijbalk */
+  .bnav-badge {
+    position: absolute; left: calc(100% - 9px); top: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+    background: var(--accent); color: var(--accent-text); font-size: 0.68rem; font-weight: 700; line-height: 18px; text-align: center;
+    font-variant-numeric: tabular-nums; box-shadow: 0 0 0 2px var(--bg);
+  }
+  .bnav-badge:empty { display: none; }
+
+  /* ---------- de ronde knop "+" ---------- */
+  .fab {
+    display: flex; position: fixed; z-index: 12; right: max(16px, calc(env(safe-area-inset-right) + 12px));
+    bottom: calc(var(--bnav-space, var(--bnav-space-default)) + 16px);
+    width: 56px; height: 56px; padding: 0; border: 0; border-radius: 50%; align-items: center; justify-content: center;
+    background: var(--accent); color: var(--accent-text); box-shadow: 0 6px 18px rgb(16 24 40 / 30%), 0 1px 3px rgb(16 24 40 / 20%);
+    transform: translateY(calc(-1 * var(--toasts-lift, 0px))); transition: transform 0.16s ease; -webkit-tap-highlight-color: transparent;
+  }
+  .fab[hidden] { display: none; }
+  .fab:active { filter: brightness(1.08); }
+  .fab .icon { width: 26px; height: 26px; stroke-width: 2.6; }
+  .fab:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+  /* de lijst houdt onderaan ruimte, zodat de laatste taak niet onder de balk of de "+" valt */
+  .main { padding-bottom: calc(var(--bnav-space, var(--bnav-space-default)) + 112px); }
+  /* een melding ("Ongedaan maken") staat boven de balk */
+  .toasts { bottom: calc(var(--bnav-space, var(--bnav-space-default)) + 10px); }
+
+  /* tijdens het selecteren staat de actiebalk (bulk.css) onderaan in plaats van de balk; tijdens het typen is het toetsenbord open */
+  body.select-mode .bottom-nav, body.select-mode .fab, body.text-entry .bottom-nav, body.text-entry .fab { display: none; }
+  body.text-entry:not(.select-mode) .toasts { bottom: calc(10px + env(safe-area-inset-bottom)); }
+
+  /* ---------- Bladeren: de zijbalk als scherm boven de balk (geen uitschuifmenu en geen menuknop meer) ---------- */
+  .sidebar {
+    left: 0; right: 0; top: 0; bottom: var(--bnav-space, var(--bnav-space-default)); width: auto; height: auto; z-index: 11; border-right: 0;
+    padding: calc(12px + env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+    transform: translateY(14px); opacity: 0; transition: transform 0.18s ease, opacity 0.18s ease, visibility 0s linear 0.18s;
+    overscroll-behavior: contain;
+  }
+  .nav-open .sidebar { transform: none; opacity: 1; box-shadow: none; transition: transform 0.18s ease, opacity 0.18s ease, visibility 0s; }
+  .nav-open .scrim { display: none; }
+  /* zoeken staat bovenaan; Inbox, Vandaag en Aankomend staan al in de balk, en "+" voegt een taak toe */
+  .sidebar > .brand, .sidebar > .sidebar-add, .sidebar .nav-item[data-fk="nav-inbox"], .sidebar .nav-item[data-fk="nav-today"], .sidebar .nav-item[data-fk="nav-upcoming"] { display: none; }
+  .sidebar-footer > .icon-button[aria-keyshortcuts="?"] { display: none; }
+  .sidebar .nav-item, .sidebar .nav-link, .sidebar .find-item, .sidebar .search-field { min-height: 48px; }
+}
+
+/* minder beweging: Bladeren en de "+" verschijnen zonder overgang (app.css zet alle overgangen dan al uit) */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .fab { transition: none; }
+}
+@media (forced-colors: active) {
+  .bnav-item.active { outline: 2px solid Highlight; outline-offset: -3px; }
+  .fab { border: 2px solid ButtonText; }
+}
