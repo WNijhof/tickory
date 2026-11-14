@@ -1178,8 +1178,8 @@ try {
   assert.equal(serverTask('Fietsroute Texel'), undefined, 'annuleren maakt geen taak');
   // "Openen in de app" uit het kleine venster Taak toevoegen van de Android-app: dezelfde weg, met het project en de dag erbij
   const thuisProject = (serverState().projects as any[]).find((p) => p.name === 'Thuis');
-  const nextDay = await evaluate(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`) as string;
-  const fromPopup = Buffer.from(JSON.stringify({ title: 'Fietsband plakken p2', text: '', project: thuisProject.id, due: nextDay }), 'utf8').toString('base64url');
+  const popupDay = await evaluate(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`) as string;
+  const fromPopup = Buffer.from(JSON.stringify({ title: 'Fietsband plakken p2', text: '', project: thuisProject.id, due: popupDay }), 'utf8').toString('base64url');
   await evaluate(`location.hash = ${js(`#share=${fromPopup}`)}`);
   await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]')?.value === 'Fietsband plakken p2'`, 'de getypte tekst uit het kleine venster');
   assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Thuis', 'in het project dat in het kleine venster gekozen was');
