@@ -9,6 +9,7 @@ import { locationAdvice } from '../core/places.js';
 import { mySettings, placeList, remindersOf } from '../core/selectors.js';
 import { h, openDialog, replace } from './dom.js';
 import { placesDialog } from './placesUi.js';
+import { pushKindsSection } from './inboxSettings.js';
 
 const CUSTOM = 'custom';
 const PLACE = 'place';
@@ -153,6 +154,7 @@ export function pushErrorText(err) {
 export function notificationsDialog({ store, actions, bridge, pushClient }) {
   let unsubscribe = () => {};
   let onAndroid = () => {};
+  let kinds = null; // meldingen bij samenwerken: welke soorten als melding (ui/inboxSettings.js)
   return openDialog((finish) => {
     const message = h('p', { class: 'hint', role: 'status', 'aria-live': 'polite' });
     const say = (text, bad = false) => {
@@ -267,13 +269,15 @@ export function notificationsDialog({ store, actions, bridge, pushClient }) {
     onAndroid = () => drawDevice();
     window.addEventListener('tickory-android-status', onAndroid);
     queueMicrotask(() => { drawDevice().then(loadDevices); });
+    kinds = pushKindsSection({ store, actions });
 
     return h('div', { class: 'dialog-form' },
       h('h2', {}, t('notify.title')),
       h('details', { class: 'section', open: true }, h('summary', {}, t('notify.autoTitle')), h('div', { class: 'section-form' }, h('p', { class: 'hint' }, t('notify.autoHint')), auto)),
       h('details', { class: 'section', open: true }, h('summary', {}, t('notify.zoneTitle')), h('div', { class: 'section-form' }, zoneText, zoneButton)),
       h('details', { class: 'section', open: true }, h('summary', {}, t('notify.deviceTitle')), device),
+      kinds.node,
       message,
       h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
-  }, { wide: true, onClose: () => { unsubscribe(); window.removeEventListener('tickory-android-status', onAndroid); } });
+  }, { wide: true, onClose: () => { unsubscribe(); kinds?.dispose(); window.removeEventListener('tickory-android-status', onAndroid); } });
 }

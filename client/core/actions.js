@@ -283,16 +283,24 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
      * Zet een opmerking bij een taak (`{ taskId }`) of een project (`{ projectId }`). Wie de schrijver is, vult de server in.
      * Geeft het id terug.
      */
-    async addComment({ taskId = null, projectId = null }, content) {
+    /** `mentions`: de gebruikers-id's van wie er met @Naam in de tekst wordt genoemd (zie core/mentions.js). */
+    async addComment({ taskId = null, projectId = null }, content, mentions = []) {
       const id = makeId();
       const args = { id, content: content.trim() };
       if (taskId) args.task_id = taskId;
       else args.project_id = projectId;
+      if (mentions.length > 0) args.mentions = mentions;
       await send([{ type: 'comment_add', args }]);
       return id;
     },
-    /** Wijzigt de tekst van een opmerking. Alleen de schrijver mag dat; de server weigert het anders. */
-    updateComment: (id, content) => send([{ type: 'comment_update', args: { id, content: content.trim() } }]),
+    /** Wijzigt de tekst van een opmerking (en wie erin genoemd wordt). Alleen de schrijver mag dat; de server weigert het anders. */
+    updateComment: (id, content, mentions) => send([{ type: 'comment_update', args: { id, content: content.trim(), ...(mentions ? { mentions } : {}) } }]),
+
+    // ---- meldingen bij samenwerken ----
+    /** Eén melding gelezen (of weer ongelezen). */
+    markNotificationRead: (id, read = true) => send([{ type: 'notification_update', args: { id, is_read: read } }]),
+    /** Alle meldingen gelezen, tot en met `upTo` (het tijdstip van de nieuwste die je zag). */
+    readAllNotifications: (upTo) => send([{ type: 'notification_read_all', args: upTo ? { up_to: upTo } : {} }]),
     deleteComment: (id) => send([{ type: 'comment_delete', args: { id } }]),
 
     // ---- bijlagen ----

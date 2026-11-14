@@ -127,4 +127,16 @@
     <string name="geo_approximate">Tickory only got an approximate location. That is too coarse for a place. Choose ‘Precise’ in the permission.</string>
     <string name="geo_background_missing">Without ‘Allow all the time’, reminders at a place only work while Tickory is open.</string>
     <string name="geo_services_off">Location is off on this device. Turn location on to get reminders at a place.</string>
+    <!-- Collaboration notifications (inbox/InboxNotifier.kt); %1$s is the name of who did it -->
+    <string name="channel_activity">Collaboration</string>
+    <string name="channel_activity_description">When someone assigns you a task, comments, mentions you, completes your task or adds you to a project</string>
+    <string name="inbox_assigned">%1$s assigned you a task</string>
+    <string name="inbox_comment">%1$s commented on a task</string>
+    <string name="inbox_comment_project">%1$s commented on the project</string>
+    <string name="inbox_mention">%1$s mentioned you in a comment</string>
+    <string name="inbox_completed">%1$s completed your task</string>
+    <string name="inbox_shared">%1$s added you to a project</string>
+    <string name="inbox_other">%1$s did something in a shared project</string>
+    <string name="inbox_someone">Someone</string>
+    <string name="inbox_open">Open</string>
 </resources>

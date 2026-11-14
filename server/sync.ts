@@ -10,7 +10,8 @@
 //
 // Wie wat ziet (zie `visibility`):
 //   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
-//   - labels, filters, plaatsen, sjablonen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
+//   - labels, filters, plaatsen, sjablonen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet);
+//   - meldingen bij samenwerken (notify.ts): de ontvanger, en alleen zolang die de taak of het project nog ziet.
 // Verandert wat iemand mag zien (lid worden, verwijderd worden, een taak die naar een project van anderen verhuist), dan
 // krijgt die persoon dat in de delta mee: alle inhoud van een nieuw project, of een verwijdering van wat verdween.
 
@@ -27,6 +28,7 @@ import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 import { LIMITS } from './limits.ts';
 import { restoreHandlers } from './restore.ts';
+import * as notify from './notify.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -67,6 +69,12 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
     case 'filter': case 'settings': case 'place': case 'template': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
+      const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
+      return t !== undefined && isMember(db, userId, t.project_id);
+    }
+    case 'notification': {
+      if (row.owner_id !== userId) return false;
+      if (!row.task_id) return isMember(db, userId, row.project_id);
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
       return t !== undefined && isMember(db, userId, t.project_id);
     }
@@ -242,6 +250,8 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     }
     case 'comment':
       if ((v.task_id === null) === (v.project_id === null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
+      // vermeld kan alleen wie het project ziet; een ander wordt weggelaten (zie notify.onlyMembers)
+      if (has(given, 'mentions')) given.mentions = notify.onlyMembers(db, notify.commentProject(db, v), given.mentions as string[]);
       break;
     case 'attachment': {
       // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak, en nog bij geen enkele bijlage horen. Wat de
@@ -360,6 +370,8 @@ function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   if (oc && v[oc.name] === undefined) v[oc.name] = nextKey(ctx, e, v);
   insertRow(ctx, e, id, v);
   if (e.name === 'project') addMembersForNewProject(ctx, id, (v.parent_id as string | null) ?? null);
+  if (e.name === 'task' && v.assignee_id) notify.taskAssigned(ctx, id, v.assignee_id);
+  if (e.name === 'comment') notify.commentAdded(ctx, { id, task_id: (v.task_id as string | null) ?? null, project_id: (v.project_id as string | null) ?? null, mentions: (v.mentions as string[]) ?? [] });
 }
 
 function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
@@ -371,6 +383,8 @@ function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
   }
   verify(ctx, e, row.id as string, { ...toApi(e, row), ...changes }, 'update', changes);
   updateRow(ctx, e, row.id as string, changes);
+  if (e.name === 'task' && changes.assignee_id && changes.assignee_id !== row.assignee_id) notify.taskAssigned(ctx, row.id as string, changes.assignee_id);
+  if (e.name === 'comment' && has(changes, 'mentions')) notify.commentEdited(ctx, row, JSON.parse((row.mentions as string | null) ?? '[]'), changes.mentions);
 }
 
 function onlyId(args: Args): string {
@@ -388,6 +402,7 @@ function deleteTaskTree(ctx: Ctx, rootIds: string[]): void {
     mark(ctx, 'attachments', `task_id IN (${ph})`, part);
     mark(ctx, 'reminders', `task_id IN (${ph})`, part);
   }
+  notify.forgetTasks(ctx, ids);
 }
 
 /**
@@ -412,6 +427,7 @@ function deleteProject(ctx: Ctx, rootId: string): void {
     mark(ctx, 'comments', 'project_id = ?', [p]);
     mark(ctx, 'projects', 'id = ?', [p]);
     mark(ctx, 'project_members', 'project_id = ?', [p]);
+    notify.forgetProject(ctx, p);
   }
 }
 
@@ -448,6 +464,10 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       }
       break;
     }
+    case 'comment':
+      mark(ctx, 'comments', 'id = ?', [id]);
+      notify.forgetComment(ctx, id);
+      break;
     default: mark(ctx, e.table, 'id = ?', [id]);
   }
 }
@@ -531,6 +551,7 @@ function taskComplete(ctx: Ctx, args: Args): void {
   // vandaag in de tijdzone van de gebruiker (anders UTC)
   const completedOn = due?.recurrence?.fromCompletion ? (args.completed_on ?? todayFor(ctx)) : undefined;
   const next = due?.recurrence ? nextDue(due.date, due.recurrence, completedOn) : null;
+  notify.taskCompleted(ctx, row); // ook bij een terugkerende taak: die is voor deze keer afgevinkt
   if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
     updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
@@ -578,6 +599,7 @@ function removeMember(ctx: Ctx, projectId: string, userId: string): void {
     const assigned = ctx.db.prepare(`SELECT id FROM tasks WHERE is_deleted = 0 AND assignee_id = ? AND id IN (${ph})`).all(userId, ...part) as Row[];
     for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
   }
+  notify.forgetMember(ctx, userId, projectId, tasks);
 }
 
 function projectShare(ctx: Ctx, args: Args): void {
@@ -596,7 +618,21 @@ function projectShare(ctx: Ctx, args: Args): void {
     if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || isMember(ctx.db, target.id, p)) continue;
     quota(ctx, `members:${p}`, LIMITS.membersPerProject, 'leden per project', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM project_members WHERE project_id = ? AND is_deleted = 0', p));
     insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role: 'member' });
+    if (p === id) notify.projectShared(ctx, id, target.id);
   }
+}
+
+/**
+ * Alle eigen meldingen als gelezen. `up_to` (optioneel, het `created_at` van de nieuwste melding die de afzender zag): wat daarna
+ * binnenkwam blijft ongelezen, zodat "alles gelezen" op een apparaat dat even offline was geen melding wegwerkt die je nooit zag.
+ */
+function notificationReadAll(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['up_to']);
+  const upTo = args.up_to;
+  if (upTo !== undefined && (typeof upTo !== 'string' || upTo.length > 40 || !Number.isFinite(Date.parse(upTo)))) fail('INVALID_ARG', 'up_to moet een tijdstip zijn');
+  ctx.db
+    .prepare(`UPDATE notifications SET is_read = 1, rev = ?, updated_at = ? WHERE owner_id = ? AND is_deleted = 0 AND is_read = 0${upTo === undefined ? '' : ' AND created_at <= ?'}`)
+    .run(ctx.rev, ctx.now, ctx.userId, ...(upTo === undefined ? [] : [upTo as string]));
 }
 
 function projectUnshare(ctx: Ctx, args: Args): void {
@@ -642,6 +678,7 @@ HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
 Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
+HANDLERS.notification_read_all = notificationReadAll;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
 
 // ---------- wie hoort dat er iets veranderd is ----------
@@ -671,8 +708,9 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
   collect(
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
      UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
-     UNION SELECT owner_id FROM places WHERE rev > ? UNION SELECT owner_id FROM templates WHERE rev > ?`,
-    since, since, since, since, since, since,
+     UNION SELECT owner_id FROM places WHERE rev > ? UNION SELECT owner_id FROM templates WHERE rev > ?
+     UNION SELECT owner_id FROM notifications WHERE rev > ?`,
+    since, since, since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -754,6 +792,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
       };
     case 'filter': case 'settings': case 'place': case 'template': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
+    case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine})))`, params: [uid, uid, uid] };
   }
 }
 
@@ -774,6 +813,7 @@ function inProjects(name: EntityName, uid: string, projects: string, params: (st
     case 'comment': return { sql: `(project_id IN (${projects}) OR task_id IN (${tasksIn}))`, params: [...params, ...params] };
     case 'attachment': return { sql: `task_id IN (${tasksIn})`, params: [...params] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...params] };
+    case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${projects}) OR task_id IN (${tasksIn})))`, params: [uid, ...params, ...params] };
     default: return null;
   }
 }
@@ -811,7 +851,7 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
       const np = inProjects(e.name, uid, GAINED, [uid, since]);
       if (np) { extra.push(np.sql); extraParams.push(...np.params); }
       if (e.name === 'comment' || e.name === 'attachment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
-      if (e.name === 'reminder') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
+      if (e.name === 'reminder' || e.name === 'notification') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
       if (e.name === 'label') {
         extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);
         extraParams.push(uid, since, uid, since);
@@ -863,6 +903,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
       const cutoff = new Date(Date.now() - COMMAND_RETENTION_DAYS * 86_400_000).toISOString();
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
       pruneTaskMoves(db);
+      notify.pruneNotifications(db);
     }
     const counts = new Map<string, number>(); // tellingen voor de limieten, gedeeld door de commando's van dit verzoek
     for (const cmd of commands) {

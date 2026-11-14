@@ -273,6 +273,9 @@ async function scenario(c: any): Promise<void> {
     await nav('Sleepproef');
     const names = () => projectOrder(null).filter((n) => ['Sleepproef', 'Doelproject', 'Naburig'].includes(n));
     assert.deepEqual(names().slice(0, 3), ['Sleepproef', 'Doelproject', 'Naburig']);
+    // de zijbalk is langer geworden (Voltooid, Meldingen): de projecten midden in beeld, weg van de rand waar hij vanzelf scrolt
+    await evaluate(`${navRowExpr('Doelproject')}.scrollIntoView({ block: 'center' })`);
+    await sleep(200);
     const naburig = await navRect('Naburig');
     const sleep1 = await navRect('Sleepproef');
     await drag({ x: Math.round(naburig.x + 80), y: Math.round(naburig.y + naburig.h / 2) }, at(sleep1, 0.5, 0.1), async () => {

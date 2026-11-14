@@ -91,6 +91,7 @@ function add(state, e, args, now, userId) {
     // precies één van task_id en project_id, en dat moet bestaan (de server weigert anders)
     if ((row.task_id === null) === (row.project_id === null)) return;
     if (row.task_id !== null ? !state.tasks.has(row.task_id) : !state.projects.has(row.project_id)) return;
+    row.mentions = onlyMembers(state, row, row.mentions);
   }
   if (e.name === 'attachment') {
     // hoort bij een bestaande taak, en een taak heeft hooguit zoveel bijlagen (zoals de server; zie server/limits.ts)
@@ -133,7 +134,25 @@ function addMembers(state, project, userId, now) {
 function update(state, e, args, now) {
   const changes = {};
   for (const c of e.cols) if (has(args, c.name) && !c.immutable && !c.serverManaged) changes[c.name] = args[c.name];
+  if (e.name === 'comment' && has(changes, 'mentions') && state.comments.has(args.id)) changes.mentions = onlyMembers(state, state.comments.get(args.id), changes.mentions);
   patch(state, e.resource, args.id, changes, now);
+}
+
+/** Zoals de server: in een opmerking blijven alleen vermelde personen staan die lid zijn van het project (de rest valt weg). */
+function onlyMembers(state, comment, mentions) {
+  if (!Array.isArray(mentions)) return mentions;
+  const projectId = comment.task_id ? state.tasks.get(comment.task_id)?.project_id : comment.project_id;
+  const members = new Set([...state.members.values()].filter((m) => m.project_id === projectId).map((m) => m.user_id));
+  return mentions.filter((id) => members.has(id));
+}
+
+/** Alle eigen meldingen gelezen (tot en met `up_to`, het tijdstip van de nieuwste die de afzender zag), zoals de server. */
+function readAllNotifications(state, args, now, userId) {
+  for (const n of [...(state.notifications?.values() ?? [])]) {
+    if (n.is_read || (userId && n.owner_id !== userId)) continue;
+    if (typeof args.up_to === 'string' && n.created_at > args.up_to) continue;
+    patch(state, 'notifications', n.id, { is_read: true }, now);
+  }
 }
 
 function deleteTaskTree(state, rootIds) {
@@ -143,6 +162,7 @@ function deleteTaskTree(state, rootIds) {
   removeWhere(state, 'comments', (c) => ids.has(c.task_id));
   removeWhere(state, 'attachments', (a) => ids.has(a.task_id));
   removeWhere(state, 'reminders', (r) => ids.has(r.task_id));
+  removeWhere(state, 'notifications', (n) => ids.has(n.task_id)); // zoals de server: een melding over een verdwenen taak gaat mee
 }
 
 /** Is deze gebruiker eigenaar van het project? Zonder bekende gebruiker (tests, vóór de eerste sync) tellen we het als ja. */
@@ -193,6 +213,7 @@ function remove(state, e, args, now, userId) {
       removeWhere(state, 'sections', (s) => gone.has(s.project_id));
       removeWhere(state, 'comments', (c) => gone.has(c.project_id));
       removeWhere(state, 'members', (m) => gone.has(m.project_id));
+      removeWhere(state, 'notifications', (n) => gone.has(n.project_id));
       for (const p of projects) state.projects.delete(p);
       break;
     }
@@ -202,6 +223,10 @@ function remove(state, e, args, now, userId) {
       break;
     case 'task':
       deleteTaskTree(state, [id]);
+      break;
+    case 'comment':
+      state.comments.delete(id);
+      removeWhere(state, 'notifications', (n) => n.comment_id === id);
       break;
     case 'place':
       // de herinneringen op deze plaats gaan mee, zoals op de server
@@ -358,6 +383,7 @@ export function applyCommand(state, cmd, now, userId = null) {
     case 'task_complete': return taskComplete(state, args, now);
     case 'task_uncomplete': return taskUncomplete(state, args, now);
     case 'task_restore': case 'section_restore': return restore(state, cmd, now, userId);
+    case 'notification_read_all': return readAllNotifications(state, args, now, userId);
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;

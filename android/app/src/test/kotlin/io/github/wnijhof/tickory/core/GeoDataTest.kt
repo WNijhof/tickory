@@ -130,10 +130,11 @@ class GeoDataTest {
         }.use { server ->
             val result = ApiClient(server.origin, 5_000, 5_000).fetchSnapshot("tky_test")
             assertTrue("$result", result is FetchResult.Ok)
-            assertEquals(2, server.requests.size)
-            assertFalse((Json.parseObject(server.requests[1].body)!!.list("resource_types")!!).contains("places"))
+            // eerst met plaatsen en meldingen, dan met alleen plaatsen, dan zonder
+            assertEquals(3, server.requests.size)
+            assertFalse((Json.parseObject(server.requests[2].body)!!.list("resource_types")!!).contains("places"))
         }
-        assertEquals(2, calls)
+        assertEquals(3, calls)
     }
 
     @Test

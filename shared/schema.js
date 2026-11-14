@@ -8,9 +8,10 @@ import { MAX_OFFSET } from './reminders.js';
 import { fileNameProblem, MAX_NAME_LENGTH } from './attachments.js';
 import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './places.js';
 import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
+import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notifications.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -143,6 +144,8 @@ export const ENTITIES = {
       { name: 'project_id', type: 'text', nullable: true, default: null, ref: 'project', immutable: true },
       { name: 'content', type: 'text', required: true, maxLen: 16000 },
       { name: 'author_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
+      // wie er in de tekst wordt genoemd (@Naam): gebruikers-id's; de server bewaart alleen leden van het project (zie shared/notifications.js)
+      { name: 'mentions', type: 'json', default: [], check: mentionsCheck },
     ],
   },
   // Bijlagen horen bij een taak en zien en wijzigen dezelfde mensen als de opmerkingen. De inhoud staat niet in de database maar
@@ -211,6 +214,24 @@ export const ENTITIES = {
       { name: 'auto_reminder', type: 'int', default: 30, min: -1, max: MAX_OFFSET },
       // Tijdzone voor meldingen die de server verstuurt; null = nog niet ingesteld (apparaten gebruiken hun eigen tijdzone).
       { name: 'timezone', type: 'text', nullable: true, default: null, maxLen: 64, check: timeZoneCheck },
+      // Welke soorten meldingen bij samenwerken ook als pushmelding komen: { assigned, comment, mention, completed, shared };
+      // een ontbrekende soort (of null) volgt de standaard (alles behalve "completed"). Zie pushChoices in shared/notifications.js.
+      { name: 'notify_push', type: 'json', nullable: true, default: null, check: notifyPushCheck },
+      owner(),
+    ],
+  },
+  // Een melding bij samenwerken voor één gebruiker (owner_id): iemand wees je een taak toe, reageerde, noemde je, vinkte jouw
+  // taak af of voegde je toe aan een project. Alleen de server maakt ze; de ontvanger kan alleen `is_read` wijzigen
+  // (notification_update) of alles gelezen zetten (notification_read_all). Precies één van task_id en project_id.
+  notification: {
+    name: 'notification', table: 'notifications', resource: 'notifications', commands: ['update'],
+    cols: [
+      { name: 'kind', type: 'text', required: true, oneOf: NOTIFICATION_KINDS, serverManaged: true },
+      { name: 'actor_id', type: 'text', nullable: true, default: null, serverManaged: true },
+      { name: 'task_id', type: 'text', nullable: true, default: null, serverManaged: true },
+      { name: 'project_id', type: 'text', nullable: true, default: null, serverManaged: true },
+      { name: 'comment_id', type: 'text', nullable: true, default: null, serverManaged: true },
+      { name: 'is_read', type: 'bool', default: false },
       owner(),
     ],
   },

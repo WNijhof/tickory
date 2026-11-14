@@ -1,18 +1,28 @@
 // De opmerkingen bij een taak of een project: de lijst, een invoerveld, en bewerken en verwijderen van je eigen opmerkingen.
-// De tekst van een opmerking gaat altijd als tekst het document in (nooit als HTML); webadressen worden gewone tekstlinks.
+// De tekst van een opmerking gaat altijd als tekst het document in (nooit als HTML); webadressen worden gewone tekstlinks, en wie
+// er met @Naam genoemd is (`mentions`), staat gemarkeerd. In een gedeeld project opent @ een keuzelijst met de leden (ui/mentionPicker.js).
 
 import { linkify } from '../core/commentText.js';
 import { getLocale, t } from '../core/i18n.js';
-import { commentsOf } from '../core/selectors.js';
+import { mentionIds, mentionParts } from '../core/mentions.js';
+import { commentsOf, membersOf } from '../core/selectors.js';
 import { timeAgo } from '../core/timeAgo.js';
 import { initials } from '../core/rowModel.js';
 import { confirmDialog, h, iconButton, replace } from './dom.js';
+import { attachMentionPicker } from './mentionPicker.js';
 
-/** De tekst van een opmerking als stukken tekst en tekstlinks. */
-export function commentBody(content) {
-  return linkify(content).map((part) => (part.href
-    ? h('a', { href: part.href, target: '_blank', rel: 'noopener noreferrer nofollow' }, part.text)
-    : document.createTextNode(part.text)));
+/**
+ * De tekst van een opmerking als stukken tekst, tekstlinks en vermeldingen.
+ * @param {string} content
+ * @param {string[]} [mentions] wie er genoemd is (gebruikers-id's)
+ * @param {(id: string) => string | null} [nameOf]
+ */
+export function commentBody(content, mentions = [], nameOf = () => null) {
+  return mentionParts(content, mentions, nameOf).flatMap((piece) => (piece.mention
+    ? [h('span', { class: 'mention', dataset: { userId: piece.mention } }, piece.text)]
+    : linkify(piece.text).map((part) => (part.href
+      ? h('a', { href: part.href, target: '_blank', rel: 'noopener noreferrer nofollow' }, part.text)
+      : document.createTextNode(part.text)))));
 }
 
 const fullTime = (iso) => {
@@ -31,6 +41,14 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const input = h('textarea', { class: 'field comment-input', rows: 2, maxLength: 16000, placeholder: t('comment.placeholder'), 'aria-label': t('comment.inputLabel') });
   const post = h('button', { class: 'button button-primary button-small', type: 'button', disabled: true, onclick: () => submit() }, t('comment.post'));
 
+  // wie je kunt noemen: de leden van het project van de taak (of van het project zelf), met hun naam en gebruikersnaam
+  const people = () => {
+    const projectId = target.taskId ? store.view.tasks.get(target.taskId)?.project_id : target.projectId;
+    return membersOf(store.view, projectId).map((m) => store.users.find((u) => u.id === m.user_id)).filter(Boolean);
+  };
+  const nameOf = (id) => (id === store.userId ? store.me?.name : null) ?? store.userName(id);
+  const picker = attachMentionPicker({ input, people, me: () => store.userId });
+
   const authorName = (c) => {
     if (c.author_id && c.author_id === store.userId) return store.me?.name ?? store.userName(c.author_id) ?? t('common.unknownUser');
     return (c.author_id && store.userName(c.author_id)) || t('common.unknownUser');
@@ -45,11 +63,14 @@ export function commentsSection({ target, store, actions, heading = true }) {
     editing = null;
     draw();
   };
-  const saveEdit = async (c, text) => {
+  const saveEdit = async (c, text, chosen) => {
     const content = text.trim();
     if (!content) return;
     editing = null;
-    if (content !== c.content) await actions.updateComment(c.id, content);
+    const mentions = mentionIds(content, chosen);
+    const before = c.mentions ?? [];
+    const changed = mentions.length !== before.length || mentions.some((id) => !before.includes(id));
+    if (content !== c.content || changed) await actions.updateComment(c.id, content, mentions);
     draw();
   };
   const remove = async (c) => {
@@ -59,6 +80,9 @@ export function commentsSection({ target, store, actions, heading = true }) {
 
   const editor = (c) => {
     const area = h('textarea', { class: 'field comment-input', rows: 3, maxLength: 16000, value: editing.draft, 'aria-label': t('comment.editLabel') });
+    // wie er al genoemd is, blijft herkend zolang "@Naam" in de tekst staat; de keuzelijst komt vóór de andere toetsen
+    const known = new Map((c.mentions ?? []).map((id) => [id, nameOf(id)]).filter(([, name]) => name));
+    const editPicker = attachMentionPicker({ input: area, people, me: () => store.userId, chosen: known });
     area.addEventListener('input', () => { editing.draft = area.value; });
     area.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -68,20 +92,20 @@ export function commentsSection({ target, store, actions, heading = true }) {
       } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         e.stopPropagation();
-        saveEdit(c, area.value);
+        saveEdit(c, area.value, editPicker.chosen);
       }
     });
-    return h('div', { class: 'comment-edit' }, area,
+    return h('div', { class: 'comment-edit' }, h('div', { class: 'comment-compose' }, area, editPicker.node),
       h('div', { class: 'comment-buttons' },
         h('button', { class: 'button button-small', type: 'button', onclick: stopEdit }, t('common.cancel')),
-        h('button', { class: 'button button-primary button-small', type: 'button', onclick: () => saveEdit(c, area.value) }, t('common.save'))));
+        h('button', { class: 'button button-primary button-small', type: 'button', onclick: () => saveEdit(c, area.value, editPicker.chosen) }, t('common.save'))));
   };
 
   let drawn = null;
   function draw() {
     const comments = commentsOf(store.view, target);
     // Alleen opnieuw tekenen als er iets veranderd is: zo blijft een opmerking die je net bewerkt met rust als er een sync binnenkomt.
-    const signature = JSON.stringify([editing?.id ?? null, comments.map((c) => [c.id, c.content, c.updated_at, authorName(c)])]);
+    const signature = JSON.stringify([editing?.id ?? null, comments.map((c) => [c.id, c.content, c.updated_at, authorName(c), (c.mentions ?? []).map(nameOf)])]);
     if (signature === drawn) return;
     drawn = signature;
     title.textContent = comments.length > 0 ? t('comment.headingCount', { count: comments.length }) : t('comment.heading');
@@ -100,7 +124,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
               mine && editing?.id !== c.id && h('span', { class: 'comment-tools' },
                 iconButton({ name: 'pencil', label: t('comment.edit'), onclick: () => startEdit(c) }),
                 iconButton({ name: 'trash', label: t('comment.delete'), onclick: () => remove(c) }))),
-            editing?.id === c.id ? editor(c) : h('p', { class: 'comment-text' }, commentBody(c.content))));
+            editing?.id === c.id ? editor(c) : h('p', { class: 'comment-text' }, commentBody(c.content, c.mentions, nameOf))));
       })
       : [h('li', { class: 'comment-none' }, t('comment.none'))]);
   }
@@ -108,9 +132,11 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const submit = async () => {
     const content = input.value.trim();
     if (!content) return;
+    const mentions = mentionIds(content, picker.chosen);
     input.value = '';
+    picker.reset();
     post.disabled = true;
-    await actions.addComment(target, content);
+    await actions.addComment(target, content, mentions);
     list.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
   };
   input.addEventListener('input', () => { post.disabled = !input.value.trim(); });
@@ -129,7 +155,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
     list,
     // geen <form>: de opmerkingen staan ook in het taakvenster, en formulieren mogen niet in elkaar
     h('div', { class: 'comment-form' },
-      h('div', { class: 'comment-compose' }, input),
-      h('div', { class: 'comment-buttons' }, h('span', { class: 'comment-tip' }, t('comment.tip')), post)));
+      h('div', { class: 'comment-compose' }, input, picker.node),
+      h('div', { class: 'comment-buttons' }, h('span', { class: 'comment-tip' }, people().length > 1 ? t('comment.tipMention') : t('comment.tip')), post)));
   return { node, dispose: unsubscribe, focus: () => input.focus() };
 }

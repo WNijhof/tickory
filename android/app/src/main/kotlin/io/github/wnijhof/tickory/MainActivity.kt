@@ -45,6 +45,8 @@ import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
 import io.github.wnijhof.tickory.core.AttachmentName
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.inbox.AppVisibility
+import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.core.ShareLink
@@ -225,11 +227,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        AppVisibility.visible = true // nieuwe meldingen bij samenwerken zie je nu in de app zelf
         // Terug van een toestemmingsvraag of een instellingenscherm: de web-app kan de status opnieuw opvragen.
         notifyPageOfStatusChange()
     }
 
     override fun onStop() {
+        AppVisibility.visible = false
         webView?.onPause()
         super.onStop()
     }
@@ -331,6 +335,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun fragmentFrom(intent: Intent?): String? {
         if (intent == null) return null
+        DeepLink.notification(intent.getStringExtra(InboxNotifier.EXTRA_NOTIFICATION_ID))?.let { return it }
         DeepLink.fromExtras(intent.getStringExtra(Notifications.EXTRA_TASK_ID), intent.hasExtra(DeepLink.EXTRA_ADD), intent.getStringExtra(DeepLink.EXTRA_ADD))?.let { return it }
         if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return null
         return ShareLink.fragmentFor(

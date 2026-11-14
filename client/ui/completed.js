@@ -43,7 +43,7 @@ export function installCompleted({ store, handlers, getRoute }) {
 
   sidebarHooks.push(({ extra }) => {
     const active = getRoute().type === 'completed';
-    extra.prepend(h('button', {
+    extra.before(h('button', {
       class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk: 'nav-completed' },
       onclick: () => handlers.navigate({ type: 'completed' }),
     }, icon('completed'), h('span', { class: 'nav-label' }, t('nav.completed'))));

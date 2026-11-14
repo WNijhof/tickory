@@ -43,6 +43,7 @@ const SHAPES = {
   completed: [{ dot: [12, 12, 9], stroke: true }, { d: 'M8 12.5l3 3 5-6' }],
   template: [{ rect: [9, 9, 11, 11, 2] }, { d: 'M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3' }],
   settings: [{ d: 'M4 7h9M17 7h3M4 17h3M11 17h9' }, { dot: [15, 7, 2], stroke: true }, { dot: [9, 17, 2], stroke: true }],
+  bell: [{ d: 'M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 1.5h-15z' }, { d: 'M10 20.5a2.2 2.2 0 0 0 4 0' }],
 };
 
 const cache = new Map();

@@ -131,6 +131,11 @@ export function reminderFingerprint(view, userId) {
     if (p.owner_id && userId && p.owner_id !== userId) continue;
     lines.push(['place', p.id, p.name, p.lat, p.lon, p.radius].join('\u0001'));
   }
+  // meldingen bij samenwerken: de app toont nieuwe als melding op het toestel en haalt gelezen weg (zie android/README.md)
+  for (const n of view.notifications?.values() ?? []) {
+    if (n.owner_id && userId && n.owner_id !== userId) continue;
+    lines.push(['notification', n.id, n.is_read ? 1 : 0].join('\u0001'));
+  }
   return lines.sort().join('\u0002');
 }
 

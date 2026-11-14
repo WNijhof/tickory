@@ -1,0 +1,62 @@
+/* Meldingen bij samenwerken (ui/inbox.js, ui/inboxSettings.js) en @-vermeldingen (ui/mentionPicker.js, ui/comments.js).
+   Alleen de kleuren uit app.css (die hebben een licht en een donker thema). */
+
+/* ---------- zijbalk en kop ---------- */
+.nav-count-unread { color: var(--accent); font-weight: 700; }
+.inbox-bell { display: none; position: relative; }
+@media (max-width: 760px) {
+  .inbox-bell:not([hidden]) { display: inline-flex; }
+}
+.inbox-badge {
+  position: absolute; top: 3px; right: 1px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--accent); color: var(--accent-text); font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center;
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.inbox-badge:empty { display: none; }
+
+/* ---------- de lijst ---------- */
+.inbox-count { margin: 0 0 8px; }
+.inbox-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-width: 760px; }
+.inbox-item { display: flex; align-items: flex-start; gap: 4px; border-bottom: 1px solid var(--line); }
+.inbox-open {
+  flex: 1; min-width: 0; display: flex; gap: 12px; align-items: flex-start; text-align: left;
+  background: none; border: 0; padding: 12px 8px; border-radius: var(--radius-sm);
+}
+.inbox-open:hover { background: var(--bg-hover); }
+.inbox-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.inbox-avatar, .mention-avatar {
+  flex: none; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700;
+}
+.inbox-avatar { width: 34px; height: 34px; font-size: 0.85rem; }
+.inbox-item.unread .inbox-avatar { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
+.inbox-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.inbox-sentence { font-size: 0.9rem; color: var(--text-soft); }
+.inbox-item.unread .inbox-sentence { color: var(--text); font-weight: 600; }
+.inbox-title { overflow-wrap: anywhere; }
+.inbox-project { color: var(--text-soft); }
+.inbox-excerpt { color: var(--text-soft); font-size: 0.9rem; overflow-wrap: anywhere; }
+.inbox-time { font-size: 0.78rem; color: var(--text-soft); }
+.inbox-toggle { margin-top: 10px; flex: none; }
+@media (max-width: 760px) {
+  .inbox-open { padding: 12px 4px; }
+}
+
+/* ---------- vermeldingen ---------- */
+.mention { color: var(--accent); background: var(--accent-soft); font-weight: 600; border-radius: 4px; padding: 0 2px; }
+.comment-compose { position: relative; }
+.mention-anchor { position: relative; }
+.mention-list {
+  position: absolute; left: 0; right: 0; top: 4px; z-index: 5; list-style: none; margin: 0; padding: 4px;
+  max-height: 240px; overflow-y: auto; background: var(--bg); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-pop);
+}
+.mention-option { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; min-height: 44px; }
+.mention-option:hover { background: var(--bg-hover); }
+.mention-option.active { background: var(--bg-hover); outline: 2px solid var(--focus); outline-offset: -2px; }
+.mention-avatar { width: 28px; height: 28px; font-size: 0.78rem; }
+.mention-name { font-weight: 600; overflow-wrap: anywhere; }
+.mention-username { margin-left: auto; color: var(--text-soft); font-size: 0.85rem; }
+
+/* ---------- instellingen ---------- */
+.push-kinds { display: flex; flex-direction: column; gap: 2px; }

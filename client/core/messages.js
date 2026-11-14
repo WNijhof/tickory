@@ -13,6 +13,7 @@ const SERVER_LANGUAGE = DEFAULT_LANGUAGE;
 const NOUN = {
   task: () => t('command.noun.task'), project: () => t('command.noun.project'), section: () => t('command.noun.section'), label: () => t('command.noun.label'),
   comment: () => t('command.noun.comment'), attachment: () => t('command.noun.attachment'), reminder: () => t('command.noun.reminder'), filter: () => t('command.noun.filter'), template: () => t('command.noun.template'),
+  notification: () => t('command.noun.notification'),
 };
 const VERB = {
   add: () => t('command.verb.add'), update: () => t('command.verb.update'), delete: () => t('command.verb.delete'),
@@ -69,6 +70,12 @@ const BY_CODE_TRANSLATED = {
   LIMIT_REACHED: () => t('error.limitReached'), // in het Nederlands staat de precieze tekst van de server (welke grens, hoeveel)
   UNKNOWN: () => t('error.unknown'), // de client zelf meldt deze code als de server geen reden gaf (core/store.js)
 };
+
+/**
+ * Een geweigerde wijziging aan een melding (gelezen zetten) hoeft niemand te zien: de melding is dan intussen weg (opgeruimd, of
+ * de taak is verwijderd), en na de sync is ze ook hier weg.
+ */
+export const quietCommandError = (e) => /^notification_/.test(e.cmd?.type ?? '') && (e.error_code === 'NOT_FOUND' || e.error_code === 'UNKNOWN_COMMAND');
 
 const pick = (table, key) => (Object.hasOwn(table, key ?? '') ? table[key]() : null);
 const capitalize = (s) => `${s.charAt(0).toUpperCase()}${s.slice(1)}`;

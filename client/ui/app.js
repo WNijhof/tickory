@@ -13,7 +13,7 @@ import { createPushClient } from '../core/push.js';
 import { isArchivedProject, roleIn } from '../core/selectors.js';
 import { moveTargets } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
-import { describeCommandError } from '../core/messages.js';
+import { describeCommandError, quietCommandError } from '../core/messages.js';
 import { formatDue, nowString, todayString } from '../core/format.js';
 import { reschedule } from '../core/quickDates.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
@@ -38,6 +38,7 @@ import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
+import { installInbox } from './inbox.js';
 
 const ROUTE_KEY = 'tickory.route';
 
@@ -647,7 +648,7 @@ async function boot() {
     },
     onCommandErrors: (errors) => {
       // weigeringen van een bulkactie worden één melding (ui/selection.js); de rest krijgt zijn eigen melding
-      for (const e of selection ? selection.reportErrors(errors) : errors) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
+      for (const e of selection ? selection.reportErrors(errors) : errors) if (!quietCommandError(e)) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
     },
   });
 
@@ -690,7 +691,8 @@ async function boot() {
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
-  installCompleted({ store, handlers, getRoute: () => ui.route }); // het overzicht Voltooid (ui/completed.js), na installFind: de zijbalkregel komt boven Filters en Labels
+  installCompleted({ store, handlers, getRoute: () => ui.route }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
+  installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
     content: $('content'), sidebar: $('sidebar'), actions, selection,

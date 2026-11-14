@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v31';
+const CACHE = 'tickory-v41';
 const SHELL = [
   '/',
   '/app.css',
@@ -14,6 +14,7 @@ const SHELL = [
   '/templates.css',
   '/attachments.css',
   '/bulk.css',
+  '/notify.css',
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
@@ -34,6 +35,9 @@ const SHELL = [
   '/ui/findViews.js',
   '/ui/dragdrop.js',
   '/ui/icons.js',
+  '/ui/inbox.js',
+  '/ui/inboxSettings.js',
+  '/ui/mentionPicker.js',
   '/ui/labelDialog.js',
   '/ui/miscDialogs.js',
   '/ui/projectDialog.js',
@@ -72,6 +76,8 @@ const SHELL = [
   '/core/idb.js',
   '/core/imageResize.js',
   '/core/inverse.js',
+  '/core/inbox.js',
+  '/core/mentions.js',
   '/core/labelManage.js',
   '/core/messages.js',
   '/core/projectViews.js',
@@ -105,6 +111,7 @@ const SHELL = [
   '/i18n/nl.js',
   '/vendor/nlDatum.generated.js',
   '/shared/attachments.js',
+  '/shared/notifications.js',
   '/shared/orderKey.js',
   '/shared/password.js',
   '/shared/recurrence.js',
@@ -196,14 +203,50 @@ self.addEventListener('fetch', (event) => {
 // (de service worker kan de woordenlijsten van de app niet laden); het bericht zegt in welke taal dit apparaat werkt.
 
 const PUSH_TEXT = {
-  nl: { reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.' },
-  en: { reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.' },
+  nl: {
+    reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen',
+    assigned: '{actor} heeft je een taak toegewezen', comment: '{actor} reageerde op een taak', commentProject: '{actor} schreef een opmerking bij het project',
+    mention: '{actor} noemde je in een opmerking', completed: '{actor} heeft je taak afgevinkt', shared: '{actor} heeft je toegevoegd aan een project',
+    other: '{actor} deed iets in een gedeeld project', someone: 'Iemand',
+  },
+  en: {
+    reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open',
+    assigned: '{actor} assigned you a task', comment: '{actor} commented on a task', commentProject: '{actor} commented on the project',
+    mention: '{actor} mentioned you in a comment', completed: '{actor} completed your task', shared: '{actor} added you to a project',
+    other: '{actor} did something in a shared project', someone: 'Someone',
+  },
 };
+const ACTIVITY_KINDS = ['assigned', 'comment', 'mention', 'completed', 'shared'];
+const SAFE_ID = /^[A-Za-z0-9_-]{8,40}$/;
+
+/**
+ * Een melding bij samenwerken (iemand wees je een taak toe, reageerde, noemde je, ...): de zin in de taal van dit apparaat,
+ * de titel van de taak of het project, en het begin van de opmerking. Alles is tekst: een melding toont geen HTML.
+ */
+function activityNotification(data, text, base) {
+  const kind = ACTIVITY_KINDS.includes(data.kind) ? data.kind : 'other';
+  const key = kind === 'comment' && !data.task_id ? 'commentProject' : kind;
+  const actor = typeof data.actor === 'string' && data.actor ? data.actor : text.someone;
+  const title = typeof data.title === 'string' ? data.title : '';
+  const lines = [title + (typeof data.project === 'string' && data.project ? ` · ${data.project}` : ''), typeof data.text === 'string' ? data.text : ''].filter(Boolean);
+  const id = typeof data.id === 'string' && SAFE_ID.test(data.id) ? data.id : null;
+  return {
+    title: text[key].replace('{actor}', actor),
+    options: {
+      ...base,
+      body: lines.join('\n'),
+      tag: id ? `tickory-n-${id}` : 'tickory-n', // twee keer hetzelfde bericht geeft één melding
+      data: { notificationId: id, taskId: typeof data.task_id === 'string' && SAFE_ID.test(data.task_id) ? data.task_id : null },
+      actions: [{ action: 'open', title: text.open }],
+    },
+  };
+}
 
 /** Maakt van een bericht van de server de titel en opties van een melding. Onbekende of kapotte berichten: een neutrale melding. */
 function notificationFor(data) {
   const text = PUSH_TEXT[data && data.lang] || PUSH_TEXT.nl;
   const base = { icon: '/icon-192.png', badge: '/icon-192.png', lang: data && data.lang === 'en' ? 'en' : 'nl' };
+  if (data && data.type === 'activity') return activityNotification(data, text, base);
   if (!data || data.type !== 'reminder' || typeof data.title !== 'string') {
     return { title: text.test, options: { ...base, body: text.testBody, tag: 'tickory-test' } };
   }
@@ -245,15 +288,17 @@ self.addEventListener('notificationclick', (event) => {
     );
     return;
   }
-  // Tikken op de melding zelf: de app naar voren halen (of openen) bij de taak.
+  // Tikken op de melding zelf (of op "Openen"): de app naar voren halen (of openen) bij de taak, of bij de melding bij samenwerken
+  // (die zet de app dan op gelezen en opent wat erbij hoort, zie ui/inbox.js).
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const open = windows.find((c) => new URL(c.url).origin === self.location.origin);
     if (open) {
       await open.focus();
-      if (d.taskId) open.postMessage({ type: 'open-task', id: d.taskId });
+      if (d.notificationId) open.postMessage({ type: 'open-notification', id: d.notificationId });
+      else if (d.taskId) open.postMessage({ type: 'open-task', id: d.taskId });
       return;
     }
-    await self.clients.openWindow(d.taskId ? `/#task=${d.taskId}` : '/');
+    await self.clients.openWindow(d.notificationId ? `/#notification=${d.notificationId}` : d.taskId ? `/#task=${d.taskId}` : '/');
   })());
 });
