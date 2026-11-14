@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { startFakeIdp } from '../server/fakeIdp.ts';
 import { createOidcClient, oidcConfigFrom } from '../server/oidc.ts';
 
+// Wachttijden op "Bijgewerkt" zijn ruim (45 s): een netwerkfilter op de pc (AdGuard) laat een verzoek soms een tijd hangen, zie scripts/e2e.ts.
 export async function oidcScenario(c: any) {
   const { send, evaluate, waitFor, step, shot, sleep, SYNCED, db, alice, typeInto, clickText, nav, PASSWORD_ALICE, BASE, startServer, stopServer } = c;
   const top = `[...document.querySelectorAll('dialog[open]')].at(-1)`;
@@ -23,7 +24,7 @@ export async function oidcScenario(c: any) {
     await stopServer();
     await startServer(extra);
     await send('Page.reload');
-    await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'opnieuw geladen en bijgewerkt na het herstarten van de server', 20_000);
+    await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'opnieuw geladen en bijgewerkt na het herstarten van de server', 45_000);
   };
   await restart({ oidc: createOidcClient(config) });
   try {
@@ -31,6 +32,9 @@ export async function oidcScenario(c: any) {
       const token = await evaluate<string>(`localStorage.getItem('tickory.token')`);
       return (db.prepare('SELECT id FROM sessions WHERE token_hash = ?').get(createHash('sha256').update(token).digest('hex')) as any).id as string;
     };
+    /** Het token van de app nu; na inloggen moet het een ander zijn (pas dan is de nieuwe sessie er echt, niet alleen "Bijgewerkt" van ervoor). */
+    const tokenNow = () => evaluate<string>(`localStorage.getItem('tickory.token')`);
+    const newToken = (old: string) => `localStorage.getItem('tickory.token') !== ${JSON.stringify(old)}`;
     /** Op de pagina van de inlogdienst: "Doorgaan" (de inlogdienst stuurt de browser terug naar Tickory). */
     const passIdp = async () => {
       await waitFor(`location.href.startsWith(${JSON.stringify(idp.base)}) && document.getElementById('doorgaan')`, 'de pagina van de inlogdienst', 15_000);
@@ -55,10 +59,11 @@ export async function oidcScenario(c: any) {
     assert.equal(await evaluate(`location.hash`), '', 'de code staat niet meer in de adresbalk');
     assert.equal(await evaluate(`localStorage.getItem('tickory.sso')`), null, 'het geheim van de poging is weg');
     assert.equal((db.prepare('SELECT user_id FROM oidc_identities WHERE subject = ?').get('sub-alice-e2e') as any)?.user_id, alice.id);
-    await waitFor(`await ${SYNCED}`, 'bijgewerkt na koppelen');
+    await waitFor(`await ${SYNCED}`, 'bijgewerkt na koppelen', 45_000);
     step('SSO koppelen vanuit Account: eerst het wachtwoord, dan naar de inlogdienst en terug; de melding "gekoppeld", de code weg uit de adresbalk');
 
     // ---- opnieuw inloggen met de knop ----
+    const stale = await tokenNow();
     db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(new Date().toISOString(), await browserSession());
     await evaluate(`document.getElementById('sync-status').click()`);
     await waitFor(`document.querySelector('dialog[open] .sso-button')?.textContent === 'Inloggen met Nep-inlogdienst'`, 'de knop op het inlogscherm');
@@ -68,13 +73,14 @@ export async function oidcScenario(c: any) {
     const tasksBefore = await evaluate<number>(`document.querySelectorAll('.nav-item').length`);
     await evaluate(`document.querySelector('dialog[open] .sso-button').click()`);
     await passIdp();
-    await waitFor(`!document.querySelector('dialog[open]') && await ${SYNCED}`, 'ingelogd via SSO en bijgewerkt', 15_000);
+    await waitFor(`${newToken(stale)} && !document.querySelector('dialog[open]') && await ${SYNCED}`, 'ingelogd via SSO (een nieuw token) en bijgewerkt', 45_000);
     assert.equal(await evaluate(`document.querySelectorAll('.nav-item').length`), tasksBefore, 'dezelfde gebruiker: de gegevens zijn gebleven');
     const sessionName = (db.prepare('SELECT name FROM sessions WHERE id = ?').get(await browserSession()) as any).name;
     assert.match(sessionName, /^(Chrome|Edge) op (Windows|Linux|Mac)$/, 'de naam van het apparaat uit het begin van de poging');
     step('opnieuw inloggen met "Inloggen met Nep-inlogdienst": naar de inlogdienst en terug, ingelogd zonder wachtwoord; dezelfde gegevens');
 
     // ---- een identiteit zonder Tickory-account: een nette melding op het inlogscherm ----
+    const viaSso = await tokenNow();
     db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ?').run(new Date().toISOString(), await browserSession());
     idp.user = { sub: 'sub-onbekend-e2e', preferred_username: 'onbekend', name: 'Iemand' };
     await evaluate(`document.getElementById('sync-status').click()`);
@@ -86,7 +92,8 @@ export async function oidcScenario(c: any) {
     // gewoon weer met het wachtwoord
     await typeInto('dialog[open] input[type=password]', PASSWORD_ALICE);
     await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
-    await waitFor(`!document.querySelector('dialog[open]') && await ${SYNCED}`, 'weer ingelogd met het wachtwoord', 15_000);
+    await waitFor(`${newToken(viaSso)} && !document.querySelector('dialog[open]') && await ${SYNCED}`, 'weer ingelogd met het wachtwoord', 45_000);
+    assert.equal((db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND revoked_at IS NULL').get(alice.id) as any).n, 2, 'alleen dit apparaat en de "Telefoon" van eerder zijn aangemeld');
     step('een identiteit zonder Tickory-account: terug op het inlogscherm met een begrijpelijke melding, zonder details; met het wachtwoord gaat het gewoon');
 
     // ---- de koppeling verwijderen ----
