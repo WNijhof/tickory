@@ -13,7 +13,8 @@ import { createApp, daysFrom, loadSecretKey, sessionPolicyFrom } from './main.ts
 import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { freshDb } from './testutil.ts';
 import {
-  DEFAULT_SESSION_POLICY, createSession, createUser, describeUserAgent, findSession, listSessions, pruneSessions, sessionExpired, sessionValid,
+  DEFAULT_SESSION_POLICY, consumeRecoveryCode, consumeStep, createSession, createUser, describeUserAgent, enableTwoFactor, findSession, listSessions,
+  pruneSessions, revokeSession, sessionExpired, sessionValid,
 } from './users.ts';
 
 const DAY = 86_400_000;
@@ -64,6 +65,43 @@ test('een verlopen sessie geeft geen gebruiker meer, wordt ingetrokken en staat 
   assert.equal(pruneSessions(db, DEFAULT_SESSION_POLICY, now + 91 * DAY), 1, 'drie maanden later is ook de nieuwe sessie verlopen');
   assert.equal((db.prepare('SELECT COUNT(*) AS n FROM sessions').get() as any).n, 1, 'na 30 dagen ingetrokken: weg; alleen de zojuist ingetrokken blijft');
   assert.equal(pruneSessions(db, { idleDays: 0, maxDays: 0 }, now + 400 * DAY), 0, 'zonder grenzen verloopt niets');
+});
+
+test('opruimen: ook op maximale leeftijd, ingetrokken sessies blijven 30 dagen bewaard, en zonder grenzen wordt niets ingetrokken', () => {
+  const db = freshDb();
+  const a = mk(db, 'alice');
+  const now = Date.now();
+  const old = createSession(db, a.id, 'Elke dag gebruikt, maar oud');
+  const active = createSession(db, a.id, 'Actief');
+  setTimes(db, old.id, now - 366 * DAY, now - DAY);
+  setTimes(db, active.id, now - 10 * DAY, now - 2 * DAY);
+  assert.equal(pruneSessions(db, { idleDays: 0, maxDays: 0 }, now), 0, 'zonder grenzen: niets ingetrokken');
+  assert.ok(findSession(db, active.token, now, { idleDays: 0, maxDays: 0 }));
+  setTimes(db, active.id, now - 10 * DAY, now - 2 * DAY);
+  assert.equal(pruneSessions(db, { idleDays: 0, maxDays: 365 }, now), 1, 'de te oude sessie, ook zonder grens voor niet-gebruik');
+  assert.equal(sessionValid(db, a.id, active.id, now), true);
+  // ingetrokken: na een dag nog in de database, na 31 dagen weg
+  assert.equal(pruneSessions(db, DEFAULT_SESSION_POLICY, now + DAY), 0);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE id = ?').get(old.id) as any).n, 1, 'een dag na het intrekken nog bewaard');
+  pruneSessions(db, { idleDays: 0, maxDays: 0 }, now + 31 * DAY);
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE id = ?').get(old.id) as any).n, 0, 'na 30 dagen weg');
+  // een ingetrokken sessie geldt niet voor een downloadbewijs
+  revokeSession(db, a.id, active.id);
+  assert.equal(sessionValid(db, a.id, active.id, now), false, 'ingetrokken');
+});
+
+test('2FA-opslag: een tijdvak en een herstelcode zijn maar één keer vast te leggen (ook bij twee gelijktijdige verzoeken)', () => {
+  const db = freshDb();
+  const a = mk(db, 'alice');
+  assert.equal(consumeStep(db, a.id, 100), false, 'zonder geheim legt het niets vast');
+  enableTwoFactor(db, a.id, 'v1.verzegeld.geheim.tag', 100, ['hash-een', 'hash-twee'], new Date().toISOString());
+  assert.equal(consumeStep(db, a.id, 100), false, 'het tijdvak van de bevestiging');
+  assert.equal(consumeStep(db, a.id, 101), true);
+  assert.equal(consumeStep(db, a.id, 101), false, 'hetzelfde tijdvak nog een keer');
+  assert.equal(consumeStep(db, a.id, 99), false, 'een eerder tijdvak');
+  assert.equal(consumeRecoveryCode(db, a.id, 'hash-een', new Date().toISOString()), true);
+  assert.equal(consumeRecoveryCode(db, a.id, 'hash-een', new Date().toISOString()), false);
+  assert.equal(consumeRecoveryCode(db, 'iemand-anders', 'hash-twee', new Date().toISOString()), false);
 });
 
 test('het soort apparaat uit de User-Agent: vaste namen, geen versienummers', () => {

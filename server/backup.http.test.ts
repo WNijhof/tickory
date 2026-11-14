@@ -15,7 +15,7 @@ import { createApp } from './main.ts';
 import { createAttachments } from './attachments.ts';
 import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { handleSync } from './sync.ts';
-import { readTar, removeStaleTemp, tarHeader } from './backupArchive.ts';
+import { createBackupArchive, readTar, removeStaleTemp, tarHeader } from './backupArchive.ts';
 import { LoginLimiter, createSession, createUser, hashPassword, revokeSession, setPasswordCostForTests } from './users.ts';
 
 setPasswordCostForTests(1024);
@@ -100,6 +100,12 @@ test('alleen een beheerder, met het eigen wachtwoord: dan een eenmalig downloadb
     const sessionId = (w.db.prepare("SELECT id FROM sessions WHERE user_id = ? AND name = 'Laptop'").get(w.alice.id) as any).id;
     revokeSession(w.db, w.alice.id, sessionId);
     assert.equal((await w.download(revoked.body.ticket)).status, 403, 'afgemeld: het bewijs vervalt');
+    // tussen het bewijs en de download geen beheerder meer
+    const fresh = createSession(w.db, w.alice.id, 'Tweede laptop').token;
+    const demoted = await w.ticket(fresh);
+    assert.equal(demoted.status, 200);
+    w.db.prepare('UPDATE users SET is_admin = 0 WHERE id = ?').run(w.alice.id);
+    assert.equal((await w.download(demoted.body.ticket)).status, 403, 'geen beheerder meer: het bewijs vervalt');
   } finally { await w.close(); }
 });
 
@@ -113,6 +119,7 @@ test('het archief: een tar met de database (te openen, met de gegevens) en de bi
     assert.equal(r.headers.get('cache-control'), 'no-store');
     const tar = Buffer.from(await r.arrayBuffer());
     assert.equal(tar.length % 512, 0, 'het archief bestaat uit hele blokken');
+    assert.ok(tar.subarray(tar.length - 1024).every((b) => b === 0), 'het archief eindigt met twee lege blokken');
     const files = readTar(tar);
     const key = (w.db.prepare('SELECT key FROM attachment_files').get() as any).key as string;
     assert.deepEqual([...files.keys()].sort(), ['LEESMIJ.txt', `attachments/${key.slice(0, 2)}/${key}`, 'tickory-backup.json', 'tickory.db'].sort());
@@ -182,6 +189,37 @@ test('een bijlage die tussen de kopie en het inpakken verdwijnt, wordt overgesla
     assert.equal(removeStaleTemp(w.tmp), 1);
     assert.deepEqual(readdirSync(w.tmp), ['todo.db']);
   } finally { await w.close(); }
+});
+
+test('een bijlage van een zojuist verwijderde taak (bestand nog even bewaard voor terugzetten) gaat niet mee, net als met server/backup.ts', async () => {
+  const w = await world();
+  try {
+    const r = handleSync(w.db, { sync_token: '*', commands: [{ type: 'task_delete', uuid: 'backup-test-0003', args: { id: 'backup-test-task' } }] }, w.alice.id) as any;
+    assert.equal(r.sync_status['backup-test-0003'], 'ok');
+    const key = (w.db.prepare('SELECT key FROM attachment_files').get() as any)?.key as string | undefined;
+    if (key) assert.ok(existsSync(join(w.root, 'attachments', key.slice(0, 2), key)), 'het bestand staat er nog (wachttijd voor terugzetten)');
+    const files = readTar(Buffer.from(await (await w.download((await w.ticket(w.tokens.alice)).body.ticket)).arrayBuffer()));
+    assert.deepEqual([...files.keys()].filter((k) => k.startsWith('attachments/')), []);
+    assert.equal(JSON.parse(files.get('tickory-backup.json')!.toString()).attachments, 0);
+  } finally { await w.close(); }
+});
+
+test('het archief los: de tijdelijke kopie verdwijnt vanzelf zodra alles gelezen is, en ook als er niets gelezen wordt (cleanup)', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'tickory-archive-'));
+  try {
+    const db = new DatabaseSync(':memory:');
+    createSchema(db);
+    const a = createBackupArchive(db, { tmpDir: root, attachmentsDir: null, schemaVersion: SCHEMA_VERSION });
+    assert.equal(readdirSync(root).length, 1, 'de kopie staat klaar');
+    const parts: Buffer[] = [];
+    for await (const part of a.chunks) parts.push(part);
+    assert.deepEqual(readdirSync(root), [], 'na het lezen opgeruimd, zonder cleanup aan te roepen');
+    assert.ok(readTar(Buffer.concat(parts)).has('tickory.db'));
+    const b = createBackupArchive(db, { tmpDir: root, attachmentsDir: null, schemaVersion: SCHEMA_VERSION });
+    b.cleanup();
+    assert.deepEqual(readdirSync(root), [], 'nooit gelezen: cleanup ruimt op');
+    assert.throws(() => createBackupArchive(db, { tmpDir: join(root, 'bestaat-niet'), attachmentsDir: null, schemaVersion: SCHEMA_VERSION }));
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 test('tar-koppen: controlesom, octale velden, base-256 voor heel grote bestanden, en alleen veilige namen', () => {
