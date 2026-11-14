@@ -14,6 +14,9 @@ description: Making a backup of Tickory while the app is running, getting the co
   <li>Do not simply copy the database file with <code>cp</code> while the app is running: such a copy can be incomplete. Use the command above.</li>
 </ul>
 
+<h3 id="attachments">Attachments are included</h3>
+<p>The <a href="attachments.html">attachments</a> are not in the database but files in the <code>attachments/</code> folder of your data volume. The same command copies them along: next to <code>todo-2026-11-17.db</code> comes a folder <code>todo-2026-11-17.attachments/</code> with the files of the attachments that are in that copy. That way the database and the files belong together; a file that was deleted between the two steps is skipped and reported. Get both off the server. Count on extra storage: the size of your attachments comes on top, and the copy contains everything users have uploaded, so keep it as carefully as the database.</p>
+
 <h2>Getting the copy off the server</h2>
 <p>The copies are in the same volume as the database itself. If the disk fails, you lose both. So get them off the server regularly:</p>
 <pre><code>docker cp tickory:/data/backups ./backups</code></pre>
@@ -37,6 +40,8 @@ docker compose up -d</code></pre>
   <li><strong>The name of the volume</strong> starts with the name of the directory in which you run <code>docker compose</code>; here that is <code>tickory</code>, so <code>tickory_tickory-data</code>. Check the name with <code>docker volume ls</code>.</li>
   <li>The command replaces the database with your copy and sets the owner, so that the app can write to it.</li>
 </ul>
+
+<p>If you also restore the attachments, copy the folder <code>todo-2026-11-17.attachments</code> back to <code>/data/attachments</code> of the volume, for example in the same command (<code>cp -r /backup/todo-2026-11-17.attachments/. /data/attachments/</code>, then <code>chown -R 1000:1000 /data/attachments</code>). At start-up the server checks that the database and the files fit together: files without an attachment are cleaned up, and an attachment whose file is missing (because you did not restore the folder) is reported in the log and stays in the list, but cannot be opened.</p>
 
 <h3>After that: sign in again on every device</h3>
 <p>After restoring, sign out and in again on every device (<x-ui k="settings.title"></x-ui>, then <x-ui k="settings.signOut"></x-ui>). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past that device's state. Signing in again is the sure way, and it costs nothing: everything is on the server.</p>

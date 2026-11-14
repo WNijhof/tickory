@@ -14,6 +14,9 @@ description: Een back-up maken van Tickory terwijl de app draait, de kopie van d
   <li>Kopieer het databasebestand niet gewoon met <code>cp</code> terwijl de app draait: zo'n kopie kan onvolledig zijn. Gebruik de opdracht hierboven.</li>
 </ul>
 
+<h3 id="bijlagen">De bijlagen gaan mee</h3>
+<p>De <a href="bijlagen.html">bijlagen</a> staan niet in de database maar als bestanden in de map <code>attachments/</code> van je datavolume. Dezelfde opdracht kopieert ze mee: naast <code>todo-2026-11-17.db</code> komt een map <code>todo-2026-11-17.attachments/</code> met de bestanden van de bijlagen die in die kopie staan. Zo horen database en bestanden bij elkaar; een bestand dat tussen de twee stappen werd verwijderd, wordt overgeslagen en gemeld. Haal beide van de server af. Reken op extra opslag: de grootte van je bijlagen komt erbij, en de kopie bevat alles wat gebruikers hebben geüpload, dus bewaar hem net zo zorgvuldig als de database.</p>
+
 <h2>De kopie van de server halen</h2>
 <p>De kopieën staan in hetzelfde volume als de database zelf. Gaat de schijf stuk, dan ben je beide kwijt. Haal ze daarom regelmatig van de server af:</p>
 <pre><code>docker cp tickory:/data/backups ./backups</code></pre>
@@ -37,6 +40,8 @@ docker compose up -d</code></pre>
   <li><strong>De naam van het volume</strong> begint met de naam van de map waarin je <code>docker compose</code> draait; hier is dat <code>tickory</code>, dus <code>tickory_tickory-data</code>. Controleer de naam met <code>docker volume ls</code>.</li>
   <li>De opdracht vervangt de database door je kopie en zet de eigenaar goed, zodat de app erin kan schrijven.</li>
 </ul>
+
+<p>Zet je ook de bijlagen terug, kopieer dan de map <code>todo-2026-11-17.attachments</code> terug naar <code>/data/attachments</code> van het volume, bijvoorbeeld in dezelfde opdracht (<code>cp -r /backup/todo-2026-11-17.attachments/. /data/attachments/</code>, daarna <code>chown -R 1000:1000 /data/attachments</code>). Bij het opstarten controleert de server of database en bestanden bij elkaar passen: bestanden zonder bijlage worden opgeruimd, en een bijlage waarvan het bestand ontbreekt (omdat je de map niet terugzette) wordt gemeld in het logboek en blijft in de lijst staan, maar laat zich niet openen.</p>
 
 <h3>Daarna: op elk apparaat opnieuw aanmelden</h3>
 <p>Meld na het terugzetten op elk apparaat af en weer aan (<x-ui k="settings.title"></x-ui>, dan <x-ui k="settings.signOut"></x-ui>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>

@@ -52,6 +52,10 @@ docker compose logs --tail 100</code></pre>
   <dd>De app haalt een nieuwe versie op de achtergrond op. Sluit de app en open hem opnieuw.</dd>
   <dt>De app opent soms niet zonder verbinding, terwijl dat eerder wel kon</dt>
   <dd>De browser, of een netwerkfilter zoals AdGuard, kan de bewaarde bestanden van de app wissen. De app vult ze vanzelf weer aan zodra je hem met verbinding opent.</dd>
+  <dt id="bijlagen">Een bijlage uploaden mislukt</dt>
+  <dd>Kijk wat er bij het bestand staat. <em>Wacht op verbinding</em> betekent dat de app het zelf blijft proberen. <em>Te groot</em>: het bestand is groter dan <code>MAX_UPLOAD_MB</code> van je server (standaard 25 MB). <em>Opslagruimte vol</em>: verwijder een bijlage, of de beheerder verhoogt <code>ATTACHMENT_QUOTA_MB</code>. Blijft het bij een groot bestand toch mislukken en meldt de browser <code>413</code> of een verbroken verbinding, dan laat een reverse proxy het niet door: zie <a href="https.html#grote-bestanden">Grote bestanden</a> (nginx: <code>client_max_body_size</code>). Beheerder: staat er in het logboek niets, kijk dan of de schijf vol is (<code>507</code>).</dd>
+  <dt>Een bijlage is verdwenen of laat zich niet openen</dt>
+  <dd>Heb je een back-up teruggezet zonder de map met bijlagen? Dan staat de bijlage nog in de lijst, maar ontbreekt het bestand: zet de map <code>attachments</code> terug (zie <a href="back-up.html#bijlagen">Back-up</a>).</dd>
   <dt>Een datum wordt niet herkend, of juist wel waar het niet moet</dt>
   <dd>Zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>. Met een <code>~</code> zet je de herkenning uit.</dd>
   <dt>“Lokale opslag is niet beschikbaar”</dt>

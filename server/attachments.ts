@@ -94,6 +94,11 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
   const used = (userId: string): number =>
     Number((db.prepare('SELECT COALESCE(SUM(size), 0) AS n FROM attachment_files WHERE user_id = ?').get(userId) as Row).n);
 
+  /** Bijlagen van een taak, plus de uploads die er nog op wachten om er een te worden. */
+  const perTaskCount = (taskId: string): number => Number((db.prepare(
+    `SELECT (SELECT COUNT(*) FROM attachments WHERE task_id = ? AND is_deleted = 0)
+          + (SELECT COUNT(*) FROM attachment_files WHERE task_id = ? AND linked = 0) AS n`).get(taskId, taskId) as Row).n);
+
   const removeFile = (key: string): void => {
     try { unlinkSync(pathOf(key)); } catch { /* weg of nooit gekomen */ }
   };
@@ -191,15 +196,18 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       else if (length > options.maxUploadBytes) problem = new SyncError('TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(options.maxUploadBytes / 1_000_000)} MB)`);
       else if (used(userId) + (inflight.get(userId) ?? 0) + length > options.quotaBytes) problem = new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
       else {
-        const perTask = Number((db.prepare(
-          `SELECT (SELECT COUNT(*) FROM attachments WHERE task_id = ? AND is_deleted = 0)
-                + (SELECT COUNT(*) FROM attachment_files WHERE task_id = ? AND linked = 0) AS n`).get(taskId, taskId) as Row).n);
+        const perTask = perTaskCount(taskId as string);
         const already = db.prepare('SELECT 1 FROM attachment_files WHERE id = ?').get(id) !== undefined;
         if (!already && perTask >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
       }
       if (problem) {
         // Een absurd grote body lezen we niet weg: die verbinding sluit de server na het antwoord.
-        if (length <= Math.max(options.maxUploadBytes, 1_000_000) * 4) await receive(req, length, true).catch(() => { /* de fout van de controle gaat voor */ });
+        if (length <= Math.max(options.maxUploadBytes, 1_000_000) * 4) {
+          // de fout van de controle gaat voor; viel de afzender stil tijdens het weglezen, dan sluiten we na het antwoord (zie main.ts)
+          await receive(req, length, true).catch((e: unknown) => { if (e instanceof SyncError && e.code === 'TIMEOUT') problem!.cut = true; });
+        } else {
+          problem.cut = true;
+        }
         throw problem;
       }
       const uploadId = id as string;
@@ -229,6 +237,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         }
         if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
         if (used(userId) + size > options.quotaBytes) throw new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+        // ook hier nog eens: gelijktijdige uploads voor dezelfde taak hebben de controle vooraf allemaal gepasseerd
+        if (perTaskCount(uploadTask) >= LIMITS.attachmentsPerTask) throw new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
         const key = randomBytes(16).toString('hex');
         mkdirSync(join(dir, key.slice(0, 2)), { recursive: true });
         renameSync(tmp, pathOf(key));

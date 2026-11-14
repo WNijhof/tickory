@@ -536,7 +536,7 @@ export function createApp(opts: AppOptions): App {
           let seen = 0;
           const stop = (ms: number): void => { const t = setTimeout(() => req.destroy(), ms); t.unref(); req.once('close', () => clearTimeout(t)); };
           req.on('data', (c: Buffer) => { seen += c.length; if (seen > DRAIN_LIMIT) req.destroy(); });
-          if (err.code === 'TIMEOUT') res.once('finish', () => stop(250));
+          if (err.code === 'TIMEOUT' || err.cut) res.once('finish', () => stop(250));
           else stop(10_000);
         }
         return;

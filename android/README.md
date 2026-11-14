@@ -33,7 +33,7 @@ sleutel zijn ondertekend (zie [Ondertekenen](#ondertekenen)). Android 8 of nieuw
 De widgets vragen **geen extra toestemming**: ze doen zelf geen netwerkverkeer; het afvinken en verversen loopt via dezelfde
 WorkManager-taak als de herinneringen.
 
-De app vraagt geen toegang tot locatie, contacten, bestanden, camera of microfoon.
+De app vraagt geen toegang tot locatie, contacten, bestanden, camera of microfoon. Ook voor bijlagen niet: een bestand kiezen doet de kiezer van Android (die geeft de app alleen de gekozen bestanden), een foto maken doet de camera-app van het toestel (de foto komt in een eigen bestand in de cache van Tickory, via een FileProvider), en een bijlage opslaan laat Android je een plek kiezen.
 
 ## Komen de meldingen niet?
 
@@ -180,6 +180,13 @@ datum, `#add=<project-id>` in dat project). Alleen veilige tekens komen in zo'n 
 **Delen naar Tickory:** de app staat in het deelmenu van andere apps voor gewone tekst (`ACTION_SEND`, `text/plain`). Onderwerp en tekst gaan als
 `<server>/#share=<base64url van JSON>` naar de web-app (`core/ShareLink.kt`, afgekapt op 300 en 8000 tekens); de web-app (`client/core/share.js`)
 maakt er een titel en beschrijving van en opent het venster Taak toevoegen, in de Inbox, voorgevuld. Er wordt niets aangemaakt tot de gebruiker bevestigt.
+
+**Bijlagen** (`MainActivity`, `AttachmentFiles`, `store/ShareStore`, `core/AttachmentName`):
+
+- *Bestanden kiezen.* `onShowFileChooser` opent de kiezer van Android (`ACTION_GET_CONTENT`, meerdere bestanden) met de camera erbij als extra keuze, of alleen de camera als de pagina `capture` vraagt. De camera schrijft naar `cache/camera/` (FileProvider-adres, schrijfrecht alleen voor de camera-app); geeft hij niets terug of wordt er geannuleerd, dan gaat het lege bestand weg. De pagina krijgt altijd een antwoord (ook `null` bij annuleren), een tweede keuze beantwoordt de eerste met `null`, en een pagina van een ander adres dan de server krijgt geen kiezer. Het manifest heeft een `<queries>`-regel voor `IMAGE_CAPTURE` om te zien of er een camera-app is; er is geen camera- of opslagtoestemming.
+- *Openen en opslaan.* De brug heeft `openAttachment(id, naam, type)` en `saveAttachment(id, naam, type)` (alleen voor de pagina van de eigen server, alleen veilige id's). De app haalt het bestand zelf op met het token uit de Keystore (`ApiClient.downloadTo`, token in een header, geen omleidingen, hooguit 500 MB, geen half bestand bij een fout) naar `cache/attachments/<willekeurig>/<schone naam>` en geeft het via de FileProvider (alleen die twee mappen, niet exporteerbaar, tijdelijk leesrecht) aan een andere app (`ACTION_VIEW`; html, svg en xml gaan als `text/plain`, zodat een andere app het als tekst toont) of laat de gebruiker met `ACTION_CREATE_DOCUMENT` kiezen waar het komt. De cache wordt bij het opstarten opgeruimd (ouder dan een dag, en alle gedeelde bestanden). Een oudere versie van de app mist deze brugmethoden; `canOpenAttachments()` in `core/android.js` merkt dat en de web-app valt dan terug op de browser.
+- *Delen naar Tickory met bestanden.* Het manifest heeft ook `ACTION_SEND` en `ACTION_SEND_MULTIPLE` voor `*/*`. Alleen `content://`-adressen (geen paden op het toestel, niet onze eigen provider), hooguit 20 bestanden, 200 MB per bestand en 400 MB samen, worden naar `cache/share/<token>/<nummer>` gekopieerd (op een achtergronddraad; het eerste laden wacht daarop) en krijgen een willekeurig token van 128 bits. De web-app krijgt `#share=` met tekst, het token en de namen, typen en groottes; de bestanden zelf haalt de pagina op bij `<server>/__tickory_share/<token>/<nummer>`, dat `shouldInterceptRequest` uit de gekopieerde bestanden beantwoordt (alleen GET, alleen voor het adres van de server, tien minuten geldig, altijd `application/octet-stream`, geen cache). Daarna volgt de bevestiging in Taak toevoegen en worden het bijlagen van de nieuwe taak.
+- *Alleen op een toestel te controleren:* hoe de kiezer en de camera-app van een merk zich gedragen, of de FileProvider-adressen bij elke andere app werken, het deelmenu van echte apps (grote bestanden, veel bestanden), en of `shouldInterceptRequest` ook in alle WebView-versies de `fetch` van de pagina te zien krijgt.
 
 ## Widgets
 

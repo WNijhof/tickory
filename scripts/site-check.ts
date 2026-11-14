@@ -14,7 +14,10 @@
 // Poorten: SITE_PORT (8794) en SITE_CDP_PORT (9344). Zonder browser: SITE_CHECK_BROWSER=0 slaat dat deel over (en meldt het).
 
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { Readable } from 'node:stream';
 import { inflateSync } from 'node:zlib';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -29,6 +32,8 @@ import { periodTitle } from '../client/core/calendar.js';
 import { todayString } from '../client/core/format.js';
 import { describeCommandError } from '../client/core/messages.js';
 import { handleSync } from '../server/sync.ts';
+import { createAttachments } from '../server/attachments.ts';
+import { makePng } from './e2e-attachments.ts';
 import { addUser, freshDb } from '../server/testutil.ts';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
@@ -649,6 +654,96 @@ if (wants('demo')) {
     assert.ok(!d2.users.includes('joost'), 'in de demo verdwijnt Joost uit de lijst (Bram en Sanne delen nog Huishouden)');
   });
 
+  await check('bijlagen: de demo geeft bij uploaden en koppelen dezelfde uitkomsten en foutmeldingen als de echte server, en dezelfde rijen', async () => {
+    // Echte server met één gebruiker, en de demo met Anna; dezelfde taak en dezelfde stappen, met kleine grenzen.
+    const dir = mkdtempSync(join(tmpdir(), 'tickory-site-att-'));
+    try {
+      const db = freshDb();
+      const anna = addUser(db, 'anna', 'Anna');
+      const store = createAttachments(db, { dir, maxUploadBytes: 1000, quotaBytes: 5000 });
+      const demo = new DemoServer({ strict: true });
+      demo.maxUploadBytes = 1000;
+      demo.quotaBytes = 5000;
+      const api = demo.attachmentsApi();
+      const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40, 3)]);
+      const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
+
+      type Side = { inbox: string; run: (commands: object[]) => any; upload: (id: string, task: string, body: Buffer, mime: string) => Promise<{ code: string; out?: any }>; rows: () => any[] };
+      const real: Side = {
+        inbox: anna.inbox_project_id,
+        run: (commands) => handleSync(db, { commands }, anna.id),
+        upload: async (id, task, body, mime) => {
+          const req = Object.assign(Readable.from([body]), { headers: { 'content-length': String(body.length), 'content-type': mime } });
+          Object.defineProperty(req, 'complete', { get: () => req.readableEnded });
+          try { return { code: 'ok', out: await store.upload(req as never, anna.id, { id, taskId: task }) }; } catch (err: any) { return { code: err.code }; }
+        },
+        rows: () => (handleSync(db, { sync_token: '*' }, anna.id).attachments as any[]),
+      };
+      const fake: Side = {
+        inbox: 'inbox-user-anna',
+        run: (commands) => demo.sync({ commands }),
+        upload: async (id, task, body, mime) => {
+          try { return { code: 'ok', out: await api.upload({ id, taskId: task, blob: new Blob([body], { type: mime }), mime }) }; } catch (err: any) { return { code: err.code }; }
+        },
+        rows: () => (demo.sync({ sync_token: '*' }).attachments as any[]),
+      };
+      const T = 'check-att-task01', T2 = 'check-att-task02';
+      const run = async (x: Side) => {
+        const log: string[] = [];
+        const cmds = async (list: [string, object][]) => {
+          const commands = list.map(([type, args], i) => ({ type, uuid: `check-att-${log.length}-${i}`.padEnd(20, '0'), args }));
+          const res = x.run(commands);
+          for (const [i, [type]] of list.entries()) { const s = res.sync_status[commands[i].uuid]; log.push(`${type}: ${s === 'ok' ? 'ok' : s.error_code}`); }
+          return res;
+        };
+        const up = async (id: string, task: string, body: Buffer, mime = 'application/octet-stream') => { const r = await x.upload(id, task, body, mime); log.push(`upload ${id}: ${r.code}${r.out ? ` ${r.out.size} ${r.out.mime}` : ''}`); return r.out; };
+        await cmds([['task_add', { id: T, project_id: x.inbox, content: 'Met bijlagen' }], ['task_add', { id: T2, project_id: x.inbox, content: 'Tweede' }]]);
+        const a = await up('check-att-aaaa0001', T, png, 'text/plain'); // het type komt uit de bytes
+        await up('check-att-aaaa0001', T, png, 'text/plain'); // dezelfde upload nog eens
+        await up('check-att-aaaa0001', T, Buffer.alloc(png.length, 9)); // een ander bestand met dezelfde grootte
+        await up('check-att-aaaa0001', T2, png); // dezelfde inhoud voor een andere taak
+        await up('check-att-bbbb0002', 'check-att-taakgeen', png); // onbekende taak
+        await up('check-att-cccc0003', T, Buffer.alloc(1001, 1)); // te groot
+        await up('check-att-dddd0004', T, Buffer.alloc(0)); // leeg
+        await up('kort', T, png); // ongeldig id
+        const b = await up('check-att-eeee0005', T, Buffer.from('tweede bestand'), 'TEXT/Plain; charset=utf-8');
+        const good = { id: 'check-att-aaaa0001', task_id: T, name: 'foto café.png', size: a.size, mime: a.mime, sha256: a.sha256 };
+        await cmds([
+          ['attachment_add', { ...good, size: a.size + 1 }], // grootte klopt niet
+          ['attachment_add', { ...good, sha256: sha(Buffer.from('anders')) }],
+          ['attachment_add', { ...good, mime: 'text/plain' }],
+          ['attachment_add', { ...good, name: '../geheim.txt' }], // geen schone naam
+          ['attachment_add', { ...good, creator_id: 'iemand-anders' }], // READONLY
+          ['attachment_add', { ...good, pad: 'x' }],
+          ['attachment_add', { ...good, id: 'check-att-nooit0009' }], // niet geüpload
+          ['attachment_add', { ...good, task_id: T2 }], // andere taak dan bij de upload
+          ['attachment_add', good],
+          ['attachment_add', { ...good }], // nog eens: de bijlage bestaat al
+          ['attachment_add', { id: 'check-att-eeee0005', task_id: T, name: 'tweede.txt', size: b.size, mime: b.mime, sha256: b.sha256 }],
+          ['attachment_update', { id: good.id, name: 'nieuw.png' }],
+          ['attachment_delete', { id: good.id }],
+          ['attachment_delete', { id: good.id }],
+          ['attachment_delete', { id: 'check-att-nooit0009' }],
+        ]);
+        // 20 bijlagen per taak (wachtende uploads tellen mee): de 21e wordt geweigerd
+        const many = await Promise.all(Array.from({ length: 22 }, (_, i) => x.upload(`check-att-vol${String(i).padStart(5, '0')}`, T2, Buffer.from(`bestand ${i}`), 'text/plain')));
+        log.push(`veel: ${many.filter((m) => m.code === 'ok').length} ok, ${[...new Set(many.filter((m) => m.code !== 'ok').map((m) => m.code))].join(',')}`);
+        const quotaOne = await x.upload('check-att-groot0001', T, Buffer.alloc(900, 2), 'application/zip');
+        log.push(`ruimte: ${quotaOne.code}`);
+        return log;
+      };
+      const realLog = await run(real);
+      const demoLog = await run(fake);
+      assert.deepEqual(demoLog, realLog, 'de demo geeft per stap dezelfde uitkomst als de echte server');
+      assert.ok(realLog.includes('upload check-att-aaaa0001: ok 48 image/png'), 'het type komt uit de bytes: een png die als tekst werd aangeboden is een png');
+      assert.ok(realLog.includes('attachment_add: ok') && realLog.includes('attachment_update: UNKNOWN_COMMAND') && realLog.includes('upload check-att-cccc0003: TOO_LARGE'));
+      const strip = (rows: any[]) => rows.filter((r) => String(r.id).startsWith('check-att-') && !r.is_deleted).map(({ created_at, updated_at, creator_id, ...rest }) => rest).sort((p, q) => (p.id < q.id ? -1 : 1));
+      assert.deepEqual(strip(fake.rows()), strip(real.rows()), 'en dezelfde bijlagen');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   await check('de app zelf tegen de demo: opstarten, taak toevoegen, delen met een onbekende en een bekende gebruikersnaam', async () => {
     const backend = createBackend();
     assert.equal(backend.demo, true);
@@ -1069,6 +1164,48 @@ if (wants('browser')) {
         assert.deepEqual(await titles(), ['Tomaten water geven']);
         assert.match((await chips('Tomaten water geven'))![0], /^↻ .* 09:00$/);
         assertClean('account en project');
+      });
+
+      await check('demo: bijlagen bij een taak (bestand kiezen, voorbeeld, groot bekijken, te groot, verwijderen) zonder dat er iets het netwerk op gaat', async () => {
+        b.reset();
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        const dir = join(ROOT, '.site-work', 'check', 'bijlagen');
+        mkdirSync(dir, { recursive: true });
+        const photo = join(dir, 'foto van de oprit.png');
+        const sheet = join(dir, 'Offerte café.pdf');
+        const big = join(dir, 'te groot.bin');
+        writeFileSync(photo, makePng(90, 60));
+        writeFileSync(sheet, Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(100, 0x20)]));
+        writeFileSync(big, Buffer.alloc(5_000_001, 1));
+        await taskDo('Fietsband plakken', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        assert.equal(await evaluate(`document.querySelector('#task-dialog .attachments .subheading').textContent`), 'Bijlagen');
+        const choose = async (paths: string[]) => {
+          const { result } = await b.send('Runtime.evaluate', { expression: `document.querySelector('#task-dialog .attachment-actions input[type=file]:not([capture])')` });
+          await b.send('DOM.enable');
+          await b.send('DOM.setFileInputFiles', { files: paths, objectId: result.objectId });
+        };
+        await choose([photo, sheet]);
+        await waitFor(`document.querySelectorAll('#task-dialog .attachment:not(.attachment-pending)').length === 2`, 'twee bijlagen in de demo', 15_000);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .attachment-name')].map((e) => e.textContent).sort()`), ['Offerte café.pdf', 'foto van de oprit.png']);
+        await waitFor(`document.querySelector('#task-dialog .attachment-thumb-img')?.naturalWidth === 90`, 'voorbeeld van de afbeelding');
+        assert.ok(await evaluate(`document.querySelector('#task-dialog .attachment-thumb-img').src.startsWith('blob:')`));
+        await evaluate(`[...document.querySelectorAll('#task-dialog .attachment')].find((l) => l.querySelector('.attachment-name').textContent === 'foto van de oprit.png').querySelector('.attachment-thumb').click()`);
+        await waitFor(`document.querySelector('.attachment-viewer img')?.naturalWidth === 90`, 'afbeelding groot');
+        await clickText('Sluiten', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
+        await choose([big]);
+        await waitFor(`document.querySelector('#task-dialog .attachment-note').textContent.includes('te groot')`, 'melding bij een te groot bestand');
+        assert.match(await evaluate(`document.querySelector('#task-dialog .attachment-note').textContent`), /“te groot\.bin” is te groot en is niet toegevoegd \(maximaal 5 MB\)\./, 'de demo heeft een kleinere grens dan een echte server en zegt welke');
+        await evaluate(`[...document.querySelectorAll('#task-dialog .attachment')].find((l) => l.querySelector('.attachment-name').textContent === 'Offerte café.pdf').querySelector('[aria-label^="Bijlage Offerte café.pdf verwijderen"]').click()`);
+        await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Bijlage verwijderen?')`, 'bevestiging');
+        await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+        await waitFor(`document.querySelectorAll('#task-dialog .attachment').length === 1`, 'bijlage verwijderd');
+        await submit('#task-dialog form');
+        await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        assert.ok((await chips('Fietsband plakken'))!.includes('1'), 'de teller met de paperclip staat in de lijst');
+        assertClean('demo: bijlagen');
       });
 
       await check('demo: herinneringen in het taakvenster (kiezen, eigen tijdstip, verwijderen, taak zonder tijd) en met !-snelschrift', async () => {

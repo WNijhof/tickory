@@ -30,6 +30,16 @@ description: Making Tickory reachable over HTTPS: with Tailscale, with a reverse
 }</code></pre>
 <p>If the proxy itself runs in a container, <code>127.0.0.1</code> is that container for the proxy and not your server. In that case put both in the same Docker network, for example, and point the proxy at <code>tickory:8787</code>.</p>
 
+<h3 id="large-files">Large files (attachments)</h3>
+<p>With <a href="attachments.html">attachments</a> users send files of tens of megabytes to the server (up to 25 MB by default, see <code>MAX_UPLOAD_MB</code>). A proxy that does not allow that answers <code>413</code> and the upload fails. <strong>Set the proxy's limit at least as high.</strong> Caddy and Traefik have no limit by default. <strong>Nginx</strong> only allows 1 MB by default:</p>
+<pre><code>location / {
+    proxy_pass http://127.0.0.1:8787;
+    client_max_body_size 30m;
+    proxy_request_buffering off;
+    proxy_read_timeout 300s;
+}</code></pre>
+<p><code>proxy_request_buffering off</code> passes the file on while it arrives, instead of first keeping all of it in nginx. An upload may take longer than 30 seconds as long as it makes progress.</p>
+
 <h3 id="trust-proxy">TRUST_PROXY</h3>
 <p>Behind your own reverse proxy, put this in <code>.env</code>:</p>
 <pre><code>TRUST_PROXY=1</code></pre>

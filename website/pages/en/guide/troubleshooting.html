@@ -52,6 +52,10 @@ docker compose logs --tail 100</code></pre>
   <dd>The app fetches a new version in the background. Close the app and open it again.</dd>
   <dt>The app sometimes does not open without a connection, although it could before</dt>
   <dd>The browser, or a network filter such as AdGuard, can erase the stored files of the app. The app fills them up again by itself as soon as you open it with a connection.</dd>
+  <dt id="attachments">Uploading an attachment fails</dt>
+  <dd>Look at what it says by the file. <em>Waiting for a connection</em> means the app keeps trying by itself. <em>Too large</em>: the file is bigger than <code>MAX_UPLOAD_MB</code> of your server (25 MB by default). <em>Storage full</em>: delete an attachment, or the administrator raises <code>ATTACHMENT_QUOTA_MB</code>. If a large file keeps failing and the browser reports <code>413</code> or a broken connection, a reverse proxy is not letting it through: see <a href="https.html#large-files">Large files</a> (nginx: <code>client_max_body_size</code>). Administrator: if nothing is in the log, check whether the disk is full (<code>507</code>).</dd>
+  <dt>An attachment has disappeared or cannot be opened</dt>
+  <dd>Did you restore a backup without the folder with attachments? Then the attachment is still in the list, but its file is missing: put the <code>attachments</code> folder back (see <a href="backup.html#attachments">Backup</a>).</dd>
   <dt>A date is not recognised, or is recognised where it should not be</dt>
   <dd>See <a href="dates-and-recurrence.html">Dates and recurrences</a>. A <code>~</code> switches recognition off.</dd>
   <dt>“Local storage isn't available”</dt>

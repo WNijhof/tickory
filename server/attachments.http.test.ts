@@ -35,7 +35,7 @@ let n = 0;
 const cmd = (type: string, args: Record<string, unknown> = {}): Command => ({ type, uuid: `att-${String(++n).padStart(8, '0')}`, args });
 
 interface World {
-  db: DatabaseSync; app: App; attachments: Attachments; dir: string; base: string; port: number;
+  db: DatabaseSync; app: App; attachments: Attachments; options: AttachmentOptions; dir: string; base: string; port: number;
   users: Record<'alice' | 'bob' | 'carol', UserRow>; tokens: Record<'alice' | 'bob' | 'carol', string>;
   sync: (as: 'alice' | 'bob' | 'carol', commands: Command[], token?: string) => any;
   /** Alice heeft project P met taak T (en deelt niets). */
@@ -50,7 +50,8 @@ async function world(opts: Partial<AttachmentOptions> = {}): Promise<World> {
   const db = freshDb();
   const users = { alice: addUser(db, 'alice', 'Alice'), bob: addUser(db, 'bob', 'Bob'), carol: addUser(db, 'carol', 'Carol') };
   const tokens = { alice: createSession(db, users.alice.id, 't').token, bob: createSession(db, users.bob.id, 't').token, carol: createSession(db, users.carol.id, 't').token };
-  const attachments = createAttachments(db, { dir, maxUploadBytes: 1_000_000, quotaBytes: 10_000_000, ...opts });
+  const options: AttachmentOptions = { dir, maxUploadBytes: 1_000_000, quotaBytes: 10_000_000, ...opts };
+  const attachments = createAttachments(db, options);
   const app = createApp({ db, attachments, attachmentSweepMs: 0 });
   await new Promise<void>((r) => app.server.listen(0, '127.0.0.1', r));
   const port = (app.server.address() as AddressInfo).port;
@@ -67,7 +68,7 @@ async function world(opts: Partial<AttachmentOptions> = {}): Promise<World> {
   for (const c of setup) assert.equal(r.sync_status[c.uuid], 'ok');
   const bearer = (as: string | null) => (as ? { Authorization: `Bearer ${(tokens as Record<string, string>)[as] ?? as}` } : {});
   return {
-    db, app, attachments, dir, base, port, users, tokens, sync, P, T,
+    db, app, attachments, options, dir, base, port, users, tokens, sync, P, T,
     upload: async (as, id, task, body, type = 'application/octet-stream') => {
       const res = await fetch(`${base}/api/v1/attachments?id=${id}&task_id=${task}`, { method: 'POST', headers: { ...bearer(as), 'Content-Type': type }, body: typeof body === 'string' ? Buffer.from(body) : body });
       return { status: res.status, json: await res.json() };
@@ -749,5 +750,147 @@ test('de gewone verzoeken houden hun tijdslimiet van 30 seconden-regeling: een t
     const head = `POST /api/v1/sync HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ${w.tokens.alice}\r\nContent-Type: application/json\r\nContent-Length: 500\r\n\r\n{"commands":[`;
     await raw(w.port, head, (s) => setTimeout(() => s.destroy(), 50));
     assert.equal((await fetch(`${w.base}/health`)).status, 200);
+  } finally { await w.close(); }
+});
+
+// ---------- aanvullingen na een mutatietest: wat de eerste tests nog niet vastlegden ----------
+
+/** Een upload die half wordt verstuurd en door de test wordt afgemaakt (of laten doodlopen). */
+function heldUpload(w: World, as: 'alice' | 'bob' | 'carol', id: string, task: string, total: number, first: number) {
+  const head = `POST /api/v1/attachments?id=${id}&task_id=${task} HTTP/1.1\r\nHost: x\r\nAuthorization: Bearer ${w.tokens[as]}\r\nContent-Type: application/octet-stream\r\nContent-Length: ${total}\r\n\r\n`;
+  let socket!: ReturnType<typeof connect>;
+  const done = raw(w.port, head, (s) => { socket = s; s.write(Buffer.alloc(first, 5)); });
+  return { done, finish: (rest: number) => socket.write(Buffer.alloc(rest, 5)), socket: () => socket };
+}
+
+test('een lopende upload houdt zijn ruimte vast: een tweede upload van dezelfde gebruiker wordt meteen geweigerd, nog vóór er iets binnen is', async () => {
+  const w = await world({ quotaBytes: 1000, maxUploadBytes: 1000 });
+  try {
+    const first = heldUpload(w, 'alice', 'houd-vast-0001', w.T, 600, 100);
+    await sleep(100);
+    const second = await w.upload('alice', 'houd-vast-0002', w.T, Buffer.alloc(600, 9));
+    assert.equal(second.status, 409, 'de eerste is nog niet klaar, maar zijn 600 bytes tellen al mee');
+    first.finish(500);
+    const r = await first.done;
+    assert.equal(status(r.data), 200);
+    assert.equal(w.attachments.used(w.users.alice.id), 600);
+  } finally { await w.close(); }
+});
+
+test('de grens wordt aan het eind nog eens gecontroleerd, in één stap met het vastleggen (ook als hij tussendoor lager werd)', async () => {
+  const w = await world({ maxUploadBytes: 1000, quotaBytes: 1000 });
+  try {
+    const held = heldUpload(w, 'alice', 'tussendoor-0001', w.T, 600, 100);
+    await sleep(100);
+    w.options.quotaBytes = 100; // de beheerder verlaagt de grens terwijl er een upload loopt
+    held.finish(500);
+    const r = await held.done;
+    assert.equal(status(r.data), 409);
+    assert.equal(filesOnDisk(w.dir).length, 0);
+    assert.deepEqual(tmpFiles(w.dir), []);
+  } finally { await w.close(); }
+});
+
+test('een lid dat al te veel heeft gedaan, krijgt een nette melding voordat zijn body is gelezen', async () => {
+  const w = await world({ idleMs: 400, quotaBytes: 1000, maxUploadBytes: 1000 });
+  try {
+    // 900 bytes passen niet naast de 300 die er al zijn; de body komt niet, en toch is het antwoord de grens en niet "te langzaam"
+    assert.equal((await w.upload('alice', 'al-aanwezig-001', w.T, Buffer.alloc(300, 1))).status, 200);
+    const held = heldUpload(w, 'alice', 'stil-en-te-veel1', w.T, 900, 10);
+    const r = await held.done;
+    assert.equal(status(r.data), 409);
+  } finally { await w.close(); }
+});
+
+test('een niet-lid dat een upload begint, krijgt 404 zodra de controle klaar is en niet pas na het wachten op zijn body', async () => {
+  const w = await world({ idleMs: 400 });
+  try {
+    const started = Date.now();
+    const held = heldUpload(w, 'bob', 'vreemde-upload1', w.T, 500, 50);
+    const r = await held.done;
+    assert.equal(status(r.data), 404, 'bob is geen lid');
+    assert.ok(Date.now() - started < 3000);
+    assert.equal(filesOnDisk(w.dir).length, 0);
+  } finally { await w.close(); }
+});
+
+test('wie tijdens zijn upload uit het project wordt gehaald, houdt niets over', async () => {
+  const w = await world();
+  try {
+    w.sync('alice', [cmd('project_share', { project_id: w.P, username: 'bob' })]);
+    const held = heldUpload(w, 'bob', 'weggehaald-0001', w.T, 300, 50);
+    await sleep(100);
+    w.sync('alice', [cmd('project_unshare', { project_id: w.P, user_id: w.users.bob.id })]);
+    held.finish(250);
+    const r = await held.done;
+    assert.equal(status(r.data), 404);
+    assert.equal(filesOnDisk(w.dir).length, 0);
+    assert.equal(db_count(w.db, 'attachment_files'), 0);
+  } finally { await w.close(); }
+});
+
+test('een ander bestand met dezelfde grootte, of hetzelfde id voor een andere taak, is geen herhaling', async () => {
+  const w = await world();
+  try {
+    w.sync('alice', [cmd('task_add', { id: 'task-alice-0002', project_id: w.P, content: 'Tweede' })]);
+    const a = await w.upload('alice', 'zelfde-id-00001', w.T, 'aaaa');
+    assert.equal(a.status, 200);
+    const sameSize = await w.upload('alice', 'zelfde-id-00001', w.T, 'bbbb');
+    assert.equal(sameSize.status, 409, 'zelfde grootte, andere inhoud');
+    const otherTask = await w.upload('alice', 'zelfde-id-00001', 'task-alice-0002', 'aaaa');
+    assert.equal(otherTask.status, 409, 'dezelfde inhoud, maar voor een andere taak');
+    assert.equal(db_count(w.db, 'attachment_files'), 1);
+  } finally { await w.close(); }
+});
+
+test('een upload die nog niet aan een bijlage hangt, is alleen voor de uploader, en alleen zolang die bij de taak mag', async () => {
+  const w = await world();
+  try {
+    w.sync('alice', [cmd('project_share', { project_id: w.P, username: 'bob' })]);
+    assert.equal((await w.upload('alice', 'wachtend-00001', w.T, 'x')).status, 200);
+    assert.equal((await w.get('alice', '/api/v1/attachments/wachtend-00001')).status, 200);
+    assert.equal((await w.get('bob', '/api/v1/attachments/wachtend-00001')).status, 404, 'een ander lid ziet een nog niet gekoppelde upload niet');
+    assert.equal((await w.upload('bob', 'wachtend-00002', w.T, 'y')).status, 200);
+    w.sync('alice', [cmd('project_unshare', { project_id: w.P, user_id: w.users.bob.id })]);
+    assert.equal((await w.get('bob', '/api/v1/attachments/wachtend-00002')).status, 404, 'uit het project: ook zijn eigen upload is niet meer te halen');
+  } finally { await w.close(); }
+});
+
+test('een bijlage die net is verwijderd maar waarvan het bestand nog staat, is al niet meer te halen; een bestand dat niet klopt met de database ook niet', async () => {
+  const w = await world();
+  try {
+    await addAttachment(w, 'alice', 'verwijderd-0001', 'inhoud', 'a.txt', 'text/plain');
+    await addAttachment(w, 'alice', 'beschadigd-0001', 'inhoud', 'b.txt', 'text/plain');
+    // verwijderen zonder opruimen (zoals tussen de sync en het opruimen)
+    handleSync(w.db, { commands: [cmd('attachment_delete', { id: 'verwijderd-0001' })] }, w.users.alice.id);
+    assert.equal((await w.get('alice', '/api/v1/attachments/verwijderd-0001')).status, 404);
+    // een bestand waar iemand aan zat: de grootte klopt niet meer
+    const key = (w.db.prepare("SELECT key FROM attachment_files WHERE id = 'beschadigd-0001'").get() as Row).key as string;
+    writeFileSync(join(w.dir, key.slice(0, 2), key), 'veel langer dan eerst');
+    const res = await w.get('alice', '/api/v1/attachments/beschadigd-0001');
+    assert.equal(res.status, 404);
+    await res.text();
+  } finally { await w.close(); }
+});
+
+test('de naam in de Content-Disposition: haakjes en een apostrof worden als %-tekens verstuurd (RFC 8187)', async () => {
+  const w = await world();
+  try {
+    await addAttachment(w, 'alice', 'haakjes-000001', 'x', "Anna's foto (1)*.pdf", 'text/plain');
+    const cd = String((await sent(w, w.users.alice.id, 'haakjes-000001')).headers['Content-Disposition']);
+    const star = cd.slice(cd.indexOf("filename*=UTF-8''") + "filename*=UTF-8''".length);
+    assert.equal(star, 'Anna%27s%20foto%20%281%29_.pdf', cd);
+  } finally { await w.close(); }
+});
+
+test('de tijdslimiet voor een hele upload werkt los van het stilvallen: druppelen is te langzaam, ook als er steeds iets binnenkomt', async () => {
+  let t = Date.now();
+  const w = await world({ idleMs: 10_000_000, minBytesPerSecond: 1_000_000, maxUploadBytes: 100, now: () => (t += 7000) });
+  try {
+    const held = heldUpload(w, 'alice', 'langzaam-00001', w.T, 90, 1);
+    const drip = setInterval(() => { try { held.socket()?.write('x'); } catch { /* verbinding dicht */ } }, 30);
+    const r = await held.done;
+    clearInterval(drip);
+    assert.equal(status(r.data), 408);
   } finally { await w.close(); }
 });

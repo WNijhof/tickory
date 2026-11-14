@@ -15,6 +15,8 @@ export interface Ctx {
 
 export class SyncError extends Error {
   code: string;
+  /** De verbinding hoort na het antwoord dicht (een afzender die te langzaam of te groot is; zie main.ts). */
+  cut = false;
   constructor(code: string, message: string) {
     super(message);
     this.name = 'SyncError';

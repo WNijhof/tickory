@@ -88,12 +88,21 @@ description: De Android-app van Tickory: je eigen server in een app, met herinne
 </ul>
 <p>Staat alles goed, dan zie je <em><x-ui k="notify.androidOk"></x-ui></em>, met het versienummer van de app eronder.</p>
 
+<h2 id="bijlagen-en-bestanden">Bijlagen en bestanden delen</h2>
+<p>Bij een taak kun je <a href="bijlagen.html">bijlagen</a> toevoegen. In de app kies je bestanden met de kiezer van Android (galerij, bestanden, andere apps), of je maakt een foto met de camera-app van je telefoon. <strong>Tickory vraagt hiervoor geen toestemming</strong> voor foto's, bestanden of camera: de kiezer en de camera-app doen het werk en geven de app alleen wat je kiest.</p>
+<ul>
+  <li><strong>Openen:</strong> tik in het taakvenster op een bijlage. De app haalt het bestand op en geeft het aan een andere app op je telefoon (een pdf aan je pdf-lezer). Heb je daarvoor geen app, dan zegt Tickory dat; kies dan <em>Opslaan</em>.</li>
+  <li><strong>Opslaan:</strong> Android laat je kiezen waar het bestand komt.</li>
+  <li><strong>Delen naar Tickory:</strong> kies in een andere app (galerij, bestanden) Delen en dan Tickory. Een of meer bestanden worden bijlage van een nieuwe taak in je Inbox, nadat je in <em>Taak toevoegen</em> op <em>Toevoegen</em> hebt gedrukt; kies je annuleren, dan gebeurt er niets. Tekst die je er tegelijk bij deelt, wordt de titel of de beschrijving.</li>
+  <li>Opgehaalde bijlagen staan tijdelijk in de opslag van de app en worden na een dag opgeruimd.</li>
+</ul>
+<p>Nog niet op een echt toestel geprobeerd: hoe de kiezer en de camera van jouw merk zich gedragen, en grote of veel bestanden via het deelmenu. Zie ook <a href="problemen-oplossen.html#bijlagen">Problemen oplossen</a>.</p>
+
 <h2>Beperkingen</h2>
 <ul>
   <li><strong>Zonder verbinding openen werkt alleen met https.</strong> De web-app bewaart zichzelf met een service worker en browsers staan die alleen toe op https. Met een <code>http://</code>-adres opent de app buitenshuis dus niet; de herinneringen gaan wel af.</li>
   <li><strong>Alleen certificaten die Android zelf vertrouwt</strong> (zoals van Let's Encrypt). Een zelfgemaakt of zelf toegevoegd certificaat wordt niet geaccepteerd.</li>
   <li><strong>Een inlogpagina vóór je server</strong> (Authelia, Cloudflare Access en dergelijke) werkt niet: de app opent alleen het ingestelde adres en kan <code>/health</code> en <code>/api/</code> dan niet bereiken.</li>
-  <li><strong>Geen bestandskiezer</strong> in de app. Tickory heeft nu geen bijlagen of andere onderdelen die een bestand vragen, dus je merkt dit niet.</li>
   <li>Een melding vervangt de web-app niet: een herinnering is een alarm van de telefoon. Op een toestel zonder <em>Android System WebView</em> (of met WebView uitgezet) start de app niet; hij zegt dat.</li>
 </ul>
 

@@ -463,6 +463,11 @@ export class DemoServer {
           throw refuse(409, 'CONFLICT', 'er is al een ander bestand met dit id geüpload');
         }
         if (used() + blob.size > this.quotaBytes) throw refuse(409, 'LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+        // zoals de server, in dezelfde stap als het vastleggen (na het wachten op de hash): hooguit 20 bijlagen en nog niet gekoppelde uploads per taak
+        let attached = 0;
+        for (const a of this.state.attachments.values()) if (a.task_id === taskId) attached += 1;
+        const waiting = [...this.files.values()].filter((f) => f.task_id === taskId && !f.linked).length;
+        if (attached + waiting >= MAX_ATTACHMENTS_PER_TASK) throw refuse(409, 'LIMIT_REACHED', `een taak kan hooguit ${MAX_ATTACHMENTS_PER_TASK} bijlagen hebben`);
         const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
         const effective = effectiveMime(mime, head);
         this.files.set(id, { blob, task_id: taskId, size: blob.size, sha256: hash, mime: effective, linked: false });

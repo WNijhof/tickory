@@ -76,11 +76,14 @@ docker compose logs -f     # follow the log; stop with Ctrl+C</code></pre>
       <tr><td><code>PORT</code></td><td class="wrap-ok">The port the server listens on; 8787 by default.</td></tr>
       <tr><td><code>HOST</code></td><td class="wrap-ok">The address the server listens on; <code>127.0.0.1</code> by default, <code>0.0.0.0</code> in the container.</td></tr>
       <tr><td><code>DB_PATH</code></td><td class="wrap-ok">Where the database is; <code>./data/todo.db</code> by default, <code>/data/todo.db</code> in the container.</td></tr>
+      <tr><td><code>MAX_UPLOAD_MB</code></td><td class="wrap-ok">The largest file you can upload as an <a href="attachments.html">attachment</a>, in megabytes; 25 by default.</td></tr>
+      <tr><td><code>ATTACHMENT_QUOTA_MB</code></td><td class="wrap-ok">The storage for attachments per user, in megabytes; 1024 by default.</td></tr>
+      <tr><td><code>ATTACHMENTS_DIR</code></td><td class="wrap-ok">Where the attachments are stored; by default the folder <code>attachments</code> next to the database, in the container <code>/data/attachments</code> (so in the volume and in your <a href="backup.html#attachments">backup</a>).</td></tr>
       <tr><td><code>CORS_ORIGIN</code></td><td class="wrap-ok">Optional: one exact address that may call the server from another origin. Normally not needed.</td></tr>
     </tbody>
   </table>
 </div>
-<p>The supplied <code>docker-compose.yml</code> passes the first account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code> and <code>DEFAULT_TIMEZONE</code> on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
+<p>The supplied <code>docker-compose.yml</code> passes the first account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code> and <code>ATTACHMENT_QUOTA_MB</code> on from <code>.env</code>. <code>PORT</code>, <code>HOST</code> and <code>DB_PATH</code> already have the right value in the container; if you want to use <code>CORS_ORIGIN</code>, add it yourself under <code>environment:</code>.</p>
 
 <h2>The image is still private</h2>
 <p>As long as the repository and the image are private on GitHub, your server has to sign in once to be able to fetch them:</p>

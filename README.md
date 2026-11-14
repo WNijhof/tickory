@@ -59,7 +59,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 
 - Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
 - Sharing a project with other users of the same server, and assigning tasks to members.
-- Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, and **comments** on tasks and projects.
+- Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, **comments** on tasks and projects, and **attachments** on tasks (photos and files, also choosable offline, with a preview of images).
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
 - Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile.
 - **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
@@ -91,7 +91,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Missing entirely:**
 
-- Attachments, statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
+- Statistics, templates, import and export, an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
 
@@ -149,7 +149,8 @@ An app of its own (Kotlin, in [`android/`](android/README.md)) that shows the we
 
 - **No release yet.** The first APK comes with the next version, attached to that version on the [releases page](https://github.com/WNijhof/tickory/releases). Until then use the web app in your phone's browser, or build it yourself: see [android/README.md](android/README.md) (JDK 21 and the Android SDK).
 - **Installing** (when there is an APK): download it on the phone, open it and allow "install unknown apps" for the app you opened it with, then enter the address of your server and sign in. Updating: install the new APK over the old one; that only works when both are signed with the same key (a debug APK cannot update, uninstall it first).
-- **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work; there is no file picker (attachments do not exist yet anyway). Android 8 or newer.
+- **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work. Android 8 or newer.
+- **Attachments and sharing.** Choosing files (gallery, files, camera) needs no extra permission: the app does not ask for access to photos or the camera, Android's own picker and camera app do the work. Opening or saving an attachment is fetched by the app itself, with the token that is already on the device. Tickory also shows up in other apps' share menu for **files**: they become attachments of a new task in the Inbox, after you confirm in Add task. How the picker, the camera and the share menu behave on a real device has not been tried yet.
 - **Not tested on a phone.** It has been tested on a computer (calculation rules, a simulated Android and one test against a real server), but the maker has not tried it on a real device yet. Please report what you notice.
 - **Widgets (next version).** Four home screen widgets: **Today** (overdue and due today), **Project or list** (you choose the Inbox, a project, Today or Upcoming when you place it; saved filters come later), **Upcoming** (the next two weeks, by day) and an **Add task** button. Tap the circle to complete a task, also without internet (it waits in a queue on the phone and is sent when there is a connection; a recurring task comes back with the new date from the server), tap the title to open the task, tap + to add one. Resizable, light and dark, Material You colours on Android 12 and newer, TalkBack descriptions, Dutch and English. They read the data on the device, not the web view; signing out or switching account clears everything. Not tried on a phone yet: how they look per launcher, resizing and battery saving. See [the guide](https://wnijhof.github.io/tickory/en/guide/widgets.html) and [android/README.md](android/README.md).
 
@@ -183,6 +184,21 @@ docker compose pull && docker compose up -d
 
 Your data is in a Docker volume and is kept. If you build yourself: `git pull && docker compose up -d --build --pull always`. Note: a new version of the underlying Node image (security updates) only comes in when a new image is built.
 
+### Attachments
+
+A task can have files attached (photos, PDFs, anything). The files are stored **in the data volume**, in `attachments/` next to the database (`/data/attachments` in Docker), not in the database itself, under random names. Whoever sees the task sees the attachments; the person who added one, or the owner of the project, can delete it. Choosing a file also works without a connection: it is kept on the device and uploaded as soon as it can be.
+
+Two settings in `.env` (see `.env.example`):
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `MAX_UPLOAD_MB` | `25` | The largest file, in megabytes. |
+| `ATTACHMENT_QUOTA_MB` | `1024` | The storage per user, in megabytes (the total of what that user uploaded). A task has at most 20 attachments. |
+
+**If a reverse proxy sits in front, set its limit at least as high.** Nginx only allows 1 MB by default and then answers `413`: use `client_max_body_size 30m;` (and `proxy_request_buffering off;` on the proxied path so large files do not wait in nginx first). Caddy and Traefik have no limit by default. An upload may take longer than 30 seconds as long as it makes progress.
+
+The server cleans up by itself: files of deleted attachments (also when their task or project was deleted), uploads that were never attached (after an hour), and a one-time check of the folder against the database at start-up. **Include the `attachments/` folder in your backup** (see below). More: [Attachments in SPEC.md](SPEC.md) (chapter 4b, in Dutch).
+
 ### Upgrading from version 0.1
 
 Version 0.1 had one token for one person. Put `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD` in `.env` (you can remove `TODO_TOKEN`) and start the new version. On the first start that account is created and **takes over all existing data** (projects, labels, filters, reminders), including your Inbox. After that you have to sign in again on every device. Make a backup first (see below).
@@ -196,6 +212,8 @@ docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +
 ```
 
 This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons)**: whoever has it can sign button tokens for any task of any user. Keep it the way you keep the database itself, and keep the folder with copies closed to others.
+
+**Attachments are included:** if the `attachments/` folder exists, the same command copies the files of the attachments that are in the copy to `<target>.attachments/` (in the example above `/data/backups/todo-2026-11-14.attachments/`). That way the database and the files belong together; a file that was deleted between the two steps is skipped and reported. Restoring: put the database back as above and copy the folder back to `/data/attachments` (in the example: `cp -r /backup/todo.attachments/. /data/attachments/`, with `chown -R 1000:1000`). The server checks at start-up that both fit together and reports attachments whose file is missing. A backup therefore also contains everything users have uploaded: keep it as carefully as the database. It takes storage: count the size of your attachments on top.
 
 Restoring a copy (the app has to be stopped; replace `backup.db` with your file):
 
@@ -262,12 +280,12 @@ The tests include a property test for the order keys and a **differential test**
 ## Layout
 
 ```
-shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js   shared by server and client
-server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, main.ts, backup.ts
+shared/    orderKey.js, recurrence.js, reminders.js, schema.js, text.js, attachments.js   shared by server and client
+server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, attachments.ts, main.ts, backup.ts
            tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, search.css, sw.js, manifest             the web app
-client/core/   reducer, store, idb, syncClient, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
-client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
+client/    index.html, app.css, search.css, attachments.css, sw.js, manifest             the web app
+client/core/   reducer, store, idb, syncClient, attachments, attachmentsApi, imageResize, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
+client/ui/     app, render, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)

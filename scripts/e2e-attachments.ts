@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { deflateSync } from 'node:zlib';
 
 /** Een echte, kleine PNG (een verloop van kleur) die de browser kan tekenen. */
-function makePng(width: number, height: number): Buffer {
+export function makePng(width: number, height: number): Buffer {
   const crcTable = Array.from({ length: 256 }, (_, n) => { let x = n; for (let k = 0; k < 8; k++) x = x & 1 ? 0xedb88320 ^ (x >>> 1) : x >>> 1; return x >>> 0; });
   const crc = (buf: Buffer) => { let x = 0xffffffff; for (const b of buf) x = crcTable[(x ^ b) & 0xff] ^ (x >>> 8); return (x ^ 0xffffffff) >>> 0; };
   const chunk = (type: string, data: Buffer) => {

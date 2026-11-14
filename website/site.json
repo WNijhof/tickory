@@ -86,6 +86,7 @@
         { "nl": "handleiding/zoeken.html", "en": "guide/search.html" },
         { "nl": "handleiding/filters.html", "en": "guide/filters.html" },
         { "nl": "handleiding/taakvenster.html", "en": "guide/task-window.html" },
+        { "nl": "handleiding/bijlagen.html", "en": "guide/attachments.html" },
         { "nl": "handleiding/herinneringen.html", "en": "guide/reminders.html" },
         { "nl": "handleiding/sneltoetsen.html", "en": "guide/shortcuts.html" },
         { "nl": "handleiding/delen.html", "en": "guide/sharing.html" },

@@ -33,6 +33,7 @@ Alle entiteiten hebben: `id`, `is_deleted` (bool), `created_at`, `updated_at` (I
 | `task` | `project_id`*, `section_id`, `parent_id`, `content`*, `description`, `priority` (1 = hoogste … 4 = geen, standaard), `labels` (lijst label-id's), `due`, `deadline` (YYYY-MM-DD), `duration` (minuten), `is_collapsed`, `order_key`; server-beheerd: `checked`, `completed_at`, `completed_count` |
 | `label` | `name`* (uniek per eigenaar, niet hoofdlettergevoelig), `color`, `order_key`, `is_favorite`, `owner_id` |
 | `comment` | `content`*, precies één van `task_id` / `project_id`, `author_id` |
+| `attachment` | `task_id`*, `name`*, `size`*, `mime`*, `sha256`*, `creator_id` (server). De gegevens over een bijlage bij een taak; het bestand zelf staat niet in de database (zie 4b). Alleen `attachment_add` en `attachment_delete` |
 | `reminder` | `task_id`*, `type`* (`relative` met `minute_offset`, of `absolute` met `due` inclusief tijd), `owner_id` |
 | `filter` | `name`*, `query`*, `color`, `order_key`, `is_favorite`, `owner_id` |
 | `member` | `project_id`, `user_id`, `role` (`owner` \| `member`). Alleen te wijzigen met `project_share`, `project_unshare` en `project_leave`. |
@@ -61,7 +62,7 @@ Taken hebben daarnaast `assignee_id` (een lid van het project, of `null`) en `cr
 ```
 
 - `sync_token`: `"*"` voor een volledige sync, anders het token uit het vorige antwoord.
-- `resource_types`: `"all"` (standaard) of namen (`tasks`, `projects`, `sections`, `labels`, `comments`, `reminders`, `filters`); `-naam` sluit uit.
+- `resource_types`: `"all"` (standaard) of namen (`tasks`, `projects`, `sections`, `labels`, `comments`, `attachments`, `reminders`, `filters`); `-naam` sluit uit.
 - `commands`: maximaal 100, in volgorde uitgevoerd.
 
 Antwoord:
@@ -80,13 +81,13 @@ Antwoord:
 
 `me` is de ingelogde gebruiker; `users` bevat die gebruiker plus iedereen met wie een project wordt gedeeld (alleen om namen te tonen), en komt altijd volledig mee.
 
-**Wie wat ziet.** Een gebruiker ziet een project, en de secties, taken, opmerkingen en leden daarvan, als die lid is van het project. Labels, filters en herinneringen ziet alleen de eigenaar; een label van iemand anders is zichtbaar (alleen lezen) zolang het op een taak staat in een project waar je lid van bent. Wat je niet mag zien, bestaat voor jou niet: een commando erop geeft `NOT_FOUND`, niet `FORBIDDEN`.
+**Wie wat ziet.** Een gebruiker ziet een project, en de secties, taken, opmerkingen, bijlagen en leden daarvan, als die lid is van het project. Labels, filters en herinneringen ziet alleen de eigenaar; een label van iemand anders is zichtbaar (alleen lezen) zolang het op een taak staat in een project waar je lid van bent. Wat je niet mag zien, bestaat voor jou niet: een commando erop geeft `NOT_FOUND`, niet `FORBIDDEN`.
 
 **Als wat je mag zien verandert,** zorgt de delta daarvoor:
 - word je lid van een project, dan bevat je volgende delta **alles** van dat project, ook wat ouder is dan je token;
 - word je eruit gehaald of verlaat je het, dan krijg je het project als `{ "id": …, "is_deleted": true }` en ruimt de client alles op wat erbij hoorde (secties, taken, opmerkingen, leden, en herinneringen bij die taken);
 - verhuist een taak naar een project dat je niet ziet, dan krijg je die taak (en haar subtaken) als verwijderd;
-- verhuist een taak naar een project dat je wel ziet, dan komen haar opmerkingen en je eigen herinneringen erbij mee, ook als die ouder zijn dan je token;
+- verhuist een taak naar een project dat je wel ziet, dan komen haar opmerkingen, bijlagen en je eigen herinneringen erbij mee, ook als die ouder zijn dan je token;
 - komt het label van iemand anders op een taak in jouw project, dan komt dat label mee.
 
 **Verwijderde rijen** komen in een delta alleen als `{ "id": …, "is_deleted": true }`, nooit met hun inhoud: een client heeft alleen het id nodig om ze op te ruimen. Word je opnieuw lid van een project waar je eerder lid van was, dan krijg je zo ook te horen wat er in je afwezigheid is verwijderd; van een project waar je nooit lid van was, krijg je niets over wat al verwijderd was.
@@ -107,7 +108,7 @@ Elke gebruiker heeft een eigen **Inbox** (`me.inbox_project_id`); ids die met `i
 
 ## 5. Commando's
 
-Per entiteit `<entiteit>_add`, `<entiteit>_update`, `<entiteit>_delete` (entiteiten: `project`, `section`, `task`, `label`, `comment`, `reminder`, `filter`), plus:
+Per entiteit `<entiteit>_add`, `<entiteit>_update`, `<entiteit>_delete` (entiteiten: `project`, `section`, `task`, `label`, `comment`, `reminder`, `filter`; een `attachment` heeft alleen `_add` en `_delete`), plus:
 
 | Commando | Argumenten | Gedrag |
 |---|---|---|
@@ -118,9 +119,9 @@ Per entiteit `<entiteit>_add`, `<entiteit>_update`, `<entiteit>_delete` (entitei
 | `project_unshare` | `project_id`, `user_id` | Alleen de eigenaar; een andere eigenaar of jezelf kan niet. Haalt de persoon uit het project (en de subprojecten waar jij eigenaar van bent); diens toewijzingen vervallen en diens herinneringen bij die taken worden verwijderd. |
 | `project_leave` | `project_id` | Voor een lid (niet de eigenaar): zelf vertrekken, met hetzelfde gevolg. |
 
-**Rechten:** wijzigen in een project kan ieder lid. Een project verwijderen of verplaatsen (`parent_id`) en leden beheren kan alleen de eigenaar. Een nieuw project heeft de maker als eigenaar; een subproject krijgt de leden en rollen van het bovenliggende project, en de maker is er altijd eigenaar van. Labels en filters wijzigt alleen de eigenaar, opmerkingen alleen de schrijver. `assignee_id` moet een lid van het project zijn; verhuist de taak naar een project waar die persoon geen lid van is, dan vervalt de toewijzing.
+**Rechten:** wijzigen in een project kan ieder lid. Een project verwijderen of verplaatsen (`parent_id`) en leden beheren kan alleen de eigenaar. Een nieuw project heeft de maker als eigenaar; een subproject krijgt de leden en rollen van het bovenliggende project, en de maker is er altijd eigenaar van. Labels en filters wijzigt alleen de eigenaar, opmerkingen alleen de schrijver. Een bijlage voegt ieder lid toe en verwijdert alleen de maker of de eigenaar van het project (de eigenaar ruimt zo op wat anderen erin zetten); een bijlage wijzig je niet. `assignee_id` moet een lid van het project zijn; verhuist de taak naar een project waar die persoon geen lid van is, dan vervalt de toewijzing.
 
-**Cascades bij verwijderen:** project (subprojecten waar je eigenaar van bent, secties, taken, opmerkingen, leden; een subproject van iemand anders komt op het hoogste niveau te staan), sectie (de taken erin), taak (subtaken, opmerkingen, herinneringen van iedereen), label (wordt van alle taken gehaald).
+**Cascades bij verwijderen:** project (subprojecten waar je eigenaar van bent, secties, taken, opmerkingen, leden; een subproject van iemand anders komt op het hoogste niveau te staan), sectie (de taken erin), taak (subtaken, opmerkingen, bijlagen en hun bestanden, herinneringen van iedereen), label (wordt van alle taken gehaald).
 
 ## 4a. Accounts en aanmelden
 
@@ -147,12 +148,43 @@ Gebruikersnamen: 2 tot 40 tekens (letters, cijfers, `.`, `-`, `_`, beginnend met
 | Taken per aanmaker, over alle projecten | 50.000 |
 | Labels per gebruiker / filters per gebruiker | 500 / 200 |
 | Opmerkingen per taak, en bij een project | 500 |
+| Bijlagen per taak (ook uploads die nog niet aan een bijlage zijn gekoppeld) | 20 |
+| Grootste bestand en opslagruimte per gebruiker | `MAX_UPLOAD_MB` (25) en `ATTACHMENT_QUOTA_MB` (1024), uit de omgeving; zie hoofdstuk 4b |
 | Herinneringen per taak (eigen) / per gebruiker | 20 / 5.000 |
 | Leden per project | 100 |
 | Aangemelde apparaten per gebruiker (het langst ongebruikte gaat eruit) | 20 |
 | Gelijktijdige live-verbindingen (SSE) per gebruiker (een volgende krijgt `429 TOO_MANY_CONNECTIONS`) | 20 |
 
 Verder: maximaal 100 commando's en 1 MiB per verzoek, argumenten niet dieper dan 16 niveaus genest. De volgordesleutel van een nieuwe rij zoekt de server met een index op (project, sectie, bovenliggende taak, sleutel), zodat toevoegen niet langzamer wordt naarmate een lijst groeit.
+
+## 4b. Bijlagen
+
+Een taak kan bestanden als bijlage hebben (foto's, pdf's, wat dan ook). Wie de taak ziet, ziet de bijlagen; ze horen bij de taak (niet bij een opmerking of een project) en gaan mee als de taak verhuist of verwijderd wordt.
+
+**Twee delen.** De *gegevens* zijn de gesynchroniseerde entiteit `attachment` (id, `task_id`, `name`, `size`, `mime`, `sha256`, `creator_id`, tijdstippen, `is_deleted`), met dezelfde toegangsregels als een opmerking bij een taak. De *inhoud* staat als bestand in het datavolume (`attachments/` naast de database, of `ATTACHMENTS_DIR`), nooit als blob in SQLite. Een verwijderde bijlage blijft als rij met alleen `id` en `is_deleted` bestaan (de naam, het type en het controlegetal worden meteen gewist); haar bestand verdwijnt.
+
+**Uploaden is twee stappen,** zodat het ook offline kan wachten en herhalen veilig is:
+
+1. `POST /api/v1/attachments?id=<bijlage-id>&task_id=<taak-id>` met het bestand als gewone body en het type als `Content-Type` (geen multipart; `Content-Length` is verplicht). Het id kiest de client (8-40 tekens `[A-Za-z0-9_-]`, zoals elk id). De server streamt het naar een tijdelijk bestand, telt en hasht onderweg, zet het na afloop op zijn plek en antwoordt `{ id, size, sha256, mime }`: het type zoals de **server** het bepaalde. Dezelfde upload nog eens (zelfde gebruiker, taak en inhoud) geeft hetzelfde antwoord en verandert niets; een ander bestand onder hetzelfde id geeft `409 CONFLICT`.
+2. Het commando `attachment_add` `{ id, task_id, name, size, mime, sha256 }` met precies die waarden maakt er een bijlage van. Het bestand moet door dezelfde gebruiker bij dezelfde taak zijn geüpload en nog niet bij een bijlage horen (anders `NOT_FOUND`); grootte, type of controlegetal dat niet klopt geeft `CONFLICT`. `creator_id` vult de server in. Een upload die niet binnen een uur aan een bijlage wordt gekoppeld, ruimt de server op.
+
+Alle controles die zonder de inhoud kunnen (taak onbekend of van een ander project, te groot, ruimte vol, te veel bijlagen) gebeuren vóór de body wordt bewaard; de body wordt dan toch weggelezen (zonder te bewaren), anders ziet de afzender een verbroken verbinding in plaats van de melding. Antwoorden: `400 INVALID_ARG`, `401`, `404 NOT_FOUND` (ook voor andermans taak), `409 LIMIT_REACHED` (opslagruimte of bijlagen per taak) of `CONFLICT`, `411 LENGTH_REQUIRED`, `413 TOO_LARGE`, `408 TIMEOUT` (te langzaam of stilgevallen), `507 STORAGE_FULL` (de schijf van de server is vol).
+
+**Grenzen.** `MAX_UPLOAD_MB` (standaard 25) per bestand, `ATTACHMENT_QUOTA_MB` (standaard 1024) per gebruiker (de som van wat die zelf heeft geüpload; verwijderen geeft ruimte terug, ook een lid dat uit een project is gehaald houdt zijn eigen bijlagen daar niet in de weg), 20 bijlagen per taak. Gelijktijdige uploads van één gebruiker tellen samen mee (de lopende bytes worden vooraf gereserveerd, en na afloop controleert de server nog eens, in één stap met het vastleggen). `GET /api/v1/attachments/limits` geeft `{ max_upload_bytes, quota_bytes, used_bytes, per_task }`, zodat de app vooraf kan controleren.
+
+**Op schijf** heet een bestand naar een willekeurige sleutel (`attachments/<aa>/<32 hexadecimale tekens>`), niet naar het id of de naam van de gebruiker. Een afwijking van het eerste ontwerp, met een goede reden: de id's kiest de client, en op een bestandssysteem dat hoofdletters niet onderscheidt (Windows, macOS, een gedeelde schijf) zouden twee id's elkaars bestand kunnen worden. De tabel `attachment_files` koppelt id, uploader, taak, grootte, controlegetal, type en sleutel.
+
+**Namen.** De naam is alleen tekst: hij wordt nooit een pad. De server eist een al schone naam (`cleanFileName` in `shared/attachments.js`, voor server en client): Unicode-vorm NFC, geen stuur-, onzichtbare of leesrichting-omkerende tekens, geen `/ \ : * ? " < > |`, geen punten of spaties aan de rand, hooguit 200 tekens met behoud van de uitgang, nooit leeg, en een Windows-apparaatnaam (`CON`, `NUL`, …) krijgt een streepje ervoor. De client maakt de naam schoon vóór het versturen. Een naam met ontbrekende of ontleedde accenten wordt eerst naar NFC gebracht, zoals alle tekst.
+
+**Type.** De server kijkt naar de eerste bytes: png, jpeg, gif, webp en pdf worden aan hun inhoud herkend en gaan voor wat de afzender zegt; een van die typen dat de bytes niet bevestigen, wordt `application/octet-stream`. Alle andere typen blijven zoals opgegeven (kleine letters, geen parameters).
+
+**Downloaden:** `GET /api/v1/attachments/<id>` met de Bearer-token, alleen voor leden van het project van de taak (en voor de uploader zolang het bestand nog niet gekoppeld is). Een bijlage die niet bestaat, verwijderd is, bij een ander project hoort, of een ongeldig id is dezelfde `404 NOT_FOUND` (geen bestaansorakel); geen of een ongeldige token, een uitgelogde of geblokkeerde gebruiker: `401`. Antwoord met `Content-Length`, `Accept-Ranges: bytes` (één bereik per verzoek, `206`; een onbruikbaar bereik `416`; `HEAD` kan), `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`, `Content-Security-Policy: default-src 'none'; sandbox`, `Cross-Origin-Resource-Policy: same-origin` en `Content-Disposition: attachment` met een veilige ASCII-naam én `filename*` (RFC 6266). Alleen png, jpeg, gif, webp en pdf kunnen met `?inline=1` als `inline` komen; **nooit** svg of html. Elk ander type gaat als `application/octet-stream`. De browser stuurt geen cookies, dus de client haalt een bijlage met fetch en het token op en toont hem als blob-URL (afbeeldingen als voorbeeld; al het andere wordt opgeslagen, nooit in de pagina geladen).
+
+**Opruimen** (`purgeDeleted`, `sweep` en `check` in `server/attachments.ts`): na elke sync die iets wijzigde gaan de bestanden van verwijderde bijlagen weg (ook als hun taak, sectie of project is verwijderd), met een versienummer als bijhouding; elke tien minuten gaan uploads zonder bijlage ouder dan een uur en tijdelijke bestanden weg; bij het opstarten loopt één controle: tijdelijke bestanden weg, bestanden zonder rij weg, rijen van verdwenen of verwijderde bijlagen weg, en een bijlage waarvan het bestand ontbreekt (een teruggezette back-up) wordt gemeld maar blijft staan. Een lid uit een project halen, een gebruiker blokkeren of verwijderen raakt andermans bijlagen niet.
+
+**Gezondheid van de server.** De body wordt gestreamd (geen heel bestand in het geheugen). Een verzoek moet binnen 30 seconden binnen zijn (dat bewaakt `main.ts` per verzoek; `requestTimeout` van Node geldt voor alle verzoeken tegelijk en staat daarom uit); alleen een upload van een bijlage mag langer: stilvallen (20 seconden zonder gegevens) of te langzaam (basis 30 seconden plus de grootte bij 16 KiB/s, hooguit twee uur) breekt hem af met `408` en ruimt het tijdelijke bestand op. Een afgebroken verbinding laat niets achter.
+
+**De client** (`core/attachments.js`): een gekozen bestand wordt eerst lokaal bewaard (IndexedDB, eigen database `tickory-files`, met nette meldingen als de opslag vol is), uploadt zodra de taak door de server is bevestigd en er verbinding is (oplopende wachttijd bij een netwerkfout, tot een minuut), en voegt dan `attachment_add` aan de wachtrij toe met het uuid `attach-<id>` (hetzelfde commando twee keer is dus onschadelijk). De status is wachtend, bezig (met voortgang), of mislukt met de reden (opnieuw proberen of verwijderen). Een bestand voor een taak die intussen is verdwenen, wordt weggegooid; afmelden wist alles. Optioneel (een schakelaar) worden grote foto's vóór het uploaden verkleind tot 2048 pixels (`core/imageResize.js`).
 
 ## 5a. Herinneringen
 
@@ -229,6 +261,7 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Zijbalk en takenlijst | `ui/render.js`, `ui/icons.js` | Tekent de zijbalk, de kop en de lijst uit de lokale toestand; eigen pictogrammen als inline SVG (geen bestanden, geen lettertype) |
 | Taakvenster | `ui/taskDialog.js` | Groot venster in twee kolommen (titel, beschrijving, subtaken, opmerkingen links; eigenschappen rechts); subtaken, opmerkingen en herinneringen gaan direct door, de rest met Opslaan |
 | Opmerkingen | `ui/comments.js` | De lijst, het invoerveld en bewerken en verwijderen van je eigen opmerkingen, bij een taak of een project |
+| Bijlagen | `ui/attachments.js`, `core/attachments.js`, `core/attachmentsApi.js`, `core/imageResize.js`, `shared/attachments.js` | Het deel van het taakvenster (lijst met voorbeeld, kiezen of neerzetten, status van wachtende bestanden, openen, opslaan, verwijderen), de lokale uploadwachtrij, de verbinding met de server (de demo vervangt `attachments` in `backend.js`), foto's verkleinen, en de regels voor namen en typen die server en client delen |
 | Project maken en bewerken | `ui/projectDialog.js` | Naam, kleur (zestien keuzerondjes), favoriet, en bij een nieuw project "Subproject van" |
 | Taak toevoegen (venster) | `ui/quickAdd.js` | De voorvertoning van de invoerregel (ook voor de balk bovenaan) en het venster met beschrijving en projectkeuze |
 | Kleine vensters | `ui/miscDialogs.js` | Sneltoetsenoverzicht, gearchiveerde projecten, opmerkingen bij een project, een andere dag kiezen voor een taak |
@@ -265,12 +298,13 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 - Luistert standaard op `127.0.0.1`. Zet er voor gebruik buiten je netwerk een reverse proxy met **TLS** voor; wachtwoord en sessietoken reizen anders in de open lucht.
 - **Voor een telefoon heb je HTTPS nodig.** Browsers staan service workers (offline gebruik) en installeren als app alleen toe op een beveiligde herkomst; alleen `localhost` is daarop een uitzondering.
 - Het sessietoken staat nooit in een URL, dus ook niet in toegangslogs van een proxy.
-- De web-app wordt met een strikte Content-Security-Policy geleverd (alleen eigen bronnen, geen inline scripts of stijlen, niet in een frame te laden). Bestanden komen alleen uit twee vaste mappen; padtraversal, verborgen bestanden, testbestanden (ook met andere hoofdletters) en Windows-apparaatnamen worden geweigerd. De service worker bewaart alleen de eigen bestanden uit zijn lijst, en voor een navigatie alleen de app-pagina `/`: een link naar een ander bestand van de server kan de bewaarde app niet vervangen.
-- Body maximaal 1 MiB, verzoektimeout 30 s, alle SQL gebruikt gebonden parameters. Lijsten met waarden in een query groeien niet met de gegevens mee (brokken van 500 of een subquery), want SQLite staat er hooguit 32766 in één query toe.
+- De web-app wordt met een strikte Content-Security-Policy geleverd (alleen eigen bronnen en `blob:` voor afbeeldingen, geen inline scripts of stijlen, niet in een frame te laden). Bestanden komen alleen uit twee vaste mappen; padtraversal, verborgen bestanden, testbestanden (ook met andere hoofdletters) en Windows-apparaatnamen worden geweigerd. De service worker bewaart alleen de eigen bestanden uit zijn lijst, en voor een navigatie alleen de app-pagina `/`: een link naar een ander bestand van de server kan de bewaarde app niet vervangen.
+- Body maximaal 1 MiB (behalve een upload van een bijlage, zie 4b), verzoektimeout 30 s per verzoek (een upload heeft een eigen bewaking tegen traag of stilgevallen versturen), alle SQL gebruikt gebonden parameters. Lijsten met waarden in een query groeien niet met de gegevens mee (brokken van 500 of een subquery), want SQLite staat er hooguit 32766 in één query toe.
 - **Het live-signaal** gaat alleen naar de gebruikers die de wijziging zien, zonder versienummer (hoofdstuk 6).
-- **Verwijderde rijen** gaan nooit met hun inhoud mee in een delta (hoofdstuk 4). De inhoud van verwijderde taken blijft wel in de database en in back-ups staan; er is nog geen opruiming.
+- **Verwijderde rijen** gaan nooit met hun inhoud mee in een delta (hoofdstuk 4). De inhoud van verwijderde taken blijft wel in de database en in back-ups staan; er is nog geen opruiming. Bij bijlagen is dat anders: het bestand wordt meteen van schijf gehaald en de naam, het type en het controlegetal van de rij worden gewist.
+- **Bijlagen** (hoofdstuk 4b): wat een gebruiker uploadt is onbetrouwbaar en wordt nooit uitgevoerd of getoond als iets anders dan het is. Het bestand heeft op schijf een willekeurige naam; de naam van de gebruiker is alleen tekst en komt nooit in een pad. Het type komt uit de eerste bytes. Een download is altijd een bestand (`attachment`, `nosniff`, `Content-Security-Policy: default-src 'none'; sandbox`, geen cache); alleen png, jpeg, gif, webp en pdf kunnen als `inline` worden aangeboden en svg en html nooit; de web-app toont alleen afbeeldingen (als blob-URL), al het andere wordt opgeslagen. Een niet-lid, een uitgelogde of geblokkeerde gebruiker en een lid van een ander project krijgen niets, met dezelfde `404` als voor een bijlage die niet bestaat. Elke gebruiker heeft een opslagruimte en een taak een aantal bijlagen; uploads zonder bijlage ruimt de server op. Een reverse proxy moet grote bodies toestaan (nginx: `client_max_body_size`, standaard maar 1 MB).
 - **Het eerste account** komt uit `TODO_ADMIN_USER` met `TODO_ADMIN_PASSWORD` of `TODO_ADMIN_PASSWORD_FILE` (een bestand, bijvoorbeeld een Docker-secret; een eindregel telt niet mee), alleen bij de allereerste start. Het wachtwoord uit de omgeving blijft in de configuratie van de container staan (`docker inspect` toont het): haal het na de eerste start uit `.env` en maak de container opnieuw aan, of gebruik het bestand.
-- Back-up: `node server/backup.ts <doel.db>` maakt een consistente kopie terwijl de server draait. Een kopie bevat alle gegevens van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen (de VAPID-privésleutel en het HMAC-geheim): bewaar hem net zo zorgvuldig als de database. De bestandsrechten van een kopie zijn die van het bestandssysteem (SQLite maakt standaard een leesbaar bestand); zet de map met kopieën zelf dicht.
+- Back-up: `node server/backup.ts <doel.db>` maakt een consistente kopie terwijl de server draait, en kopieert de bijlagen mee naar `<doel>.attachments/` (alleen de bestanden van bijlagen die in de kopie staan). Een kopie bevat alle gegevens van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen (de VAPID-privésleutel en het HMAC-geheim), en met de bijlagen ook alle bestanden die gebruikers hebben geüpload: bewaar hem net zo zorgvuldig als de database. De bestandsrechten van een kopie zijn die van het bestandssysteem (SQLite maakt standaard een leesbaar bestand); zet de map met kopieën zelf dicht.
 
 ## 10. Nog niet gebouwd
 
@@ -284,7 +318,9 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
 | Herinneringen op een locatie, per e-mail, en Engelse datumtaal voor herinneringen | Alleen op tijd, in de app en als melding. Wat je intypt is voorlopig Nederlands (`!(morgen om 8 uur)`); `!30m` en een datum in de vorm `2026-12-31T14:30` werken in elke taal |
 | De duur van een taak | Staat als veld in het datamodel en wordt gesynchroniseerd; de app heeft er geen scherm voor. (Opmerkingen, subprojecten, favorieten, kleuren, archiveren en de weergaven bord en kalender hebben wel een scherm; zie hoofdstuk 8.) |
-| Bijlagen, activiteitenlog, voltooide taken met paginering | Voltooide taken blijven nu in `tasks` met `checked: true` |
+| Activiteitenlog, voltooide taken met paginering | Voltooide taken blijven nu in `tasks` met `checked: true` |
+| Bijlagen: een bijlage hernoemen of vervangen, versies, een virusscan, miniaturen op de server, hervatbare uploads, bijlagen bij een opmerking of een project | Bewust niet: een bijlage is toevoegen of verwijderen; een upload begint na een afgebroken verbinding opnieuw. Het openen van een pdf of andere bestanden in de pagina zelf ook niet: de web-app slaat ze op (de strenge Content-Security-Policy van de app staat geen pdf-weergave van een blob toe) |
+| Bijlagen op Android: op een echt toestel getest | De bestandskiezer, de camera (zonder cameratoestemming, via een eigen bestand in de cache), openen en opslaan van een bijlage en Delen naar Tickory met bestanden zijn getest op een nagebootst Android (Robolectric) en met tests op de logica; hoe de kiezer, de camera-app, de FileProvider en de Delen-lijst zich op een echt toestel en bij echte merken gedragen, is alleen daar te controleren |
 | Persoonlijke projectvoorkeuren in gedeelde projecten | Volgorde in de zijbalk, favoriet, ingeklapt en de weergave (lijst, bord, kalender) horen nu bij het project en gelden dus voor alle leden |
 | Eigenaarschap overdragen, uitnodigen via link of e-mail | Delen gaat nu op gebruikersnaam; een eigenaar kan een project alleen verwijderen, niet overdragen |
 | Opruimen van verwijderde rijen, instemming bij delen | Verwijderde taken, secties en opmerkingen blijven (zonder inhoud in de delta) in de database en in back-ups staan; een eigenaar kan iedere bestaande gebruiker meteen aan een project toevoegen, zonder dat die eerst moet instemmen (verlaten kan altijd) |
