@@ -88,6 +88,27 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.startVoiceInput(language) }
     }
 
+    /** Een bijlage ophalen en openen in een andere app (de app haalt het bestand zelf op, met het token). */
+    @JavascriptInterface
+    fun openAttachment(id: String?, name: String?, mime: String?) {
+        if (!activity.isTrustedPage() || id == null) return
+        activity.runOnUiThread { activity.transferAttachment(id, name, mime, save = false) }
+    }
+
+    /** Tekst (bijvoorbeeld een export van je taken) als bestand opslaan op een plek naar keuze. */
+    @JavascriptInterface
+    fun saveText(name: String?, mime: String?, text: String?) {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.saveText(name, mime, text) }
+    }
+
+    /** Een bijlage ophalen en opslaan op een plek naar keuze. */
+    @JavascriptInterface
+    fun saveAttachment(id: String?, name: String?, mime: String?) {
+        if (!activity.isTrustedPage() || id == null) return
+        activity.runOnUiThread { activity.transferAttachment(id, name, mime, save = true) }
+    }
+
     /**
      * JSON met wat de locatiecontrole nu doet (aan, toestemmingen, laatste controle, afstand tot je plaatsen). Bevat nooit
      * de coördinaten van het toestel.

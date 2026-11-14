@@ -16,6 +16,7 @@ import { commentsSection } from './comments.js';
 import { confirmDialog, h, replace } from './dom.js';
 import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
+import { attachmentsSection } from './attachments.js';
 
 const priorityLabel = (p) => (p === 1 ? t('task.priorityHighest') : p === 4 ? t('task.priorityNone') : `P${p}`);
 /** Inspringen van een subproject in de keuzelijst: twee harde spaties (gewone spaties vallen in een keuzelijst weg). */
@@ -286,6 +287,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, sav
     fillAssignees(task.project_id, task.assignee_id ?? null);
     const reminders = reminderSection({ task, store, actions, today });
     const comments = commentsSection({ target: { taskId: task.id }, store, actions });
+    const attachments = attachmentsSection({ task, store, actions });
 
     // wie maakte de taak en wanneer
     const creator = task.creator_id ? (task.creator_id === store.userId ? store.me?.name : store.userName(task.creator_id)) ?? t('common.unknownUser') : null;
@@ -323,6 +325,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, sav
               subtaskList,
               h('div', { class: 'subtask-row' }, subtask, h('button', { type: 'button', class: 'button', onclick: addSubtask }, t('common.add'))),
               added),
+            attachments?.node,
             comments.node)),
         error,
         h('div', { class: 'dialog-buttons' },
@@ -353,6 +356,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, sav
       unsubscribe();
       reminders.dispose();
       comments.dispose();
+      attachments?.dispose();
       dialog.remove();
       resolve();
     });

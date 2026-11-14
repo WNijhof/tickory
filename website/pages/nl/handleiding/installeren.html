@@ -76,11 +76,14 @@ docker compose logs -f     # het logboek volgen; stoppen met Ctrl+C</code></pre>
       <tr><td><code>PORT</code></td><td class="wrap-ok">De poort waarop de server luistert; standaard 8787.</td></tr>
       <tr><td><code>HOST</code></td><td class="wrap-ok">Het adres waarop de server luistert; standaard <code>127.0.0.1</code>, in de container <code>0.0.0.0</code>.</td></tr>
       <tr><td><code>DB_PATH</code></td><td class="wrap-ok">Waar de database staat; standaard <code>./data/todo.db</code>, in de container <code>/data/todo.db</code>.</td></tr>
+      <tr><td><code>MAX_UPLOAD_MB</code></td><td class="wrap-ok">Het grootste bestand dat je als <a href="bijlagen.html">bijlage</a> kunt uploaden, in megabytes; standaard 25.</td></tr>
+      <tr><td><code>ATTACHMENT_QUOTA_MB</code></td><td class="wrap-ok">De opslagruimte voor bijlagen per gebruiker, in megabytes; standaard 1024.</td></tr>
+      <tr><td><code>ATTACHMENTS_DIR</code></td><td class="wrap-ok">Waar de bijlagen staan; standaard de map <code>attachments</code> naast de database, in de container <code>/data/attachments</code> (dus in het volume en in je <a href="back-up.html#bijlagen">back-up</a>).</td></tr>
       <tr><td><code>CORS_ORIGIN</code></td><td class="wrap-ok">Optioneel: één exact adres dat de server vanaf een andere herkomst mag aanroepen. Normaal niet nodig.</td></tr>
     </tbody>
   </table>
 </div>
-<p>Het meegeleverde <code>docker-compose.yml</code> geeft het eerste account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code> en <code>DEFAULT_TIMEZONE</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
+<p>Het meegeleverde <code>docker-compose.yml</code> geeft het eerste account, <code>TRUST_PROXY</code>, <code>VAPID_SUBJECT</code>, <code>DEFAULT_TIMEZONE</code>, <code>MAX_UPLOAD_MB</code> en <code>ATTACHMENT_QUOTA_MB</code> door uit <code>.env</code>. <code>PORT</code>, <code>HOST</code> en <code>DB_PATH</code> hebben in de container al de juiste waarde; wil je <code>CORS_ORIGIN</code> gebruiken, dan voeg je die zelf toe onder <code>environment:</code>.</p>
 
 <h2>De image is nog privé</h2>
 <p>Zolang de repo en de image op GitHub privé staan, moet je server één keer inloggen om ze te kunnen ophalen:</p>

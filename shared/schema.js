@@ -5,11 +5,12 @@
 import { isValidKey } from './orderKey.js';
 import { isValidDate, isValidRecurrence } from './recurrence.js';
 import { MAX_OFFSET } from './reminders.js';
+import { fileNameProblem, MAX_NAME_LENGTH } from './attachments.js';
 import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './places.js';
 import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -142,6 +143,21 @@ export const ENTITIES = {
       { name: 'project_id', type: 'text', nullable: true, default: null, ref: 'project', immutable: true },
       { name: 'content', type: 'text', required: true, maxLen: 16000 },
       { name: 'author_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
+    ],
+  },
+  // Bijlagen horen bij een taak en zien en wijzigen dezelfde mensen als de opmerkingen. De inhoud staat niet in de database maar
+  // als bestand op de server (server/attachments.ts); dit zijn alleen de gegevens erover. Eerst wordt het bestand geüpload
+  // (POST /api/v1/attachments), daarna volgt attachment_add; size, sha256 en mime moeten overeenkomen met wat de server bij de
+  // upload zag. Er is geen attachment_update: een bijlage vervangen is verwijderen en opnieuw toevoegen.
+  attachment: {
+    name: 'attachment', table: 'attachments', resource: 'attachments', commands: ['add', 'delete'],
+    cols: [
+      { name: 'task_id', type: 'text', required: true, ref: 'task', immutable: true },
+      { name: 'name', type: 'text', required: true, maxLen: MAX_NAME_LENGTH * 2, check: fileNameProblem },
+      { name: 'size', type: 'int', required: true, min: 0, max: 2 ** 40 },
+      { name: 'mime', type: 'text', required: true, maxLen: 255 },
+      { name: 'sha256', type: 'text', required: true, maxLen: 64, check: (v) => (/^[0-9a-f]{64}$/.test(v) ? null : 'moet 64 hexadecimale tekens zijn') },
+      { name: 'creator_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
     ],
   },
   // Herinneringen zijn persoonlijk: ieder lid van een gedeeld project stelt zijn eigen herinneringen in.

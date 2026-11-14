@@ -10,6 +10,7 @@ import { settingsId } from '../../shared/schema.js';
 import { ENTITIES, validateValue } from '../../shared/schema.js';
 import { todayString } from './format.js';
 import { projectDescendantIds } from './selectors.js';
+import { cleanFileName } from '../../shared/attachments.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
 import { labelNamesOf, planTemplate, quotaProblem } from './templates.js';
 
@@ -32,7 +33,7 @@ const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.orde
 export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = () => crypto.randomUUID() } = {}) {
   const send = async (commands) => {
     // Alle tekst in NFC (zie shared/text.js), zodat wat hier optimistisch wordt getoond exact gelijk is aan wat de server bewaart.
-    await store.enqueue(commands.map((c) => ({ type: c.type, uuid: makeUuid(), args: deepNormalize(c.args) })));
+    await store.enqueue(commands.map((c) => ({ type: c.type, uuid: c.uuid ?? makeUuid(), args: deepNormalize(c.args) })));
     requestSync();
   };
   const endKey = (resource, entity, scope, exceptId = null) => keyAfter(maxKey(store.view[resource], scopeOf(entity, scope), exceptId));
@@ -229,6 +230,18 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     /** Wijzigt de tekst van een opmerking. Alleen de schrijver mag dat; de server weigert het anders. */
     updateComment: (id, content) => send([{ type: 'comment_update', args: { id, content: content.trim() } }]),
     deleteComment: (id) => send([{ type: 'comment_delete', args: { id } }]),
+
+    // ---- bijlagen ----
+    /**
+     * Maakt van een geüpload bestand een bijlage. `uploaded` is wat de server bij de upload meldde (id, size, sha256, mime). Het
+     * uuid volgt uit het id, zodat dit commando niet twee keer wordt uitgevoerd als de app tussen uploaden en bewaren sluit en later
+     * opnieuw uploadt (de server geeft dan dezelfde uitkomst).
+     */
+    addAttachment: ({ taskId, name, uploaded }) => send([{
+      type: 'attachment_add', uuid: `attach-${uploaded.id}`.slice(0, 64),
+      args: { id: uploaded.id, task_id: taskId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
+    }]),
+    deleteAttachment: (id) => send([{ type: 'attachment_delete', args: { id } }]),
 
     // ---- labels ----
     async addLabel(name) {

@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -39,7 +39,7 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5; // 3: plaatsen, 4: bijlagen, 5: sjablonen (alle komen er met CREATE TABLE IF NOT EXISTS bij)
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -117,6 +117,23 @@ export function createSchema(db: DatabaseSync): void {
     PRIMARY KEY (reminder_id, moment)
   )`);
 
+  // De bestanden bij bijlagen (zie attachments.ts). Eén rij per geüpload bestand, vanaf de upload; `linked` wordt 1 zodra het
+  // commando attachment_add het aan een bijlage heeft gekoppeld. Wat zo lang niet gekoppeld wordt, ruimt de server op.
+  // `key` is de naam op schijf (willekeurig, nooit de naam van de gebruiker). De metagegevens van de bijlage zelf staan in `attachments`.
+  db.exec(`CREATE TABLE IF NOT EXISTS attachment_files (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    task_id TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    sha256 TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    key TEXT NOT NULL UNIQUE,
+    linked INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS attachment_files_user ON attachment_files (user_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS attachment_files_task ON attachment_files (task_id)');
+
   for (const e of ENTITY_LIST) {
     const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
     db.exec(`CREATE TABLE IF NOT EXISTS ${e.table} (
@@ -137,6 +154,7 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS comments_project ON comments (project_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS tasks_parent ON tasks (parent_id)');
   db.exec('CREATE INDEX IF NOT EXISTS comments_task ON comments (task_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS attachments_task ON attachments (task_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_task ON reminders (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_owner ON reminders (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_place ON reminders (place_id)');

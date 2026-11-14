@@ -38,6 +38,14 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     openNotificationSettings: () => call('openNotificationSettings'),
     openBatterySettings: () => call('openBatterySettings'),
     changeServer: () => call('changeServer'),
+    /** Kan de app een bijlage zelf ophalen en aan een andere app geven? (Een oudere versie van de app kan dat niet.) */
+    canOpenAttachments: () => typeof host?.openAttachment === 'function',
+    /** Haalt een bijlage op en opent hem in een andere app (de app gebruikt zijn eigen sessietoken). */
+    openAttachment: (id, name, mime) => call('openAttachment', id, name, mime),
+    /** Haalt een bijlage op en laat de gebruiker kiezen waar hij wordt opgeslagen. */
+    saveAttachment: (id, name, mime) => call('saveAttachment', id, name, mime),
+    canSaveText: () => typeof host?.saveText === 'function',
+    saveText: (name, mime, text) => call('saveText', name, mime, text),
 
     // ---- herinneringen op een locatie (zie locationStatusText in core/places.js voor de vorm van de status) ----
     /**

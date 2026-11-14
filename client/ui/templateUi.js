@@ -13,6 +13,7 @@ import { starterTemplates } from '../core/starters/index.js';
 import { TEMPLATE_LIMITS, templateStats } from '../../shared/template.js';
 import { nameKey } from '../../shared/text.js';
 import { confirmDialog, h, openDialog, promptDialog, replace, toast } from './dom.js';
+import { saveTextFile } from './exportDialog.js';
 import { icon } from './icons.js';
 
 const INDENT = String.fromCharCode(160, 160);
@@ -90,16 +91,6 @@ function previewList(content, { startDate, today, limit = 10 }) {
 
 // ---------- een bestand bewaren of kopiëren ----------
 
-/** Zet tekst als bestand klaar om te bewaren (een tijdelijke link naar het geheugen; er gaat niets over het netwerk). */
-function downloadText(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const link = h('a', { href: url, download: name, hidden: true });
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
-
 async function copyText(text, field) {
   try {
     await navigator.clipboard.writeText(text);
@@ -122,7 +113,7 @@ export function shareTemplateDialog(template) {
       h('p', {}, t('template.share.intro')),
       h('p', { class: 'hint' }, t('template.share.privacy')),
       h('div', { class: 'tpl-share-buttons' },
-        h('button', { type: 'button', class: 'button button-primary', onclick: () => { downloadText(templateFileName(template.name), text); status.textContent = t('template.share.saved', { file: templateFileName(template.name) }); } }, t('template.share.saveFile')),
+        h('button', { type: 'button', class: 'button button-primary', onclick: () => { const started = saveTextFile({ name: templateFileName(template.name), mime: 'application/json', text }); status.textContent = started ? t('template.share.saved', { file: templateFileName(template.name) }) : t('template.share.copyFailed'); } }, t('template.share.saveFile')),
         h('button', { type: 'button', class: 'button', onclick: async () => { status.textContent = (await copyText(text, field)) ? t('template.share.copied') : t('template.share.copyFailed'); } }, t('template.share.copy'))),
       status,
       field,

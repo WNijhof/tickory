@@ -137,7 +137,7 @@ test('de web-app krijgt een strikte Content-Security-Policy mee (gemeten aan de 
   assert.equal(out.status, 200);
   assert.equal(
     out.headers['Content-Security-Policy'],
-    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   );
   assert.equal(out.headers['X-Frame-Options'], 'DENY');
   assert.equal(out.headers['X-Content-Type-Options'], 'nosniff');

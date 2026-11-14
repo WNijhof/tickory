@@ -12,13 +12,33 @@ object ShareLink {
     const val MAX_SUBJECT = 300
     const val MAX_TEXT = 8_000
 
+    /** Een bestand dat een andere app deelt, zoals de web-app het te zien krijgt (de inhoud haalt hij apart op, zie ShareStore). */
+    data class SharedFile(val name: String, val mime: String, val size: Long)
+
+    const val MAX_FILES = 20
+    private val TOKEN = Regex("^[A-Za-z0-9_-]{16,64}$")
+
     /** Het fragment (zonder "#") voor een gedeelde tekst, of null als er niets te delen valt. */
-    fun fragmentFor(subject: CharSequence?, text: CharSequence?): String? {
+    fun fragmentFor(subject: CharSequence?, text: CharSequence?): String? = fragmentFor(subject, text, emptyList(), null)
+
+    /**
+     * Zoals hierboven, met bestanden erbij: de web-app krijgt hun namen, typen en groottes en het `token` waarmee hij de inhoud
+     * kan ophalen. Zonder geldig token of zonder bestanden gaat er niets over bestanden mee.
+     */
+    fun fragmentFor(subject: CharSequence?, text: CharSequence?, files: List<SharedFile>, token: String?): String? {
         val s = clean(subject, MAX_SUBJECT)
         val t = clean(text, MAX_TEXT)
-        if (s.isEmpty() && t.isEmpty()) return null
-        val json = "{\"title\":${quote(s)},\"text\":${quote(t)}}"
-        return "share=" + Base64.getUrlEncoder().withoutPadding().encodeToString(json.toByteArray(Charsets.UTF_8))
+        val list = if (token != null && TOKEN.matches(token)) files.take(MAX_FILES) else emptyList()
+        if (s.isEmpty() && t.isEmpty() && list.isEmpty()) return null
+        val q = '"'
+        val json = StringBuilder("{${q}title${q}:${quote(s)},${q}text${q}:${quote(t)}")
+        if (list.isNotEmpty()) {
+            json.append(",${q}token${q}:${quote(token!!)},${q}files${q}:[")
+            json.append(list.joinToString(",") { "{${q}name${q}:${quote(AttachmentName.clean(it.name))},${q}mime${q}:${quote(AttachmentName.mime(it.mime))},${q}size${q}:${it.size.coerceAtLeast(0)}}" })
+            json.append("]")
+        }
+        json.append("}")
+        return "share=" + Base64.getUrlEncoder().withoutPadding().encodeToString(json.toString().toByteArray(Charsets.UTF_8))
     }
 
     /** Afkappen zonder een teken in tweeën te breken (surrogaatpaar) en zonder lege randen. */

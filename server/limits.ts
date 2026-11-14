@@ -16,6 +16,8 @@ export const LIMITS = {
   /** Opmerkingen per taak, en bij een project. */
   commentsPerParent: 500,
   /** Herinneringen die iemand zelf bij één taak heeft, en in totaal. */
+  /** Bijlagen per taak (de grootte per bestand en per gebruiker staan in de omgeving: MAX_UPLOAD_MB en ATTACHMENT_QUOTA_MB). */
+  attachmentsPerTask: 20,
   remindersPerTask: 20,
   remindersPerUser: 5_000,
   /** Plaatsen (voor herinneringen op een locatie) per gebruiker. */

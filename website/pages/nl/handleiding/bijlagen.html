@@ -1,0 +1,46 @@
+<!--
+title: Bijlagen
+description: Bestanden bij een taak in Tickory: foto's, pdf's en andere bestanden toevoegen (ook offline), bekijken, opslaan en verwijderen, met de grenzen, de opslag op de server en wat er op Android bij komt.
+-->
+<h1>Bijlagen</h1>
+<p class="intro">Bij een taak kun je bestanden bewaren: een foto van de bon, de offerte als pdf, een scan. Ze staan in het taakvenster, onder de subtaken, en iedereen die de taak ziet, ziet ze ook.</p>
+
+<h2 id="toevoegen">Een bestand toevoegen</h2>
+<p>Open de taak en kies onder <em>Bijlagen</em> de knop <x-ui k="attachment.add"></x-ui>. Je kunt meerdere bestanden tegelijk kiezen, of ze vanaf je computer op het onderdeel neerzetten. Op een telefoon of tablet staat er ook <x-ui k="attachment.camera"></x-ui>: dat opent de camera, en de foto wordt meteen een bijlage.</p>
+<ul>
+  <li>Een bestand mag hooguit <strong>25 MB</strong> zijn (de beheerder kan dat anders instellen), en een taak heeft hooguit <strong>20 bijlagen</strong>. Elke gebruiker heeft ook een eigen opslagruimte op de server (standaard 1 GB). Past een bestand niet, dan zie je onder de lijst waarom.</li>
+  <li><strong>Grote foto's verkleinen:</strong> met het vinkje <x-ui k="attachment.shrink"></x-ui> wordt een foto vóór het uploaden verkleind tot hooguit 2048 pixels aan de lange kant. Een foto van een telefoon is dan vaak een tiende zo groot. Het vinkje blijft op dit apparaat staan.</li>
+  <li><strong>De naam</strong> wordt opgeschoond: tekens die in een bestandsnaam niet kunnen (zoals <code>/</code> en <code>:</code>) worden een streepje, en een heel lange naam wordt ingekort met behoud van de uitgang (<code>.pdf</code>).</li>
+</ul>
+
+<h2 id="offline">Zonder verbinding</h2>
+<p>Een bestand kiezen werkt ook offline. Het wordt op je apparaat bewaard (los van de wijzigingen die wachten) en staat in de lijst met de status <x-ui k="attachment.waitingOffline"></x-ui>. Zodra er verbinding is en de taak bij de server staat, wordt het geüpload en zie je de voortgang; daarna is het een gewone bijlage. Een taak die je net offline hebt gemaakt, kan dus al bijlagen hebben: die wachten tot de taak zelf is verstuurd.</p>
+<ul>
+  <li>Sluit je de app of herlaad je de pagina, dan blijven wachtende bestanden staan.</li>
+  <li><strong>Mislukt</strong> een bestand omdat de server het weigert (te groot, geen ruimte meer, de taak bestaat niet meer), dan staat er de reden bij, met <x-ui k="attachment.retry"></x-ui> en <x-ui k="attachment.discard"></x-ui>. Een bestand dat alleen op de verbinding wacht, probeert de app zelf opnieuw, met steeds iets meer wachttijd.</li>
+  <li>Past een bestand niet meer in de opslag van je apparaat, dan zegt de app dat en wordt het niet toegevoegd.</li>
+  <li>Afmelden en lokale gegevens wissen haalt ook de wachtende bestanden weg.</li>
+</ul>
+
+<h2 id="bekijken">Bekijken, opslaan en verwijderen</h2>
+<ul>
+  <li><strong>Afbeeldingen</strong> (png, jpeg, gif, webp) hebben een klein voorbeeld; klik erop om ze groot te zien. <strong>Alle andere bestanden</strong> (pdf, Word, een zip) worden opgeslagen als je erop klikt: je browser zet ze in je downloads en je opent ze daar. Een svg- of html-bestand wordt nooit in Tickory zelf getoond, ook niet als het er als afbeelding uitziet.</li>
+  <li><x-ui k="attachment.save"></x-ui> slaat het bestand op onder zijn eigen naam.</li>
+  <li><strong>Verwijderen</strong> (de prullenbak) kan de persoon die de bijlage toevoegde, en de eigenaar van het project; het geldt voor iedereen en het bestand verdwijnt van de server. Een andere deelnemer ziet de prullenbak niet. Verwijder je een taak, een sectie of een project, dan gaan de bijlagen mee.</li>
+  <li>Een bijlage hernoemen of vervangen kan niet: verwijder haar en voeg het bestand opnieuw toe.</li>
+  <li>Wie een bijlage ophaalt, doet dat met zijn eigen aanmelding; een link naar een bijlage doet buiten de app niets. Iemand die geen lid van het project is, krijgt niets.</li>
+</ul>
+<p>In de lijst staat achter een taak met bijlagen een paperclip met het aantal.</p>
+
+<h2 id="android">Op Android</h2>
+<p>In de <a href="android-app.html">Android-app</a> kies je bestanden met de kiezer van Android (galerij, bestanden, andere apps) en maakt de camera-app van je telefoon een foto; Tickory vraagt daar geen toestemming voor. Een bijlage openen of opslaan doet de app zelf: <em>Opslaan</em> laat je kiezen waar het bestand komt, en klikken op een naam opent het bestand in een andere app op je telefoon. Bovendien staat Tickory in het deelmenu van andere apps voor bestanden: deel een foto, en die wordt bijlage van een nieuwe taak in je Inbox, nadat je in <em>Taak toevoegen</em> op <em>Toevoegen</em> hebt gedrukt.</p>
+
+<h2 id="voor-beheerders">Voor beheerders</h2>
+<p>De bestanden staan in je datavolume (<code>attachments/</code> naast de database, in Docker <code>/data/attachments</code>), onder willekeurige namen, en horen in je <a href="back-up.html">back-up</a>. De grenzen stel je in met <code>MAX_UPLOAD_MB</code> en <code>ATTACHMENT_QUOTA_MB</code> (zie <a href="installeren.html#instellingen">Instellingen</a>). Staat er een reverse proxy voor, laat die dan bestanden van minstens die grootte toe: bij nginx is dat <code>client_max_body_size</code> (zie <a href="https.html#grote-bestanden">HTTPS</a>). De server ruimt zelf op wat niet meer nodig is. Hij scant bestanden niet op virussen.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Bijlagen bij een opmerking of bij een project (alleen bij een taak).</li>
+  <li>Een pdf of ander bestand in Tickory zelf bekijken: dat wordt opgeslagen en dan met een ander programma geopend.</li>
+  <li>Een upload hervatten die halverwege is afgebroken: die begint opnieuw.</li>
+</ul>

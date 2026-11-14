@@ -105,6 +105,17 @@
     <string name="widget_preview_task_1">Do the shopping</string>
     <string name="widget_preview_task_2">Call the dentist</string>
     <string name="widget_preview_task_3">Water the plants</string>
+
+    <!-- Attachments and sharing files -->
+    <string name="share_copying">Copying files…</string>
+    <string name="attachment_fetching">Fetching the attachment…</string>
+    <string name="attachment_signed_out">You are signed out. Sign in again to fetch the attachment.</string>
+    <string name="attachment_not_found">This attachment no longer exists on the server.</string>
+    <string name="attachment_too_large">This attachment is too large to fetch.</string>
+    <string name="attachment_failed">The attachment could not be fetched. Check your connection and try again.</string>
+    <string name="attachment_no_app">No app was found to open this file. Choose Save and open it yourself.</string>
+    <string name="attachment_saved">Attachment saved.</string>
+    <string name="attachment_save_failed">Saving did not work.</string>
     <!-- Reminders at a place: permissions -->
     <string name="geo_intro_title">Reminders at a place</string>
     <string name="geo_intro_message">Tickory compares your phone\'s position with your places (such as Home and Work) and tells you when you arrive or leave.\n\nThis happens only on your phone: your position is never sent to your server or to anyone else, and no Google services are used. It uses little battery, because the app only looks now and then.\n\nAndroid will next ask for permission to use your precise location. You can turn this off again at any time under Places.</string>

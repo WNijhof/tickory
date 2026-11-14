@@ -1,0 +1,49 @@
+/* Bijlagen (ui/attachments.js). Eigen bestand, zodat app.css er niet door verandert.
+   Alleen kleuren uit app.css (--accent, --text-soft, --line, ...), dus het contrast in licht en donker klopt vanzelf. */
+
+.attachments { margin-top: 18px; }
+.attachment-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.attachment, .attachment-none {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--bg); min-width: 0;
+}
+.attachment-none { border-style: dashed; color: var(--text-soft); font-size: 0.9rem; }
+.attachment-thumb {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: var(--radius-sm);
+  background: var(--bg-sunk); color: var(--text-soft); cursor: pointer; overflow: hidden;
+}
+button.attachment-thumb:hover { background: var(--bg-hover); }
+.attachment-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attachment-icon { display: grid; place-items: center; gap: 0; font-size: 0.625rem; line-height: 1; }
+.attachment-icon svg { width: 16px; height: 16px; }
+.attachment-ext { font-weight: 600; letter-spacing: 0.02em; }
+.attachment-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.attachment-name, .attachment-name-plain {
+  padding: 0; border: 0; background: none; color: var(--text); font: inherit; font-weight: 500; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
+}
+.attachment-name-plain { cursor: default; }
+.attachment-name:hover { text-decoration: underline; }
+.attachment-meta { color: var(--text-soft); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-tools { flex: none; display: flex; align-items: center; gap: 4px; }
+.attachment-progress { width: 100%; height: 6px; accent-color: var(--accent); }
+.attachment-failed { border-color: var(--danger); }
+.attachment-failed .attachment-meta { color: var(--danger); white-space: normal; }
+.attachment-pending { background: var(--bg-soft); }
+.attachment-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+.attachment-actions .button svg { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
+.attachment-shrink { display: inline-flex; align-items: center; gap: 6px; color: var(--text-soft); font-size: 0.8125rem; }
+.attachment-note:empty { display: none; }
+.attachments-drop { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: var(--radius-sm); }
+
+/* de afbeelding op volle grootte */
+.dialog-viewer { max-width: min(92vw, 960px); }
+.attachment-viewer-body { display: grid; place-items: center; max-height: 70vh; overflow: auto; background: var(--bg-sunk); border-radius: var(--radius-sm); }
+.attachment-viewer-body img { max-width: 100%; max-height: 70vh; object-fit: contain; }
+
+/* de teller in de takenlijst */
+.chip-attachments svg { width: 12px; height: 12px; }
+
+@media (max-width: 760px) {
+  .attachment-tools { flex-direction: column; align-items: stretch; }
+}

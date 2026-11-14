@@ -1,0 +1,46 @@
+<!--
+title: Attachments
+description: Files on a task in Tickory: adding photos, PDFs and other files (also offline), viewing, saving and deleting them, with the limits, the storage on the server and what Android adds.
+-->
+<h1>Attachments</h1>
+<p class="intro">You can keep files with a task: a photo of the receipt, the quote as a PDF, a scan. They are in the task window, under the subtasks, and everyone who sees the task sees them too.</p>
+
+<h2 id="adding">Adding a file</h2>
+<p>Open the task and under <em>Attachments</em> choose the button <x-ui k="attachment.add"></x-ui>. You can choose several files at once, or drop them on that part from your computer. On a phone or tablet there is also <x-ui k="attachment.camera"></x-ui>: that opens the camera, and the photo becomes an attachment right away.</p>
+<ul>
+  <li>A file can be at most <strong>25 MB</strong> (the administrator can set it differently), and a task has at most <strong>20 attachments</strong>. Every user also has their own storage on the server (1 GB by default). If a file does not fit, you see why below the list.</li>
+  <li><strong>Shrinking large photos:</strong> with the tick <x-ui k="attachment.shrink"></x-ui> a photo is shrunk to at most 2048 pixels on the long side before it is uploaded. A photo from a phone is then often a tenth the size. The tick stays on this device.</li>
+  <li><strong>The name</strong> is cleaned up: characters that cannot be in a file name (such as <code>/</code> and <code>:</code>) become an underscore, and a very long name is shortened, keeping the extension (<code>.pdf</code>).</li>
+</ul>
+
+<h2 id="offline">Without a connection</h2>
+<p>Choosing a file also works offline. It is kept on your device (separately from the changes that are waiting) and shows in the list with the status <x-ui k="attachment.waitingOffline"></x-ui>. As soon as there is a connection and the task is on the server, it is uploaded and you see the progress; after that it is a normal attachment. A task you just made offline can therefore already have attachments: they wait until the task itself has been sent.</p>
+<ul>
+  <li>If you close the app or reload the page, waiting files stay.</li>
+  <li>If a file <strong>fails</strong> because the server refuses it (too large, no space left, the task no longer exists), the reason is shown, with <x-ui k="attachment.retry"></x-ui> and <x-ui k="attachment.discard"></x-ui>. A file that is only waiting for the connection is retried by the app itself, with a little more waiting time each time.</li>
+  <li>If a file no longer fits in the storage of your device, the app says so and it is not added.</li>
+  <li>Signing out and clearing local data also removes the waiting files.</li>
+</ul>
+
+<h2 id="viewing">Viewing, saving and deleting</h2>
+<ul>
+  <li><strong>Images</strong> (png, jpeg, gif, webp) have a small preview; click it to see it large. <strong>All other files</strong> (pdf, Word, a zip) are saved when you click them: your browser puts them in your downloads and you open them there. An svg or html file is never shown inside Tickory itself, even if it looks like an image.</li>
+  <li><x-ui k="attachment.save"></x-ui> saves the file under its own name.</li>
+  <li><strong>Deleting</strong> (the bin) can be done by the person who added the attachment, and by the owner of the project; it applies to everyone and the file disappears from the server. Another participant does not see the bin. If you delete a task, a section or a project, the attachments go with it.</li>
+  <li>An attachment cannot be renamed or replaced: delete it and add the file again.</li>
+  <li>Whoever fetches an attachment does so with their own sign-in; a link to an attachment does nothing outside the app. Someone who is not a member of the project gets nothing.</li>
+</ul>
+<p>In the list, a task with attachments shows a paperclip with the number.</p>
+
+<h2 id="android">On Android</h2>
+<p>In the <a href="android-app.html">Android app</a> you choose files with Android's own picker (gallery, files, other apps) and your phone's camera app takes a photo; Tickory asks for no permission for that. Opening or saving an attachment is done by the app itself: <em>Save</em> lets you choose where the file goes, and clicking a name opens the file in another app on your phone. Tickory is also in the share menu of other apps for files: share a photo and it becomes an attachment of a new task in your Inbox, after you have pressed <em>Add</em> in <em>Add task</em>.</p>
+
+<h2 id="for-administrators">For administrators</h2>
+<p>The files are in your data volume (<code>attachments/</code> next to the database, in Docker <code>/data/attachments</code>), under random names, and belong in your <a href="backup.html">backup</a>. You set the limits with <code>MAX_UPLOAD_MB</code> and <code>ATTACHMENT_QUOTA_MB</code> (see <a href="installing.html#settings">Settings</a>). If a reverse proxy sits in front, let it allow files of at least that size: for nginx that is <code>client_max_body_size</code> (see <a href="https.html#large-files">HTTPS</a>). The server cleans up what is no longer needed by itself. It does not scan files for viruses.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li>Attachments on a comment or on a project (only on a task).</li>
+  <li>Viewing a pdf or other file inside Tickory itself: it is saved and then opened with another program.</li>
+  <li>Resuming an upload that was interrupted halfway: it starts over.</li>
+</ul>

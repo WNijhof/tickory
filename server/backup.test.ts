@@ -85,3 +85,57 @@ test('als opdrachtregel: maakt een kopie en meldt een fout met een afsluitcode',
   assert.throws(() => execFileSync(process.execPath, [script, join(dir, 'x.db')], { env, encoding: 'utf8', stdio: 'pipe' }), (e: any) => e.status === 1 && /bestaat al/.test(String(e.stderr)));
   assert.throws(() => execFileSync(process.execPath, [script], { env, encoding: 'utf8', stdio: 'pipe' }), (e: any) => e.status === 2);
 });
+
+test('de bijlagen gaan mee: alleen bestanden van bijlagen die in de kopie staan, en terugzetten werkt met de controle bij het opstarten', async (t) => {
+  const dir = withDir(t);
+  const db = seeded(join(dir, 'todo.db'));
+  const user = userOf(db);
+  const { createAttachments } = await import('./attachments.ts');
+  const { Readable } = await import('node:stream');
+  const attachments = createAttachments(db, { dir: join(dir, 'attachments'), maxUploadBytes: 1000, quotaBytes: 100_000 });
+  const put = async (id: string, text: string, link: boolean) => {
+    const body = Buffer.from(text);
+    const req = Object.assign(Readable.from([body]), { headers: { 'content-length': String(body.length), 'content-type': 'text/plain' } });
+    Object.defineProperty(req, 'complete', { get: () => req.readableEnded });
+    const up = await attachments.upload(req as never, user, { id, taskId: 'task-backup-0001' });
+    if (link) {
+      const res = handleSync(db, { commands: [{ type: 'attachment_add', uuid: `backup-${id}`, args: { id, task_id: 'task-backup-0001', name: `${id}.txt`, size: up.size, mime: up.mime, sha256: up.sha256 } }] }, user);
+      assert.equal(res.sync_status[`backup-${id}`], 'ok');
+    }
+  };
+  await put('bijlage-een-001', 'eerste bijlage', true);
+  await put('bijlage-twee-002', 'tweede bijlage', true);
+  await put('bijlage-wees-003', 'nog niet gekoppeld', false); // een upload zonder bijlage hoort niet in de back-up
+  const del = handleSync(db, { commands: [{ type: 'attachment_delete', uuid: 'backup-del-0001', args: { id: 'bijlage-twee-002' } }] }, user);
+  assert.equal(del.sync_status['backup-del-0001'], 'ok');
+  attachments.purgeDeleted();
+
+  const report = backupTo(join(dir, 'todo.db'), join(dir, 'kopie', 'todo-1.db'), join(dir, 'attachments'));
+  assert.deepEqual(report, { files: 1, bytes: 'eerste bijlage'.length, missing: 0 });
+  assert.equal(existsSync(join(dir, 'kopie', 'todo-1.attachments')), true);
+  assert.throws(() => {
+    // een bestaande map voor de bijlagen wordt nooit overschreven, ook niet als het .db-bestand nieuw is
+    backupTo(join(dir, 'todo.db'), join(dir, 'kopie', 'todo-1.db'), join(dir, 'attachments'));
+  }, /bestaat al/);
+
+  // terugzetten: de kopie als database en de map als bijlagen; de controle bij het opstarten vindt alles in orde
+  const restored = new DatabaseSync(join(dir, 'kopie', 'todo-1.db'));
+  const again = createAttachments(restored, { dir: join(dir, 'kopie', 'todo-1.attachments'), maxUploadBytes: 1000, quotaBytes: 100_000 });
+  assert.deepEqual(again.check(), { strayFiles: 0, rowsRemoved: 1, missing: 0 }, 'alleen de regel van de upload zonder bijlage (hoort niet in de back-up) wordt opgeruimd');
+  restored.close();
+
+  // een bestand dat tussen de twee stappen verdween, wordt overgeslagen en gemeld
+  const key = (db.prepare("SELECT key FROM attachment_files WHERE id = 'bijlage-een-001'").get() as { key: string }).key;
+  rmSync(join(dir, 'attachments', key.slice(0, 2), key));
+  const second = backupTo(join(dir, 'todo.db'), join(dir, 'kopie', 'todo-3.db'), join(dir, 'attachments'));
+  assert.deepEqual(second, { files: 0, bytes: 0, missing: 1 });
+  db.close();
+});
+
+test('zonder map met bijlagen maakt de back-up alleen de database', (t) => {
+  const dir = withDir(t);
+  seeded(join(dir, 'todo.db')).close();
+  const report = backupTo(join(dir, 'todo.db'), join(dir, 'a.db'), join(dir, 'bestaat-niet'));
+  assert.deepEqual(report, { files: 0, bytes: 0, missing: 0 });
+  assert.equal(existsSync(join(dir, 'a.attachments')), false);
+});

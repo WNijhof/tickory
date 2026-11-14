@@ -50,10 +50,10 @@ description: Templates in Tickory: create a project or tasks in one go from a bu
 <ul>
   <li><strong>Export:</strong> pick a template and click <x-ui k="template.share.open"></x-ui>. <x-ui k="template.share.saveFile"></x-ui> gives a file named <code>tickory-template-….json</code>; <x-ui k="template.share.copy"></x-ui> puts the text on the clipboard. It only contains sections and tasks.</li>
   <li><strong>Import:</strong> choose <x-ui k="template.import.open"></x-ui> at the bottom of the templates window, or under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui>. Choose a file or paste the text. You first see what is in it and can change the name.</li>
-  <li><strong>From Todoist:</strong> you can also import a Todoist CSV template (with the columns <code>TYPE</code>, <code>CONTENT</code>, <code>INDENT</code>, …). Tasks, sections, subtasks and priority come along. Dates and comments do not: a date there is free text in a language Tickory does not guess. The app tells you how many were left out.</li>
+  <li><strong>From Todoist or Tickory:</strong> you can also import a Todoist CSV template (with the columns <code>TYPE</code>, <code>CONTENT</code>, <code>INDENT</code>, …). Tasks, sections, subtasks and priority come along. Dates and comments do not: a date there is free text in a language Tickory does not guess. The app tells you how many were left out.</li>
 </ul>
 <p>A file from someone else is untrusted input. Tickory only reads it and checks it strictly (size, structure, lengths, counts); nothing is run or fetched from the internet, and text is never shown as markup. A file that is not right is refused with a message.</p>
-<p>In the Android app the built-in browser cannot choose a file yet. Paste the text in the import window there, and use <x-ui k="template.share.copy"></x-ui> to share.</p>
+<p>In the Android app you choose the file with Android's own file picker and save it with Android's save screen. Copying and pasting the text works everywhere.</p>
 
 <h2 id="managing">Managing templates</h2>
 <p>Under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> you find all templates, with the kind next to each. You can look at one, share it, rename it or delete it (with confirmation), and import. A deleted template cannot be brought back; projects you made from it stay.</p>

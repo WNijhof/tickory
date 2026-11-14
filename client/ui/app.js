@@ -5,7 +5,7 @@ import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
-import { shareFromHash } from '../core/share.js';
+import { fetchSharedFiles, shareFromHash } from '../core/share.js';
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
@@ -27,6 +27,9 @@ import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from '
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
+import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
+import { configureAttachments, rejectionText } from './attachments.js';
+import { exportDialog } from './exportDialog.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
@@ -64,6 +67,7 @@ let store;
 let sync;
 let actions;
 let events;
+let attachments;
 /** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
 let templatesUiInstance = null;
 const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, actions, navigate }));
@@ -372,6 +376,7 @@ const handlers = {
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
         { value: 'places', label: t('settings.places') },
+        { value: 'export', label: t('settings.export') },
         { value: 'templates', label: t('settings.templates') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'language', label: t('settings.language') },
@@ -382,6 +387,7 @@ const handlers = {
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
+    else if (choice === 'export') await exportDialog({ store, bridge });
     else if (choice === 'templates') await templatesUi().manage();
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
@@ -446,6 +452,7 @@ async function askLogin(note = '') {
           sync.stop();
           localStorage.removeItem(ROUTE_KEY);
           if (adapter.clear) await adapter.clear();
+          await attachments.clear();
         }
         backend.setToken(res.token);
         bridge.setSession(res.token);
@@ -479,6 +486,7 @@ async function logout() {
   backend.clearToken();
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
+  await attachments.clear(); // ook de bestanden die nog moesten worden geüpload
   location.reload();
 }
 
@@ -541,7 +549,19 @@ function openPendingShare() {
   if (document.querySelector('dialog[open]')) return; // het volgende moment (store.subscribe) opnieuw
   const draft = pendingShare;
   pendingShare = null;
-  handlers.quickAdd({ text: draft.title, description: draft.description });
+  if (!draft.files) {
+    handlers.quickAdd({ text: draft.title, description: draft.description });
+    return;
+  }
+  // Gedeelde bestanden: eerst ophalen bij de Android-app, daarna het venster; wordt de taak gemaakt, dan worden het bijlagen.
+  fetchSharedFiles(draft).then(async (files) => {
+    if (files.length < draft.files.length) toast(t('quick.sharedFilesMissing'), { kind: 'error' });
+    const id = await handlers.quickAdd({ text: draft.title, description: draft.description, files: files.map((f) => f.name) });
+    if (id && files.length > 0) {
+      const { rejected } = await attachments.stage(id, files);
+      for (const r of rejected) toast(rejectionText(r), { kind: 'error', timeout: 10_000 });
+    }
+  });
 }
 
 /** De knop "+" van een widget van de Android-app: #add, #add=today of #add=<project-id> opent het venster Taak toevoegen. */
@@ -604,14 +624,23 @@ async function boot() {
     },
   });
 
+  // Bijlagen: gekozen bestanden worden lokaal bewaard en geüpload zodra dat kan (core/attachments.js)
+  attachments = createAttachmentManager({
+    store, actions, api: backend.attachments, getToken, makeId: newId,
+    files: backend.demo || !('indexedDB' in window) ? new MemoryFiles() : new IdbFiles(),
+  });
+  configureAttachments({ manager: attachments, bridge });
+
   events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
   store.subscribe(invalidate);
   store.subscribe(maybeSetTimezone);
   store.subscribe(openPendingTask);
   store.subscribe(openPendingShare);
+  store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
   window.addEventListener('online', () => {
+    attachments.process();
     events.restart();
     sync.requestSync(0);
   });
@@ -648,6 +677,7 @@ async function boot() {
     else if (shortcuts.handle(e)) e.preventDefault();
   });
 
+  attachments.init().catch(() => {});
   render();
   document.body.classList.add('ready');
   if (getToken()) {

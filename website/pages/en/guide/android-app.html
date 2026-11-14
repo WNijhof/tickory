@@ -89,12 +89,21 @@ description: The Tickory Android app: your own server in an app, with reminders 
 </ul>
 <p>If everything is right you see <em><x-ui k="notify.androidOk"></x-ui></em>, with the version number of the app below it.</p>
 
+<h2 id="attachments-and-sharing-files">Attachments and sharing files</h2>
+<p>You can add <a href="attachments.html">attachments</a> to a task. In the app you choose files with Android's own picker (gallery, files, other apps), or take a photo with your phone's camera app. <strong>Tickory asks for no permission</strong> for photos, files or the camera: the picker and the camera app do the work and give the app only what you choose.</p>
+<ul>
+  <li><strong>Opening:</strong> tap an attachment in the task window. The app fetches the file and gives it to another app on your phone (a pdf to your pdf reader). If you have no app for it, Tickory says so; choose <em>Save</em> instead.</li>
+  <li><strong>Saving:</strong> Android lets you choose where the file goes.</li>
+  <li><strong>Share to Tickory:</strong> in another app (gallery, files) choose Share and then Tickory. One or more files become attachments of a new task in your Inbox, after you press <em>Add</em> in <em>Add task</em>; if you cancel, nothing happens. Text you share along with them becomes the title or the description.</li>
+  <li>Fetched attachments are kept temporarily in the app's storage and cleaned up after a day.</li>
+</ul>
+<p>Not tried on a real device yet: how the picker and camera of your brand behave, and large or many files through the share menu. See also <a href="troubleshooting.html#attachments">Troubleshooting</a>.</p>
+
 <h2>Limitations</h2>
 <ul>
   <li><strong>Opening without a connection only works with https.</strong> The web app stores itself with a service worker and browsers only allow that on https. With an <code>http://</code> address the app therefore does not open away from home; the reminders do go off.</li>
   <li><strong>Only certificates that Android itself trusts</strong> (such as those from Let's Encrypt). A self-made or self-added certificate is not accepted.</li>
   <li><strong>A sign-in page in front of your server</strong> (Authelia, Cloudflare Access and the like) does not work: the app only opens the address that is set and then cannot reach <code>/health</code> and <code>/api/</code>.</li>
-  <li><strong>No file picker</strong> in the app. Tickory currently has no attachments or other parts that ask for a file, so you will not notice this.</li>
   <li>A notification does not replace the web app: a reminder is an alarm of the phone. On a device without <em>Android System WebView</em> (or with WebView turned off) the app does not start; it says so.</li>
 </ul>
 

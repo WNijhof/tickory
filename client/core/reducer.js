@@ -92,6 +92,13 @@ function add(state, e, args, now, userId) {
     if ((row.task_id === null) === (row.project_id === null)) return;
     if (row.task_id !== null ? !state.tasks.has(row.task_id) : !state.projects.has(row.project_id)) return;
   }
+  if (e.name === 'attachment') {
+    // hoort bij een bestaande taak, en een taak heeft hooguit zoveel bijlagen (zoals de server; zie server/limits.ts)
+    if (!state.tasks.has(row.task_id)) return;
+    let count = 0;
+    for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
+    if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+  }
   if (e.name === 'reminder') {
     // een locatieherinnering heeft een eigen plaats nodig en een trigger, de andere soorten niet (zoals op de server)
     if (row.type === 'location') {
@@ -134,6 +141,7 @@ function deleteTaskTree(state, rootIds) {
   const ids = new Set([...rootIds, ...descendantIds(state, rootIds)]);
   for (const id of ids) state.tasks.delete(id);
   removeWhere(state, 'comments', (c) => ids.has(c.task_id));
+  removeWhere(state, 'attachments', (a) => ids.has(a.task_id));
   removeWhere(state, 'reminders', (r) => ids.has(r.task_id));
 }
 
@@ -279,6 +287,8 @@ function taskUncomplete(state, args, now) {
 }
 
 const GENERIC = /^([a-z]+)_(add|update|delete)$/;
+/** Zoveel bijlagen kan een taak hebben (gelijk aan LIMITS.attachmentsPerTask op de server). */
+export const MAX_ATTACHMENTS_PER_TASK = 20;
 const CAN_WRITE_FOREIGN = new Set(['label', 'filter']); // alleen de eigenaar wijzigt of verwijdert deze
 
 /**
@@ -310,6 +320,12 @@ export function applyCommand(state, cmd, now, userId = null) {
       if (e.name === 'comment' && userId) {
         const row = state.comments.get(args.id);
         if (row && row.author_id && row.author_id !== userId) return undefined;
+      }
+      // een bijlage verwijdert alleen de maker, of de eigenaar van het project
+      if (e.name === 'attachment' && userId) {
+        const row = state.attachments.get(args.id);
+        const task = row ? state.tasks.get(row.task_id) : null;
+        if (row && row.creator_id && row.creator_id !== userId && !(task && isOwner(state, userId, task.project_id))) return undefined;
       }
       if (m[2] === 'update') return e.name === 'project' && !mayUpdateProject(state, args, userId) ? undefined : update(state, e, args, now);
       return remove(state, e, args, now, userId);

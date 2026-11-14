@@ -31,11 +31,11 @@ export function initials(name) {
  *   view: { projects: Map<string, object>, sections: Map<string, object>, labels: Map<string, object> },
  *   today: string, now: string,
  *   depth?: number, showProject?: boolean, hasChildren?: boolean, collapsed?: boolean,
- *   subtasks?: Map<string, { done: number, total: number }>, comments?: Map<string, number>,
+ *   subtasks?: Map<string, { done: number, total: number }>, comments?: Map<string, number>, attachments?: Map<string, number>,
  *   reminder?: boolean, me?: { id: string, name?: string } | null, userName?: (id: string) => string | null,
  * }} ctx
  */
-export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, subtasks = new Map(), comments = new Map(), reminder = false, me = null, userName = () => null }) {
+export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, subtasks = new Map(), comments = new Map(), attachments = new Map(), reminder = false, me = null, userName = () => null }) {
   const sub = subtasks.get(task.id);
   const labels = [];
   for (const id of task.labels ?? []) {
@@ -68,6 +68,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
     deadline: task.deadline ? { text: t('task.deadlineChip', { date: formatDate(task.deadline, today) }), overdue: task.deadline < today } : null,
     subtasks: sub ? { done: sub.done, total: sub.total, text: `${sub.done}/${sub.total}`, label: t('task.subtasksLabel', { done: sub.done, total: sub.total }) } : null,
     comments: comments.get(task.id) ? { count: comments.get(task.id), label: t('task.commentsLabel', { count: comments.get(task.id) }) } : null,
+    attachments: attachments.get(task.id) ? { count: attachments.get(task.id), label: t('task.attachmentsLabel', { count: attachments.get(task.id) }) } : null,
     labels,
     bell: Boolean(reminder),
     assignee,

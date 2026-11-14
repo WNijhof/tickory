@@ -237,7 +237,7 @@ export async function templatesScenario(c: any) {
   // ---- 7. importeren ----
   await clickText('Importeren…', `document.querySelector('dialog[open] .dialog-buttons')`);
   await waitFor(`document.querySelector('dialog[open] input[type="file"]')`, 'importvenster');
-  assert.ok((await dialogText()).includes('Lukt het kiezen van een bestand niet (bijvoorbeeld in de Android-app), plak dan hieronder de tekst.'), `uitleg voor wie geen bestand kan kiezen: ${await dialogText()}`);
+  assert.ok((await dialogText()).includes('Lukt het kiezen van een bestand niet, of heb je alleen de tekst, plak die dan hieronder.'), `uitleg voor wie geen bestand kan kiezen: ${await dialogText()}`);
   const csv = `${workDir}Boodschappen-week.csv`;
   writeFileSync(csv, ['TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE', 'task,Brood halen,,4,1,Anna (1),,morgen,nl,Europe/Amsterdam', 'task,"Bij de bakker: volkoren, ""zacht""",,1,2,,,,,', 'section,Zaterdag,,,,,,,,', 'task,Kaas kopen,,2,1,,,,,', 'note,Een opmerking,,,,,,,,'].join('\r\n'), 'utf8');
   const doc = await send('DOM.getDocument', { depth: 1 });

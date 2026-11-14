@@ -110,6 +110,17 @@
     <string name="widget_preview_task_1">Boodschappen doen</string>
     <string name="widget_preview_task_2">Tandarts bellen</string>
     <string name="widget_preview_task_3">Planten water geven</string>
+
+    <!-- Bijlagen en delen van bestanden -->
+    <string name="share_copying">Bestanden worden gekopieerd…</string>
+    <string name="attachment_fetching">Bijlage wordt opgehaald…</string>
+    <string name="attachment_signed_out">Je bent afgemeld. Log opnieuw in om de bijlage op te halen.</string>
+    <string name="attachment_not_found">Deze bijlage bestaat niet meer op de server.</string>
+    <string name="attachment_too_large">Deze bijlage is te groot om op te halen.</string>
+    <string name="attachment_failed">De bijlage kon niet worden opgehaald. Controleer je verbinding en probeer het opnieuw.</string>
+    <string name="attachment_no_app">Er is geen app gevonden om dit bestand te openen. Kies Opslaan en open het daarna zelf.</string>
+    <string name="attachment_saved">Bijlage opgeslagen.</string>
+    <string name="attachment_save_failed">Opslaan is niet gelukt.</string>
     <!-- Herinneringen op een plek: toestemmingen -->
     <string name="geo_intro_title">Herinneringen op een plek</string>
     <string name="geo_intro_message">Tickory vergelijkt de positie van je telefoon met je plaatsen (zoals Thuis en Werk) en meldt het als je aankomt of vertrekt.\n\nDat gebeurt alleen op je telefoon: je positie gaat nooit naar je server of naar iemand anders, en er worden geen Google-diensten gebruikt. Het kost weinig batterij, want de app kijkt alleen af en toe.\n\nAndroid vraagt hierna om toestemming voor je nauwkeurige locatie. Je kunt dit altijd weer uitzetten bij Plaatsen.</string>

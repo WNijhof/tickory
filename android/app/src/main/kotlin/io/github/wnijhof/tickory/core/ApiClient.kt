@@ -1,6 +1,7 @@
 package io.github.wnijhof.tickory.core
 
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.net.ConnectException
@@ -63,6 +64,22 @@ sealed class BatchResult {
 
     /** Geen verbinding of een tijdelijke fout: opnieuw proberen. */
     object Failed : BatchResult()
+}
+
+/** De uitkomst van het ophalen van een bijlage naar een bestand. */
+sealed class DownloadResult {
+    data class Ok(val bytes: Long) : DownloadResult()
+
+    /** 401: de sessie is verlopen of ingetrokken. */
+    object Unauthorized : DownloadResult()
+
+    /** 404: de bijlage bestaat niet (meer) of is niet voor deze gebruiker. */
+    object NotFound : DownloadResult()
+
+    /** Groter dan wat de app wil binnenhalen. */
+    object TooLarge : DownloadResult()
+
+    data class Failed(val problem: NetProblem?, val status: Int) : DownloadResult()
 }
 
 /** Een commando voor `POST /api/v1/sync`. */
@@ -165,6 +182,65 @@ class ApiClient(
                 CompleteResult.Rejected(error?.text("error_code") ?: "HTTP_${response.status}", error?.text("error") ?: "")
             }
             else -> CompleteResult.Failed(null, response.status)
+        }
+    }
+
+    /**
+     * Haalt een bestand op (een bijlage) en schrijft het naar [target]. Het token gaat in de Authorization-header, nooit in het
+     * adres. Een mislukte of afgebroken download laat geen half bestand achter.
+     */
+    fun downloadTo(token: String, path: String, target: File, maxBytes: Long): DownloadResult {
+        val connection = try {
+            URL(origin + path).openConnection() as HttpURLConnection
+        } catch (e: IOException) {
+            return DownloadResult.Failed(classify(e), 0)
+        }
+        try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = connectTimeoutMs
+            connection.readTimeout = readTimeoutMs
+            connection.instanceFollowRedirects = false
+            connection.useCaches = false
+            if (userAgent != null) connection.setRequestProperty("User-Agent", userAgent)
+            connection.setRequestProperty("Authorization", "Bearer $token")
+            val status = connection.responseCode
+            if (status == 401) return DownloadResult.Unauthorized
+            if (status == 404) return DownloadResult.NotFound
+            if (status != 200) return DownloadResult.Failed(null, status)
+            val declared = connection.contentLengthLong
+            if (declared > maxBytes) return DownloadResult.TooLarge
+            var total = 0L
+            target.parentFile?.mkdirs()
+            try {
+                connection.inputStream.use { input ->
+                    target.outputStream().use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        while (true) {
+                            val n = input.read(buffer)
+                            if (n < 0) break
+                            total += n
+                            if (total > maxBytes) {
+                                target.delete()
+                                return DownloadResult.TooLarge
+                            }
+                            output.write(buffer, 0, n)
+                        }
+                    }
+                }
+            } catch (e: IOException) {
+                target.delete()
+                return DownloadResult.Failed(classify(e), 0)
+            }
+            if (declared >= 0 && declared != total) {
+                target.delete()
+                return DownloadResult.Failed(null, status)
+            }
+            return DownloadResult.Ok(total)
+        } catch (e: IOException) {
+            target.delete()
+            return DownloadResult.Failed(classify(e), 0)
+        } finally {
+            connection.disconnect()
         }
     }
 
