@@ -25,6 +25,7 @@ description: Your account in Tickory: changing your password, seeing which devic
   <li><x-ui k="account.signOutOthers"></x-ui> signs out every device except the one you are using now, after you confirm. Useful after turning on two-step verification, or when you no longer know where you are signed in.</li>
   <li>A device that has not been used for 90 days is signed out automatically, and after 365 days every device has to sign in again anyway. The administrator can set other periods; the line below the list says what applies on your server. A signed-out device simply asks you to sign in again; the widgets of the Android app then show <em>Sign in again via the app</em>.</li>
   <li>If you do not recognise a device, sign it out and change your password.</li>
+  <li>Below the list, <x-ui k="account.pairMake"></x-ui> gives you a one-time code for the <a href="browser-extension.html#pairing-code">browser extension</a>: that way you sign in there without a password, even if you only sign in with SSO. The extension then appears in the list as <x-ui k="account.deviceKind.extension"></x-ui>.</li>
   <li>The name is determined when signing in and cannot be changed. The same name twice means you signed in twice with the same kind of browser.</li>
 </ul>
 

@@ -1,0 +1,69 @@
+<!--
+title: Browser extension
+description: With the browser extension for Chrome, Edge and Firefox you save the page you are reading, a link or selected text as a task in Tickory: installing, connecting to your server, using it, and which permissions the extension has.
+-->
+<h1>Browser extension</h1>
+<p class="intro">Reading something you want to do or look at later? With the extension “Tickory: save page as task” you turn it into a task with one click: the title of the page becomes the task, the address goes into the description, and whatever you selected is added as a quote. For Chrome, Edge and Firefox on the computer.</p>
+
+<h2 id="installing">Installing</h2>
+<p>The extension is not (yet) in the Chrome Web Store or on Firefox Add-ons. You install it from the zip on the <a href="https://github.com/WNijhof/tickory/releases">releases page</a>: <code>tickory-extension-&lt;version&gt;.zip</code> for Chrome and Edge, <code>tickory-extension-&lt;version&gt;-firefox.zip</code> for Firefox.</p>
+<h3 id="chrome-edge">Chrome and Edge</h3>
+<ol>
+  <li>Unzip it into a folder you keep (the browser loads the extension from that folder every time).</li>
+  <li>Open <code>chrome://extensions</code> (in Edge <code>edge://extensions</code>) and turn on <em>Developer mode</em>.</li>
+  <li>Choose <em>Load unpacked</em> and pick the folder. The Tickory icon is now with the extensions in the toolbar; the pin icon keeps it visible.</li>
+</ol>
+<p>A new version: unzip the new zip over the old folder and choose <em>Reload</em> on the extension. You stay connected.</p>
+<h3 id="firefox">Firefox</h3>
+<p>Firefox only installs an extension permanently once Mozilla has signed it, even if it is not public. Until then you load it temporarily: open <code>about:debugging#/runtime/this-firefox</code>, choose <em>Load Temporary Add-on…</em> and pick the zip (or <code>manifest.json</code> in the unzipped folder). A temporary add-on disappears when you close Firefox; you then do this again and connect again. Firefox 140 or newer.</p>
+
+<h2 id="connecting">Connecting to your server</h2>
+<p>After installing, the page <em>Connect to your Tickory server</em> opens by itself (later you find it under <em>Settings</em> in the extension’s window).</p>
+<ol>
+  <li>Enter the address where you open Tickory in the browser, for example <code>https://tasks.example.com</code>, and choose <em>Connect</em>. Without https it only works on your own network (<code>http://192.168.1.10:8787</code>, a name like <code>http://nas:8787</code> or <code>http://tickory.local</code>), just like in the <a href="android-app.html">Android app</a>: otherwise your password and tasks would travel unencrypted over the internet.</li>
+  <li>The browser asks whether the extension may use that address. Choose <em>Allow</em>. The extension only gets access to your server, not to other websites.</li>
+  <li>Sign in with your username and password, plus the code from your authenticator app if you use <a href="account.html#two-step-verification">two-step verification</a>. Or use a <a href="#pairing-code">pairing code</a>.</li>
+</ol>
+<p>The extension gets a sign-in of its own. In Tickory it appears in <x-ui k="settings.account"></x-ui> under <x-ui k="account.devices"></x-ui> as “Browser extension (Chrome)” (or Edge, or Firefox), with the kind <x-ui k="account.deviceKind.extension"></x-ui>. That is also where you sign it out.</p>
+<h3 id="pairing-code">Signing in with a pairing code</h3>
+<p>If you only sign in with SSO (the “Sign in with …” button), or would rather not type a password into an extension, use a pairing code:</p>
+<ol>
+  <li>Open Tickory in your browser, click your name at the bottom of the sidebar and choose <x-ui k="settings.account"></x-ui>.</li>
+  <li>Under <x-ui k="account.devices"></x-ui> you find <x-ui k="account.pairTitle"></x-ui>. Choose <x-ui k="account.pairMake"></x-ui>. If your account has a password, enter it first (and with two-step verification also the code): a pairing code adds a device to your account.</li>
+  <li>You get a code of sixteen characters, like <code>ABCD-EFGH-JKMN-PQRS</code>. Enter it in the extension under <em>Sign in with a pairing code</em> and choose <em>Pair</em>. Upper or lower case, spaces or dashes do not matter.</li>
+</ol>
+<p>A pairing code works once and for ten minutes. A new code makes the previous one invalid, and so does signing out the device that created it.</p>
+
+<h2 id="using">Saving a page</h2>
+<p>Click the Tickory icon in the toolbar, use the keyboard shortcut <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>, or right-click the page, a link or selected text and choose <em>Save to Tickory</em>. A small window opens:</p>
+<ul>
+  <li><strong>Task:</strong> the title of the page (for a link: the text or address of the link). Feel free to change it.</li>
+  <li><strong>Description:</strong> the address of the page, and what you selected as a quote (lines starting with <code>&gt;</code>). For a link: the address of the link, with the page it was on.</li>
+  <li><strong>Project:</strong> the Inbox by default; the extension remembers the project you chose last. Projects you <a href="sharing.html">can only read</a> are greyed out.</li>
+</ul>
+<p>Choose <em>Save</em> (or press <kbd>Enter</kbd> in the Task field). The window says where the task is and closes by itself.</p>
+<h3 id="quick-add">Quick add in the title</h3>
+<p>The Task field understands the same <a href="adding-tasks.html">quick add</a> as the app: after the title, type for example <code>morgen p1 #Work @reading !30m</code> (dates are recognised in Dutch for now). Below the field you see right away what was recognised (date, priority, project, section, labels, reminders, duration). The title of the page itself does not count: an article called “Morgen gratis parkeren” does not become a task for tomorrow. If you type a title of your own, everything counts, just like in the app. A <code>#project</code> in the title wins over the list; a new <code>@label</code> is created.</p>
+<h3 id="if-it-does-not-work">If it does not work</h3>
+<dl>
+  <dt>“Tickory cannot be reached.”</dt>
+  <dd>This computer cannot reach your server (at home yes, on the road no?). What you typed stays; choose <em>Save</em> again once the connection is back. You never get the same task twice: the server recognises a repeated attempt.</dd>
+  <dt>“The connection to Tickory has expired or was revoked. Connect again.”</dt>
+  <dd>The extension was signed out in Tickory (by you, by the administrator, or because it was not used for a long time). Choose <em>Connect</em> and sign in again.</dd>
+  <dt>“You can only read this project.”</dt>
+  <dd>You are a reader in that project. Choose another project.</dd>
+</dl>
+
+<h2 id="privacy">Privacy and permissions</h2>
+<p>The extension only talks to your server. It only sends something when you click <em>Save</em>: the title, the address of the page and what you selected. Nothing goes to the makers of Tickory, to Google, Microsoft or Mozilla or to anyone else, and the extension does not keep track of the pages you visit.</p>
+<table>
+  <thead><tr><th>Permission</th><th>What for</th></tr></thead>
+  <tbody>
+    <tr><td>Active tab</td><td>The title, address and selection of the page on which you open the extension yourself, and only then. No access to other tabs or pages.</td></tr>
+    <tr><td>Scripts</td><td>Only to read the selected text on the page where you open the extension.</td></tr>
+    <tr><td>Context menu</td><td>The menu item <em>Save to Tickory</em> on a right-click.</td></tr>
+    <tr><td>Storage</td><td>The address of your server, your name and the extension’s token, only on this computer (not synced to your other computers), and the list of projects and labels for the project list.</td></tr>
+    <tr><td>Access to your server</td><td>Asked when you connect, only for the address of your server. Signing out revokes the sign-in in Tickory, clears everything from the extension’s storage and removes this access again.</td></tr>
+  </tbody>
+</table>
+<p>Firefox asks new extensions to state which data they send. Listed there are the addresses of pages, page content (the selection) and sign-in details: exactly what is described above, and it only goes to your own server.</p>

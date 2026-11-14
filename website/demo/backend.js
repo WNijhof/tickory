@@ -777,6 +777,11 @@ export class DemoServer {
         status: async () => ({ enabled: false }),
         unlink: demoOnly,
       },
+      // Koppelcodes voor de browserextensie: in de demo is er geen server om mee te verbinden, dus een nette melding.
+      pairing: {
+        info: demoOnly,
+        create: demoOnly,
+      },
       activity: async (projectId, q) => this.activityPage(projectId, q),
       stats: async (q) => this.statsPage(q),
       revokeSession: async (id) => {
