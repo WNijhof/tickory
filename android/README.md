@@ -274,6 +274,13 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
 - `MainActivity` (de WebView), `SetupActivity` (het serveradres) en `WebBridge`.
 
+**Systeembalken en toetsenbord.** De app tekent tot onder de systeembalken (`enableEdgeToEdge`, verplicht vanaf Android 15) en
+geeft de buitenste laag van `MainActivity` zelf ruimte voor de statusbalk, de gebarenbalk of navigatieknoppen, een uitsparing en het
+toetsenbord; de randen zijn daarmee verbruikt. De web-app (met op een telefoon haar menubalk onderaan en de ronde knop "+") ziet
+daardoor een veilige rand van 0 en zet niets dubbel; onder de gebarenbalk loopt de achtergrond van het venster door, in dezelfde
+kleur als de pagina (licht en donker volgens het systeem). Gaat het toetsenbord open, dan wordt de WebView lager en verbergt de
+web-app de menubalk, zodat die niet over het invoerveld schuift. `SystemBarsTest` legt dit vast.
+
 **Inloggen** doet de app nooit zelf: `SetupActivity` controleert alleen of het adres een Tickory-server is (`/health`), en het
 inlogscherm is dat van de web-app in de WebView, met de tweede stap van tweestapsverificatie (code of herstelcode) erbij. Na het
 inloggen geeft de web-app het token door met `setSession`. Verloopt de sessie (standaard 90 dagen zonder gebruik, 365 dagen na
