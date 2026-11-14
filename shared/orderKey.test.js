@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidKey, keyAfter, keyBefore, keyBetween, keysEvenly } from './orderKey.js';
+import { isValidKey, keyAfter, keyBefore, keyBetween, keysAfter, keysEvenly } from './orderKey.js';
 
 test('eerste sleutel in een lege lijst is geldig', () => {
   const k = keyBetween(null, null);
@@ -59,4 +59,25 @@ test('ongeldige invoer wordt geweigerd', () => {
   assert.equal(isValidKey('a0'), false);
   assert.equal(isValidKey(''), false);
   assert.equal(isValidKey('ab c'), false);
+});
+
+test('keysAfter: een hele reeks oplopende, geldige en korte sleutels achter een bestaande', () => {
+  assert.deepEqual(keysAfter(null, 0), []);
+  for (const [after, n] of [[null, 1], [null, 7], [null, 61], [null, 450], [null, 1000], ['V', 1], ['V', 300], ['zzV', 100], ['zzzzzzzzzzzzzzzzzzzzV', 50], [keyAfter(keyAfter('x')), 1000]]) {
+    const keys = keysAfter(after, n);
+    assert.equal(keys.length, n);
+    assert.ok(keys.every(isValidKey), `${after}/${n}: ongeldige sleutel`);
+    assert.deepEqual([...keys].sort(), keys, `${after}/${n}: niet oplopend`);
+    assert.equal(new Set(keys).size, n, `${after}/${n}: dubbele sleutels`);
+    if (after) assert.ok(keys[0] > after, `${after}/${n}: niet achter de bestaande sleutel`);
+    assert.ok(keys.at(-1).length <= (after?.length ?? 0) + 4, `${after}/${n}: sleutels te lang (${keys.at(-1).length})`);
+  }
+  // tegenover keyAfter achter elkaar, dat na ruim 320 sleutels de grens van 64 tekens overschrijdt
+  let k = null;
+  for (let i = 0; i < 450; i++) k = keyAfter(k);
+  assert.ok(!isValidKey(k));
+  assert.ok(isValidKey(keysAfter(null, 450).at(-1)));
+  // en er blijft altijd ruimte om tussen twee van de sleutels in te voegen
+  const keys = keysAfter(null, 30);
+  for (let i = 1; i < keys.length; i++) assert.ok(isValidKey(keyBetween(keys[i - 1], keys[i])));
 });

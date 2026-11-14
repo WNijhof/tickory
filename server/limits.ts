@@ -20,6 +20,9 @@ export const LIMITS = {
   remindersPerUser: 5_000,
   /** Plaatsen (voor herinneringen op een locatie) per gebruiker. */
   placesPerUser: 100,
+  /** Sjablonen per gebruiker, en taken (met subtaken) in één sjabloon. */
+  templatesPerUser: 100,
+  tasksPerTemplate: 1000,
   membersPerProject: 100,
   /** Aangemelde apparaten; bij het inloggen op een volgend apparaat wordt het langst ongebruikte afgemeld. */
   sessionsPerUser: 20,

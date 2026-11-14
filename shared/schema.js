@@ -6,9 +6,10 @@ import { isValidKey } from './orderKey.js';
 import { isValidDate, isValidRecurrence } from './recurrence.js';
 import { MAX_OFFSET } from './reminders.js';
 import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './places.js';
+import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -166,6 +167,19 @@ export const ENTITIES = {
       { name: 'lat', type: 'real', required: true, min: -90, max: 90 },
       { name: 'lon', type: 'real', required: true, min: -180, max: 180 },
       { name: 'radius', type: 'int', default: PLACE_RADIUS_DEFAULT, min: PLACE_RADIUS_MIN, max: PLACE_RADIUS_MAX },
+      owner(),
+    ],
+  },
+  // Een sjabloon van één gebruiker (privé): de secties, taken en subtaken van een project of van een taak, met relatieve datums.
+  // De inhoud (shared/template.js) wordt bij elk commando streng gecontroleerd; de soort (`kind`) kies je bij het maken.
+  template: {
+    name: 'template', table: 'templates', resource: 'templates',
+    cols: [
+      { name: 'name', type: 'text', required: true, maxLen: TEMPLATE_LIMITS.templateName },
+      { name: 'kind', type: 'text', required: true, oneOf: TEMPLATE_KINDS, immutable: true },
+      { name: 'description', type: 'text', default: '', maxLen: TEMPLATE_LIMITS.templateDescription },
+      color(),
+      { name: 'content', type: 'json', required: true, check: contentCheck },
       owner(),
     ],
   },

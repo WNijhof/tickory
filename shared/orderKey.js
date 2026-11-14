@@ -64,3 +64,39 @@ export function keysEvenly(n) {
   }
   return out;
 }
+
+/**
+ * `n` oplopende sleutels, allemaal achter `after` (null = vanaf het begin), zo kort mogelijk. Voor een hele reeks tegelijk, zoals
+ * de taken van een sjabloon: `keyAfter` steeds op de vorige toepassen geeft na ruim driehonderd sleutels meer dan 64 tekens
+ * (de bovengrens voor een sleutel die een client meestuurt), dit blijft bij duizend sleutels op een paar tekens.
+ * @param {string | null} after
+ * @param {number} n
+ * @returns {string[]}
+ */
+export function keysAfter(after, n) {
+  if (n <= 0) return [];
+  const len = after ? after.length : 0;
+  const base = BigInt(BASE);
+  const need = BigInt(4 * (n + 1)); // ruimte genoeg dat de sleutels uit elkaar liggen, ook als `after` bijna tegen het einde zit
+  let width = Math.max(len, 1);
+  let start = 0n;
+  let room = 0n;
+  for (; ; width++) {
+    start = 0n;
+    if (after) for (const c of after) start = start * base + BigInt(idx(c));
+    start *= base ** BigInt(width - len);
+    room = base ** BigInt(width) - start;
+    if (room > need) break;
+  }
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    let v = start + (room * BigInt(i)) / BigInt(n + 1);
+    let digits = '';
+    for (let d = 0; d < width; d++) {
+      digits = DIGITS[Number(v % base)] + digits;
+      v /= base;
+    }
+    out.push(digits.replace(/0+$/, ''));
+  }
+  return out;
+}

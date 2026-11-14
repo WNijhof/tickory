@@ -10,7 +10,7 @@
 //
 // Wie wat ziet (zie `visibility`):
 //   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
-//   - labels, filters, plaatsen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
+//   - labels, filters, plaatsen, sjablonen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
 // Verandert wat iemand mag zien (lid worden, verwijderd worden, een taak die naar een project van anderen verhuist), dan
 // krijgt die persoon dat in de delta mee: alle inhoud van een nieuw project, of een verwijdering van wat verdween.
 
@@ -21,6 +21,7 @@ import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { isValidDate, nextDue, nextOccurrence } from '../shared/recurrence.js';
 import { epochToFloating } from '../shared/reminders.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
+import { templateStats } from '../shared/template.js';
 import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
@@ -62,7 +63,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': case 'place': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': case 'template': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -197,6 +198,12 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       }
       break;
     }
+    case 'template': {
+      // het aantal taken per sjabloon (de rest van de inhoud is al gecontroleerd in shared/template.js)
+      const tasks = templateStats(v.content as Parameters<typeof templateStats>[0]).tasks;
+      if (tasks > LIMITS.tasksPerTemplate) fail('LIMIT_REACHED', `taken per sjabloon: de grens van ${LIMITS.tasksPerTemplate} is bereikt`);
+      break;
+    }
     case 'label': {
       // Vergelijken in JavaScript, niet met SQLite's lower(): dat kent alleen ASCII, dus "Café" en "CAFÉ" waren twee labels.
       // Alleen onder je eigen labels: een ander mag best dezelfde naam gebruiken.
@@ -309,6 +316,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
     case 'reminder':
       quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
       quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'template':
+      quota(ctx, `templates:${ctx.userId}`, LIMITS.templatesPerUser, 'sjablonen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM templates WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
       break;
     case 'place':
       quota(ctx, `places:${ctx.userId}`, LIMITS.placesPerUser, 'plaatsen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
@@ -638,8 +648,8 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
   collect(
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
      UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
-     UNION SELECT owner_id FROM places WHERE rev > ?`,
-    since, since, since, since, since,
+     UNION SELECT owner_id FROM places WHERE rev > ? UNION SELECT owner_id FROM templates WHERE rev > ?`,
+    since, since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -718,7 +728,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': case 'place': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': case 'template': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
   }
 }
