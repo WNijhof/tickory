@@ -1,0 +1,104 @@
+<!--
+title: Herinneringen op een plek
+description: Een herinnering als je ergens aankomt of weggaat, zoals Thuis, Werk of de supermarkt. Plaatsen toevoegen, de straal kiezen, wat de Android-app daarvoor doet (alleen op je telefoon, zonder Google-diensten), wat het kost aan batterij en wat niet kan.
+-->
+<h1>Herinneringen op een plek</h1>
+<p class="intro">“Herinner me aan het pakket als ik thuis aankom.” Zo'n herinnering gaat niet af op een tijdstip, maar zodra je een plek binnenkomt of verlaat. Dat werkt in de <a href="android-app.html">Android-app</a>; je maakt ze in de web-app.</p>
+
+<div class="note warn">
+  <span class="note-label">Komt met de volgende versie, en nog niet op een telefoon geprobeerd</span>
+  <p>Herinneringen op een plek komen met de <strong>eerstvolgende versie</strong> van Tickory en de Android-app. Alles wat zonder telefoon te testen is, is getest: de afstandsberekening, de regels voor binnenkomen en weggaan (ook met ruis in de plaatsbepaling), het aanvragen van posities bij Android en de meldingen, op een nagebootst Android. <strong>Hoe nauwkeurig en hoe zuinig het op een echte telefoon is</strong>, en hoe het zich gedraagt bij strenge batterijbesparing van jouw merk, is nog niet geprobeerd. Merk je iets, meld het op <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>In het kort</h2>
+<ul>
+  <li>Je legt <strong>plaatsen</strong> vast (Thuis, Werk, de supermarkt) onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>. Een plaats is een punt op de kaart met een <strong>straal</strong>, standaard 150 meter.</li>
+  <li>In het venster van een taak kies je bij <x-ui k="reminder.title"></x-ui> voor <x-ui k="reminder.place"></x-ui>, daarna de plaats en <x-ui k="reminder.triggerEnter"></x-ui> of <x-ui k="reminder.triggerLeave"></x-ui>.</li>
+  <li>De <strong>Android-app</strong> let op je plaats en laat de melding zien, met dezelfde knoppen als een andere herinnering: <x-ui k="sw.complete"></x-ui> en uitstellen.</li>
+  <li><strong>In de browser gaat zo'n herinnering niet af</strong>: een website kan je plaats niet op de achtergrond volgen. De plaatsen en herinneringen worden wel bewaard en gesynchroniseerd, zodat ze op je telefoon werken.</li>
+</ul>
+
+<h2 id="privacy">Je plaats blijft van jou</h2>
+<ul>
+  <li>De <strong>positie van je telefoon verlaat het toestel nooit.</strong> De app vergelijkt hem zelf met je plaatsen. Er gaat niets naar je server, naar Google of naar iemand anders; er is geen kaartdienst, geen locatiegeschiedenis en geen Google-dienst bij betrokken.</li>
+  <li>De server bewaart alleen de <em>plaatsen</em> die jij aanmaakt (naam, coördinaten, straal) en de herinneringen die daaraan hangen. Dat is privé: andere gebruikers van je server zien jouw plaatsen niet, ook niet in een gedeeld project, en kunnen ze niet gebruiken.</li>
+  <li>De app vraagt pas om toestemming voor je locatie als <em>jij</em> de eerste herinnering op een plek maakt of de locatiecontrole aanzet, met uitleg vooraf. Je kunt hem altijd uitzetten, ook onder <x-ui k="settings.places"></x-ui>.</li>
+</ul>
+
+<h2 id="een-plaats-toevoegen">Een plaats toevoegen</h2>
+<p>Open <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>. Geef de plaats een naam en geef de positie op:</p>
+<ul>
+  <li><strong><x-ui k="places.useHere"></x-ui></strong>. Sta je op de plek zelf? Tik dan op deze knop: de browser of de app bepaalt één keer je positie en vult hem in. Dit gebeurt alleen na je tik; de positie komt pas op de server als je de plaats opslaat.</li>
+  <li><strong>Coördinaten of een kaartlink plakken.</strong> Twee getallen (<code>52.09070, 5.12140</code>), een <code>geo:</code>-link (<code>geo:52.0907,5.1214</code>), of een link uit een kaartprogramma met de positie erin. Er wordt <strong>niets opgezocht</strong> en er gaat geen verzoek naar buiten; een adres of plaatsnaam wordt dus niet herkend.</li>
+  <li>Of vul de <x-ui k="places.lat"></x-ui> en <x-ui k="places.lon"></x-ui> zelf in. Een komma als decimaalteken mag.</li>
+</ul>
+<p>Kies de <strong>straal</strong>: hoe dicht je erbij moet zijn. Tussen 100 en 5000 meter.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Straal</th><th>Past bij</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>100 m</td><td class="wrap-ok">Een klein terrein of een winkel. Het kleinste dat zin heeft: de plaatsbepaling van een telefoon is op een paar tientallen meters nauwkeurig, en in een stad soms slechter.</td></tr>
+      <tr><td>150 m <em>(standaard)</em></td><td class="wrap-ok">Een huis of een kantoor.</td></tr>
+      <tr><td>250 tot 500 m</td><td class="wrap-ok">Een winkelcentrum, een school, een station, een buurt.</td></tr>
+      <tr><td>1 tot 5 km</td><td class="wrap-ok">Een dorp of een stad (“als ik in Utrecht ben”). Grof, maar dan ook zuiniger.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Een grotere straal gaat eerder af, maar ook als je er net langsloopt. Een plaats wijzig je met <x-ui k="places.editButton"></x-ui>; verwijder je haar, dan verdwijnen ook de herinneringen op die plaats (de vraag zegt hoeveel). Je kunt hooguit 100 plaatsen hebben.</p>
+
+<h2 id="een-herinnering-op-een-plek">Een herinnering op een plek</h2>
+<ol>
+  <li>Open een taak. Kies bij <x-ui k="reminder.choose"></x-ui> voor <x-ui k="reminder.place"></x-ui>.</li>
+  <li>Kies de plaats, en <x-ui k="reminder.triggerEnter"></x-ui> (je komt de straal binnen) of <x-ui k="reminder.triggerLeave"></x-ui> (je gaat erbuiten).</li>
+  <li>Kies <x-ui k="reminder.add"></x-ui>. Hetzelfde nog eens toevoegen doet niets.</li>
+</ol>
+<p>Een taak kan meer herinneringen op een plek hebben, ook naast herinneringen op een tijd. Een herinnering op een plek heeft geen tijdstip en hoeft de taak ook geen datum te geven. Een afgevinkte of verwijderde taak geeft geen melding meer.</p>
+
+<h2 id="wat-de-app-doet">Wat de Android-app doet</h2>
+<ul>
+  <li>Hij meldt <strong>één keer per aankomst en één keer per vertrek</strong>. Blijf je in de buurt van de rand rondlopen, dan krijg je niet steeds opnieuw een melding: voor “vertrokken” moet je duidelijk buiten de straal zijn (de straal plus een marge). Bij de volgende aankomst komt er weer een melding.</li>
+  <li>Maak je een herinnering “bij aankomst” terwijl je al op de plek bent, dan gaat hij <strong>niet meteen af</strong>; hij wacht op de volgende aankomst.</li>
+  <li>De melding zegt “Je bent aangekomen bij Thuis” of “Je bent vertrokken bij Thuis”, met dezelfde knoppen als andere herinneringen: <x-ui k="sw.complete"></x-ui> en uitstellen.</li>
+  <li>Het werkt ook als de app dicht is en het toestel in de slaapstand staat, <strong>als je bij de toestemming ‘Altijd toestaan’ kiest</strong>. Zonder werkt het alleen terwijl Tickory open staat.</li>
+  <li>Na het opnieuw opstarten van de telefoon pakt de app het zelf weer op.</li>
+</ul>
+
+<h3 id="toestemmingen">De toestemmingen</h3>
+<p>Bij de eerste herinnering op een plek (of onder <x-ui k="settings.places"></x-ui> met <x-ui k="places.android.turnOn"></x-ui>) legt de app uit wat hij gaat doen en vraagt Android dan om:</p>
+<ol>
+  <li><strong>Nauwkeurige locatie.</strong> Alleen een benaderde locatie is te grof voor een straal van honderden meters; de app zegt dat dan.</li>
+  <li><strong>Altijd toestaan</strong> (ook als de app dicht is). Op Android 11 en nieuwer brengt Android je hiervoor naar het instellingenscherm van de app: kies daar <em>Altijd toestaan</em>.</li>
+</ol>
+<p>Weiger je de eerste, dan zet de app de locatiecontrole weer uit en vraagt hij niet steeds opnieuw; onder <x-ui k="settings.places"></x-ui> staat dan een knop om de instellingen van de app te openen.</p>
+
+<h2 id="batterij">Wat het kost aan batterij</h2>
+<p>De app houdt je positie <strong>niet continu</strong> bij en gebruikt geen GPS op de achtergrond, behalve soms eenmalig:</p>
+<ul>
+  <li>Hij vraagt Android om af en toe een positie, via wifi en het mobiele netwerk (zuinig) en door mee te liften op posities die andere apps al laten bepalen (die kosten niets extra's).</li>
+  <li>Hoe ver je bent van de rand van de dichtstbijzijnde plaats bepaalt hoe vaak: ver weg hooguit eens in de twintig minuten, vlak bij elke minuut.</li>
+  <li>Elk kwartier controleert de app of hij nog iets gehoord heeft. Is de laatste positie te oud (hoe dichter bij een plaats, hoe strenger), dan vraagt hij <strong>één keer</strong> een verse positie, zo nodig met GPS.</li>
+  <li>Zonder een herinnering op een plek, of als je de locatiecontrole uitzet, staat er niets ingepland.</li>
+</ul>
+<p>Hoeveel batterij dat in de praktijk is, hangt van je telefoon en je dag af en is nog niet gemeten. Het is bedoeld als “niet te merken”.</p>
+
+<h2 id="controleren">Werkt het? Controleer nu</h2>
+<p>Onder <x-ui k="settings.places"></x-ui> staat in de app een deel <x-ui k="places.android.title"></x-ui>: of de controle aan staat, welke toestemmingen nog ontbreken, <strong>wanneer hij voor het laatst heeft gekeken</strong>, hoe nauwkeurig de laatste positie was en <strong>hoe ver je van elke plaats bent</strong>. Met <x-ui k="places.android.checkNow"></x-ui> bepaalt de app direct je positie. Die afstand ziet alleen jij, op je eigen telefoon.</p>
+
+<h2 id="beperkingen">Wat niet kan, en wat tegenvalt</h2>
+<ul>
+  <li><strong>Niet in de browser.</strong> Een herinnering op een plek gaat alleen af in de Android-app.</li>
+  <li><strong>Niet op de seconde.</strong> De melding komt zodra de app een nieuwe positie heeft en dat kan, afhankelijk van de afstand, tot enkele minuten duren. Met de auto door een kleine plaats rijden geeft vaak geen melding.</li>
+  <li><strong>Nauwkeurigheid.</strong> Binnen of tussen hoge gebouwen is de positie soms tientallen of honderden meters ernaast. Kies daarom geen kleine straal als je plaats lastig te bepalen is.</li>
+  <li><strong>Strenge batterijbesparing.</strong> Sommige merken (Xiaomi, Huawei, OnePlus, Samsung en andere) leggen apps op de achtergrond stil. Zet Tickory bij de batterij op <em>Onbeperkt</em> en haal hem uit “slapende apps”; zie <a href="problemen-oplossen.html#herinneringen-op-een-plek-gaan-niet-af">Problemen oplossen</a>.</li>
+  <li><strong>Telefoons zonder GPS</strong> hebben alleen een grove positie via netwerken; kies daar een ruimere straal. Telefoons zonder Google-diensten hebben soms helemaal geen netwerklocatie; dan gebruikt de app GPS met een interval van minstens vijf minuten, wat meer batterij kost, en alleen als er iets te bewaken valt.</li>
+  <li>Een positie die in korte tijd tientallen kilometers verspringt, wordt als meetfout genegeerd.</li>
+</ul>
+
+<h2 id="voor-beheerders">Voor beheerders</h2>
+<ul>
+  <li>Er is op de server niets in te stellen of te installeren. Een database van een eerdere versie krijgt de nieuwe tabel vanzelf.</li>
+  <li>De server krijgt nooit een positie van een gebruiker. Hij bewaart per gebruiker hooguit 100 plaatsen (naam, coördinaten, straal); die staan in de database en dus in een <a href="back-up.html">back-up</a>. Behandel een back-up als privé: de plaatsen kunnen een thuisadres verraden.</li>
+  <li>Een oudere Android-app begrijpt de nieuwe herinneringen niet en slaat ze over; een oudere server begrijpt de nieuwe app: die vraagt dan zonder plaatsen opnieuw.</li>
+</ul>

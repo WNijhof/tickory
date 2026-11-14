@@ -248,6 +248,7 @@ export function createPush(cfg: PushConfig) {
              END AS moment
            FROM reminders r JOIN tasks t ON t.id = r.task_id
            WHERE r.owner_id = ? AND r.is_deleted = 0 AND t.is_deleted = 0 AND t.checked = 0
+             AND r.type IN ('relative', 'absolute') -- een herinnering op een plek (location) heeft geen tijdstip: de server weet niet waar je bent
              AND t.project_id IN (SELECT project_id FROM project_members m WHERE m.user_id = r.owner_id AND m.is_deleted = 0)
          ) c
          WHERE c.moment BETWEEN ? AND ?

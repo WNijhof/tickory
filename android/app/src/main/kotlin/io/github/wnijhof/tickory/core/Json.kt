@@ -274,6 +274,13 @@ fun Map<String, Any?>.whole(key: String): Long? = when (val v = this[key]) {
     else -> null
 }
 
+/** Een getal met of zonder komma (JSON kent geen onderscheid); geen tekst, geen NaN. */
+fun Map<String, Any?>.real(key: String): Double? = when (val v = this[key]) {
+    is Long -> v.toDouble()
+    is Double -> v.takeIf { it.isFinite() }
+    else -> null
+}
+
 /** true/false; de server stuurt echte booleans, maar 1 en 0 lezen we ook. Al het andere geeft [default]. */
 fun Map<String, Any?>.flag(key: String, default: Boolean = false): Boolean = when (val v = this[key]) {
     is Boolean -> v

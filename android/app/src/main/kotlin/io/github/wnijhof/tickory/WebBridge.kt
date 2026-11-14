@@ -4,7 +4,9 @@ import android.content.Context
 import android.os.PowerManager
 import android.webkit.JavascriptInterface
 import io.github.wnijhof.tickory.core.Json
+import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
+import io.github.wnijhof.tickory.reminders.Background
 import io.github.wnijhof.tickory.reminders.Notifications
 import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
@@ -84,6 +86,57 @@ class WebBridge(private val activity: MainActivity) {
     fun startVoiceInput(language: String?) {
         if (!activity.isTrustedPage()) return
         activity.runOnUiThread { activity.startVoiceInput(language) }
+    }
+
+    /**
+     * JSON met wat de locatiecontrole nu doet (aan, toestemmingen, laatste controle, afstand tot je plaatsen). Bevat nooit
+     * de coördinaten van het toestel.
+     */
+    @JavascriptInterface
+    fun locationStatus(): String {
+        if (!activity.isTrustedPage()) return "{}"
+        return Json.stringify(GeoEngine.status(app))
+    }
+
+    /** Zet de locatiecontrole aan, met uitleg en de nodige toestemmingen. Alleen na een tik van de gebruiker aanroepen. */
+    @JavascriptInterface
+    fun requestLocationPermission() {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.requestLocationPermission() }
+    }
+
+    /** Zet de locatiecontrole zonder verdere vragen aan of uit (uit stopt alles direct). */
+    @JavascriptInterface
+    fun setLocationEnabled(enabled: Boolean) {
+        if (!activity.isTrustedPage()) return
+        Background.executor.execute {
+            GeoEngine.setEnabled(app, enabled)
+            if (enabled) GeoEngine.refresh(app)
+            activity.runOnUiThread { activity.notifyPageOfStatusChange() }
+        }
+    }
+
+    /** "Controleer nu": één verse plaatsbepaling, daarna staat de uitkomst in [locationStatus]. */
+    @JavascriptInterface
+    fun checkLocationNow() {
+        if (!activity.isTrustedPage()) return
+        Background.executor.execute {
+            GeoEngine.tick(app, forceActive = true)
+            activity.runOnUiThread { activity.notifyPageOfStatusChange() }
+        }
+    }
+
+    @JavascriptInterface
+    fun openLocationSettings() {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.openLocationSettings() }
+    }
+
+    /** Eén keer de positie van het toestel, als gebeurtenis `tickory-position` in de pagina. */
+    @JavascriptInterface
+    fun requestCurrentPosition() {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.requestCurrentPosition() }
     }
 
     /** Terug naar het instelscherm, na bevestiging in een dialoog van Android. */

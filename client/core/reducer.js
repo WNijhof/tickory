@@ -92,6 +92,12 @@ function add(state, e, args, now, userId) {
     if ((row.task_id === null) === (row.project_id === null)) return;
     if (row.task_id !== null ? !state.tasks.has(row.task_id) : !state.projects.has(row.project_id)) return;
   }
+  if (e.name === 'reminder') {
+    // een locatieherinnering heeft een eigen plaats nodig en een trigger, de andere soorten niet (zoals op de server)
+    if (row.type === 'location') {
+      if (!row.place_id || !state.places.has(row.place_id) || !row.trigger || row.due || row.minute_offset !== null) return;
+    } else if (row.place_id || row.trigger) return;
+  }
   if (e.name === 'task' && row.parent_id) {
     const parent = state.tasks.get(row.parent_id);
     if (!parent) return;
@@ -188,6 +194,11 @@ function remove(state, e, args, now, userId) {
       break;
     case 'task':
       deleteTaskTree(state, [id]);
+      break;
+    case 'place':
+      // de herinneringen op deze plaats gaan mee, zoals op de server
+      removeWhere(state, 'reminders', (r) => r.place_id === id);
+      state.places.delete(id);
       break;
     case 'label':
       state.labels.delete(id);

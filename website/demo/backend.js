@@ -311,6 +311,15 @@ export class DemoServer {
         break;
       case 'reminder': {
         const none = (x) => x === null || x === undefined;
+        if (v.type === 'location') {
+          // bij aankomst of vertrek van een eigen plaats; in de demo gaat zo'n herinnering nooit af (er is geen toestel dat positie bepaalt)
+          if (none(v.place_id)) fail('INVALID_ARG', 'een locatieherinnering heeft place_id nodig');
+          if (none(v.trigger)) fail('INVALID_ARG', 'een locatieherinnering heeft trigger nodig (enter of leave)');
+          if (v.due) fail('INVALID_ARG', 'een locatieherinnering heeft geen due');
+          if (!none(v.minute_offset)) fail('INVALID_ARG', 'een locatieherinnering heeft geen minute_offset');
+          break;
+        }
+        if (!none(v.place_id) || !none(v.trigger)) fail('INVALID_ARG', 'place_id en trigger horen alleen bij een locatieherinnering');
         if (v.type === 'relative') {
           if (none(v.minute_offset)) fail('INVALID_ARG', 'een relatieve herinnering heeft minute_offset nodig');
           if (v.due) fail('INVALID_ARG', 'een relatieve herinnering heeft geen due');

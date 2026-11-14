@@ -81,6 +81,23 @@ docker compose logs --tail 100</code></pre>
   <dd>Meldingen staan per apparaat en per browser aan. Zet ze aan op elk apparaat waar je ze wilt. Een geblokkeerd account of een afgemeld apparaat krijgt er geen meer.</dd>
 </dl>
 
+<h2 id="herinneringen-op-een-plek-gaan-niet-af">Herinneringen op een plek gaan niet af</h2>
+<p>Herinneringen op een plek werken alleen in de <a href="android-app.html">Android-app</a>; zie <a href="plaatsen.html">Herinneringen op een plek</a>. Kijk eerst onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>, in het deel <x-ui k="places.android.title"></x-ui>: daar staat wat ontbreekt, wanneer de app voor het laatst keek en hoe ver je van je plaatsen bent. <x-ui k="places.android.checkNow"></x-ui> laat hem direct kijken.</p>
+<dl>
+  <dt>“<x-ui k="places.android.off"></x-ui>”</dt>
+  <dd>De locatiecontrole staat uit. Kies <x-ui k="places.android.turnOn"></x-ui>. Heb je de vraag om toestemming eerder geweigerd, dan vraagt Android niet altijd opnieuw: open dan de instellingen van de app, kies Rechten › Locatie en zet <em>Nauwkeurige locatie</em> aan.</dd>
+  <dt>De app zegt dat locatie alleen bij benadering mag, of dat ‘Altijd toestaan’ ontbreekt</dt>
+  <dd>Een benaderde locatie is te grof voor een plaats. Zet in de rechten van de app <em>Nauwkeurig</em> aan en kies <em>Altijd toestaan</em>. Zonder dat laatste werkt het alleen als Tickory open staat.</dd>
+  <dt>Locatie staat uit op het toestel</dt>
+  <dd>Zet locatie aan in de snelle instellingen of onder Instellingen › Locatie.</dd>
+  <dt>De melding komt niet, of te laat</dt>
+  <dd>Het kost de app tijd om te merken dat je er bent, soms enkele minuten; met een kleine straal kun je er ook net langs rijden. Kies een ruimere straal (250 meter of meer). Zie je bij <x-ui k="places.android.title"></x-ui> dat de laatste controle lang geleden is, dan legt jouw telefoon de app stil: zet de batterij van Tickory op <em>Onbeperkt</em>, haal hem uit “slapende apps”, en zoek bij Xiaomi, Huawei, OnePlus en Samsung naar <em>Automatisch starten</em> of <em>Achtergrondactiviteit</em>.</dd>
+  <dt>Een herinnering “bij aankomst” ging niet af terwijl ik al op de plek was</dt>
+  <dd>Dat is bedoeld: een herinnering die je maakt terwijl je er al bent, wacht op de volgende aankomst.</dd>
+  <dt>De positie is steeds ver naast de werkelijkheid</dt>
+  <dd>Binnen of tussen hoge gebouwen is een positie via netwerken grof. Sta je buiten, dan helpt <x-ui k="places.android.checkNow"></x-ui> (die gebruikt zo nodig GPS). Kies voor die plaats een ruimere straal.</dd>
+</dl>
+
 <h2>Na het terugzetten van een back-up</h2>
 <p>Zien apparaten taken die er niet meer horen te zijn, of ontbreekt er juist iets? Meld op elk apparaat af en weer aan. Zie <a href="back-up.html#daarna-op-elk-apparaat-opnieuw-aanmelden">Back-up en terugzetten</a>.</p>
 

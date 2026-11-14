@@ -4,6 +4,7 @@ import android.content.Context
 import io.github.wnijhof.tickory.BuildConfig
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
+import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.reminders.ReminderEngine
 import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.widget.WidgetUpdater
@@ -41,6 +42,7 @@ object Session {
         }
         if (current != token) {
             ReminderEngine.clear(app, keepShown = true)
+            GeoEngine.clear(app) // de plaatsen van een andere gebruiker zijn niet van deze
             // Een ander token kan een andere gebruiker zijn: de widgets tonen niets tot de eerste verversing laat zien van wie de gegevens zijn.
             WidgetStore.markUnverified(app)
         }
@@ -58,6 +60,7 @@ object Session {
         TokenVault.clear(app)
         Prefs(app).sessionExpired = false
         ReminderEngine.clear(app, keepShown = false)
+        GeoEngine.clear(app)
         WidgetStore.clearAll(app) // taken, projecten en de wachtrij van deze gebruiker: weg
         WidgetUpdater.updateAll(app)
     }

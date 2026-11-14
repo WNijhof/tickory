@@ -17,9 +17,12 @@ data class ReminderInfo(
     val minuteOffset: Long?,
     val due: String?,
     val deleted: Boolean = false,
+    /** Alleen bij type "location": de plaats, en "enter" (bij aankomst) of "leave" (bij vertrek). */
+    val placeId: String? = null,
+    val trigger: String? = null,
 )
 
-data class SyncSnapshot(val tasks: List<TaskInfo>, val reminders: List<ReminderInfo>) {
+data class SyncSnapshot(val tasks: List<TaskInfo>, val reminders: List<ReminderInfo>, val places: List<PlaceInfo> = emptyList()) {
     /** De taken die nu open staan (niet afgevinkt, niet verwijderd). */
     fun activeTaskIds(): Set<String> = tasks.filter { !it.checked && !it.deleted }.mapTo(HashSet()) { it.id }
 
@@ -27,7 +30,8 @@ data class SyncSnapshot(val tasks: List<TaskInfo>, val reminders: List<ReminderI
     fun trimmed(): SyncSnapshot {
         val liveReminders = reminders.filter { !it.deleted }
         val wanted = liveReminders.mapTo(HashSet()) { it.taskId }
-        return SyncSnapshot(tasks.filter { it.id in wanted && !it.deleted }, liveReminders)
+        val wantedPlaces = liveReminders.filter { it.type == GeoReminders.TYPE }.mapNotNullTo(HashSet()) { it.placeId }
+        return SyncSnapshot(tasks.filter { it.id in wanted && !it.deleted }, liveReminders, places.filter { it.id in wantedPlaces && !it.deleted })
     }
 
     companion object {
@@ -81,9 +85,22 @@ object SyncParser {
                 minuteOffset = o.whole("minute_offset"),
                 due = o.obj("due")?.text("date"),
                 deleted = o.flag("is_deleted"),
+                placeId = o.text("place_id")?.takeIf { Ids.isSafeId(it) },
+                trigger = o.text("trigger"),
             )
         }
-        return SyncSnapshot(tasks, reminders)
+        // De plaatsen zijn optioneel: een oudere server kent ze niet.
+        val places = (root.list("places") ?: emptyList()).mapNotNull { entry ->
+            val o = Json.asObject(entry) ?: return@mapNotNull null
+            val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
+            if (o.flag("is_deleted")) return@mapNotNull PlaceInfo(id, "", 0.0, 0.0, 0, deleted = true)
+            val lat = o.real("lat") ?: return@mapNotNull null
+            val lon = o.real("lon") ?: return@mapNotNull null
+            if (!Geo.validCoordinates(lat, lon)) return@mapNotNull null
+            val radius = o.whole("radius")?.takeIf { it in 1..100_000 }?.toInt() ?: return@mapNotNull null
+            PlaceInfo(id, cleanTitle(o.text("name")), lat, lon, radius)
+        }
+        return SyncSnapshot(tasks, reminders, places)
     }
 
     /** De uitkomst van het commando met dit [uuid]. */

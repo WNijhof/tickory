@@ -11,6 +11,7 @@ import io.github.wnijhof.tickory.core.ApiClient
 import io.github.wnijhof.tickory.core.FetchResult
 import io.github.wnijhof.tickory.core.LocalNetwork
 import io.github.wnijhof.tickory.core.ServerAddress
+import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.store.WidgetStore
@@ -70,6 +71,11 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
     /** De verse gegevens: de alarmen worden opnieuw gepland en de widgets krijgen hun nieuwe inhoud. */
     private fun apply(app: Context, result: FetchResult.Ok) {
         ReminderEngine.onSynced(app, result.snapshot)
+        try {
+            GeoEngine.refresh(app) // nieuwe plaatsen of herinneringen op een plek: de locatiecontrole past zich aan
+        } catch (e: RuntimeException) {
+            android.util.Log.w("TickoryGeo", "locatiecontrole bijwerken mislukt: ${e.javaClass.simpleName}")
+        }
         result.widget?.let { WidgetStore.accept(app, it) }
         WidgetUpdater.updateAll(app)
     }

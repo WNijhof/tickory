@@ -4,10 +4,12 @@
 // Datums zijn "zwevend": een lokale datum en tijd zonder tijdzone ("2026-12-01T09:00"). Negen uur is negen uur op de
 // plek waar je bent. Pas bij het inplannen wordt daar een echt tijdstip van gemaakt, in de tijdzone van het apparaat.
 //
-// Twee soorten, zoals in Todoist:
+// Drie soorten, de eerste twee zoals in Todoist:
 //   relatief  een aantal minuten vóór het tijdstip van de taak (0 = op het tijdstip zelf). Werkt alleen als de taak een
 //             datum mét tijd heeft; zonder tijd doet de herinnering niets, en ze werkt weer zodra er een tijd is.
 //   absoluut  een eigen datum en tijd, los van de taak.
+//   locatie   bij aankomst op of vertrek van een eigen plaats (place_id, trigger enter | leave). Heeft geen tijdstip: of je
+//             er bent, bepaalt alleen het toestel (Android-app); de server en de browser weten dat nooit.
 
 const pad = (n) => String(n).padStart(2, '0');
 const FLOATING = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
@@ -44,6 +46,14 @@ export function reminderMoment(reminder, task) {
     return addMinutes(task.due.date, -reminder.minute_offset);
   }
   return null;
+}
+
+/**
+ * Een herinnering op een plek, zolang ze iets kan doen: de taak bestaat en is niet afgevinkt. Ze heeft geen tijdstip
+ * (`reminderMoment` geeft null); of ze afgaat, beslist de Android-app aan de hand van de positie van het toestel.
+ */
+export function isLocationActive(reminder, task) {
+  return Boolean(reminder && reminder.type === 'location' && !reminder.is_deleted && task && !task.is_deleted && !task.checked);
 }
 
 // Een Intl.DateTimeFormat aanmaken is duidelijk duurder dan er een tijdstip mee opmaken; per tijdzone hergebruiken.

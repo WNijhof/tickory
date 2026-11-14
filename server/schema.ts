@@ -4,8 +4,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings';
-export type ColType = 'text' | 'int' | 'bool' | 'json';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place';
+export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
   name: string;
@@ -39,9 +39,9 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
-const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', bool: 'INTEGER', json: 'TEXT' };
+const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
 /**
  * Maakt alle tabellen en indexen aan (idempotent) en werkt een database uit een eerdere versie bij.
@@ -139,6 +139,8 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS comments_task ON comments (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_task ON reminders (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_owner ON reminders (owner_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS reminders_place ON reminders (place_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS places_owner ON places (owner_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS labels_owner ON labels (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');

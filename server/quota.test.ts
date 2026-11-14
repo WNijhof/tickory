@@ -29,7 +29,7 @@ function withLimit<K extends keyof typeof LIMITS>(name: K, value: number, body: 
 test('de standaardgrenzen staan vast en zijn ruim genoeg voor persoonlijk gebruik', () => {
   assert.deepEqual(LIMITS, {
     projectsPerUser: 500, sectionsPerProject: 200, tasksPerProject: 10_000, tasksPerUser: 50_000, labelsPerUser: 500, filtersPerUser: 200,
-    commentsPerParent: 500, remindersPerTask: 20, remindersPerUser: 5_000, membersPerProject: 100, sessionsPerUser: 20, sseConnectionsPerUser: 20,
+    commentsPerParent: 500, remindersPerTask: 20, remindersPerUser: 5_000, membersPerProject: 100, placesPerUser: 100, sessionsPerUser: 20, sseConnectionsPerUser: 20,
   });
 });
 

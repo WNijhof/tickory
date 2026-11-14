@@ -156,6 +156,22 @@ test('de klok: een herinnering gaat op het juiste moment naar alle apparaten van
   assert.ok(w.push.list(w.alice.id, phone.session.id).every((s) => s.last_success_at === '2026-12-01T07:30:00.000Z'));
 });
 
+test('een herinnering op een plek heeft geen tijdstip: de server stuurt er nooit een melding voor, wat voor tijd de taak ook heeft', async () => {
+  const w = world();
+  const phone = w.device(w.alice, 'telefoon');
+  w.run(w.alice, [
+    cmd('place_add', { id: 'place-thuis-01', name: 'Thuis', lat: 52.37, lon: 4.89 }),
+    cmd('task_add', { id: 'task-plek-0001', project_id: w.alice.inbox_project_id, content: 'Pakket ophalen', due: { date: '2026-12-01T09:00' } }),
+    cmd('reminder_add', { id: 'remind-plek-01', task_id: 'task-plek-0001', type: 'location', place_id: 'place-thuis-01', trigger: 'enter' }),
+    cmd('reminder_add', { id: 'remind-plek-02', task_id: 'task-plek-0001', type: 'location', place_id: 'place-thuis-01', trigger: 'leave' }),
+  ]);
+  for (const when of ['2026-12-01T06:00:00Z', '2026-12-01T07:30:00Z', '2026-12-01T08:00:00Z', '2026-12-01T12:00:00Z']) {
+    w.state.clock = at(when);
+    assert.deepEqual(await w.push.tick(), { due: 0, sent: 0, failed: 0, removed: 0 }, when);
+  }
+  assert.equal(phone.received().length, 0);
+});
+
 test('het contactadres voor de pushdienst komt uit de instelling van de beheerder, en alleen in een geldige vorm', async () => {
   const sub = async (subject: string | undefined) => {
     const db = freshDb();
