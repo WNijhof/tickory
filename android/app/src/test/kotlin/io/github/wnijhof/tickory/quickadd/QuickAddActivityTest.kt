@@ -148,6 +148,11 @@ class QuickAddActivityTest : WidgetTestBase() {
         activity.tomorrow.performClick()
         assertTrue(activity.tomorrow.isChecked)
         assertFalse(activity.today.isChecked)
+        activity.today.performClick()
+        assertTrue(activity.today.isChecked)
+        assertFalse("en andersom", activity.tomorrow.isChecked)
+        activity.today.performClick()
+        assertFalse("nog eens tikken zet hem uit", activity.today.isChecked || activity.tomorrow.isChecked)
         activity.priority.performClick()
         val menu = org.robolectric.shadows.ShadowPopupMenu.getLatestPopupMenu()
         assertEquals(listOf("Prioriteit 1 (hoogste)", "Prioriteit 2", "Prioriteit 3", "Geen prioriteit"), (0 until menu.menu.size()).map { menu.menu.getItem(it).title.toString() })
@@ -305,6 +310,9 @@ class QuickAddActivityTest : WidgetTestBase() {
         signIn(withData = data)
         QuickAddStore.saveDraft(app, "user-bram-0002", "Van Bram")
         assertEquals("", open().get().input.text.toString())
+        // en het laatst gekozen project van een ander ook niet
+        QuickAddStore.setLastProject(app, "user-bram-0002", "werk")
+        assertEquals("Inbox", open().get().project.text.toString())
     }
 
     @Test

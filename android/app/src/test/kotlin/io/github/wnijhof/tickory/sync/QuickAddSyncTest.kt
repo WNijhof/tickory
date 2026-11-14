@@ -155,6 +155,17 @@ class QuickAddSyncTest : WidgetTestBase() {
     }
 
     @Test
+    fun `een 200 zonder quick_add (een inlogpagina of proxy ervoor) - geen succes, de taak blijft staan`() {
+        server(answer = { Response(200, "<html><body>Log in bij je proxy</body></html>") }).use { server ->
+            prepare(server)
+            QuickAddStore.enqueue(app, item())
+            assertEquals(ListenableWorker.Result.retry(), worker().doWork())
+            assertEquals(1, QuickAddStore.queue(app).size)
+            assertTrue(notifications.isEmpty())
+        }
+    }
+
+    @Test
     fun `401 - de aanmelding is verlopen en de taak blijft voor als je opnieuw inlogt`() {
         server(answer = { Response(401, """{"error_code":"UNAUTHORIZED","error":"x"}""") }).use { server ->
             prepare(server)
