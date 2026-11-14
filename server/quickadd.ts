@@ -77,7 +77,7 @@ export function readInput(body: Record<string, unknown>): QuickAddInput {
   if (uuid !== null && (typeof uuid !== 'string' || !UUID_RE.test(uuid))) fail('INVALID_ARG', 'uuid: 8 tot 56 tekens uit [A-Za-z0-9_-]');
   if (uuid === null && !dryRun) fail('MISSING_ARG', 'uuid is verplicht (zo wordt een herhaald verzoek niet twee keer uitgevoerd)');
   const typedAt = body.typed_at === undefined || body.typed_at === null ? null : body.typed_at;
-  if (typedAt !== null && (typeof typedAt !== 'string' || !TYPED_AT_RE.test(typedAt) || !Number.isFinite(typedAtMs(typedAt)))) {
+  if (typedAt !== null && (typeof typedAt !== 'string' || !Number.isFinite(typedAtMs(typedAt)))) {
     fail('INVALID_ARG', 'typed_at: een tijdstip als 2026-11-13T09:30:00+01:00');
   }
   const tz = body.tz === undefined || body.tz === null ? null : body.tz;
@@ -92,7 +92,7 @@ export function readInput(body: Record<string, unknown>): QuickAddInput {
   };
 }
 
-/** `typed_at` als milliseconden; de fractie van seconden valt weg (Date.parse kent niet overal meer dan drie cijfers). */
+/** `typed_at` als milliseconden, of NaN als het geen tijdstip met UTC-afwijking is; de fractie van seconden valt weg (Date.parse kent niet overal meer dan drie cijfers). */
 function typedAtMs(value: string): number {
   const m = TYPED_AT_RE.exec(value);
   return m ? Date.parse(`${m[1]}${m[2]}`) : Number.NaN;

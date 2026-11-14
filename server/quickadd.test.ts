@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
-import { handleSync, SyncError } from './sync.ts';
+import { AtomicFailure, handleSync, SyncError } from './sync.ts';
 import type { Command } from './sync.ts';
 import { addUser, freshDb } from './testutil.ts';
 import type { UserRow } from './users.ts';
@@ -103,6 +103,8 @@ const INPUTS = [
   'Belastingaangifte 1 mei !2d',
   'Iets om 23:59 vandaag',
   'Opruimen  \t met   spaties ',
+  'Boodschappen @groente @fruit @winkel', // twee nieuwe labels en een bestaand
+  'Vergadering morgen om 10 uur !15m !1u', // twee herinneringen
   // Engels: datums in gewone taal herkent de app (nog) alleen in het Nederlands; het Engelse woord blijft in de titel staan
   'Call mom tomorrow at 9',
   'Buy milk today p3 @shopping',
@@ -269,6 +271,45 @@ test('hetzelfde uuid nog eens: dezelfde taak, niets dubbel (ook geen label of he
   assert.equal(count(db, 'labels'), labels, 'het label @geld bestond nu al');
 });
 
+test('nog eens nadat je uit het project bent gehaald: geen taak terug (die zie je niet meer), en geen nieuwe', async () => {
+  const { db, anna, bram } = world();
+  run(db, bram, [cmd('member_update', { project_id: 'project-gedeeld1', user_id: anna.id, role: 'member' })]);
+  const body = { text: 'In gedeeld', project_id: 'project-gedeeld1', uuid: 'tickory-q-weg-00001' };
+  const first = await quickAdd(db, anna.id, body, NOW);
+  assert.equal(first.task!.project_id, 'project-gedeeld1');
+  run(db, bram, [cmd('project_unshare', { project_id: 'project-gedeeld1', user_id: anna.id })]);
+  const tasks = count(db, 'tasks');
+  const again = await quickAdd(db, anna.id, body, NOW);
+  assert.equal(again.repeated, true);
+  assert.equal(again.task, null);
+  assert.equal(count(db, 'tasks'), tasks);
+});
+
+test('een uuid waarmee je al eerder iets liet weigeren: dezelfde weigering, niets nieuws', async () => {
+  const { db, anna } = world();
+  const res = handleSync(db, { commands: [{ type: 'task_add', uuid: 'tickory-q-al-gebruikt-t', args: { id: 'task-mislukt-001', project_id: 'project-weg-00001', content: 'x' } }] }, anna.id);
+  assert.equal((res.sync_status['tickory-q-al-gebruikt-t'] as { error_code: string }).error_code, 'NOT_FOUND');
+  const tasks = count(db, 'tasks');
+  assert.equal(await errorCode(quickAdd(db, anna.id, { text: 'Iets', uuid: 'tickory-q-al-gebruikt' }, NOW)), 'NOT_FOUND');
+  assert.equal(count(db, 'tasks'), tasks);
+});
+
+test('handleSync met atomic: één weigering (nu of eerder) draait alles terug, ook het register, en zegt welk commando', () => {
+  const { db, anna } = world();
+  const before = { labels: count(db, 'labels'), log: count2(db), rev: rev(db) };
+  const good = { type: 'label_add', uuid: 'atomic-test-0001', args: { id: 'label-atomic-01', name: 'atomisch' } };
+  const bad = { type: 'task_add', uuid: 'atomic-test-0002', args: { id: 'task-atomic-001', project_id: 'project-weg-00001', content: 'x' } };
+  assert.throws(() => handleSync(db, { commands: [good, bad] }, anna.id, { atomic: true }), (e: AtomicFailure) => e instanceof AtomicFailure && e.code === 'NOT_FOUND' && e.uuid === 'atomic-test-0002');
+  assert.deepEqual({ labels: count(db, 'labels'), log: count2(db), rev: rev(db) }, before);
+  // zonder atomic: het goede commando gaat door, het slechte niet (zoals altijd)
+  const res = handleSync(db, { commands: [good, bad] }, anna.id);
+  assert.equal(res.sync_status['atomic-test-0001'], 'ok');
+  // het slechte uuid staat nu als geweigerd in het register: met atomic weigert een herhaling het hele verzoek
+  const other = { type: 'label_add', uuid: 'atomic-test-0003', args: { id: 'label-atomic-02', name: 'nog een' } };
+  assert.throws(() => handleSync(db, { commands: [other, bad] }, anna.id, { atomic: true }), (e: AtomicFailure) => e instanceof AtomicFailure && e.uuid === 'atomic-test-0002');
+  assert.equal(count(db, 'labels'), before.labels + 1, 'alleen het label van de gewone sync');
+});
+
 test('een uuid van een andere gebruiker botst niet: dezelfde tekst en hetzelfde uuid zijn voor Bram een eigen taak', async () => {
   const { db, anna, bram } = world();
   const body = { text: 'Zelfde', uuid: 'tickory-q-zelfde-1' };
@@ -361,6 +402,8 @@ test('herinneringen: !30m gaat voor, anders de automatische uit de instellingen 
   const at = { tz: 'Europe/Amsterdam', typed_at: '2026-11-13T09:30:00+01:00', dry_run: true };
   const p = async (text: string) => (await quickAdd(db, anna.id, { ...at, text }, NOW)).preview!;
   assert.deepEqual((await p('Bellen morgen om 9 uur !10m')).reminders, [{ type: 'relative', minute_offset: 10 }]);
+  assert.equal((await p('Bellen morgen om 9 uur !10m')).auto_reminder, false);
+  assert.equal((await p('Bellen morgen om 9 uur')).auto_reminder, true);
   assert.deepEqual((await p('Bellen morgen om 9 uur')).reminders, [{ type: 'relative', minute_offset: 30 }]);
   assert.deepEqual((await p('Bellen morgen')).reminders, [], 'zonder tijd geen automatische');
   assert.deepEqual((await p('Bellen morgen !(morgen om 8 uur)')).reminders, [{ type: 'absolute', date: '2026-11-14T08:00' }]);
@@ -408,6 +451,17 @@ test('het verzoek wordt streng gecontroleerd; een vreemd verzoek maakt nooit iet
     [{ ...good, __proto__: { x: 1 } } as Record<string, unknown>, 'ok'],
   ];
   for (const [body, expected] of cases) assert.equal(await errorCode(quickAdd(db, anna.id, { ...body }, NOW)), expected, JSON.stringify(body));
+  // ook een voorvertoning controleert alles (daar komt geen sync aan te pas die het alsnog zou weigeren)
+  const dry = { text: 'Iets', dry_run: true };
+  for (const [body, expected] of [
+    [{ ...dry, text: 'x'.repeat(4001) }, 'INVALID_ARG'], [{ ...dry, text: 'x'.repeat(4000) }, 'ok'],
+    [{ ...dry, priority: 5 }, 'INVALID_ARG'], [{ ...dry, priority: 1.5 }, 'INVALID_ARG'], [{ ...dry, priority: 4 }, 'ok'],
+    [{ ...dry, text: 'p1' }, 'INVALID_ARG'], [{ ...dry, text: '@bellen' }, 'INVALID_ARG'],
+  ] as [Record<string, unknown>, string][]) {
+    assert.equal(await errorCode(quickAdd(db, anna.id, body, NOW)), expected, JSON.stringify(body).slice(0, 80));
+  }
+  await assert.rejects(quickAdd(db, anna.id, { ...dry, text: ' \t ' }, NOW), /geef de tekst van de taak/);
+  await assert.rejects(quickAdd(db, anna.id, { ...dry, text: 'p1' }, NOW), /geen naam/);
   // willekeurige verzoeken
   let seed = 7;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
