@@ -82,7 +82,7 @@ export function installActivity({ store, api, handlers, navigate, getRoute }) {
     const today = todayString();
     const items = list.entries.map((e) => describeEntry(e, { view, projectId: project.id, userName: (id) => store.userName(id) }));
     const select = h('select', {
-      class: 'field field-small', 'aria-label': t('activity.filterLabel'), dataset: { fk: 'activity-filter' },
+      class: 'field field-small activity-filter', 'aria-label': t('activity.filterLabel'), dataset: { fk: 'activity-filter' },
       onchange: (e) => {
         filters.set(project.id, e.target.value);
         handlers.refresh();
@@ -99,7 +99,7 @@ export function installActivity({ store, api, handlers, navigate, getRoute }) {
       count: null,
       lead: dot(project.color, 'dot-large'),
       actions: [
-        h('button', { class: 'button button-small button-ghost', type: 'button', dataset: { fk: 'activity-back' }, onclick: () => navigate({ type: 'project', id: project.id }) },
+        h('button', { class: 'button button-small button-ghost', type: 'button', 'aria-label': t('activity.back'), title: t('activity.back'), dataset: { fk: 'activity-back' }, onclick: () => navigate({ type: 'project', id: project.id }) },
           icon('chevronLeft'), h('span', { class: 'btn-label' }, t('activity.back'))),
         select,
         h('button', {
