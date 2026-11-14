@@ -42,8 +42,21 @@ export function keyBetween(a, b) {
   return midpoint(a ?? '', b);
 }
 
-/** @param {string | null} a */
-export const keyAfter = (a) => keyBetween(a, null);
+/**
+ * Een sleutel achter `a` (null = de eerste sleutel van een lege lijst). Voor "achteraan toevoegen": telt in kleine stapjes op
+ * vanaf de derde positie, zodat een lijst tienduizenden keren achteraan kan groeien met sleutels van drie tekens. (Steeds het
+ * midden tot het einde nemen, zoals keyBetween(a, null), maakt de sleutel na een paar honderd keer langer dan 64 tekens.)
+ * @param {string | null} a
+ */
+export function keyAfter(a) {
+  if (!a) return keyBetween(null, null);
+  const digits = a.padEnd(Math.max(a.length, 3), '0').split('').map(idx);
+  let i = digits.length - 1;
+  while (i >= 0 && digits[i] === BASE - 1) i--;
+  if (i < 0) return keyBetween(a, null); // alleen z's: dan toch een teken langer
+  digits[i] += 1;
+  return digits.slice(0, i + 1).map((d) => DIGITS[d]).join(''); // wat na i komt zou 0 zijn: weg (canoniek)
+}
 /** @param {string | null} b */
 export const keyBefore = (b) => keyBetween(null, b);
 
@@ -59,7 +72,7 @@ export function keysEvenly(n) {
   const out = [];
   let prev = null;
   for (let i = 0; i < n; i++) {
-    prev = keyAfter(prev);
+    prev = keyBetween(prev, null);
     out.push(prev);
   }
   return out;

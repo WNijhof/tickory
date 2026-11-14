@@ -72,12 +72,32 @@ test('keysAfter: een hele reeks oplopende, geldige en korte sleutels achter een 
     if (after) assert.ok(keys[0] > after, `${after}/${n}: niet achter de bestaande sleutel`);
     assert.ok(keys.at(-1).length <= (after?.length ?? 0) + 4, `${after}/${n}: sleutels te lang (${keys.at(-1).length})`);
   }
-  // tegenover keyAfter achter elkaar, dat na ruim 320 sleutels de grens van 64 tekens overschrijdt
+  // keyAfter achter elkaar (gewoon steeds achteraan toevoegen) bleef vroeger niet kort: na ruim 320 keer meer dan 64 tekens.
+  // Nu telt het op in kleine stapjes: 20.000 keer achteraan blijft drie tekens, oplopend en geldig.
   let k = null;
-  for (let i = 0; i < 450; i++) k = keyAfter(k);
-  assert.ok(!isValidKey(k));
+  for (let i = 0; i < 20_000; i++) {
+    const next = keyAfter(k);
+    if (k !== null) assert.ok(next > k, `${k} → ${next}: niet oplopend`);
+    k = next;
+  }
+  assert.ok(isValidKey(k) && k.length <= 3, k);
   assert.ok(isValidKey(keysAfter(null, 450).at(-1)));
   // en er blijft altijd ruimte om tussen twee van de sleutels in te voegen
   const keys = keysAfter(null, 30);
   for (let i = 1; i < keys.length; i++) assert.ok(isValidKey(keyBetween(keys[i - 1], keys[i])));
+});
+
+test('keyAfter: achter elke geldige sleutel, kort, en met ruimte om ertussen in te voegen', () => {
+  assert.equal(keyAfter(null), 'V');
+  assert.equal(keyAfter('V'), 'V01');
+  assert.equal(keyAfter('V01'), 'V02');
+  assert.equal(keyAfter('V0z'), 'V1', 'een overloop maakt de sleutel korter');
+  assert.equal(keyAfter('Vzz'), 'W');
+  assert.equal(keyAfter('abcdefg'), 'abcdefh', 'een lange sleutel (uit het midden van een lijst) groeit niet');
+  assert.equal(keyAfter('zzz'), 'zzzV', 'alleen z: dan toch een teken langer');
+  for (const a of ['1', 'V', 'k', 'z', 'zz', 'V0z', 'abc', 'Zz', 'y', 'xyz12']) {
+    const b = keyAfter(a);
+    assert.ok(b > a && isValidKey(b), `${a} → ${b}`);
+    assert.ok(isValidKey(keyBetween(a, b)), `ruimte tussen ${a} en ${b}`);
+  }
 });
