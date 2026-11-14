@@ -725,6 +725,8 @@ export default {
   'shortcuts.dragNote': 'Slepen kan ook met de muis of je vinger (op een telefoon: lang indrukken of het handvat). Alleen de eigenaar van een project verplaatst het.',
 
   // ---------- bijlagen ----------
+  'quick.sharedFiles': 'Wordt bijlage: {names}',
+  'quick.sharedFilesMissing': 'Niet alle gedeelde bestanden konden worden opgehaald.',
   'attachment.heading': 'Bijlagen',
   'attachment.headingCount': 'Bijlagen ({count})',
   'attachment.none': 'Nog geen bijlagen.',

@@ -728,6 +728,8 @@ export default {
   'shortcuts.dragNote': 'You can also drag with the mouse or your finger (on a phone: press and hold, or use the handle). Only the owner of a project can move it.',
 
   // ---------- attachments ----------
+  'quick.sharedFiles': 'Becomes an attachment: {names}',
+  'quick.sharedFilesMissing': 'Not all shared files could be fetched.',
   'attachment.heading': 'Attachments',
   'attachment.headingCount': 'Attachments ({count})',
   'attachment.none': 'No attachments yet.',

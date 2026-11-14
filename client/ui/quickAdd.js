@@ -70,6 +70,8 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
       projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });
+    // bestanden die uit een andere app zijn gedeeld: ze worden bijlagen van de taak zodra je Toevoegen kiest
+    const shared = context.files?.length ? h('p', { class: 'hint quick-files' }, icon('paperclip'), t('quick.sharedFiles', { names: context.files.join(', ') })) : null;
     const sectionFor = () => (project.value === startProject && context.sectionId ? context.sectionId : null);
     // `due` is 'today' (Vandaag), of een dag 'YYYY-MM-DD' (een "+" in de kalender): dan staat de taak op die dag, ook zonder dat je die typt.
     const day = /^\d{4}-\d{2}-\d{2}$/.test(context.due ?? '') ? context.due : null;
@@ -142,6 +144,7 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: formatDayHeading(day, todayString()) })),
     mic ? h('div', { class: 'quick-row' }, input, mic) : input,
     description,
+    shared,
     preview,
     h('div', { class: 'quick-options' }, h('label', { class: 'field-label' }, t('task.project'), project)),
     h('div', { class: 'dialog-buttons' },

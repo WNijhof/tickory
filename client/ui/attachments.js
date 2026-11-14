@@ -131,7 +131,7 @@ export function attachmentsSection({ task, store, actions }) {
   }
 
   async function open(a) {
-    if (bridge?.available && bridge.openAttachment) {
+    if (bridge?.canOpenAttachments?.()) {
       bridge.openAttachment(a.id, a.name, a.mime);
       return;
     }
@@ -147,7 +147,7 @@ export function attachmentsSection({ task, store, actions }) {
   }
 
   async function save(a) {
-    if (bridge?.available && bridge.saveAttachment) {
+    if (bridge?.canOpenAttachments?.()) {
       bridge.saveAttachment(a.id, a.name, a.mime);
       return;
     }

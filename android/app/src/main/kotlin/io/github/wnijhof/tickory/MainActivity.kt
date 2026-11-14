@@ -11,6 +11,7 @@ import android.net.Uri
 import android.net.http.SslError
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.view.View
@@ -19,6 +20,7 @@ import android.webkit.CookieManager
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerController
 import android.webkit.SslErrorHandler
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -41,11 +43,15 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isInvisible
 import androidx.core.view.isVisible
+import io.github.wnijhof.tickory.core.AttachmentName
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.core.VoiceScript
 import io.github.wnijhof.tickory.store.Prefs
+import io.github.wnijhof.tickory.store.ShareStore
+import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
 import io.github.wnijhof.tickory.reminders.Background
 import io.github.wnijhof.tickory.reminders.Notifications
@@ -54,6 +60,8 @@ import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
 import io.github.wnijhof.tickory.sync.SyncWorker
 import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileInputStream
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 
@@ -91,6 +99,19 @@ class MainActivity : ComponentActivity() {
         val spoken = if (result.resultCode == RESULT_OK) result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() else null
         runScript(if (result.resultCode == RESULT_OK) VoiceScript.result(spoken) else VoiceScript.error("cancelled"))
     }
+    // Bestanden kiezen voor een bijlage: de bestandskiezer van Android (galerij, bestanden) en de camera.
+    private var fileCallback: ValueCallback<Array<Uri>>? = null
+    private var photoFile: File? = null
+    private val fileChooser = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        finishFileChooser(result.resultCode, result.data)
+    }
+
+    // Een bijlage opslaan: Android laat de gebruiker kiezen waar (geen toestemming voor opslag nodig).
+    private var pendingSave: AttachmentFiles.Ready? = null
+    private val saveDocument = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        finishSave(result.resultCode, result.data?.data)
+    }
+
     private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             SyncScheduler.refreshNow(applicationContext)
@@ -144,6 +165,23 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // Bestanden uit een andere app (Delen naar Tickory): eerst naar de eigen cache kopiëren, dan pas laden. Het opruimen van wat een
+        // vorige keer in de cache bleef staan, gebeurt dan vóór het kopiëren in dezelfde taak (anders kan het de nieuwe bestanden wissen).
+        val streams = sharedStreams(intent)
+        if (streams.isEmpty()) {
+            val app = applicationContext
+            Background.executor.execute { AttachmentFiles.cleanCaches(app) }
+        } else {
+            shareWithFiles(intent, streams, cleanFirst = true) { shared ->
+                if (needsLocalNetworkPermission()) {
+                    pendingFragment = shared
+                    askLocalNetworkPermission()
+                } else {
+                    loadStart(shared)
+                }
+            }
+            return
+        }
         val fragment = fragmentFrom(intent)
         if (needsLocalNetworkPermission()) {
             // Zonder deze toestemming loopt elk verzoek naar een server op het thuisnetwerk dood: eerst vragen, dan laden.
@@ -157,6 +195,11 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        val streams = sharedStreams(intent)
+        if (streams.isNotEmpty()) {
+            shareWithFiles(intent, streams) { shared -> if (shared != null) openFragment(shared) }
+            return
+        }
         val fragment = fragmentFrom(intent) ?: return
         openFragment(fragment)
     }
@@ -227,7 +270,11 @@ class MainActivity : ComponentActivity() {
         }
         view.setBackgroundColor(ContextCompat.getColor(this, R.color.background))
         view.webViewClient = Client()
-        view.webChromeClient = WebChromeClient() // standaardgedrag, zodat meldingen van de pagina (alert, confirm) werken
+        // Standaardgedrag, zodat meldingen van de pagina (alert, confirm) werken; plus de bestandskiezer voor bijlagen.
+        view.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>, fileChooserParams: FileChooserParams): Boolean =
+                showFileChooser(webView, filePathCallback, fileChooserParams)
+        }
         view.addJavascriptInterface(WebBridge(this), WebBridge.NAME)
 
         webContainer.addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -333,7 +380,7 @@ class MainActivity : ComponentActivity() {
          * server krijgt hier een leeg antwoord en laadt dus nooit in de app. Draait op een achtergronddraad.
          */
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-            if (!request.isForMainFrame) return null
+            if (!request.isForMainFrame) return sharedFileResponse(request)
             val scheme = request.url.scheme?.lowercase()
             if (scheme != "http" && scheme != "https") return null // about:, data:, blob: horen bij de pagina zelf
             if (ServerAddress.sameOrigin(request.url.toString(), origin)) return null
@@ -380,6 +427,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Een bestand dat een andere app naar Tickory deelt, voor de pagina van de web-app: `/__tickory_share/<token>/<nummer>` op de
+     * eigen server. Alleen een GET op het adres van de ingestelde server, met een token dat bij een recente deling hoort (zie
+     * ShareStore); al het andere gaat gewoon verder. Draait op een achtergronddraad.
+     */
+    private fun sharedFileResponse(request: WebResourceRequest): WebResourceResponse? {
+        val path = request.url.path ?: return null
+        if (!path.startsWith(ShareStore.PATH_PREFIX) || !ServerAddress.sameOrigin(request.url.toString(), origin)) return null
+        val headers = mapOf("Cache-Control" to "no-store", "X-Content-Type-Options" to "nosniff")
+        val missing = WebResourceResponse("text/plain", "utf-8", 404, "Not Found", headers, ByteArrayInputStream(ByteArray(0)))
+        if (request.method != "GET") return missing
+        val parts = path.removePrefix(ShareStore.PATH_PREFIX).split('/')
+        val item = if (parts.size == 2) parts[1].toIntOrNull()?.let { ShareStore.open(applicationContext, parts[0], it) } else null
+        item ?: return missing
+        // Altijd als onbekend bestand: de pagina maakt er zelf een File van met de naam en het type uit het adres van de deling.
+        return WebResourceResponse(AttachmentName.OCTET_STREAM, null, 200, "OK", headers + ("Content-Length" to item.size.toString()), FileInputStream(item.file))
+    }
+
     private fun openExternally(uri: Uri) {
         val scheme = uri.scheme?.lowercase()
         if (scheme != "http" && scheme != "https" && scheme != "mailto" && scheme != "tel") return
@@ -422,6 +487,190 @@ class MainActivity : ComponentActivity() {
             )
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
+        }
+    }
+
+    // ---------- bestanden kiezen, delen en opslaan (bijlagen) ----------
+
+    /**
+     * De bestandskiezer voor een `<input type="file">` van de web-app: de kiezer van Android (galerij, bestanden, andere apps) en, als
+     * de pagina foto's toestaat, de camera. De camera schrijft naar een eigen bestand in de cache (via een FileProvider), dus Tickory
+     * heeft geen toestemming voor camera of opslag nodig. De pagina krijgt altijd een antwoord, ook bij annuleren: anders blijft
+     * de kiezer na de eerste keer dicht.
+     */
+    private fun showFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: WebChromeClient.FileChooserParams): Boolean {
+        fileCallback?.onReceiveValue(null)
+        fileCallback = null
+        photoFile?.delete()
+        photoFile = null
+        if (!ServerAddress.sameOrigin(view.url, origin)) {
+            callback.onReceiveValue(null)
+            return true
+        }
+        val camera = cameraIntent()
+        val wantsPhoto = params.acceptTypes.isEmpty() || params.acceptTypes.all { it.isEmpty() } || params.acceptTypes.any { it.startsWith("image/") || it == "*/*" }
+        val intent = if (params.isCaptureEnabled && camera != null) {
+            camera
+        } else {
+            Intent(Intent.ACTION_CHOOSER)
+                .putExtra(Intent.EXTRA_INTENT, params.createIntent())
+                .also { if (camera != null && wantsPhoto) it.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(camera)) }
+        }
+        fileCallback = callback
+        try {
+            fileChooser.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            fileCallback = null
+            callback.onReceiveValue(null)
+        }
+        return true
+    }
+
+    private fun cameraIntent(): Intent? {
+        val file = AttachmentFiles.newPhotoFile(this)
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            .putExtra(MediaStore.EXTRA_OUTPUT, AttachmentFiles.uriFor(this, file))
+            .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (intent.resolveActivity(packageManager) == null) return null
+        photoFile = file
+        return intent
+    }
+
+    private fun finishFileChooser(resultCode: Int, data: Intent?) {
+        val callback = fileCallback ?: return
+        fileCallback = null
+        val photo = photoFile
+        photoFile = null
+        var uris: Array<Uri>? = if (resultCode == RESULT_OK) chosenUris(data) else null
+        if (resultCode == RESULT_OK && uris == null && photo != null && photo.length() > 0) {
+            uris = arrayOf(AttachmentFiles.uriFor(this, photo)) // de camera geeft niets terug, maar schreef naar ons bestand
+        } else if (photo != null) {
+            photo.delete()
+        }
+        callback.onReceiveValue(uris)
+    }
+
+    /** De adressen die de bestandskiezer teruggaf (één bestand of er meer), of null als er niets gekozen is. */
+    private fun chosenUris(data: Intent?): Array<Uri>? {
+        if (data == null) return null
+        val clip = data.clipData
+        val fromClip = if (clip != null) (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri } else emptyList()
+        val all = fromClip.ifEmpty { listOfNotNull(data.data) }
+        return if (all.isEmpty()) null else all.toTypedArray()
+    }
+
+    /** De bestanden die een andere app deelt (ACTION_SEND of ACTION_SEND_MULTIPLE), of een lege lijst. Alleen content://-adressen. */
+    private fun sharedStreams(intent: Intent?): List<Uri> {
+        if (intent == null) return emptyList()
+        val uris = ArrayList<Uri>()
+        when (intent.action) {
+            Intent.ACTION_SEND -> {
+                val one = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                }
+                if (one != null) uris.add(one)
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                val many = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
+                }
+                if (many != null) uris.addAll(many.filterNotNull())
+            }
+            else -> return emptyList()
+        }
+        // Geen file://-adressen (paden op het toestel) en nooit onze eigen FileProvider: alleen wat een andere app echt aanbiedt.
+        return uris.filter { it.scheme == "content" && it.authority != AttachmentFiles.authority(this) }
+    }
+
+    /** Kopieert de gedeelde bestanden naar de cache en geeft daarna het fragment voor de web-app (op de hoofddraad). */
+    private fun shareWithFiles(intent: Intent, uris: List<Uri>, cleanFirst: Boolean = false, then: (String?) -> Unit) {
+        val app = applicationContext
+        val subject = intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT) ?: intent.getCharSequenceExtra(Intent.EXTRA_TITLE)
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)
+        Toast.makeText(this, R.string.share_copying, Toast.LENGTH_SHORT).show()
+        Background.executor.execute {
+            if (cleanFirst) AttachmentFiles.cleanCaches(app)
+            val imported = ShareStore.import(app, uris)
+            val fragment = ShareLink.fragmentFor(subject, text, imported?.second ?: emptyList(), imported?.first)?.takeIf(DeepLink::isSafe)
+            runOnUiThread { if (!isFinishing && !isDestroyed) then(fragment) }
+        }
+    }
+
+    /**
+     * "Openen" (in een andere app) of "Opslaan" (op een plek naar keuze) van een bijlage, aangeroepen vanuit de brug. De app haalt
+     * het bestand zelf op, met het token uit de Keystore.
+     */
+    fun transferAttachment(id: String, name: String?, mime: String?, save: Boolean) {
+        if (!Ids.isSafeId(id)) return
+        val app = applicationContext
+        val server = origin
+        Toast.makeText(this, R.string.attachment_fetching, Toast.LENGTH_SHORT).show()
+        Background.executor.execute {
+            val token = TokenVault.load(app)
+            val outcome = if (token == null) AttachmentFiles.Outcome.SignedOut else AttachmentFiles.fetch(app, server, token, id, name, mime)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                when (outcome) {
+                    is AttachmentFiles.Outcome.Done -> if (save) saveToDevice(outcome.ready) else viewFile(outcome.ready)
+                    AttachmentFiles.Outcome.SignedOut -> Toast.makeText(this, R.string.attachment_signed_out, Toast.LENGTH_LONG).show()
+                    AttachmentFiles.Outcome.NotFound -> Toast.makeText(this, R.string.attachment_not_found, Toast.LENGTH_LONG).show()
+                    AttachmentFiles.Outcome.TooLarge -> Toast.makeText(this, R.string.attachment_too_large, Toast.LENGTH_LONG).show()
+                    AttachmentFiles.Outcome.Failed -> Toast.makeText(this, R.string.attachment_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun viewFile(ready: AttachmentFiles.Ready) {
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(AttachmentFiles.uriFor(this, ready.file), AttachmentName.viewMime(ready.mime))
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.attachment_no_app, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun saveToDevice(ready: AttachmentFiles.Ready) {
+        pendingSave?.file?.parentFile?.deleteRecursively()
+        pendingSave = ready
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType(AttachmentName.mime(ready.mime))
+            .putExtra(Intent.EXTRA_TITLE, ready.name)
+        try {
+            saveDocument.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            pendingSave = null
+            ready.file.parentFile?.deleteRecursively()
+            Toast.makeText(this, R.string.attachment_failed, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun finishSave(resultCode: Int, target: Uri?) {
+        val ready = pendingSave ?: return
+        pendingSave = null
+        if (resultCode != RESULT_OK || target == null) {
+            ready.file.parentFile?.deleteRecursively()
+            return
+        }
+        Background.executor.execute {
+            val saved = try {
+                contentResolver.openOutputStream(target)?.use { out -> ready.file.inputStream().use { it.copyTo(out) } } != null
+            } catch (e: java.io.IOException) {
+                false
+            } catch (e: RuntimeException) {
+                false
+            }
+            ready.file.parentFile?.deleteRecursively()
+            runOnUiThread { Toast.makeText(this, if (saved) R.string.attachment_saved else R.string.attachment_save_failed, Toast.LENGTH_LONG).show() }
         }
     }
 

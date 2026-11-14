@@ -5,7 +5,7 @@ import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
-import { shareFromHash } from '../core/share.js';
+import { fetchSharedFiles, shareFromHash } from '../core/share.js';
 import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
@@ -28,7 +28,7 @@ import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
-import { configureAttachments } from './attachments.js';
+import { configureAttachments, rejectionText } from './attachments.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
@@ -524,7 +524,19 @@ function openPendingShare() {
   if (document.querySelector('dialog[open]')) return; // het volgende moment (store.subscribe) opnieuw
   const draft = pendingShare;
   pendingShare = null;
-  handlers.quickAdd({ text: draft.title, description: draft.description });
+  if (!draft.files) {
+    handlers.quickAdd({ text: draft.title, description: draft.description });
+    return;
+  }
+  // Gedeelde bestanden: eerst ophalen bij de Android-app, daarna het venster; wordt de taak gemaakt, dan worden het bijlagen.
+  fetchSharedFiles(draft).then(async (files) => {
+    if (files.length < draft.files.length) toast(t('quick.sharedFilesMissing'), { kind: 'error' });
+    const id = await handlers.quickAdd({ text: draft.title, description: draft.description, files: files.map((f) => f.name) });
+    if (id && files.length > 0) {
+      const { rejected } = await attachments.stage(id, files);
+      for (const r of rejected) toast(rejectionText(r), { kind: 'error', timeout: 10_000 });
+    }
+  });
 }
 
 /** De knop "+" van een widget van de Android-app: #add, #add=today of #add=<project-id> opent het venster Taak toevoegen. */

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alleen deze twee mappen in de cache van de app zijn via de FileProvider te bereiken (zie AttachmentFiles.kt). -->
+<paths>
+    <cache-path name="attachments" path="attachments/" />
+    <cache-path name="camera" path="camera/" />
+</paths>

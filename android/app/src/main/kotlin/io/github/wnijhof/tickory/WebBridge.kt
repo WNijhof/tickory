@@ -86,6 +86,20 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.startVoiceInput(language) }
     }
 
+    /** Een bijlage ophalen en openen in een andere app (de app haalt het bestand zelf op, met het token). */
+    @JavascriptInterface
+    fun openAttachment(id: String?, name: String?, mime: String?) {
+        if (!activity.isTrustedPage() || id == null) return
+        activity.runOnUiThread { activity.transferAttachment(id, name, mime, save = false) }
+    }
+
+    /** Een bijlage ophalen en opslaan op een plek naar keuze. */
+    @JavascriptInterface
+    fun saveAttachment(id: String?, name: String?, mime: String?) {
+        if (!activity.isTrustedPage() || id == null) return
+        activity.runOnUiThread { activity.transferAttachment(id, name, mime, save = true) }
+    }
+
     /** Terug naar het instelscherm, na bevestiging in een dialoog van Android. */
     @JavascriptInterface
     fun changeServer() {
