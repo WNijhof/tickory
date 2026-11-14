@@ -7,6 +7,8 @@
 //   Schrijft website/assets/shots/<naam>-light.webp en -dark.webp (Engels: shots/en/<naam>-…), shots.json (de afmetingen)
 //   en website/assets/social-preview.png. Met --preview komen er ook PNG-kopieën in .site-work/shots/preview/ om na te kijken.
 // Poorten: SHOTS_PORT (8797) en SHOTS_CDP_PORT (9347).
+// Met SHOTS_ONLY=selecteren,voltooid (namen, komma-gescheiden) worden alleen die schermen opnieuw gemaakt; de andere afbeeldingen,
+// shots.json (wordt aangevuld) en het voorbeeldplaatje blijven zoals ze waren.
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +25,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const WORK = `${ROOT}.site-work/shots`;
 const OUT = `${ROOT}website/assets/shots`;
 const PREVIEW = process.argv.includes('--preview');
+const ONLY = process.env.SHOTS_ONLY ? process.env.SHOTS_ONLY.split(',').map((x) => x.trim()).filter(Boolean) : null;
 const PORT = Number(process.env.SHOTS_PORT ?? 8797);
 const CDP_PORT = Number(process.env.SHOTS_CDP_PORT ?? 9347);
 
@@ -105,6 +108,7 @@ const around = (selector: string, pad = 0) =>
 
 /** Legt het scherm vast in licht en donker. `clip` (in CSS-punten) beperkt het beeld tot een deel van het scherm. */
 async function capture(name: string, view: View, clip?: Clip) {
+  if (ONLY && !ONLY.includes(name)) return;
   const key = `${lang === 'en' ? 'en/' : ''}${name}`;
   for (const theme of ['light', 'dark'] as const) {
     await browser.colorScheme(theme);
@@ -309,6 +313,30 @@ async function shootAll() {
   await evaluate(`document.activeElement?.blur()`);
   await settle();
   await capture('telefoon-zoeken', PHONE);
+
+  // ---- meerdere taken selecteren en het overzicht Voltooid (computer) ----
+  await fresh(DESKTOP);
+  await nav(projectName);
+  await title(projectName);
+  const row = (name: string) => `[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title').textContent === ${js(name)})`;
+  await evaluate(`document.querySelector('.bulk-toggle').click()`);
+  await waitFor(`document.body.classList.contains('select-mode')`, 'selecteermodus');
+  for (const name of ['Weekmenu maken', 'Lamp in de gang vervangen', 'Kamer opruimen']) await evaluate(`${row(name)}.querySelector('.sel-box').click()`);
+  await waitFor(`document.querySelectorAll('li.task.is-selected').length === 3`, 'drie taken gekozen');
+  await evaluate(`document.activeElement?.blur()`);
+  await settle();
+  await capture('selecteren', DESKTOP);
+  await evaluate(`document.querySelector('#bulk-bar [data-bulk="stop"]').click()`);
+  // twee taken afvinken, zodat Voltooid ook een groep van vandaag heeft naast de taken van drie dagen geleden
+  for (const name of ['Weekmenu maken', 'Kamer opruimen']) await evaluate(`${row(name)}.querySelector('.check').click()`);
+  await waitFor(`!${row('Weekmenu maken')} && !${row('Kamer opruimen')}`, 'twee taken afgevinkt');
+  await nav(T('nav.completed'));
+  await title(T('nav.completed'));
+  await waitFor(`document.querySelectorAll('li.task').length >= 4`, 'voltooide taken');
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // de meldingen "Taak voltooid" liggen anders over de lijst
+  await evaluate(`document.activeElement?.blur()`);
+  await settle();
+  await capture('voltooid', DESKTOP);
 }
 
 let failed: unknown = null;
@@ -322,7 +350,16 @@ try {
     await shootAll();
   }
 
-  writeFileSync(`${OUT}/shots.json`, `${JSON.stringify(sizes, null, 2)}\n`);
+  let all = sizes;
+  if (ONLY) all = { ...JSON.parse(readFileSync(`${OUT}/shots.json`, 'utf8')), ...sizes }; // alleen de nieuwe schermen erbij
+  writeFileSync(`${OUT}/shots.json`, `${JSON.stringify(all, null, 2)}\n`);
+  if (ONLY) {
+    console.log(`\nAlleen ${ONLY.join(', ')} opnieuw gemaakt (SHOTS_ONLY); de rest is ongemoeid gelaten.`);
+    if (browser.errors.length > 0) throw new Error(`fouten in de console van de browser:\n${browser.errors.join('\n')}`);
+    await browser.close();
+    await site.close();
+    process.exit(0);
+  }
 
   // ---- voorbeeldplaatje voor GitHub (1280 x 640), met de Engelse interface ----
   // het beeldmerk in omgekeerde kleuren (wit vlak, groen vinkje), zodat het loskomt van de groene achtergrond

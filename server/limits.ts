@@ -32,4 +32,11 @@ export const LIMITS = {
   sseConnectionsPerUser: 20,
 };
 
+/**
+ * Hoe lang na het verwijderen een taak, sectie of project nog kan worden teruggezet (`task_restore` e.d., zie SPEC.md). Een
+ * gewoon object, zodat tests de termijn kunnen verkorten. De bestanden van bijlagen bij een zo verwijderde taak blijven
+ * `graceMs` langer bewaard dan de termijn, zodat een teruggezette taak zijn bijlagen nooit kwijt is.
+ */
+export const RESTORE = { windowMs: 5 * 60_000, graceMs: 60_000 };
+
 export type LimitName = keyof typeof LIMITS;

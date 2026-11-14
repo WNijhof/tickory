@@ -71,6 +71,7 @@ async function scenario(c: any): Promise<void> {
     send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse' });
   /** Een echt muisgebaar: indrukken, in stappen naar het doel, (optioneel iets controleren terwijl je vasthoudt), loslaten. */
   async function drag(from: { x: number; y: number }, to: { x: number; y: number }, during?: () => Promise<void>, steps = 10) {
+    await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de onderste regels
     await mouse('mouseMoved', from.x, from.y, 0);
     await mouse('mousePressed', from.x, from.y, 1);
     for (let i = 1; i <= steps; i++) await mouse('mouseMoved', Math.round(from.x + ((to.x - from.x) * i) / steps), Math.round(from.y + ((to.y - from.y) * i) / steps), 1);
@@ -272,6 +273,9 @@ async function scenario(c: any): Promise<void> {
     await nav('Sleepproef');
     const names = () => projectOrder(null).filter((n) => ['Sleepproef', 'Doelproject', 'Naburig'].includes(n));
     assert.deepEqual(names().slice(0, 3), ['Sleepproef', 'Doelproject', 'Naburig']);
+    // de zijbalk is langer geworden (Voltooid, Meldingen): de projecten midden in beeld, weg van de rand waar hij vanzelf scrolt
+    await evaluate(`${navRowExpr('Doelproject')}.scrollIntoView({ block: 'center' })`);
+    await sleep(200);
     const naburig = await navRect('Naburig');
     const sleep1 = await navRect('Sleepproef');
     await drag({ x: Math.round(naburig.x + 80), y: Math.round(naburig.y + naburig.h / 2) }, at(sleep1, 0.5, 0.1), async () => {

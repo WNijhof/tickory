@@ -1,0 +1,41 @@
+<!--
+title: Undo
+description: Undo the last change with the button in the message or Ctrl+Z: moving, a different date, priority, labels, completing, deleting a task or section and actions on several tasks; and what cannot be undone.
+-->
+<h1>Undo</h1>
+<p class="intro">Deleted a task by accident, dragged it to the wrong project or put ten tasks on the wrong day? After every change you make on purpose, you can take it back: with the button in the message, or with <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</p>
+
+<h2 id="how">How it works</h2>
+<ul>
+  <li>After a change a message appears at the bottom for a few seconds with the button <x-ui k="task.undo"></x-ui>. Click it and everything is as it was.</li>
+  <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> (<kbd>Cmd</kbd>+<kbd>Z</kbd> on a Mac) undoes the last change, even when the message is gone. Press it again and the change before that goes back. In an input field, for example while you type a title, <kbd>Ctrl</kbd>+<kbd>Z</kbd> does its usual job: taking text back.</li>
+  <li>The app remembers the last <strong>ten</strong> changes, and they stay undoable for <strong>five minutes</strong>. After that, or after reloading the page, it is no longer possible.</li>
+  <li>Undoing also works without a connection and is sent later, like every change.</li>
+</ul>
+
+<h2 id="what">What you can undo</h2>
+<ul>
+  <li><strong>Completing</strong>, also of several tasks at once. For a task with subtasks, the subtasks that were open open again. For a repeating task the old date comes back (the count of how many times it was completed does keep going).</li>
+  <li><strong>Moving:</strong> dragging, the <x-ui k="board.move"></x-ui> menu on the board, and <x-ui k="bulk.move"></x-ui> for several tasks. The task is back in her old place, with her old order and assignment.</li>
+  <li><strong>A different day</strong> by choosing or dragging in the calendar, a different <strong>priority</strong>, different <strong>labels</strong>, <strong>assigning</strong>, and what you save in the task window with <x-ui k="common.save"></x-ui>. Everything from one save is one step.</li>
+  <li><strong>Deleting a task</strong>, with her subtasks, comments, attachments and reminders. Also when you deleted several tasks at once.</li>
+  <li><strong>Deleting a section</strong>, with the tasks that were in it.</li>
+  <li><strong>Actions on several tasks</strong> (see <a href="selecting-tasks.html">Selecting several tasks</a>): every action is one step.</li>
+</ul>
+
+<h2 id="deleting">Restoring what you deleted</h2>
+<p>A deleted task is not really gone: the server keeps her for a little while, and for <strong>five minutes</strong> she can be restored, with everything that belonged to her: subtasks, comments, attachments and reminders (also those of others in a shared project). The people you share the project with simply see the task appear again.</p>
+<ul>
+  <li><strong>Who can restore it?</strong> The person who deleted the task, and the owner of the project. Another member cannot restore a task that someone else deleted.</li>
+  <li><strong>If you are too late</strong>, or if the place is gone, the app says so: <em>Restoring is no longer possible</em>. That happens after five minutes, or when the section or the parent task has been deleted in the meantime (restore that first).</li>
+  <li>What no longer fits is put right: a label that you deleted in between does not come back, and someone who has since been removed from the project is no longer assigned and does not get their reminders back.</li>
+  <li>The <strong>attachments</strong> of a deleted task stay on the server until the five minutes are over, so that they come back with the task. After that they are really erased.</li>
+</ul>
+
+<h2 id="not">What cannot be undone</h2>
+<ul>
+  <li><strong>Deleting a project, deleting a label, removing someone from a project or sharing a project</strong> cannot be undone: the app asks for confirmation beforehand. (<em>Archiving</em> a project can be undone, with the button in the message or through <x-ui k="nav.archived"></x-ui>.)</li>
+  <li>Deleting an attachment and deleting a comment cannot be undone.</li>
+  <li><strong>Redoing</strong> does not exist; what you undid, you do again yourself.</li>
+  <li>The list of steps does not survive a restart of the page, and different tabs or devices each have their own list.</li>
+</ul>

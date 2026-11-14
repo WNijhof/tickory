@@ -20,6 +20,8 @@
 import { canReorderProject, currentProjectPlan, currentTaskPlan, planCardDrop, planCardKey, planDayDrop, planDayKey, planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey, zoneAt } from '../core/dnd.js';
 import { dayLabel } from '../core/calendar.js';
 import { descendantIds } from '../core/reducer.js';
+import { planDate, planGroupDrop } from '../core/bulk.js';
+import { MAX_DRAG_GROUP } from '../core/selection.js';
 import { projectDescendantIds } from '../core/selectors.js';
 import { canEditProject } from '../core/access.js';
 import { getLocale, t } from '../core/i18n.js';
@@ -37,11 +39,19 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 /**
  * @param {{
  *   content: HTMLElement, sidebar: HTMLElement,
- *   actions: { moveTask: Function, moveProject: Function, updateTask: Function },
+ *   actions: { moveTask: Function, moveProject: Function, updateTask: Function, track: Function, batch: Function, planUpdateTask: Function },
  *   getContext: () => { view: any, userId: string | null, showCompleted: (projectId: string) => boolean },
+ *   selection?: ReturnType<typeof import('./selection.js').installSelection>,   // meerdere taken kiezen en samen slepen
  * }} options
+ *
+ * Slepen en kiezen (ui/selection.js) komen elkaar niet in de weg: op een telefoon kiest lang indrukken de taak en tilt haar op; wie daarna
+ * verder beweegt sleept, wie loslaat zonder te bewegen houdt alleen de keuze. Met een muis begint slepen na 5 px zoals altijd en een
+ * klik blijft een klik. Sleep je een gekozen taak terwijl er
+ * meer gekozen zijn, dan gaan ze samen mee (tot `MAX_DRAG_GROUP` taken, en alleen waar ze alle passen); anders verplaatst alleen de
+ * gesleepte taak en zegt een melding waarom.
  */
-export function createDragDrop({ content, sidebar, actions, getContext }) {
+export function createDragDrop({ content, sidebar, actions, getContext, selection = null }) {
+  const undoToast = (text, entry) => (selection ? selection.undoToast(text, entry) : toast(text));
   // ---------- aankondigingen voor schermlezers ----------
   const live = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true', id: 'dnd-live' });
   document.body.append(live);
@@ -76,7 +86,10 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     pending = { pointerId: e.pointerId, type: e.pointerType, x: e.clientX, y: e.clientY, kind, id, el, timer: null, slop: !touch ? MOUSE_SLOP : handle ? HANDLE_SLOP : TOUCH_SLOP, startNow: false };
     if (touch && !handle) {
       pending.timer = setTimeout(() => {
-        if (pending) beginDrag(pending, pending.x, pending.y);
+        if (!pending) return;
+        // lang indrukken kiest de taak (als er een selectie is) en tilt haar op; laat je los zonder te bewegen, dan blijft alleen de keuze
+        if (selection && kind === 'task') selection.longPress(pending.id);
+        beginDrag(pending, pending.x, pending.y);
       }, LONG_PRESS_MS);
     }
   }
@@ -91,7 +104,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (!(target instanceof Element) || target.closest('dialog')) return;
     const row = taskRowOf(target);
     if (row && content.contains(row)) {
-      if (target.closest('[data-act="check"], [data-act="fold"], [data-act="move"], .task-actions, .cal-check, a, input, textarea')) return;
+      if (target.closest('[data-act="check"], [data-act="fold"], [data-act="move"], [data-act="select"], [data-act="restore"], .task-actions, .cal-check, a, input, textarea')) return;
       if (row.dataset.real === 'false') return; // een voorkomen van een herhaling in de kalender: er is niets om te verzetten
       const { view, userId } = getContext();
       const task = view.tasks.get(taskIdOf(row));
@@ -119,6 +132,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (drag && e.pointerId === drag.pointerId) {
       drag.x = e.clientX;
       drag.y = e.clientY;
+      if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > TOUCH_SLOP) drag.moved = true;
       place();
       update();
     }
@@ -155,7 +169,8 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     // het scherm kan tussen indrukken en slepen opnieuw getekend zijn (een sync): dan staat de regel er als nieuw element
     if (!from.el.isConnected) from.el = (from.kind === 'task' ? content.querySelector(taskSelector(from.id)) : sidebar.querySelector(`[data-project-id="${CSS.escape(from.id)}"]`)) ?? from.el;
     const rect = from.el.getBoundingClientRect();
-    const ids = from.kind === 'task' ? [from.id, ...descendantIds(view, [from.id])] : [from.id, ...projectDescendantIds(view, from.id)];
+    const group = from.kind === 'task' && selection ? selection.dragSet(from.id) : [from.id];
+    const ids = from.kind === 'task' ? [...new Set(group.flatMap((g) => [g, ...descendantIds(view, [g])]))] : [from.id, ...projectDescendantIds(view, from.id)];
     const ghost = from.el.cloneNode(true);
     ghost.classList.add('dnd-ghost');
     ghost.classList.remove('dnd-source');
@@ -165,10 +180,11 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     for (const n of ghost.querySelectorAll('.task-actions, .drag-handle, .card-move')) n.remove();
     ghost.style.width = `${Math.min(rect.width, 520)}px`;
     if (from.kind === 'project') ghost.classList.add('dnd-ghost-project');
+    if (group.length > 1) ghost.dataset.count = String(group.length); // een teller op de gesleepte regel (dnd.css)
     document.body.append(ghost);
     drag = {
-      pointerId: from.pointerId, kind: from.kind, id: from.id, ids: new Set(ids), ghost, offX: x - rect.left, offY: y - rect.top, x, y, type: from.type,
-      plan: null, target: null, line: null, marked: [], drawerTimer: null, name: entity.content ?? entity.name,
+      pointerId: from.pointerId, kind: from.kind, id: from.id, ids: new Set(ids), group, ghost, offX: x - rect.left, offY: y - rect.top, x, y, type: from.type,
+      plan: null, target: null, line: null, marked: [], drawerTimer: null, name: entity.content ?? entity.name, startX: x, startY: y, moved: false,
     };
     // het signaal blijft bij een vast element, ook als het scherm tijdens het slepen opnieuw wordt getekend
     try { from.el.releasePointerCapture?.(from.pointerId); } catch { /* geen capture om los te laten */ }
@@ -397,40 +413,75 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     try { document.body.releasePointerCapture?.(d.pointerId); } catch { /* al los */ }
     if (openedDrawer) { document.body.classList.remove('nav-open'); openedDrawer = false; }
     releaseClick();
+    selection?.dragEnded(Boolean(d.moved));
     if (!drop) {
       announce(t('dnd.cancelled'));
       return;
     }
+    if (!d.moved && d.type === 'touch') return; // lang indrukken en loslaten zonder te bewegen: alleen gekozen, niets verplaatst
     if (d.plan) await commit(d).catch((err) => { console.error(err); toast(t('common.somethingWrong'), { kind: 'error' }); });
   }
 
-  /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en bij een ander project een melding met "Ongedaan maken". */
+  /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en een melding met "Ongedaan maken" (core/undo.js). */
   async function commit(d) {
     const { view } = getContext();
+    if (d.kind === 'task' && d.group.length > 1) {
+      if (await commitGroup(d, view)) return;
+    }
     if (d.kind === 'task' && d.plan.date) {
-      const task = view.tasks.get(d.id);
-      const previous = task.due;
-      await actions.updateTask(d.id, { due: d.plan.due });
       const text = t('dnd.dayMoved', { name: d.name, date: d.label?.day ?? d.plan.date });
-      toast(text, { action: { label: t('task.undo'), run: () => actions.updateTask(d.id, { due: previous }) } });
+      const { entry } = await actions.track(text, () => actions.updateTask(d.id, { due: d.plan.due }));
+      undoToast(text, entry);
       announce(text);
     } else if (d.kind === 'task') {
       const before = currentTaskPlan(view, d.id);
       const moved = d.plan.project_id !== before.project_id;
-      await actions.moveTask(d.id, d.plan);
       const where = d.label?.project ?? d.label?.container ?? '';
-      if (moved) {
-        toast(t('dnd.movedToProject', { name: d.name, project: where }), { action: { label: t('task.undo'), run: () => actions.moveTask(d.id, before) } });
-      }
+      const text = moved ? t('dnd.movedToProject', { name: d.name, project: where }) : t('dnd.dropped', { name: d.name, container: where });
+      const { entry } = await actions.track(text, () => actions.moveTask(d.id, d.plan));
+      if (moved) undoToast(text, entry);
       announce(d.plan.parent_id ? t('dnd.droppedSub', { name: d.name, parent: where }) : t('dnd.dropped', { name: d.name, container: where }));
     } else {
       const before = currentProjectPlan(view, d.id);
       const nested = d.plan.parent_id !== before.parent_id;
-      await actions.moveProject(d.id, d.plan);
       const parent = d.plan.parent_id ? view.projects.get(d.plan.parent_id)?.name ?? '' : '';
-      if (nested) toast(d.plan.parent_id ? t('dnd.projectNested', { name: d.name, parent }) : t('dnd.projectTop', { name: d.name }), { action: { label: t('task.undo'), run: () => actions.moveProject(d.id, before) } });
+      const text = d.plan.parent_id ? t('dnd.projectNested', { name: d.name, parent }) : t('dnd.projectTop', { name: d.name });
+      const { entry } = await actions.track(text, () => actions.moveProject(d.id, d.plan));
+      if (nested) undoToast(text, entry);
       announce(d.plan.parent_id && nested ? t('dnd.projectNested', { name: d.name, parent }) : nested ? t('dnd.projectTop', { name: d.name }) : t('dnd.projectDropped', { name: d.name }));
     }
+  }
+
+  /**
+   * Meerdere gekozen taken samen neerzetten. Geeft true als dat gelukt is; false als alleen de gesleepte taak kan (dan staat er al een
+   * melding die zegt waarom, en gaat `commit` door met die ene).
+   */
+  async function commitGroup(d, view) {
+    const order = selection.order();
+    const where = d.label?.project ?? d.label?.container ?? '';
+    if (d.plan.date) {
+      const plan = planDate(view, d.group, d.plan.date, (id, changes) => actions.planUpdateTask(id, changes));
+      if (plan.commands.length === 0) return true;
+      const text = t('dnd.dayMovedMany', { count: plan.count, date: d.label?.day ?? d.plan.date });
+      const { entry } = await actions.batch(plan.commands, { label: text });
+      selection.done();
+      undoToast(text, entry);
+      announce(text);
+      return true;
+    }
+    const plan = planGroupDrop(view, d.group, d.plan, order);
+    if (!plan.ok) {
+      const text = plan.reason === 'many' ? t('bulk.dragOnlyOneMany', { name: d.name, max: MAX_DRAG_GROUP }) : t('bulk.dragOnlyOneHere', { name: d.name });
+      toast(text, { timeout: 10_000 });
+      announce(text);
+      return false;
+    }
+    const text = t('bulk.dragMovedMany', { count: plan.count, container: where });
+    const { entry } = await actions.batch(plan.commands, { label: text });
+    selection.done();
+    undoToast(text, entry);
+    announce(text);
+    return true;
   }
 
   // ---------- toetsenbord ----------
@@ -493,7 +544,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
       announceBlocked(r.blocked, name);
       return;
     }
-    actions.moveTask(id, r.plan);
+    actions.track(name, () => actions.moveTask(id, r.plan));
     if (r.kind === 'indented') announce(t('dnd.droppedSub', { name, parent: r.parent }));
     else if (r.kind === 'outdented') announce(t('dnd.outdented', { name, parent: r.parent }));
     else announce(t('dnd.keyMoved', { name, position: r.position, count: r.count, container: r.container }));
@@ -514,7 +565,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
       else if (r.blocked === 'noColumnAfter') announce(t('dnd.noColumnAfter', { name }));
       return;
     }
-    actions.moveTask(id, r.plan);
+    actions.track(name, () => actions.moveTask(id, r.plan));
     announce(t('dnd.keyMoved', { name, position: r.position, count: r.count, container: r.plan.section_id ? r.container : t('board.noSection') }));
   }
 
@@ -525,7 +576,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (!task) return;
     const r = planDayKey(view, id, command);
     if (r.blocked) return;
-    actions.updateTask(id, { due: r.plan.due });
+    actions.track(task.content, () => actions.updateTask(id, { due: r.plan.due }));
     announce(t('dnd.dayMoved', { name: task.content, date: dayLabel(getLocale(), r.date, 'long') }));
   }
 
@@ -539,7 +590,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
       announceBlocked(r.blocked, name);
       return;
     }
-    actions.moveProject(id, r.plan);
+    actions.track(name, () => actions.moveProject(id, r.plan));
     if (r.kind === 'indented') announce(t('dnd.projectNested', { name, parent: r.parent }));
     else if (r.kind === 'outdented') announce(r.plan.parent_id ? t('dnd.projectNested', { name, parent: view.projects.get(r.plan.parent_id)?.name ?? '' }) : t('dnd.projectTop', { name }));
     else announce(t('dnd.projectKeyMoved', { name, position: r.position, count: r.count }));

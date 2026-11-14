@@ -1,0 +1,133 @@
+/* Meerdere taken selecteren (ui/selection.js), de actiebalk, en het overzicht Voltooid (ui/completed.js). Eigen bestand, zodat app.css
+   er niet door verandert. Alleen kleuren uit app.css (--accent, --accent-soft, --bg, --line, ...), dus licht en donker kloppen vanzelf. */
+
+/* ---------- het vakje bij elke regel (alleen zichtbaar tijdens het selecteren) ---------- */
+.sel-box { display: none; }
+body.select-mode .task { grid-template-columns: 36px 40px minmax(0, 1fr) auto; }
+body.select-mode .task > .sel-box {
+  display: inline-flex; grid-column: 1; grid-row: 1; align-items: center; justify-content: center; width: 36px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+}
+body.select-mode .task > .check { grid-column: 2; }
+body.select-mode .task > .task-content { grid-column: 3; }
+body.select-mode .task > .chip-project { grid-column: 4; }
+.sel-box::before {
+  content: ""; width: 18px; height: 18px; border-radius: 5px; border: 2px solid var(--line-strong); background: var(--bg); box-sizing: border-box;
+  transition: background 0.12s, border-color 0.12s;
+}
+.sel-box::after {
+  content: ""; position: absolute; width: 5px; height: 9px; border: solid var(--accent-text); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); opacity: 0;
+}
+.sel-box { position: relative; }
+.sel-box[aria-checked="true"]::before { background: var(--accent); border-color: var(--accent); }
+.sel-box[aria-checked="true"]::after { opacity: 1; }
+.sel-box:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 6px; }
+
+/* een gekozen regel */
+.task.is-selected, .cal-item.is-selected { background: var(--accent-soft); }
+.task.is-selected:hover { background: var(--accent-soft); }
+.task.is-selected { box-shadow: inset 3px 0 0 var(--accent); }
+.cal-item.is-selected { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); }
+.task-card.is-selected { outline: 2px solid var(--accent); outline-offset: -2px; }
+body.select-mode .task, body.select-mode .cal-item { cursor: pointer; -webkit-user-select: none; user-select: none; }
+/* op het bord en in de kalender staat het vakje er niet: de rand en de balk zeggen genoeg */
+body.select-mode .task-card { grid-template-columns: 36px 40px minmax(0, 1fr) auto; }
+body.select-mode .task-card .card-move { grid-column: 4; }
+
+/* ---------- de knop in de kop ---------- */
+.bulk-toggle { margin-left: auto; }
+/* Zonder keuze alleen het pictogram (de naam blijft voor schermlezers en in de tooltip): zo wordt de kop niet breder en schuift de lijst niet omlaag. */
+.bulk-toggle[aria-pressed="false"] .btn-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.bulk-toggle + .view-actions { margin-left: 2px; }
+.bulk-toggle[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); border-color: var(--accent); }
+
+/* ---------- de actiebalk ---------- */
+.bulk-bar {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 4px 0 6px; background: var(--bg-soft); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); position: sticky; top: 56px; z-index: 3; box-shadow: var(--shadow-card);
+}
+.bulk-bar[hidden] { display: none; }
+.bulk-count { font-weight: 600; font-size: 0.9rem; white-space: nowrap; padding: 0 6px; }
+.bulk-buttons { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; min-width: 0; }
+.bulk-button {
+  display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.88rem;
+  padding: 6px 10px; min-height: 36px; border-radius: 8px; cursor: pointer;
+}
+.bulk-button:hover:not(:disabled) { background: var(--bg-hover); }
+.bulk-button:disabled { color: var(--text-soft); opacity: 0.55; cursor: default; }
+.bulk-button .icon { width: 18px; height: 18px; flex: none; }
+.bulk-danger:not(:disabled) { color: var(--danger); }
+.bulk-button:focus-visible, .bulk-small:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.bulk-side { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.bulk-small { border: 0; background: none; color: var(--accent); font: inherit; font-size: 0.85rem; font-weight: 600; padding: 6px 8px; min-height: 36px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.bulk-small:hover { background: var(--bg-hover); }
+
+/* Op een telefoon onderaan, vast in beeld, met grote tikvlakken; de meldingen komen erboven. */
+@media (max-width: 760px) {
+  .bulk-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; z-index: 25; border-radius: 14px 14px 0 0; border-width: 1px 0 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); flex-wrap: wrap; box-shadow: 0 -6px 20px rgb(16 24 40 / 14%);
+  }
+  .bulk-count { flex: 1 1 100%; padding: 2px 6px 0; }
+  .bulk-buttons { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 4px; }
+  .bulk-buttons::-webkit-scrollbar { display: none; }
+  .bulk-button { flex-direction: column; gap: 2px; min-width: 64px; min-height: 52px; padding: 6px 8px; font-size: 0.74rem; }
+  .bulk-side { position: absolute; right: 6px; top: 4px; margin: 0; }
+  .bulk-side .bulk-small { display: none; }
+  .bulk-close { width: 44px; height: 44px; }
+  body.select-mode .toasts { bottom: calc(96px + env(safe-area-inset-bottom)); }
+  body.select-mode .main { padding-bottom: 180px; }
+  body.select-mode .task > .sel-box { width: 40px; height: 48px; }
+  body.select-mode .task { grid-template-columns: 40px 40px minmax(0, 1fr) auto; }
+  body.select-mode .task.task-card { grid-template-columns: 40px 44px minmax(0, 1fr) 44px; grid-template-areas: "sel check content move"; }
+  body.select-mode .task.task-card > .sel-box { grid-area: sel; }
+}
+
+/* ---------- slepen met meerdere taken ---------- */
+.dnd-ghost[data-count]::after {
+  content: attr(data-count); position: absolute; top: -9px; right: -9px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px;
+  background: var(--accent); color: var(--accent-text); font-size: 0.78rem; font-weight: 700; line-height: 22px; text-align: center;
+}
+
+/* ---------- keuzevensters bij een bulkactie ---------- */
+.dialog-bulk .bulk-targets, .dialog-bulk .bulk-label-list { list-style: none; margin: 0; padding: 0; max-height: 46dvh; overflow-y: auto; }
+.bulk-target { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; }
+.bulk-target-section { color: var(--text-soft); }
+.bulk-target .dot { flex: none; }
+.bulk-label-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; min-height: 44px; cursor: pointer; }
+.bulk-label-row input { width: 18px; height: 18px; flex: none; }
+.bulk-custom-date { display: flex; gap: 8px; align-items: center; }
+.bulk-custom-date .field { flex: 1; }
+
+/* ---------- het overzicht Voltooid ---------- */
+.completed-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 2px 0 10px; }
+.completed-tools .field { max-width: 100%; }
+.completed-tools select.field { flex: 0 1 260px; }
+.completed-tools input.field { flex: 1 1 220px; min-width: 160px; }
+.completed-note { margin: 0 0 8px; }
+.task-completed-line { display: flex; align-items: center; gap: 6px; }
+/* in Voltooid: de knop Terugzetten staat rechts naast het project, op dezelfde regel */
+.task:has(> .completed-restore) { grid-template-columns: 40px minmax(0, 1fr) auto auto; }
+body.select-mode .task:has(> .completed-restore) { grid-template-columns: 36px 40px minmax(0, 1fr) auto auto; }
+.task > .completed-restore {
+  grid-column: 4; grid-row: 1; align-self: start; margin: 8px 8px 0 0; border: 1px solid var(--line-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 0.82rem;
+  padding: 4px 10px; min-height: 32px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+}
+.task > .completed-restore:hover { background: var(--bg-hover); }
+.task > .completed-restore:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+body.select-mode .task > .completed-restore { grid-column: 5; }
+.task:has(> .completed-restore) > .chip-project { grid-column: 3; grid-row: 1; }
+body.select-mode .task:has(> .completed-restore) > .chip-project { grid-column: 4; }
+.chip-completed { color: var(--text-soft); }
+@media (max-width: 760px) {
+  /* op een telefoon staat de knop onder de regel, onder het project */
+  .task:has(> .completed-restore), body.select-mode .task:has(> .completed-restore) { grid-template-columns: 44px minmax(0, 1fr); grid-template-areas: "check content" ". project" ". restore"; }
+  body.select-mode .task:has(> .completed-restore) { grid-template-columns: 40px 44px minmax(0, 1fr); grid-template-areas: "sel check content" ". . project" ". . restore"; }
+  .task:has(> .completed-restore) > .chip-project, body.select-mode .task:has(> .completed-restore) > .chip-project { grid-area: project; }
+  .task > .completed-restore, body.select-mode .task > .completed-restore { grid-area: restore; justify-self: start; min-height: 44px; margin: 0 0 8px; }
+  body.select-mode .task:has(> .completed-restore) > .sel-box { grid-area: sel; }
+}
+
+/* minder beweging: geen overgangen */
+@media (prefers-reduced-motion: reduce) {
+  .sel-box::before { transition: none; }
+}

@@ -17,7 +17,7 @@ const NOUN = {
 };
 const VERB = {
   add: () => t('command.verb.add'), update: () => t('command.verb.update'), delete: () => t('command.verb.delete'),
-  move: () => t('command.verb.move'), complete: () => t('command.verb.complete'), uncomplete: () => t('command.verb.uncomplete'),
+  move: () => t('command.verb.move'), restore: () => t('command.verb.restore'), complete: () => t('command.verb.complete'), uncomplete: () => t('command.verb.uncomplete'),
 };
 
 // Delen en samenwerken hebben eigen zinnen; hun foutmeldingen van de server zijn al begrijpelijk Nederlands en preciezer dan een algemene tekst.
@@ -41,6 +41,10 @@ const INVALID = ['INVALID_ARG', 'MISSING_ARG', 'UNKNOWN_ARG', 'READONLY', 'IMMUT
  * zijn. Dit zijn de gevallen waarin de server een eigen, preciezere zin meestuurt (zie server/sync.ts).
  */
 const BY_COMMAND_AND_CODE = {
+  'task_restore:CONFLICT': () => t('error.restoreLate'),
+  'section_restore:CONFLICT': () => t('error.restoreLate'),
+  'task_restore:FORBIDDEN': () => t('error.restoreForbidden'),
+  'section_restore:FORBIDDEN': () => t('error.restoreForbidden'),
   'project_share:NOT_FOUND': () => t('error.shareUserNotFound'),
   'project_share:FORBIDDEN': () => t('error.shareOwnerOnly'),
   'project_share:CONFLICT': () => t('error.shareInbox'),
@@ -98,6 +102,11 @@ export function describeCommandError(e) {
 
   if (getLanguage() === SERVER_LANGUAGE) {
     if (Object.hasOwn(SPECIAL, type) && e.error) return sentence(`${e.error}${/[.!?]$/.test(e.error) ? '' : '.'}`);
+    // terugzetten (te laat, geen recht): de eigen zin is duidelijker dan de algemene tekst bij CONFLICT en dan de technische tekst van de server
+    if (type.endsWith('_restore')) {
+      const own = pick(BY_COMMAND_AND_CODE, `${type}:${e.error_code}`);
+      if (own) return sentence(own);
+    }
     return sentence(general ?? e.error ?? t('error.notApplied'));
   }
   // Een andere taal dan die van de server: eerst de eigen vertaling, de tekst van de server alleen als er niets beters is.

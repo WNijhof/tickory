@@ -294,6 +294,7 @@ export async function calendarTouchScenario(c: any): Promise<void> {
   const OVERLEG = 'e2ekalenderoverleg01';
   await send(c, 'Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
   try {
+    await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen (ook die met Ongedaan maken) liggen over de lijst
     await evaluate(`window.scrollTo(0, 0)`);
     await sleep(300);
     const next = await evaluate(`(() => { const days = [...document.querySelectorAll('td.cal-day')].filter((d) => d.getBoundingClientRect().height > 0 && d.dataset.date > ${js(today)}); return days[0]?.dataset.date ?? null; })()`) as string | null;

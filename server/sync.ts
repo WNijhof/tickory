@@ -27,6 +27,7 @@ import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 import { LIMITS } from './limits.ts';
+import { restoreHandlers } from './restore.ts';
 import * as notify from './notify.ts';
 import * as activity from './activity.ts';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../shared/roles.js';
@@ -835,6 +836,7 @@ HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
 HANDLERS.member_update = memberUpdate;
+Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 HANDLERS.notification_read_all = notificationReadAll;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
 

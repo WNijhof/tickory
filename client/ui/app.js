@@ -4,6 +4,7 @@ import { IdbAdapter } from '../core/idb.js';
 import { MemoryAdapter, Store } from '../core/store.js';
 import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
+import { createUndo } from '../core/undo.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
 import { fetchSharedFiles, shareFromHash } from '../core/share.js';
 import { deviceName } from '../core/auth.js';
@@ -15,11 +16,13 @@ import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError, quietCommandError } from '../core/messages.js';
 import { formatDue, nowString, todayString } from '../core/format.js';
 import { reschedule } from '../core/quickDates.js';
-import { createShortcuts } from '../core/shortcuts.js';
+import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { createDragDrop } from './dragdrop.js';
+import { installSelection } from './selection.js';
+import { installCompleted, isCompletedRoute } from './completed.js';
 import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { openQuickAddDialog, previewChips } from './quickAdd.js';
@@ -50,7 +53,7 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r))) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
@@ -73,6 +76,9 @@ let events;
 let attachments;
 /** Het scherm Activiteit (ui/activity.js). */
 let activityUi = null;
+/** De stappen die "Ongedaan maken" kan terugdraaien (core/undo.js), en de selectie van meerdere taken (ui/selection.js). */
+const undo = createUndo();
+let selection;
 /** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
 let templatesUiInstance = null;
 const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, actions, navigate }));
@@ -128,6 +134,7 @@ function render() {
   if (focused && document.activeElement === document.body) document.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
   renderStatus();
   renderPreview();
+  selection?.afterRender({ routeKey: `${ui.route.type}:${ui.route.id ?? ''}` });
 }
 
 function renderStatus() {
@@ -190,6 +197,11 @@ function navigate(route) {
   render();
 }
 
+/** Een melding met "Ongedaan maken" voor een stap van `actions.track` (zonder stap, bijvoorbeeld bij een project verwijderen, gewoon de melding). */
+function undoToast(text, entry) {
+  return selection ? selection.undoToast(text, entry) : toast(text);
+}
+
 const handlers = {
   navigate,
 
@@ -198,20 +210,34 @@ const handlers = {
 
   async toggle(task) {
     if (!canEditProject(store.view, task.project_id, store.userId)) return handlers.readOnlyNotice(task);
-    if (task.checked) return actions.uncompleteTask(task.id);
-    await actions.completeTask(task.id);
+    if (task.checked) return actions.track(t('task.completed'), () => actions.uncompleteTask(task.id));
+    const { entry } = await actions.track(t('task.completed'), () => actions.completeTask(task.id));
     if (task.due?.recurrence) {
       const next = store.view.tasks.get(task.id);
-      return toast(next?.due ? t('task.nextTime', { date: formatDue({ date: next.due.date }, todayString()) }) : t('task.completed'));
+      return undoToast(next?.due ? t('task.nextTime', { date: formatDue({ date: next.due.date }, todayString()) }) : t('task.completed'), entry);
     }
-    return toast(t('task.completed'), { action: { label: t('task.undo'), run: () => actions.uncompleteTask(task.id) } });
+    return undoToast(t('task.completed'), entry);
+  },
+
+  /** Een voltooide taak terugzetten (overzicht Voltooid); een terugkerende taak zegt welke datum hij heeft. */
+  async restoreTask(task) {
+    const { entry } = await actions.track(t('completed.restored', { name: task.content }), () => actions.uncompleteTask(task.id));
+    const now = store.view.tasks.get(task.id);
+    undoToast(now?.due?.recurrence ? t('completed.restoredRecurring', { name: task.content, date: formatDue({ date: now.due.date }, todayString()) }) : t('completed.restored', { name: task.content }), entry);
+  },
+
+  /** Ctrl/Cmd+Z: de laatste wijziging ongedaan maken. */
+  async undoLast() {
+    const item = await actions.undoLast();
+    toast(item ? t('undo.done') : t('undo.nothing'));
+    selection?.announce(item ? t('undo.done') : t('undo.nothing'));
   },
 
   /** Een taak in een project dat je alleen leest: afvinken of wijzigen kan niet; dat zeggen we in plaats van niets te doen. */
   readOnlyNotice: () => toast(t('readonly.cannotComplete')),
 
   open(task) {
-    return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, saveTemplate: (x) => templatesUi().saveTask(x) });
+    return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, onUndoable: undoToast, saveTemplate: (x) => templatesUi().saveTask(x) });
   },
 
   /** Het venster "Taak toevoegen"; `target` zegt waar de taak standaard komt (project, sectie, of vandaag), anders het huidige scherm. */
@@ -229,13 +255,17 @@ const handlers = {
 
   async removeTask(task) {
     const ok = await confirmDialog({ title: t('task.deleteTitle'), text: t('task.deleteText', { name: task.content }) });
-    if (ok) await actions.deleteTask(task.id);
+    if (!ok) return;
+    const { entry } = await actions.track(task.content, () => actions.deleteTask(task.id));
+    undoToast(t('undo.taskDeleted', { name: task.content }), entry);
   },
 
   /** Een andere dag kiezen voor een taak, zonder het taakvenster. */
   async reschedule(task) {
     const picked = await pickDay({ today: todayString(), hasDue: Boolean(task.due) });
-    if (picked) await actions.updateTask(task.id, { due: reschedule(task.due, picked.date) });
+    if (!picked) return;
+    const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: reschedule(task.due, picked.date) }));
+    undoToast(picked.date ? t('undo.taskDated', { name: task.content, date: formatDue({ date: picked.date }, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
   },
 
   /** Lijst, bord of kalender voor een project; bewaard in het project zelf (`view_style`), dus ook op andere apparaten en voor de leden. */
@@ -255,8 +285,8 @@ const handlers = {
     });
     const target = targets.find((x) => x.id === choice);
     if (!target || target.current) return;
-    await actions.moveTask(task.id, { project_id: task.project_id, section_id: target.sectionId });
-    toast(t('board.moved', { name: task.content, column: target.name ?? t('board.noSection') }));
+    const { entry } = await actions.track(task.content, () => actions.moveTask(task.id, { project_id: task.project_id, section_id: target.sectionId }));
+    undoToast(t('board.moved', { name: task.content, column: target.name ?? t('board.noSection') }), entry);
   },
 
   /** Een taak toevoegen op een dag van de kalender; `target` zegt in welk project (leeg: de Inbox). */
@@ -314,6 +344,7 @@ const handlers = {
         edit && !isArchivedProject(store.view, project.id) && { value: 'taskTemplate', label: t('template.menu.insert') },
         { value: 'saveTemplate', label: t('template.menu.save') },
         edit && { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
+        { value: 'completed', label: t('project.completedMenu') },
         { value: 'activity', label: t('activity.menu') },
         { value: 'share', label: mine === 'owner' ? t('project.shareMenu') : t('project.members') },
         mine === 'owner' && !isArchivedProject(store.view, project.id) && { value: 'archive', label: t('project.archive') }, // een gearchiveerd project zet je terug (de balk bovenaan)
@@ -334,6 +365,8 @@ const handlers = {
       await templatesUi().saveProject(project);
     } else if (choice === 'favorite') {
       await actions.updateProject(project.id, { is_favorite: !project.is_favorite });
+    } else if (choice === 'completed') {
+      navigate({ type: 'completed', id: project.id });
     } else if (choice === 'archive') {
       await actions.archiveProject(project.id);
       navigate({ type: 'project', id: inboxId() });
@@ -374,7 +407,9 @@ const handlers = {
       if (name && name !== section.name) await actions.updateSection(section.id, { name });
     } else if (choice === 'delete') {
       const ok = await confirmDialog({ title: t('section.deleteTitle'), text: t('section.deleteText', { name: section.name }) });
-      if (ok) await actions.deleteSection(section.id);
+      if (!ok) return;
+      const { entry } = await actions.track(section.name, () => actions.deleteSection(section.id));
+      undoToast(t('undo.sectionDeleted', { name: section.name }), entry);
     }
   },
 
@@ -493,6 +528,7 @@ async function logout() {
     okText: t('account.signOut'),
   });
   if (!ok) return;
+  undo.clear(); // wat de volgende gebruiker niet mag kunnen terugdraaien
   events.stop();
   sync.stop();
   if (usesPush()) await pushClient.disable().catch(() => { /* de server ruimt een aanmelding zonder sessie ook zelf op */ });
@@ -625,7 +661,8 @@ async function boot() {
       if (s === 'unauthorized') askLogin();
     },
     onCommandErrors: (errors) => {
-      for (const e of errors) if (!quietCommandError(e)) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
+      // weigeringen van een bulkactie worden één melding (ui/selection.js); de rest krijgt zijn eigen melding
+      for (const e of selection ? selection.reportErrors(errors) : errors) if (!quietCommandError(e)) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
     },
   });
 
@@ -637,6 +674,7 @@ async function boot() {
       channel?.postMessage('changed');
       sync.requestSync();
     },
+    undo,
   });
 
   // Bijlagen: gekozen bestanden worden lokaal bewaard en geüpload zodra dat kan (core/attachments.js)
@@ -665,12 +703,14 @@ async function boot() {
   setInterval(invalidate, 60_000); // "te laat" en de datum van vandaag schuiven mee met de klok
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
+  selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
+  installCompleted({ store, handlers, getRoute: () => ui.route }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
-    content: $('content'), sidebar: $('sidebar'), actions,
+    content: $('content'), sidebar: $('sidebar'), actions, selection,
     getContext: () => ({ view: store.view, userId: store.userId, showCompleted: (projectId) => ui.showCompleted.has(projectId) }),
   });
   $('quick-add').addEventListener('submit', submitQuickAdd);
@@ -691,7 +731,10 @@ async function boot() {
   document.addEventListener('keydown', (e) => {
     if (e.defaultPrevented) return;
     if (e.key === 'Escape' && document.body.classList.contains('nav-open')) document.body.classList.remove('nav-open');
-    else if (shortcuts.handle(e)) e.preventDefault();
+    else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e.target) && !document.querySelector('dialog[open]') && store.ready) {
+      e.preventDefault(); // buiten invoervelden: de laatste wijziging ongedaan maken (in een invoerveld blijft het eigen "ongedaan maken" van de browser)
+      handlers.undoLast();
+    } else if (shortcuts.handle(e)) e.preventDefault();
   });
 
   attachments.init().catch(() => {});

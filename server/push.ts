@@ -292,7 +292,7 @@ export function createPush(cfg: PushConfig) {
         flushAgain = false;
         prune();
         const started = Date.now();
-        const queue = db.prepare('SELECT notification_id, user_id, created_at FROM notification_outbox ORDER BY created_at, notification_id LIMIT 200').all() as Row[];
+        const queue = db.prepare('SELECT notification_id, user_id, created_at FROM notification_outbox ORDER BY created_at, rowid LIMIT 200').all() as Row[]; // rowid: in de volgorde van aanmaken (meldingen uit één verzoek hebben hetzelfde tijdstip)
         for (const o of queue) {
           if (Date.now() - started > TICK_BUDGET_MS) break;
           const done = (): void => { db.prepare('DELETE FROM notification_outbox WHERE notification_id = ?').run(o.notification_id as string); };

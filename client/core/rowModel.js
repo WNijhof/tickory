@@ -6,6 +6,7 @@ import { formatDuration } from './duration.js';
 import { dueStatus, formatDate, formatDue } from './format.js';
 import { t } from './i18n.js';
 import { colorName } from './colors.js';
+import { completedTime } from './completed.js';
 
 /** Hoeveel tekens van de beschrijving onder de titel staan; CSS kapt daarna nog af op de breedte. */
 export const DESCRIPTION_CHARS = 160;
@@ -32,11 +33,11 @@ export function initials(name) {
  *   today: string, now: string,
  *   depth?: number, showProject?: boolean, hasChildren?: boolean, collapsed?: boolean,
  *   subtasks?: Map<string, { done: number, total: number }>, comments?: Map<string, number>, attachments?: Map<string, number>,
- *   reminder?: boolean, me?: { id: string, name?: string } | null, userName?: (id: string) => string | null,
+ *   reminder?: boolean, showCompletedAt?: boolean, me?: { id: string, name?: string } | null, userName?: (id: string) => string | null,
  *   readOnly?: boolean,   // de taak staat in een project dat je alleen leest (core/access.js): geen afvinken, slepen of snelle knoppen
  * }} ctx
  */
-export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, subtasks = new Map(), comments = new Map(), attachments = new Map(), reminder = false, me = null, userName = () => null, readOnly = false }) {
+export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, subtasks = new Map(), comments = new Map(), attachments = new Map(), reminder = false, me = null, userName = () => null, showCompletedAt = false, readOnly = false }) {
   const sub = subtasks.get(task.id);
   const labels = [];
   for (const id of task.labels ?? []) {
@@ -72,6 +73,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
     attachments: attachments.get(task.id) ? { count: attachments.get(task.id), label: t('task.attachmentsLabel', { count: attachments.get(task.id) }) } : null,
     labels,
     bell: Boolean(reminder),
+    ...(showCompletedAt && task.completed_at ? { completedAt: t('completed.at', { time: completedTime(task.completed_at) }) } : {}),
     assignee,
     project,
     ...(readOnly ? { readOnly: true } : {}),

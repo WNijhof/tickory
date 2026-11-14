@@ -1,0 +1,49 @@
+<!--
+title: Selecting several tasks
+description: Pick several tasks at once and change them together: with Ctrl click, Shift click, the Select button, the keyboard and on a phone; complete, move, set a date, priority, labels, assign and delete in one go, with undo.
+-->
+<h1>Selecting several tasks</h1>
+<p class="intro">Move a pile of tasks to tomorrow, bring a whole row to another project or tick off ten tasks at once: pick them, and do it in one go. It works in the list, on the board, in the calendar and in Today, Upcoming, <a href="completed.html">Completed</a>, filters and labels.</p>
+
+<x-shot name="selecteren" alt="The Household project as a list in selection mode: every task has a box, three tasks are picked (Weekmenu maken, Lamp in de gang vervangen and Kamer opruimen) and at the top of the list is the bar saying 3 tasks selected with the buttons Complete, Move, Date, Priority, Labels, Assign and Delete.">Three tasks picked: the bar at the top shows what you can do with them.</x-shot>
+
+<h2 id="picking">Picking tasks</h2>
+<ul>
+  <li><strong>With the <x-ui k="bulk.select"></x-ui> button</strong> (a tick-box icon next to the buttons at the top right; the name is in its tooltip). Every task then gets a box on the left; tick the tasks you want. The circle still completes a task. While you are picking, a click on the row itself picks it too (the task window does not open). <x-ui k="bulk.selectDone"></x-ui> stops.</li>
+  <li><strong>Ctrl click</strong> (<kbd>Cmd</kbd> click on a Mac) on a task picks it or lets it go, without the button. <strong>Shift click</strong> picks everything from the previously picked task to the one you click, also upwards.</li>
+  <li><strong>With the keyboard:</strong> <kbd>x</kbd> picks the task under the pointer, or the one with focus if you last moved with <kbd>Tab</kbd>. Once you are picking, <kbd>Space</kbd> does the same. <kbd>Ctrl</kbd>+<kbd>A</kbd> picks all tasks in view and <kbd>Esc</kbd> stops. In an input field these keys do nothing.</li>
+  <li><strong>On a phone:</strong> press and hold a task. It is picked and the bar appears at the bottom; a tap then picks more. If you keep moving after the long press, you drag the task instead of picking it (see <a href="#dragging">Dragging</a>).</li>
+</ul>
+<p>The bar shows how many tasks are picked; a screen reader reads that out, and <em>All selected</em> after <kbd>Ctrl</kbd>+<kbd>A</kbd>. <x-ui k="bulk.selectAll"></x-ui> in the bar does the same as that key. Going to another screen clears the picks, and a task that disappears (for example because someone else deletes it) drops out by itself. Tasks that are not in view do not take part: a collapsed section, or a subtask behind a closed arrow, is not picked.</p>
+
+<h2 id="the-bar">What you can do with them</h2>
+<p>On a computer the bar is at the top of the list; on a phone it sits fixed at the bottom of the screen. A button is grey while nothing is picked.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Button</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><x-ui k="bulk.complete"></x-ui> / <x-ui k="bulk.reopen"></x-ui></td><td class="wrap-ok">Completes the open tasks, or reopens the completed ones. A repeating task moves on to its next date, just as with one task. A subtask goes along with her task.</td></tr>
+      <tr><td><x-ui k="bulk.move"></x-ui></td><td class="wrap-ok">A window with all your projects and their sections; type to search. The tasks go to the end of the chosen project or section, in the same order as in the list. Subtasks go along with their task; a subtask that you pick on her own becomes an ordinary task in the target. If a task is already there it stays, and the message says so.</td></tr>
+      <tr><td><x-ui k="bulk.date"></x-ui></td><td class="wrap-ok"><x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui>, <x-ui k="task.quickNone"></x-ui> or a date of your own. The time and the repeat of each task stay as they were.</td></tr>
+      <tr><td><x-ui k="bulk.priority"></x-ui></td><td class="wrap-ok">All picked tasks get P1 to P4.</td></tr>
+      <tr><td><x-ui k="bulk.labels"></x-ui></td><td class="wrap-ok">A list of your labels, each with a box: ticking adds the label to all picked tasks, unticking removes it; a label that is on part of the tasks stays as it is until you tick or untick it. Type a new label by name (several, separated by commas).</td></tr>
+      <tr><td><x-ui k="bulk.assign"></x-ui></td><td class="wrap-ok">Only when a shared project is involved. Choose a member, or nobody. A task in a project that person is not a member of is skipped (the message names it) and the rest goes ahead.</td></tr>
+      <tr><td><x-ui k="bulk.delete"></x-ui></td><td class="wrap-ok">First a question with the number of tasks and subtasks. Afterwards you can still <a href="undo.html">undo</a> it for a few minutes.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="permissions">Permissions and what does not work</h2>
+<p>Every action is simply a series of the same changes as for one task, with the same rules: you can only do what you could do with a single task. Everything goes to the server in one go (and waits patiently if you are offline), and you see the result straight away.</p>
+<p>If the server refuses part of it, for example because a colleague deleted a task in the meantime, you get <strong>one message</strong>: how many of how many did not work, which tasks they were and why. The rest did work.</p>
+
+<h2 id="dragging">Dragging and selecting</h2>
+<p>Dragging and picking work side by side: with the mouse, dragging only starts after a few millimetres of movement, and a click stays a click. If you drag a <strong>picked</strong> task while more are picked, <strong>all picked tasks go along together</strong>, in the order of the list, to where you let go (a section, a project in the sidebar, a column on the board, or a day in the calendar). A counter on the dragged row says how many there are. If you drag a task that is not picked, you move only that one.</p>
+<p>Dragging together works for up to 100 tasks and only if they all fit in that place. If you let go on one of the picked tasks themselves or a subtask of one, or if there are more than 100, only the task you were holding moves and a message says why; the rest stays picked and goes in one go with <x-ui k="bulk.move"></x-ui>.</p>
+
+<h2>What it cannot do yet</h2>
+<ul>
+  <li>Pick all tasks of a project that are not in view (for example behind a collapsed section): expand first.</li>
+  <li>Set reminders, deadlines or a duration for several tasks at once, or give them a comment together.</li>
+  <li>Keep a selection or take it from one screen to another.</li>
+</ul>

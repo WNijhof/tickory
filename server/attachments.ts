@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import { DEFAULT_MIME, effectiveMime, isInlineMime, normalizeMime } from '../shared/attachments.js';
 import { canEditRole } from '../shared/roles.js';
 import { ID_RE } from './schema.ts';
-import { LIMITS } from './limits.ts';
+import { LIMITS, RESTORE } from './limits.ts';
 import { SyncError } from './rows.ts';
 import type { Row } from './rows.ts';
 
@@ -36,6 +36,8 @@ export interface AttachmentOptions {
   quotaBytes: number;
   /** Hoe lang een upload zonder bijlage mag blijven staan (standaard een uur). */
   orphanMs?: number;
+  /** Hoe lang de bestanden van bijlagen bij een zojuist verwijderde taak blijven staan (standaard de termijn om terug te zetten plus een marge); 0 = meteen weg. */
+  restoreGraceMs?: number;
   /** Hoe lang een upload mag stilvallen voordat hij wordt afgebroken (standaard 20 seconden). */
   idleMs?: number;
   /** De traagste snelheid die we nog accepteren, in bytes per seconde (standaard 16 KiB/s): bepaalt de totale tijd voor een upload. */
@@ -89,6 +91,7 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
   const tmpDir = join(dir, 'tmp');
   const now = options.now ?? Date.now;
   const orphanMs = options.orphanMs ?? 60 * 60 * 1000;
+  const restoreGraceMs = (): number => options.restoreGraceMs ?? RESTORE.windowMs + RESTORE.graceMs;
   const idleMs = options.idleMs ?? 20_000;
   const minRate = options.minBytesPerSecond ?? 16 * 1024;
   mkdirSync(tmpDir, { recursive: true });
@@ -321,23 +324,34 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
     /**
      * Ruimt op wat bij verwijderde bijlagen hoort: het bestand, de rij met het bestand, en de inhoud van de verwijderde rij zelf
      * (alleen het id blijft, zoals bij alle verwijderde rijen). Houdt een versienummer bij zodat elke ronde alleen nieuw werk ziet.
+     * Een bijlage van een taak die zojuist is verwijderd (nog binnen de termijn om terug te zetten) blijft nog even staan: een
+     * teruggezette taak (`task_restore`) heeft dan zijn bijlagen nog. De eerstvolgende ronde na die termijn ruimt ze alsnog op.
      */
     purgeDeleted(): number {
       const mark = Number((db.prepare("SELECT value FROM meta WHERE key = 'attachments_purged_rev'").get() as Row | undefined)?.value ?? 0);
       const rev = Number((db.prepare("SELECT value FROM meta WHERE key = 'rev'").get() as Row).value);
       if (rev <= mark) return 0;
-      const gone = db.prepare('SELECT id FROM attachments WHERE is_deleted = 1 AND rev > ?').all(mark) as Row[];
+      const cutoff = new Date(now() - restoreGraceMs()).toISOString();
+      const gone = db.prepare(
+        `SELECT a.id, a.rev, t.is_deleted AS task_deleted, t.updated_at AS task_at FROM attachments a LEFT JOIN tasks t ON t.id = a.task_id
+         WHERE a.is_deleted = 1 AND a.rev > ? AND a.name <> ''`).all(mark) as Row[];
       let n = 0;
-      for (const { id } of gone) {
-        const f = db.prepare('SELECT key FROM attachment_files WHERE id = ?').get(id as string) as Row | undefined;
+      let waiting: number | null = null; // het laagste versienummer dat nog moet wachten
+      for (const a of gone) {
+        if (a.task_deleted === 1 && (a.task_at as string) > cutoff) {
+          waiting = waiting === null ? Number(a.rev) : Math.min(waiting, Number(a.rev));
+          continue;
+        }
+        const id = a.id as string;
+        const f = db.prepare('SELECT key FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
         if (f) {
           removeFile(f.key as string);
-          db.prepare('DELETE FROM attachment_files WHERE id = ?').run(id as string);
+          db.prepare('DELETE FROM attachment_files WHERE id = ?').run(id);
           n += 1;
         }
-        db.prepare("UPDATE attachments SET name = '', mime = '', sha256 = '', size = 0 WHERE id = ? AND is_deleted = 1").run(id as string);
+        db.prepare("UPDATE attachments SET name = '', mime = '', sha256 = '', size = 0 WHERE id = ? AND is_deleted = 1").run(id);
       }
-      db.prepare("INSERT INTO meta (key, value) VALUES ('attachments_purged_rev', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(rev));
+      db.prepare("INSERT INTO meta (key, value) VALUES ('attachments_purged_rev', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(waiting === null ? rev : waiting - 1));
       return n;
     },
 
@@ -379,9 +393,13 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       let rowsRemoved = 0;
       let missing = 0;
       const rows = db.prepare(
-        `SELECT f.id, f.key, f.linked, a.id AS attachment, a.is_deleted FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id`).all() as Row[];
+        `SELECT f.id, f.key, f.linked, a.id AS attachment, a.is_deleted, t.is_deleted AS task_deleted, t.updated_at AS task_at
+         FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN tasks t ON t.id = a.task_id`).all() as Row[];
+      const cutoff = new Date(now() - restoreGraceMs()).toISOString();
       for (const r of rows) {
-        const orphanRow = r.linked === 1 ? r.attachment === null || r.is_deleted === 1 : false;
+        // een verwijderde bijlage van een zojuist verwijderde taak blijft nog even (zie purgeDeleted)
+        const recent = r.is_deleted === 1 && r.task_deleted === 1 && (r.task_at as string) > cutoff;
+        const orphanRow = r.linked === 1 ? r.attachment === null || (r.is_deleted === 1 && !recent) : false;
         const hasFile = existsSync(pathOf(r.key as string));
         if (orphanRow || (!hasFile && r.linked === 0)) {
           removeFile(r.key as string);

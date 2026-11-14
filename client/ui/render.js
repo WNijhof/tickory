@@ -150,6 +150,13 @@ function buildRow(m, variant = '') {
     li.dataset.readonly = 'true';
   }
 
+  // het vakje om te selecteren (ui/selection.js); alleen zichtbaar tijdens het selecteren, zie bulk.css
+  const selBox = rowButton('sel-box', 'select');
+  selBox.setAttribute('role', 'checkbox');
+  selBox.setAttribute('aria-checked', 'false');
+  selBox.setAttribute('aria-label', t('bulk.rowLabel', { name: m.content }));
+  selBox.dataset.fk = `sel:${m.id}`;
+
   const check = rowButton('check', 'check');
   check.dataset.fk = `check:${m.id}`;
   check.setAttribute('aria-pressed', String(m.done));
@@ -204,6 +211,7 @@ function buildRow(m, variant = '') {
     bell.setAttribute('aria-label', t('reminder.bell'));
     chips.push(bell);
   }
+  if (m.completedAt) chips.push(chip('chip-completed', icon('check'), m.completedAt));
   if (m.assignee) {
     const who = chip(`chip-assignee${m.assignee.mine ? ' chip-mine' : ''}`, m.assignee.text);
     who.title = m.assignee.title;
@@ -213,9 +221,16 @@ function buildRow(m, variant = '') {
 
   const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
   body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
-  li.append(check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
+  li.append(selBox, check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
   if (!m.readOnly) li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
   if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
+  if (variant === 'completed' && !m.readOnly) {
+    // in het overzicht Voltooid: een duidelijke knop om de taak terug te zetten (ui/completed.js)
+    const back = rowButton('completed-restore', 'restore', t('completed.restore'));
+    back.dataset.fk = `restore:${m.id}`;
+    back.setAttribute('aria-label', t('completed.restoreLabel', { name: m.content }));
+    li.append(back);
+  }
   if (card && !m.readOnly) {
     // Op een telefoon verdwijnen de snelle knoppen (er is geen aanwijzer); dit menu blijft dus altijd zichtbaar.
     const move = rowButton('icon-button card-move', 'move', icon('move'));
@@ -280,7 +295,8 @@ export function bindList(container, handlers) {
       setTimeout(() => handlers.toggle(rowCache.get(li.dataset.id)?.task ?? task), 280);
       return;
     }
-    if (act === 'label') handlers.openLabel?.(control.dataset.label);
+    if (act === 'restore') handlers.restoreTask?.(task);
+    else if (act === 'label') handlers.openLabel?.(control.dataset.label);
     else if (act === 'fold') handlers.toggleTask(task);
     else if (act === 'move') handlers.moveCard(task);
     else if (act === 'date') handlers.reschedule(task);
@@ -298,7 +314,7 @@ export function bindList(container, handlers) {
 /** Zet getekende regels in een lijst en bewaart ze voor de volgende keer. `pool` verzamelt wat nu in gebruik is. */
 function rowsOf(list, pool, ctx) {
   return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
-    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id), readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
+    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id), showCompletedAt: ctx.variant === 'completed', readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
     const json = ctx.variant ? `${ctx.variant}|${JSON.stringify(model)}` : JSON.stringify(model);
     if (pool.has(task.id)) return buildRow(model, ctx.variant); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
     let entry = rowCache.get(task.id);

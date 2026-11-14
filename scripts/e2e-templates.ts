@@ -99,7 +99,7 @@ export async function templatesScenario(c: any) {
   assert.equal(await evaluate(`document.querySelectorAll('.group-title').length`), 5, 'de vijf secties staan in beeld');
   await shot('sjablonen-project-gemaakt');
   // ongedaan maken verwijdert het project weer
-  await evaluate(`[...document.querySelectorAll('.toast-action')].find((b) => b.textContent === 'Ongedaan maken').click()`);
+  await evaluate(`[...document.querySelectorAll('.toast')].filter((x) => x.querySelector('.toast-action')?.textContent === 'Ongedaan maken').at(-1).querySelector('.toast-action').click()`); // de nieuwste: eerdere stappen kunnen ook een melding met Ongedaan maken hebben
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectNamed('Verhuizing naar Zwolle'), undefined, 'ongedaan maken haalt het project weg');
   step('Sjablonen: Verhuizen met een startdatum maakt in één keer het project met vijf secties en 16 taken (datums vanaf de startdatum, prioriteit, subtaken), opent het project, en Ongedaan maken verwijdert het weer');
@@ -197,7 +197,7 @@ export async function templatesScenario(c: any) {
   assert.equal(gift.find((x) => x.content === 'Cadeau regelen').parent_id, null);
   assert.ok((await toastText()).includes('Sjabloon "Cadeau regelen" toegevoegd: 5 taken.'));
   const inboxBefore = tasksIn(inbox.id).length;
-  await evaluate(`[...document.querySelectorAll('.toast-action')].find((b) => b.textContent === 'Ongedaan maken').click()`);
+  await evaluate(`[...document.querySelectorAll('.toast')].filter((x) => x.querySelector('.toast-action')?.textContent === 'Ongedaan maken').at(-1).querySelector('.toast-action').click()`); // de nieuwste: eerdere stappen kunnen ook een melding met Ongedaan maken hebben
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(tasksIn(inbox.id).length, inboxBefore - 5, 'ongedaan maken haalt de ingevoegde taken weer weg, en alleen die');
   step('Sjablonen: vanuit Taak toevoegen opent "Taak uit sjabloon…" alleen de taaksjablonen; de taken met subtaken en relatieve datums komen in het gekozen project');
