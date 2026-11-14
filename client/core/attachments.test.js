@@ -23,13 +23,13 @@ let counter = 0;
 const nextId = () => `bijl${String(++counter).padStart(10, '0')}`;
 
 /** Een server met één gebruiker, en een client die daarmee praat; `net` bestuurt de verbinding. */
-function setup({ limits = {}, extraUsers = [] } = {}) {
+function setup({ limits = {}, extraUsers = [], managerOptions = {} } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'tickory-att-client-'));
   const db = freshDb();
   const alice = addUser(db, 'alice', 'Alice');
   const others = Object.fromEntries(extraUsers.map((n) => [n, addUser(db, n, n)]));
   const attachments = createAttachments(db, { dir, maxUploadBytes: 100_000, quotaBytes: 1_000_000, ...limits });
-  const net = { online: true, auth: true, uploads: 0, failWith: null, onUpload: null };
+  const net = { online: true, auth: true, uploads: 0, calls: 0, downloads: 0, failWith: null, onUpload: null, onUploaded: null };
   const transport = async (body) => {
     if (!net.online) throw new TypeError('fetch failed');
     const res = handleSync(db, JSON.parse(JSON.stringify(body)), alice.id);
@@ -39,6 +39,7 @@ function setup({ limits = {}, extraUsers = [] } = {}) {
   const api = {
     limits: async () => ({ max_upload_bytes: attachments.maxUploadBytes, quota_bytes: attachments.quotaBytes, used_bytes: 0, per_task: 20 }),
     upload: async ({ id, taskId, blob, mime, signal, onProgress }) => {
+      net.calls += 1; // elke aanroep, ook als hij meteen mislukt
       if (!net.online) throw new AttachmentError('geen verbinding', { retryable: true });
       if (!net.auth) throw new AuthError();
       net.uploads += 1;
@@ -51,6 +52,7 @@ function setup({ limits = {}, extraUsers = [] } = {}) {
       try {
         const out = await attachments.upload(req, alice.id, { id, taskId });
         onProgress(1);
+        await net.onUploaded?.({ id });
         return out;
       } catch (err) {
         if (err instanceof SyncError) throw new AttachmentError(err.message, { code: err.code, status: 400 });
@@ -58,6 +60,7 @@ function setup({ limits = {}, extraUsers = [] } = {}) {
       }
     },
     download: async (id) => {
+      net.downloads += 1;
       const chunks = [];
       const res = Object.assign(new (await import('node:stream')).Writable({ write: (c, _e, cb) => { chunks.push(c); cb(); } }), { writeHead() { return this; } });
       await attachments.download({ headers: {}, method: 'GET' }, res, alice.id, id, false);
@@ -72,7 +75,7 @@ function setup({ limits = {}, extraUsers = [] } = {}) {
   let now = 1_000_000;
   const timers = { fired: [], setTimeout: (fn, ms) => { timers.fired.push({ fn, ms }); return timers.fired.length; }, clearTimeout: () => {} };
   const manager = createAttachmentManager({
-    store, actions, api, files, getToken: () => (net.auth ? 'token' : null), makeId: nextId, online: () => net.online, timers, now: () => now,
+    store, actions, api, files, getToken: () => (net.auth ? 'token' : null), makeId: nextId, online: () => net.online, timers, now: () => now, ...managerOptions,
   });
   return {
     dir, db, alice, others, attachments, net, store, sync, actions, files, manager, timers,
@@ -232,15 +235,17 @@ test('weghalen tijdens het uploaden breekt de upload af en voegt geen bijlage to
     const taskId = await withTask(c);
     await c.sync.syncNow();
     let calls = 0;
+    let aborted = null;
     c.net.onUpload = async ({ id, signal }) => {
       calls += 1;
       if (calls !== 1) return;
       await c.manager.discard(id);
-      assert.equal(signal.aborted, true);
+      aborted = signal.aborted;
     };
     await c.manager.stage(taskId, [file('eerste.txt', 'a'), file('tweede.txt', 'b')]);
     await c.manager.idle();
     await c.sync.syncNow();
+    assert.equal(aborted, true, 'de lopende upload is afgebroken');
     assert.deepEqual(serverAttachments(c).map((r) => r.name), ['tweede.txt']);
   } finally { c.close(); }
 });
@@ -397,6 +402,10 @@ test('de client rekent bijlagen net als de server: toevoegen, verwijderen (maker
     assert.equal(denied.error_code, 'FORBIDDEN');
     assert.ok(states.bob.attachments.has('bijlage-alice-1'), 'de client houdt de bijlage ook, zoals de server');
     assert.equal(run('alice', 'attachment_delete', { id: 'bijlage-bob-001' }), 'ok');
+    same('alice'); // de eigenaar van het project mag ook wat een ander toevoegde verwijderen: de client rekent dat net zo
+    assert.equal(add('bob', 'bijlage-bob-002'), 'ok');
+    assert.equal(run('bob', 'attachment_delete', { id: 'bijlage-bob-002' }), 'ok'); // de maker verwijdert zijn eigen bijlage
+    same('bob');
     assert.equal(run('bob', 'attachment_delete', { id: 'bijlage-alice-1' }).error_code, 'FORBIDDEN');
     assert.equal(run('alice', 'attachment_delete', { id: 'bijlage-alice-1' }), 'ok');
     same('alice');
@@ -419,4 +428,193 @@ test('de client rekent bijlagen net als de server: toevoegen, verwijderen (maker
     assert.equal(twentyFirst.error_code, 'LIMIT_REACHED');
     same('alice');
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+// ---------- aanvullingen na een mutatietest ----------
+
+test('wat al als bijlage bij de taak staat telt mee voor de grens van 20, en het type wordt in kleine letters bewaard', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    for (let i = 0; i < 19; i++) await c.actions.addAttachment({ taskId, name: `oud${i}.txt`, uploaded: { id: `oud-bijlage-${String(i).padStart(4, '0')}`, size: 1, sha256: 'a'.repeat(64), mime: 'text/plain' } });
+    assert.equal(c.store.view.attachments.size, 19);
+    const { added, rejected } = await c.manager.stage(taskId, [new File(['x'], 'een.png', { type: 'IMAGE/PNG' }), file('twee.txt')]);
+    assert.equal(added.length, 1);
+    assert.deepEqual(rejected.map((r) => [r.name, r.reason, r.max]), [['twee.txt', 'tooMany', 20]]);
+    assert.equal(c.manager.pendingFor(taskId)[0].mime, 'image/png');
+  } finally { c.close(); }
+});
+
+test('een mislukt bestand blijft ook na opnieuw openen mislukt (en wordt niet vanzelf nog eens geprobeerd)', async () => {
+  const c = setup({ limits: { quotaBytes: 10 } });
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    await c.manager.stage(taskId, [file('groot.txt', 'meer dan tien bytes')]);
+    await c.manager.idle();
+    assert.equal(c.net.uploads, 1);
+    assert.equal((await c.files.list())[0].status, 'failed');
+    await c.manager.init(); // "de app wordt opnieuw geopend"
+    await c.manager.idle();
+    assert.equal(c.manager.pendingFor(taskId)[0].status, 'failed');
+    assert.equal(c.net.calls, 1, 'er is niet nog eens geprobeerd');
+  } finally { c.close(); }
+});
+
+test('een bestand dat tijdens het versturen wordt weggehaald, wordt na het uploaden geen bijlage', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    c.net.onUploaded = async ({ id }) => { await c.manager.discard(id); }; // de upload is klaar, het commando nog niet gemaakt
+    await c.manager.stage(taskId, [file('weg.txt', 'inhoud')]);
+    await c.manager.idle();
+    await c.sync.syncNow();
+    assert.equal(serverAttachments(c).length, 0);
+    assert.equal(c.store.view.attachments.size, 0);
+  } finally { c.close(); }
+});
+
+test('geen toegang meer (401) tijdens het uploaden: het bestand blijft wachten en de rest ook; er wordt niets als mislukt aangemerkt', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    c.net.failWith = new AuthError();
+    await c.manager.stage(taskId, [file('een.txt'), file('twee.txt')]);
+    await c.manager.idle();
+    assert.equal(c.net.uploads, 1, 'na de eerste weigering wordt er niet doorgegaan');
+    assert.deepEqual(c.manager.pendingFor(taskId).map((p) => p.status), ['waiting', 'waiting']);
+    assert.equal(c.timers.fired.length, 0, 'en er wordt geen herhaling ingepland: eerst opnieuw inloggen');
+  } finally { c.close(); }
+});
+
+test('zonder token of zonder verbinding wordt er niets geprobeerd (ook niet om te zien of het lukt)', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    c.net.auth = false;
+    await c.manager.stage(taskId, [file('een.txt')]);
+    await c.manager.idle();
+    assert.equal(c.net.calls, 0, 'geen token');
+    c.net.auth = true;
+    c.net.online = false;
+    await c.manager.process();
+    assert.equal(c.net.calls, 0, 'geen verbinding');
+  } finally { c.close(); }
+});
+
+test('een bestand dat halverwege het uploaden was toen de app sloot, staat na openen weer te wachten', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    c.net.online = false;
+    await c.manager.stage(taskId, [file('een.txt')]);
+    const [rec] = await c.files.list();
+    await c.files.put({ ...rec, status: 'uploading' }); // zo bleef het achter
+    await c.manager.init();
+    assert.equal(c.manager.pendingFor(taskId)[0].status, 'waiting');
+  } finally { c.close(); }
+});
+
+test('afmelden of weghalen breekt een lopende upload af', async () => {
+  for (const how of ['clear', 'discard']) {
+    const c = setup();
+    try {
+      const taskId = await withTask(c);
+      await c.sync.syncNow();
+      let signal = null;
+      let release;
+      const gate = new Promise((r) => { release = r; });
+      c.net.onUpload = async (info) => { signal = info.signal; await gate; };
+      const { added } = await c.manager.stage(taskId, [file('een.txt')]);
+      for (let i = 0; i < 50 && !signal; i++) await new Promise((r) => setTimeout(r, 10));
+      assert.ok(signal, `${how}: de upload is begonnen`);
+      if (how === 'clear') await c.manager.clear();
+      else await c.manager.discard(added[0]);
+      assert.equal(signal.aborted, true, how);
+      release();
+      await c.manager.idle();
+      assert.equal(c.manager.pendingFor(taskId).length, 0);
+    } finally { c.close(); }
+  }
+});
+
+test('opnieuw proberen telt direct, ook midden in een wachttijd; een bestand dat nu uploadt, wordt niet nog eens gestart', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    c.net.failWith = new AttachmentError('geen verbinding', { retryable: true });
+    const { added } = await c.manager.stage(taskId, [file('een.txt')]);
+    await c.manager.idle();
+    assert.equal(c.net.uploads, 1);
+    assert.ok(c.timers.fired.length > 0, 'er staat een herhaling in de wachttijd');
+    c.net.failWith = null;
+    await c.manager.retry(added[0]); // zonder te wachten
+    await c.manager.idle();
+    assert.equal(c.net.uploads, 2);
+    assert.equal(c.manager.pendingFor(taskId).length, 0);
+
+    // een upload die loopt: opnieuw proberen doet niets extra
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    c.net.onUpload = async () => { await gate; };
+    const second = await c.manager.stage(taskId, [file('twee.txt')]);
+    for (let i = 0; i < 50 && c.net.uploads < 3; i++) await new Promise((r) => setTimeout(r, 10));
+    await c.manager.retry(second.added[0]);
+    release();
+    await c.manager.idle();
+    assert.equal(c.net.uploads, 3, 'niet twee keer tegelijk hetzelfde bestand');
+  } finally { c.close(); }
+});
+
+test('een opgehaalde bijlage blijft in het geheugen (niet steeds opnieuw ophalen) maar nooit meer dan de grens', async () => {
+  const c = setup({ managerOptions: { maxCacheBytes: 1500 } });
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    await c.manager.stage(taskId, [file('een.txt', 'a'.repeat(700)), file('twee.txt', 'b'.repeat(700)), file('drie.txt', 'c'.repeat(700))]);
+    await c.manager.idle();
+    await c.sync.syncNow();
+    const rows = serverAttachments(c);
+    const idOf = (name) => rows.find((r) => r.name === name).id;
+    // na het uploaden staan de laatste twee (samen 1400 bytes) in het geheugen; de eerste moest eruit voor de grens van 1500
+    c.net.downloads = 0;
+    await c.manager.fetchBlob(idOf('drie.txt'));
+    await c.manager.fetchBlob(idOf('twee.txt'));
+    assert.equal(c.net.downloads, 0, 'de laatste twee zijn er nog');
+    await c.manager.fetchBlob(idOf('een.txt'));
+    assert.equal(c.net.downloads, 1, 'de eerste moest worden opgehaald');
+    await c.manager.fetchBlob(idOf('een.txt'));
+    assert.equal(c.net.downloads, 1, 'en staat nu in het geheugen');
+    await c.manager.fetchBlob(idOf('twee.txt'));
+    assert.equal(c.net.downloads, 2, 'daarvoor ging de oudste eruit, want meer dan 1500 bytes past niet');
+  } finally { c.close(); }
+});
+
+test('de client weigert een bijlage bij een taak die er niet is, en laat de maker of de eigenaar verwijderen', () => {
+  const state = emptyState();
+  const now = '2026-11-13T10:00:00Z';
+  applyCommand(state, { type: 'attachment_add', args: { id: 'bijlage-zonder-taak', task_id: 'taak-bestaat-niet-1', name: 'a.txt', size: 1, mime: 'text/plain', sha256: 'a'.repeat(64) } }, now, 'user-alice');
+  assert.equal(state.attachments.size, 0, 'zoals de server (NOT_FOUND)');
+  applyCommand(state, { type: 'project_add', args: { id: 'project-een-0001', name: 'P' } }, now, 'user-alice');
+  applyCommand(state, { type: 'task_add', args: { id: 'taak-een-00001', project_id: 'project-een-0001', content: 'T' } }, now, 'user-alice');
+  state.members.set('m-bob', { id: 'm-bob', project_id: 'project-een-0001', user_id: 'user-bob', role: 'member' });
+  const add = (id, as) => applyCommand(state, { type: 'attachment_add', args: { id, task_id: 'taak-een-00001', name: 'a.txt', size: 1, mime: 'text/plain', sha256: 'a'.repeat(64) } }, now, as);
+  add('bijlage-van-alice-1', 'user-alice');
+  add('bijlage-van-bob-001', 'user-bob');
+  const del = (id, as) => applyCommand(state, { type: 'attachment_delete', args: { id } }, now, as);
+  del('bijlage-van-alice-1', 'user-bob'); // een ander lid: niet
+  assert.ok(state.attachments.has('bijlage-van-alice-1'));
+  del('bijlage-van-bob-001', 'user-bob'); // de maker: ook als hij niet de eigenaar is
+  assert.ok(!state.attachments.has('bijlage-van-bob-001'));
+  add('bijlage-van-bob-002', 'user-bob');
+  del('bijlage-van-bob-002', 'user-alice'); // de eigenaar van het project
+  assert.ok(!state.attachments.has('bijlage-van-bob-002'));
+  del('bijlage-van-alice-1', 'user-alice');
+  assert.equal(state.attachments.size, 0);
 });

@@ -145,3 +145,11 @@ test('extensionOf en formatBytes', () => {
   assert.equal(formatBytes(2_400_000, 'nl'), '2,4 MB');
   assert.equal(formatBytes(150_000, 'nl'), '150 kB');
 });
+
+test('een uitgang van een paar tekens blijft bij het inkorten, een lange "uitgang" is geen uitgang', () => {
+  const withExt = cleanFileName(`${'a'.repeat(300)}.${'b'.repeat(12)}`);
+  assert.equal([...withExt].length, MAX_NAME_LENGTH);
+  assert.ok(withExt.endsWith(`.${'b'.repeat(12)}`));
+  const notExt = cleanFileName(`${'a'.repeat(300)}.${'b'.repeat(50)}`);
+  assert.equal(notExt, 'a'.repeat(MAX_NAME_LENGTH), 'na een punt van 50 tekens: gewoon afgekapt');
+});

@@ -281,9 +281,9 @@ export function createAttachmentManager({
         };
         try {
           await save(rec);
-        } catch (err) {
+        } catch {
           records.delete(rec.id);
-          rejected.push({ name, reason: err?.name === 'QuotaExceededError' ? 'storageFull' : 'storageFull' });
+          rejected.push({ name, reason: 'storageFull' }); // vol, of de opslag werkt niet (privévenster): in beide gevallen kan het hier niet bewaard worden
           continue;
         }
         added.push(rec.id);

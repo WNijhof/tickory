@@ -750,7 +750,6 @@ export default {
   'attachment.retry': 'Opnieuw proberen',
   'attachment.discard': 'Weghalen',
   'attachment.discardLabel': 'Bestand {name} weghalen',
-  'attachment.staged': { one: '{count} bestand wordt toegevoegd', other: '{count} bestanden worden toegevoegd' },
   'attachment.rejected.empty': '“{name}” is leeg en is niet toegevoegd.',
   'attachment.rejected.tooLarge': '“{name}” is te groot en is niet toegevoegd (maximaal {max}).',
   'attachment.rejected.tooMany': 'Een taak kan hooguit {max} bijlagen hebben; “{name}” is niet toegevoegd.',

@@ -753,7 +753,6 @@ export default {
   'attachment.retry': 'Try again',
   'attachment.discard': 'Remove',
   'attachment.discardLabel': 'Remove file {name}',
-  'attachment.staged': { one: '{count} file is being added', other: '{count} files are being added' },
   'attachment.rejected.empty': '“{name}” is empty and was not added.',
   'attachment.rejected.tooLarge': '“{name}” is too large and was not added (maximum {max}).',
   'attachment.rejected.tooMany': 'A task can have at most {max} attachments; “{name}” was not added.',

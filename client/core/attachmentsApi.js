@@ -26,7 +26,7 @@ function failure(status, body) {
   if (status === 401) return new AuthError();
   const code = typeof body?.error_code === 'string' ? body.error_code : 'HTTP';
   const message = typeof body?.error === 'string' ? body.error : `HTTP ${status}`;
-  const retryable = status >= 500 && status !== 507 || status === 408 || status === 429;
+  const retryable = (status >= 500 && status !== 507) || status === 408 || status === 429;
   return new AttachmentError(message, { status, code, retryable });
 }
 

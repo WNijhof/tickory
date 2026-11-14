@@ -11,7 +11,7 @@ import { getLanguage, t } from '../core/i18n.js';
 import { attachmentsOf, roleIn } from '../core/selectors.js';
 import { timeAgo } from '../core/timeAgo.js';
 import { shrinkImage } from '../core/imageResize.js';
-import { confirmDialog, h, iconButton, openDialog, replace, toast } from './dom.js';
+import { confirmDialog, h, iconButton, openDialog, replace } from './dom.js';
 import { icon } from './icons.js';
 
 const SHRINK_KEY = 'tickory.shrinkPhotos';
@@ -243,9 +243,4 @@ export function attachmentsSection({ task, store, actions }) {
       urls.clear();
     },
   };
-}
-
-/** Een korte melding dat er bijlagen zijn toegevoegd (voor wie bestanden van buiten de app aanbiedt, zoals "Delen naar Tickory"). */
-export function announceStaged(count) {
-  toast(t('attachment.staged', { count }));
 }
