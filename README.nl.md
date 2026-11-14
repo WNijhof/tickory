@@ -141,6 +141,16 @@ Een eigen app (Kotlin, in [`android/`](android/README.md)) die de web-app van je
 
 Meer in de handleiding: [de Android-app](https://wnijhof.github.io/tickory/nl/handleiding/android-app.html).
 
+### De browserextensie
+
+"Tickory: pagina als taak opslaan" (in [`extension/`](extension/README.md)) voor Chrome, Edge en Firefox: klik op het pictogram, druk op `Alt+Shift+K` of klik met rechts op een pagina, link of selectie, en de pagina wordt een taak. De paginatitel is de taak, het adres komt in de beschrijving en geselecteerde tekst als citaat; de titel kent de snelle invoer (`morgen p1 #Werk @lezen !30m`) met dezelfde herkenner als de app, zonder de paginatitel zelf als datum te lezen. Je kiest het project (standaard de Inbox, het laatste wordt onthouden).
+
+- **Downloaden.** `tickory-extension-<versie>.zip` (Chrome, Edge) en `tickory-extension-<versie>-firefox.zip` staan bij elke versie op de [releasepagina](https://github.com/WNijhof/tickory/releases), of bouw ze met `node scripts/build-extension.ts` (in `dist/`). Uitgepakt laden (Chrome/Edge: ontwikkelaarsmodus) of tijdelijk (Firefox: `about:debugging`); publiceren in de winkels vraagt een eigen account, zie [extension/README.md](extension/README.md).
+- **Verbinden.** Vul het adres van je server in (https; gewoon http alleen op je eigen netwerk, dezelfde regel als de Android-app), sta toegang tot dat ene adres toe, en log in met je wachtwoord (en de code van tweestapsverificatie), of met een **koppelcode** die je in de app maakt onder Account, "Aangemelde apparaten": dat werkt ook op een server waar je alleen via SSO inlogt. De extensie krijgt een eigen sessie, in de apparatenlijst als "Browserextensie (Chrome)"; uitloggen trekt die in.
+- **Privacy.** Ze praat alleen met je eigen server, alleen als je op Opslaan klikt, met het token in een kop (geen cookies, geen CORS nodig); rechten: actief tabblad, scripts (om de selectie te lezen), contextmenu en opslag. Geen toegang tot alle websites.
+
+Meer in de handleiding: [de browserextensie](https://wnijhof.github.io/tickory/nl/handleiding/browserextensie.html).
+
 ### Bijlagen
 
 Bij een taak kun je bestanden bijvoegen (foto's, pdf's, wat dan ook). De bestanden staan **in het datavolume**, in `attachments/` naast de database (`/data/attachments` in Docker), niet in de database zelf, onder willekeurige namen. Wie de taak ziet, ziet de bijlagen; verwijderen kan de maker of de eigenaar van het project. Een bestand kiezen werkt ook zonder verbinding: het wordt op het apparaat bewaard en geüpload zodra het kan.
@@ -289,6 +299,8 @@ Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PA
 ```sh
 npm test            # protocol, rechten, accounts, server, client, datumtaal, herinneringen en meldingen, filters en zoeken, talen, overzichten, back-up, offline-bestanden
 npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 81 stappen
+npm run e2e:extension   # de browserextensie in een echte browser (uitgepakt geladen via het DevTools-protocol), 12 stappen
+node scripts/build-extension.ts    # de extensie: dist/tickory-extension-<versie>.zip en -firefox.zip
 node scripts/docker-smoke.ts tickory:ci    # test van de image (vereist Docker, na: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # de website en de demo (vereist Edge of Chrome)
 ```
@@ -323,10 +335,11 @@ client/core/   reducer, store, idb, syncClient, inverse, undo, selection, bulk, 
 client/ui/     app, render, selection, bulkDialogs, completed, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  de teksten van de interface, in het Nederlands en het Engels
 android/       de Android-app (Kotlin, WebView, lokale alarmen)
+extension/     de browserextensie (Manifest V3; venster, instellingen, achtergrond, core/ met de geteste logica, _locales nl en en)
 client/vendor/ nlDatum.generated.js                         Nederlandse datumherkenner (met chrono-node, zie THIRD_PARTY_NOTICES.md)
 website/       pages (nl, en), assets, layout.html, site.json, demo/   de website, de handleiding en de backend van de demo
 scripts/       e2e.ts (met e2e-templates.ts), docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
-               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts
+               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts, build-extension.ts, e2e-extension.ts
 ```
 
 ## Status
@@ -338,6 +351,7 @@ Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen
 **Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
 - **De Android-app op een echte telefoon.** De APK (met de **widgets voor het startscherm**) staat vanaf versie 0.3.0 op de [releasepagina](https://github.com/WNijhof/tickory/releases), maar is alleen op een computer en een nagebootst Android getest; de maker heeft hem nog niet op een echte telefoon geprobeerd. Meld wat je tegenkomt op GitHub.
 - **Herinneringen op een plek.** Gebouwd en getest zonder telefoon (afstand, de regels voor binnenkomen en weggaan met ruis in de positie, aanvragen bij een nagebootst Android, meldingen, het scherm Plaatsen en het taakvenster in een echte browser met een nagebootste locatie); hoe nauwkeurig en zuinig het op een echte telefoon is, is nog niet geprobeerd. Zit in de Android-app vanaf versie 0.3.0.
+- **De browserextensie in de winkels.** De extensie voor Chrome, Edge en Firefox (zie hieronder) staat vanaf versie 0.3.0 als zips bij elke versie op de releasepagina, maar nog niet in de Chrome Web Store, bij Edge Add-ons of Firefox Add-ons; in Firefox laad je haar alleen tijdelijk, tot Mozilla haar heeft ondertekend. Getest in Edge, nog niet in Firefox en Chrome zelf.
 - **Engelse datumtaal.** De interface is Engels, maar wat je als datum intypt, wordt alleen in het Nederlands herkend.
 
 **Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
