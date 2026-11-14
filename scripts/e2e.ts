@@ -2853,10 +2853,10 @@ try {
   assert.deepEqual(await buttons('.view-actions'), ['Edit', 'More']);
   await noDutch('label', userTexts);
 
-  // telefoon (Engels): zoekknop in de kop, zoekvenster over het hele scherm, zijbalk met lijsten
+  // telefoon (Engels): zoekknop in de kop, zoekvenster over het hele scherm, Bladeren met de lijsten
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await sleep(300);
-  for (const selector of ['.topbar-search', '#menu-button']) {
+  for (const selector of ['.topbar-search', '[data-tab="browse"]']) {
     const size = await smallest(selector);
     assert.ok(size.n === 1 && size.h >= 44 && size.w >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
   }
@@ -2878,10 +2878,10 @@ try {
   await scheme(null);
   await click('#search-dialog .search-close');
   await noDialog();
-  await click('#menu-button');
+  await click('[data-tab="browse"]');
   await sleep(350);
   const drawer2 = await smallest('.sidebar .find-item, .sidebar .nav-section-link, .sidebar .find-toggle, .sidebar .nav-section-head .icon-button, .sidebar .search-field');
-  assert.ok(drawer2.h >= 44, `een regel in het uitschuifmenu is te laag: ${drawer2.h}`);
+  assert.ok(drawer2.h >= 44, `een regel in Bladeren is te laag: ${drawer2.h}`);
   await shot('engels-telefoon-menu');
   await click('button[aria-label="Add filter"]');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'New filter'`, 'filtervenster op een telefoon');
