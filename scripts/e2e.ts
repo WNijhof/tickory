@@ -570,7 +570,7 @@ try {
   const englishText = pieces(en).join('\n');
   const dutchPieces = [...new Set(pieces(dutchTexts).flatMap((text) => text.split(/\{\w+\}/)).map((s) => s.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')))]
     .filter((s) => s.replace(/[^\p{L}]/gu, '').length >= 3 && !asWord(s).test(englishText));
-  assert.ok(dutchPieces.length > 150 && dutchPieces.includes('Vandaag') && dutchPieces.includes('lid') && !dutchPieces.includes('Project'), `de lijst met Nederlandse teksten klopt niet (${dutchPieces.length})`);
+  assert.ok(dutchPieces.length > 150 && dutchPieces.includes('Vandaag') && dutchPieces.includes('kan bewerken') && !dutchPieces.includes('Project'), `de lijst met Nederlandse teksten klopt niet (${dutchPieces.length})`);
   const checked: string[] = [];
   /** Controleert dat er op dit scherm geen Nederlandse tekst van de app staat (gegevens van de gebruiker mogen Nederlands zijn). */
   const noDutch = async (screen: string, userTexts: string[] = []) => {
@@ -777,7 +777,7 @@ try {
   // het projectmenu
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Activity', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Delete project');
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete project?')`, 'bevestiging project verwijderen');
   assert.ok(await evaluate(`document.querySelector('dialog[open] p').textContent === '"Thuis" will be deleted, along with all its sections, tasks and subprojects — also for the people you share it with.'`));
@@ -1598,7 +1598,7 @@ try {
   await noDialog();
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Activity', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Edit…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Edit project'`, 'projectvenster (Engels)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] input[name="project-color"]')].map((e) => e.getAttribute('aria-label'))`),

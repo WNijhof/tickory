@@ -271,6 +271,31 @@ test('een herinnering van een lezer komt als melding zonder de knop "Voltooien";
   assert.deepEqual(push.handleAction(c.snooze), { ok: true, userId: carol.id });
 });
 
+test('terugzetten: een lid dat lezer werd, zet niets meer terug; een toewijzing aan wie intussen lezer is, komt niet terug', () => {
+  const { db, anna, bram, carol } = world();
+  // bram (lid) verwijdert een taak en een sectie; daarna maakt anna hem lezer: terugzetten kan dan niet meer
+  const assign = cmd('task_update', { id: T2, assignee_id: bram.id });
+  ok(run(db, anna, [assign]), assign);
+  const del = [cmd('task_delete', { id: T2 }), cmd('section_delete', { id: S })];
+  ok(run(db, bram, del), ...del);
+  const down = cmd('member_update', { project_id: P, user_id: bram.id, role: 'viewer' });
+  ok(run(db, anna, [down]), down);
+  const tries = [cmd('task_restore', { id: T2 }), cmd('section_restore', { id: S })];
+  const res = run(db, bram, tries);
+  for (const c of tries) assert.equal(status(res, c), 'FORBIDDEN', c.type);
+  const byCarol = cmd('task_restore', { id: T2 });
+  assert.equal(status(run(db, carol, [byCarol]), byCarol), 'FORBIDDEN', 'een lezer zet ook niets terug');
+  // de eigenaar zet de taak terug: bram is lezer en blijft dus niet toegewezen; het logboek zegt wie het terugzette
+  const back = cmd('task_restore', { id: T2 });
+  ok(run(db, anna, [back]), back);
+  assert.equal(find(run(db, anna, []), 'tasks', T2)!.assignee_id, null);
+  const last = db.prepare("SELECT kind, actor_id, task_id FROM activity WHERE project_id = ? ORDER BY seq DESC LIMIT 1").get(P) as Row;
+  assert.deepEqual([last.kind, last.actor_id, last.task_id], ['task_restored', anna.id, T2]);
+  const sec = cmd('section_restore', { id: S });
+  ok(run(db, anna, [sec]), sec);
+  assert.equal((db.prepare("SELECT kind FROM activity WHERE project_id = ? ORDER BY seq DESC LIMIT 1").get(P) as Row).kind, 'section_restored');
+});
+
 // ---------- toegangsfuzz: willekeurige wijzigingen van een lezer ----------
 
 function rng(seed: number) {
