@@ -179,6 +179,8 @@ export function createSchema(db: DatabaseSync): void {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS activity_project ON activity (project_id, seq)');
   db.exec('CREATE INDEX IF NOT EXISTS activity_at ON activity (at)');
+  // het productiviteitsoverzicht (stats.ts) zoekt de eigen afvinkingen over alle projecten: per persoon, soort en tijdstip
+  db.exec('CREATE INDEX IF NOT EXISTS activity_actor ON activity (actor_id, kind, at)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
 }
 
