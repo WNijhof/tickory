@@ -19,6 +19,7 @@
 // Een taak naar een andere dag zetten: `actions.updateTask(id, { due: reschedule(task.due, 'YYYY-MM-DD') })` (core/quickDates.js).
 
 import { calendarModel, dayLabel, isoWeek, isoWeekday, periodTitle, shiftPeriod, weekdayNames } from '../core/calendar.js';
+import { endTime } from '../core/duration.js';
 import { addDays } from '../core/format.js';
 import { getLocale, t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
@@ -106,7 +107,7 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
       : h('span', { class: 'cal-repeat', title: t('calendar.repeatHint'), role: 'img', 'aria-label': t('calendar.repeatHint') }, icon('repeat')),
     h('button', { class: 'cal-open', type: 'button', title, dataset: { fk: real ? `calopen:${task.id}` : `calopen:${task.id}:${date}` }, onclick: () => handlers.open(task) },
       withDate && h('span', { class: 'cal-when' }, dayLabel(locale, date, 'short')),
-      time && h('span', { class: 'cal-time' }, time),
+      time && h('span', { class: 'cal-time' }, (task.duration && endTime(time, task.duration)) ? `${time}–${endTime(time, task.duration)}` : time),
       h('span', { class: 'cal-title-text' }, task.content),
       project && h('span', { class: 'cal-project' }, h('span', { class: `dot ${colorClass(project.color)}`, 'aria-hidden': 'true' }), h('span', { class: 'cal-project-name' }, project.name))));
   };
