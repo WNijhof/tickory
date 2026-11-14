@@ -131,6 +131,18 @@ const sameRule = (a, b) => {
  * @returns {{ date: string, string?: string, lang?: string, recurrence?: object } | null}
  */
 export function readDate(text, lang, now) {
+  // een back-up herhaalt dezelfde teksten ("every monday", "Jan 12") vaak: één keer uitrekenen per import (zelfde `now`)
+  const key = JSON.stringify([now.getTime(), lang, text]);
+  if (!dateCache.has(key)) {
+    if (dateCache.size >= 5000) dateCache.clear();
+    dateCache.set(key, readDateOnce(text, lang, now));
+  }
+  const due = dateCache.get(key);
+  return due && structuredClone(due);
+}
+const dateCache = new Map();
+
+function readDateOnce(text, lang, now) {
   const value = line(text);
   if (!value) return null;
   const iso = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?Z?)?$/.exec(value);
@@ -181,6 +193,16 @@ function newProject(name, source, fileName) {
     people: { authors: [], responsible: [] },
     stats: { tasks: 0, sections: 0, comments: 0, labels: [], dates: 0, deadlines: 0, durations: 0, attachments: 0, truncated: 0, flattened: 0, skippedRows: 0, commentsDropped: 0, completed: 0 },
   };
+}
+
+/** Telt een labelnaam bij het project (zonder dubbelen, hoofdletterongevoelig); de sleutels apart, zodat dat ook bij veel taken snel gaat. */
+const labelKeys = new WeakMap();
+function noteLabel(project, name) {
+  if (!labelKeys.has(project)) labelKeys.set(project, new Set());
+  const keys = labelKeys.get(project);
+  if (keys.has(nameKey(name))) return;
+  keys.add(nameKey(name));
+  project.stats.labels.push(name);
 }
 
 function addPerson(list, name) {
@@ -287,7 +309,7 @@ function readTask(row, cell, project, now) {
   let [content, long] = cut(text || raw, IMPORT_LIMITS.content);
   if (long) stats.truncated++;
   const task = { content, description: '', priority: 4, labels: text ? labels : [], due: null, deadline: null, duration: null, comments: [] };
-  for (const name of task.labels) if (!stats.labels.some((l) => nameKey(l) === nameKey(name))) stats.labels.push(name);
+  for (const name of task.labels) noteLabel(project, name);
   const priority = Number(cell(row, 'PRIORITY').trim());
   if ([1, 2, 3, 4].includes(priority)) task.priority = priority; // dezelfde schaal als in Todoist: 1 = p1 (hoogst), 4 = geen
   const notes = [];
@@ -467,7 +489,7 @@ export function parseOwnJson(text, fileName) {
       const name = labelNames.get(id);
       if (name && !labels.some((l) => nameKey(l) === nameKey(name))) labels.push(name);
     }
-    for (const name of labels) if (!project.stats.labels.some((l) => nameKey(l) === nameKey(name))) project.stats.labels.push(name);
+    for (const name of labels) noteLabel(project, name);
     const task = {
       content: content || '…', description: cut(block(str(x.description)), IMPORT_LIMITS.description)[0],
       priority: [1, 2, 3, 4].includes(x.priority) ? x.priority : 4, labels, due: ownDue(x.due),

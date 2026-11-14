@@ -14,10 +14,14 @@ import { allTasks } from './todoistImport.js';
  * label met spaties) is het bestaande label "met de auto".
  */
 export function canonicalLabel(view, name) {
-  const labels = [...view.labels.values()];
-  const found = labels.find((l) => nameKey(l.name) === nameKey(name))
-    ?? (name.includes('_') ? labels.find((l) => nameKey(l.name) === nameKey(name.replace(/_/g, ' '))) : null);
-  return found ? found.name : name;
+  return labelFinder(view)(name);
+}
+
+/** `canonicalLabel` voor veel namen: de bestaande labels één keer op een rij (een import kan tienduizenden taken hebben). */
+function labelFinder(view) {
+  const byKey = new Map();
+  for (const l of view.labels.values()) if (!byKey.has(nameKey(l.name))) byKey.set(nameKey(l.name), l.name);
+  return (name) => byKey.get(nameKey(name)) ?? (name.includes('_') ? byKey.get(nameKey(name.replace(/_/g, ' '))) : undefined) ?? name;
 }
 
 /**
@@ -55,17 +59,18 @@ export function selectedProjects(projects, selected) {
  */
 export function planImport(view, projects, { selected, under, inboxName, makeId, resolveLabels }) {
   const list = selectedProjects(projects, selected);
-  const names = [];
+  const canonical = labelFinder(view);
+  const names = new Map(); // nameKey -> de naam zoals hij wordt (bestaand of nieuw), in volgorde van voorkomen
   for (const { project } of list) {
     for (const task of allTasks(project)) {
       for (const name of task.labels) {
-        const canonical = canonicalLabel(view, name);
-        if (!names.some((n) => nameKey(n) === nameKey(canonical))) names.push(canonical);
+        const found = canonical(name);
+        if (!names.has(nameKey(found))) names.set(nameKey(found), found);
       }
     }
   }
-  const labels = resolveLabels(names);
-  const labelId = (name) => labels.byName.get(nameKey(canonicalLabel(view, name)));
+  const labels = resolveLabels([...names.values()]);
+  const labelId = (name) => labels.byName.get(nameKey(canonical(name)));
 
   const batches = [];
   const first = [...labels.commands];

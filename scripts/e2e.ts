@@ -429,7 +429,7 @@ try {
     process.exit(process.exitCode ?? 0);
   }
   // importeren uit Todoist (scripts/e2e-import.ts); met E2E_IMPORT_ONLY=1 alleen dat onderdeel
-  const importCtx = { send, evaluate, waitFor, step, shot, sleep, SYNCED, serverState, clickText, click, nav, workDir };
+  const importCtx = { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, serverState, clickText, click, nav, workDir };
   if (process.env.E2E_IMPORT_ONLY) {
     try { await importScenario(importCtx); console.log('ALLEEN IMPORTEREN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-importeren'); process.exitCode = 1; }
     browser.kill();

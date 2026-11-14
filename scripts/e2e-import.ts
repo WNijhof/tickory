@@ -9,7 +9,7 @@ import { addDays, todayString } from '../client/core/format.js';
 import { sampleBackup } from './todoistSample.ts';
 
 export async function importScenario(c: any) {
-  const { send, evaluate, waitFor, step, shot, sleep, SYNCED, serverState, clickText, click, nav, workDir } = c;
+  const { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, serverState, clickText, click, nav, workDir } = c;
   const live = (rows: any[]) => rows.filter((x) => !x.is_deleted);
   const dialogText = () => evaluate<string>(`([...document.querySelectorAll('dialog[open]')].at(-1)?.innerText ?? '').replace(/\\s+/g, ' ')`);
   const status = () => evaluate<string>(`document.querySelector('dialog[open] .import-status')?.textContent ?? ''`);
@@ -126,6 +126,16 @@ export async function importScenario(c: any) {
   await evaluate(`document.querySelector('dialog[open]').close()`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
   step('Importeren: een afgekapte zip en een CSV die niet van Todoist is geven een duidelijke melding, en er valt niets te importeren');
+
+  // opruimen: de labels die de import aanmaakte (ongedaan maken laat ze staan), zodat de volgende stappen er geen last van hebben
+  const token = await evaluate<string>(`localStorage.getItem('tickory.token')`);
+  const commands = (serverState().labels as any[]).filter((l) => ['phone', 'money', 'schoonmaak'].includes(l.name) && !l.is_deleted)
+    .map((l, i) => ({ type: 'label_delete', uuid: `e2e-importeren-opruimen-${String(i).padStart(3, '0')}`, args: { id: l.id } }));
+  const cleaned = await evaluate<number>(`fetch('/api/v1/sync', { method: 'POST', headers: { Authorization: 'Bearer ' + ${js(token)}, 'Content-Type': 'application/json', 'X-Client-Id': 'e2e-opruimen' }, body: JSON.stringify({ commands: ${js(commands)} }) }).then((r) => r.status)`);
+  assert.equal(cleaned, 200);
+  await evaluate(`document.querySelector('#sync-status').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd na opruimen');
+  assert.equal((serverState().labels as any[]).some((l) => ['phone', 'money', 'schoonmaak'].includes(l.name)), false, 'de labels van de import zijn opgeruimd');
   await nav('Inbox');
   await sleep(100);
 }
