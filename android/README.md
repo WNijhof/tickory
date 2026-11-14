@@ -332,8 +332,8 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Widget | Wat |
 |---|---|
 | Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
-| Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Binnenkort; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
-| Binnenkort | Vanaf morgen veertien dagen, per dag met een kop |
+| Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Aankomend; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
+| Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die de app opent op `#add`, voor de Inbox |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie

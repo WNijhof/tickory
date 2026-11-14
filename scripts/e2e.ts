@@ -299,8 +299,8 @@ try {
   await submit('#quick-add');
   await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
   assert.deepEqual(await taskTitles(), [], 'de taak is voor morgen en hoort niet in Vandaag');
-  await nav('Binnenkort');
-  await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Binnenkort');
+  await nav('Aankomend');
+  await waitFor(`document.querySelector('.task-title')?.textContent === 'Tandarts bellen'`, 'taak in Aankomend');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@bellen', '🔔', 'Inbox']);
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const tandarts = serverTask('Tandarts bellen');
@@ -730,7 +730,7 @@ try {
   await fits('project');
   await shot('engels-project');
 
-  // Vandaag en Binnenkort
+  // Vandaag en Aankomend
   await nav('Today');
   await waitFor(`document.getElementById('view-title').textContent === 'Today'`, 'scherm Today');
   assert.ok((await texts('.group-title')).some((x) => x === `Today · ${inEnglish(() => formatDueLong({ date: today }, today))}`), 'de kop van vandaag');
@@ -1005,7 +1005,7 @@ try {
   await clickText('Nederlands');
   await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
@@ -1226,7 +1226,7 @@ try {
 
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort (en Meldingen: Thuis is gedeeld), dan de projecten');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Aankomend (en Meldingen: Thuis is gedeeld), dan de projecten');
   await click('.nav-heading button');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw project'`, 'projectvenster');
   assert.equal(await evaluate(`document.querySelectorAll('dialog[open] input[name="project-color"]').length`), 16, 'zestien kleuren');
@@ -1243,7 +1243,7 @@ try {
   const tuin = projectOnServer('Tuin');
   assert.deepEqual([tuin.color, tuin.is_favorite, tuin.parent_id], ['green', true, thuisId], 'kleur, favoriet en bovenliggend project staan op de server');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorieten', 'Projecten']);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
   assert.ok(await evaluate(`document.querySelector('.nav-row[data-depth="1"] .dot').classList.contains('pc-green')`), 'het bolletje heeft de kleur van het project');
   assert.equal(await evaluate(`document.querySelector('#view-lead .dot').classList.contains('pc-green')`), true, 'ook in de kop');
   await shot('zijbalk-projecten');
@@ -1252,7 +1252,7 @@ try {
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, true);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-expanded')`), 'false');
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
@@ -1545,7 +1545,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Binnenkort', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1588,7 +1588,7 @@ try {
   await typeInto('#quick-input', '');
   await evaluate(`document.activeElement?.blur()`);
   // g en dan t, u of i
-  for (const [second, title] of [['t', 'Vandaag'], ['u', 'Binnenkort'], ['i', 'Inbox']] as const) {
+  for (const [second, title] of [['t', 'Vandaag'], ['u', 'Aankomend'], ['i', 'Inbox']] as const) {
     await press('g');
     await press(second);
     await waitFor(`document.getElementById('view-title').textContent === ${js(title)}`, `g ${second}: ${title}`);
@@ -1968,21 +1968,21 @@ try {
 
   await calendarDragScenario(viewsCtx);
 
-  // Binnenkort als kalender: taken uit alle projecten, de keuze hoort bij dit apparaat
-  await nav('Binnenkort');
-  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  // Aankomend als kalender: taken uit alle projecten, de keuze hoort bij dit apparaat
+  await nav('Aankomend');
+  await waitFor(`document.getElementById('view-title').textContent === 'Aankomend'`, 'Aankomend');
   assert.ok(await evaluate(`!document.querySelector('.cal')`));
-  assert.deepEqual(await texts('.view-actions .view-switch button'), ['Lijst', 'Kalender'], 'Binnenkort kent geen bord');
+  assert.deepEqual(await texts('.view-actions .view-switch button'), ['Lijst', 'Kalender'], 'Aankomend kent geen bord');
   await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
-  await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'kalender bij Binnenkort');
+  await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'kalender bij Aankomend');
   const projectsOnCal = await evaluate<string[]>(`[...new Set([...document.querySelectorAll('.cal-item .cal-project-name')].map((e) => e.textContent))]`);
   assert.ok(projectsOnCal.length >= 2, `taken van meer projecten: ${JSON.stringify(projectsOnCal)}`);
   assert.equal(await evaluate(`localStorage.getItem('tickory.upcomingView')`), 'calendar');
   await shot('kalender-binnenkort');
   await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
-  await waitFor(`!document.querySelector('.cal') && document.querySelector('.group-title')`, 'terug naar de lijst bij Binnenkort');
-  assert.equal(serverProject(thuisId).view_style, 'calendar', 'Binnenkort verandert het project niet');
-  step('kalender: maand en week (maandag eerst, Nederlandse namen, ISO-weeknummers), vandaag gemarkeerd, te late taken apart, herhaling op de komende voorkomens zonder opslag, plus bij een dag voegt toe op die dag, openen en afvinken, vorige / volgende / vandaag, Maand of Week bewaard op dit apparaat, toetsenbord (pijlen, PageUp/PageDown, Home, Enter), Binnenkort als kalender met taken van alle projecten');
+  await waitFor(`!document.querySelector('.cal') && document.querySelector('.group-title')`, 'terug naar de lijst bij Aankomend');
+  assert.equal(serverProject(thuisId).view_style, 'calendar', 'Aankomend verandert het project niet');
+  step('kalender: maand en week (maandag eerst, Nederlandse namen, ISO-weeknummers), vandaag gemarkeerd, te late taken apart, herhaling op de komende voorkomens zonder opslag, plus bij een dag voegt toe op die dag, openen en afvinken, vorige / volgende / vandaag, Maand of Week bewaard op dit apparaat, toetsenbord (pijlen, PageUp/PageDown, Home, Enter), Aankomend als kalender met taken van alle projecten');
 
   // telefoon: een lijst per dag in plaats van een maandtabel
   await nav('Thuis');
@@ -2396,8 +2396,8 @@ try {
   await waitFor(`document.querySelectorAll('.task').length === ${countOf('bellen')}`, 'de nieuwe taak staat bij het label');
   await syncAs(aliceToken, 'zoek-test', [{ type: 'task_delete', uuid: 'e2e-zoek-opruimen-3', args: { id: serverTask('Notaris bellen').id } }]);
   // het label in een taakregel is een knop die het label opent
-  await nav('Binnenkort');
-  await waitFor(`document.getElementById('view-title').textContent === 'Binnenkort'`, 'Binnenkort');
+  await nav('Aankomend');
+  await waitFor(`document.getElementById('view-title').textContent === 'Aankomend'`, 'Aankomend');
   await evaluate(`${row('Tandarts bellen')}.querySelector('.chip-label').click()`);
   await waitFor(`document.getElementById('view-title').textContent === '@bellen'`, 'label via de taakregel');
   // overzicht van labels, toevoegen met controle op dubbele namen
@@ -2450,7 +2450,7 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.deepEqual([serverLabel('telefoneren')?.id, serverLabel('telefoneren')?.color], [bellenId, 'violet'], 'hetzelfde label, nieuwe naam en kleur');
   assert.equal(serverLabel('bellen'), undefined);
-  await nav('Binnenkort');
+  await nav('Aankomend');
   await waitFor(`${row('Tandarts bellen')}`, 'Tandarts bellen');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['morgen 09:00', '@telefoneren', '🔔', 'Inbox'], 'de taak toont de nieuwe naam');
   await shot('labels-hernoemd');

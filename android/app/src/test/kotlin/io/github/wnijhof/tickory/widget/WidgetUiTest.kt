@@ -532,7 +532,7 @@ class WidgetUiTest : WidgetTestBase() {
 
         val list = activity.findViewById<ListView>(R.id.config_list)
         val labels = (0 until list.adapter.count).map { (list.adapter.getView(it, null, list) as TextView).text.toString() }
-        assertEquals(listOf("Vandaag", "Binnenkort", "Inbox", "Werk"), labels)
+        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Werk"), labels)
         assertEquals(View.GONE, activity.findViewById<View>(R.id.config_hint).visibility)
 
         list.performItemClick(null, 3, 3)
@@ -566,7 +566,7 @@ class WidgetUiTest : WidgetTestBase() {
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
         val rows = (0 until list.adapter.count).map { list.adapter.getView(it, null, list) as TextView }
-        assertEquals(listOf("Vandaag", "Binnenkort", "Inbox", "Alfa", "Alfa-sub"), rows.map { it.text.toString() })
+        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Alfa", "Alfa-sub"), rows.map { it.text.toString() })
         assertTrue(rows[4].paddingLeft > rows[3].paddingLeft)
         assertTrue("minstens 48dp hoog om te tikken", rows[3].minHeight >= (48 * app.resources.displayMetrics.density).toInt())
     }

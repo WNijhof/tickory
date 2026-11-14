@@ -111,7 +111,7 @@ export default {
   // ---------- zijbalk en overzichten ----------
   'nav.views': 'Overzichten',
   'nav.today': 'Vandaag',
-  'nav.upcoming': 'Binnenkort',
+  'nav.upcoming': 'Aankomend',
   'nav.projects': 'Projecten',
   'nav.addProject': 'Project toevoegen',
   'nav.sharedProject': 'Gedeeld project',
@@ -1077,7 +1077,7 @@ export default {
   'shortcuts.then': 'dan',
   'shortcuts.add': 'Taak toevoegen',
   'shortcuts.goToday': 'Naar Vandaag',
-  'shortcuts.goUpcoming': 'Naar Binnenkort',
+  'shortcuts.goUpcoming': 'Naar Aankomend',
   'shortcuts.goInbox': 'Naar de Inbox',
   'shortcuts.help': 'Dit overzicht tonen',
   'shortcuts.escape': 'Een venster sluiten',
