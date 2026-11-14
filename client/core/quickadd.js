@@ -15,6 +15,7 @@
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
 
 import { parseDateText, parseDue } from './dateNl.js';
+import { parseDuration } from './duration.js';
 import { nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime, parseOffsetNl } from '../../shared/reminders.js';
 
@@ -36,6 +37,11 @@ function matchNamed(text, trigger, items) {
   }
   return null;
 }
+
+// =45m · =1u30 · =1,5u · =2 uur · =30 (minuten): alleen echte eenheden, zodat "=30 Tandarts" gewoon 30 minuten is
+const DURATION_HOURS = 'u|uur|h|hr|hrs|hours?';
+const DURATION_MINS = 'm|min|mins|minuut|minuten|minutes?';
+const DURATION_TOKEN = new RegExp(String.raw`(?<![\p{L}\p{N}=])=(\d+(?:[.,]\d+)?\s?(?:${DURATION_HOURS})(?:\s?\d{1,2}(?:\s?(?:${DURATION_MINS}))?)?|\d+\s?(?:${DURATION_MINS})?)(?![\p{L}\p{N}])`, 'iu');
 
 const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.replace(/\s+/g, ' ').trim();
 
@@ -126,6 +132,16 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
     if (due && !due.recurrence) {
       out.deadline = due.date.slice(0, 10);
       rest = cut(rest, dl.index, dl.index + dl[0].length);
+    }
+  }
+
+  // duur: =45m, =1u30, =1,5u (alleen als het een duur is; anders blijft de tekst staan)
+  const du = DURATION_TOKEN.exec(rest);
+  if (du) {
+    const minutes = parseDuration(du[1]);
+    if (minutes !== null) {
+      out.duration = minutes;
+      rest = cut(rest, du.index, du.index + du[0].length);
     }
   }
 

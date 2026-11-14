@@ -149,6 +149,7 @@ function buildRow(m, variant = '') {
   const chips = [];
   const chip = (cls, ...kids) => mk('span', `chip ${cls}`, ...kids);
   if (m.due) chips.push(chip(`chip-due due-${m.due.status}`, icon('calendar'), m.due.text)); // bij een herhaling staat ↻ al in de tekst
+  if (m.duration) chips.push(chip('chip-duration', icon('clock'), m.duration.text));
   if (m.deadline) chips.push(chip(`chip-deadline${m.deadline.overdue ? ' due-overdue' : ''}`, m.deadline.text));
   if (m.subtasks) {
     const body = [icon('subtasks'), m.subtasks.text];

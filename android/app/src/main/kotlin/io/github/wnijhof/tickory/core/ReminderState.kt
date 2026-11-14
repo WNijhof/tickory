@@ -11,8 +11,11 @@ data class SnoozedReminder(
     /** Het tijdstip waarop de herinnering oorspronkelijk afging; hoort bij de sleutel en bij het uuid van "Voltooien". */
     val originalAtMs: Long,
     val fireAtMs: Long,
+    /** Bij een herinnering op een plek: de plaats en "enter" of "leave", zodat de melding na uitstel hetzelfde zegt. */
+    val place: String? = null,
+    val trigger: String? = null,
 ) {
-    fun asPlanned(): PlannedReminder = PlannedReminder(reminderId, taskId, title, originalAtMs, taskDue)
+    fun asPlanned(): PlannedReminder = PlannedReminder(reminderId, taskId, title, originalAtMs, taskDue, place, trigger)
 }
 
 /** "Voltooien" is getikt, maar de server was niet bereikbaar: bij de volgende verversing opnieuw proberen. */
@@ -109,7 +112,7 @@ object ReminderLogic {
 
     /** "Over 10 minuten" (of "Over 1 uur", met [delayMs]): dezelfde melding komt terug op [nowMs] + die tijd. */
     fun snooze(state: ReminderState, reminder: PlannedReminder, nowMs: Long, delayMs: Long = SNOOZE_MS): Pair<ReminderState, SnoozedReminder> {
-        val snoozed = SnoozedReminder(reminder.reminderId, reminder.taskId, reminder.title, reminder.taskDue, reminder.triggerAtMs, nowMs + delayMs)
+        val snoozed = SnoozedReminder(reminder.reminderId, reminder.taskId, reminder.title, reminder.taskDue, reminder.triggerAtMs, nowMs + delayMs, reminder.place, reminder.trigger)
         return state.copy(snoozed = state.snoozed + (reminder.reminderId to snoozed)) to snoozed
     }
 
@@ -167,11 +170,12 @@ object StateCodec {
             "v" to VERSION,
             "tasks" to state.snapshot.tasks.map { mapOf("id" to it.id, "content" to it.content, "due" to it.due, "checked" to it.checked, "deleted" to it.deleted) },
             "reminders" to state.snapshot.reminders.map {
-                mapOf("id" to it.id, "task" to it.taskId, "type" to it.type, "offset" to it.minuteOffset, "due" to it.due, "deleted" to it.deleted)
+                mapOf("id" to it.id, "task" to it.taskId, "type" to it.type, "offset" to it.minuteOffset, "due" to it.due, "deleted" to it.deleted, "place" to it.placeId, "trigger" to it.trigger)
             },
+            "places" to state.snapshot.places.map { mapOf("id" to it.id, "name" to it.name, "lat" to it.lat, "lon" to it.lon, "radius" to it.radiusM.toLong()) },
             "scheduled" to state.scheduled.values.map { planned(it) },
             "snoozed" to state.snoozed.values.map {
-                mapOf("id" to it.reminderId, "task" to it.taskId, "title" to it.title, "due" to it.taskDue, "at" to it.originalAtMs, "fire" to it.fireAtMs)
+                mapOf("id" to it.reminderId, "task" to it.taskId, "title" to it.title, "due" to it.taskDue, "at" to it.originalAtMs, "fire" to it.fireAtMs, "place" to it.place, "trigger" to it.trigger)
             },
             "shown" to state.shown,
             "completes" to state.pendingCompletes.values.map { planned(it.reminder) + ("queued" to it.queuedAtMs) },
@@ -189,7 +193,14 @@ object StateCodec {
         val reminders = objects(root, "reminders").mapNotNull { o ->
             val id = o.text("id")?.takeIf(Ids::isSafeId) ?: return@mapNotNull null
             val task = o.text("task")?.takeIf(Ids::isSafeId) ?: return@mapNotNull null
-            ReminderInfo(id, task, o.text("type") ?: return@mapNotNull null, o.whole("offset"), o.text("due"), o.flag("deleted"))
+            ReminderInfo(id, task, o.text("type") ?: return@mapNotNull null, o.whole("offset"), o.text("due"), o.flag("deleted"), o.text("place")?.takeIf(Ids::isSafeId), o.text("trigger"))
+        }
+        val places = objects(root, "places").mapNotNull { o ->
+            val id = o.text("id")?.takeIf(Ids::isSafeId) ?: return@mapNotNull null
+            val lat = o.real("lat") ?: return@mapNotNull null
+            val lon = o.real("lon") ?: return@mapNotNull null
+            if (!Geo.validCoordinates(lat, lon)) return@mapNotNull null
+            PlaceInfo(id, o.text("name") ?: "", lat, lon, o.whole("radius")?.toInt() ?: return@mapNotNull null)
         }
         val scheduled = objects(root, "scheduled").mapNotNull { readPlanned(it) }
         val completes = objects(root, "completes").mapNotNull { o ->
@@ -198,7 +209,7 @@ object StateCodec {
         val snoozed = objects(root, "snoozed").mapNotNull { o ->
             val id = o.text("id")?.takeIf(Ids::isSafeId) ?: return@mapNotNull null
             val task = o.text("task")?.takeIf(Ids::isSafeId) ?: return@mapNotNull null
-            SnoozedReminder(id, task, o.text("title") ?: "", o.text("due"), o.whole("at") ?: return@mapNotNull null, o.whole("fire") ?: return@mapNotNull null)
+            SnoozedReminder(id, task, o.text("title") ?: "", o.text("due"), o.whole("at") ?: return@mapNotNull null, o.whole("fire") ?: return@mapNotNull null, o.text("place"), o.text("trigger"))
         }
         val shown = HashMap<String, Long>()
         val rawShown = root.obj("shown")
@@ -207,7 +218,7 @@ object StateCodec {
         }
 
         return ReminderState(
-            snapshot = SyncSnapshot(tasks, reminders),
+            snapshot = SyncSnapshot(tasks, reminders, places),
             scheduled = scheduled.associateBy { it.reminderId },
             snoozed = snoozed.associateBy { it.reminderId },
             shown = shown,
@@ -216,12 +227,12 @@ object StateCodec {
     }
 
     private fun planned(p: PlannedReminder): Map<String, Any?> =
-        mapOf("id" to p.reminderId, "task" to p.taskId, "title" to p.title, "at" to p.triggerAtMs, "due" to p.taskDue)
+        mapOf("id" to p.reminderId, "task" to p.taskId, "title" to p.title, "at" to p.triggerAtMs, "due" to p.taskDue, "place" to p.place, "trigger" to p.trigger)
 
     private fun readPlanned(o: Map<String, Any?>): PlannedReminder? {
         val id = o.text("id")?.takeIf(Ids::isSafeId) ?: return null
         val task = o.text("task")?.takeIf(Ids::isSafeId) ?: return null
-        return PlannedReminder(id, task, o.text("title") ?: "", o.whole("at") ?: return null, o.text("due"))
+        return PlannedReminder(id, task, o.text("title") ?: "", o.whole("at") ?: return null, o.text("due"), o.text("place"), o.text("trigger"))
     }
 
     private fun objects(root: Map<String, Any?>, key: String): List<Map<String, Any?>> = root.list(key)?.mapNotNull { Json.asObject(it) } ?: emptyList()

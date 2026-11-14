@@ -2,6 +2,7 @@
 // er de regel bij, en bewaart de getekende regel zolang deze gegevens gelijk blijven: een lijst van tweeduizend taken
 // hoeft dan na een wijziging alleen de regels opnieuw te tekenen die echt anders zijn.
 
+import { formatDuration } from './duration.js';
 import { dueStatus, formatDate, formatDue } from './format.js';
 import { t } from './i18n.js';
 import { colorName } from './colors.js';
@@ -63,6 +64,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
     hasChildren,
     collapsed,
     due: task.due ? { text: formatDue(task.due, today), status: dueStatus(task.due, today, now), repeats: Boolean(task.due.recurrence) } : null,
+    duration: task.duration ? { text: formatDuration(task.duration), minutes: task.duration } : null,
     deadline: task.deadline ? { text: t('task.deadlineChip', { date: formatDate(task.deadline, today) }), overdue: task.deadline < today } : null,
     subtasks: sub ? { done: sub.done, total: sub.total, text: `${sub.done}/${sub.total}`, label: t('task.subtasksLabel', { done: sub.done, total: sub.total }) } : null,
     comments: comments.get(task.id) ? { count: comments.get(task.id), label: t('task.commentsLabel', { count: comments.get(task.id) }) } : null,

@@ -6,12 +6,13 @@ import { isValidKey } from './orderKey.js';
 import { isValidDate, isValidRecurrence } from './recurrence.js';
 import { MAX_OFFSET } from './reminders.js';
 import { fileNameProblem, MAX_NAME_LENGTH } from './attachments.js';
+import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './places.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place'} EntityName
  * @typedef {{
  *   name: string,
- *   type: 'text' | 'int' | 'bool' | 'json',
+ *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
  *   required?: boolean,
  *   nullable?: boolean,
  *   default?: unknown,
@@ -159,13 +160,28 @@ export const ENTITIES = {
     ],
   },
   // Herinneringen zijn persoonlijk: ieder lid van een gedeeld project stelt zijn eigen herinneringen in.
+  // Type `location`: bij aankomst op of vertrek van een eigen plaats (`place_id`, `trigger` enter | leave). Of je er bent,
+  // bepaalt alleen het toestel zelf (Android-app); de server kent alleen de plaats, nooit waar je bent.
   reminder: {
     name: 'reminder', table: 'reminders', resource: 'reminders',
     cols: [
       { name: 'task_id', type: 'text', required: true, ref: 'task', immutable: true },
-      { name: 'type', type: 'text', required: true, oneOf: ['relative', 'absolute'] },
+      { name: 'type', type: 'text', required: true, oneOf: ['relative', 'absolute', 'location'] },
       { name: 'minute_offset', type: 'int', nullable: true, default: null, min: 0, max: 60 * 24 * 365 },
       { name: 'due', type: 'json', nullable: true, default: null, check: dueCheck },
+      { name: 'place_id', type: 'text', nullable: true, default: null, ref: 'place' },
+      { name: 'trigger', type: 'text', nullable: true, default: null, oneOf: ['enter', 'leave'] },
+      owner(),
+    ],
+  },
+  // Een plaats van één gebruiker (privé): naam, positie en straal. Alleen de eigenaar ziet haar.
+  place: {
+    name: 'place', table: 'places', resource: 'places',
+    cols: [
+      { name: 'name', type: 'text', required: true, maxLen: 100 },
+      { name: 'lat', type: 'real', required: true, min: -90, max: 90 },
+      { name: 'lon', type: 'real', required: true, min: -180, max: 180 },
+      { name: 'radius', type: 'int', default: PLACE_RADIUS_DEFAULT, min: PLACE_RADIUS_MIN, max: PLACE_RADIUS_MAX },
       owner(),
     ],
   },
@@ -215,6 +231,11 @@ export function validateValue(col, v) {
       if (col.required && v.trim().length === 0) return 'mag niet leeg zijn';
       if (col.ref && !ID_RE.test(v)) return 'ongeldig id';
       if (col.oneOf && !col.oneOf.includes(v)) return `moet een van ${col.oneOf.join(', ')} zijn`;
+      break;
+    case 'real':
+      if (typeof v !== 'number' || !Number.isFinite(v)) return 'moet een getal zijn';
+      if (col.min !== undefined && v < col.min) return `minimaal ${col.min}`;
+      if (col.max !== undefined && v > col.max) return `maximaal ${col.max}`;
       break;
     case 'int':
       if (!Number.isInteger(v)) return 'moet een geheel getal zijn';

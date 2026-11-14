@@ -85,6 +85,23 @@ docker compose logs --tail 100</code></pre>
   <dd>Notifications are turned on per device and per browser. Turn them on on every device where you want them. A blocked account or a signed-out device gets none any more.</dd>
 </dl>
 
+<h2 id="reminders-at-a-place-do-not-go-off">Reminders at a place do not go off</h2>
+<p>Reminders at a place only work in the <a href="android-app.html">Android app</a>; see <a href="places.html">Reminders at a place</a>. First look under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>, in the section <x-ui k="places.android.title"></x-ui>: it shows what is missing, when the app last looked and how far you are from your places. <x-ui k="places.android.checkNow"></x-ui> makes it look right away.</p>
+<dl>
+  <dt>“<x-ui k="places.android.off"></x-ui>”</dt>
+  <dd>The location check is off. Choose <x-ui k="places.android.turnOn"></x-ui>. If you declined the permission question earlier, Android does not always ask again: open the settings of the app, choose Permissions › Location and turn <em>Precise location</em> on.</dd>
+  <dt>The app says location is only approximate, or that ‘Allow all the time’ is missing</dt>
+  <dd>An approximate location is too coarse for a place. In the permissions of the app turn <em>Precise</em> on and choose <em>Allow all the time</em>. Without the latter it only works while Tickory is open.</dd>
+  <dt>Location is off on the device</dt>
+  <dd>Turn location on in the quick settings or under Settings › Location.</dd>
+  <dt>The notification does not come, or comes late</dt>
+  <dd>It takes the app time to notice that you are there, sometimes a few minutes; with a small radius you can also drive right past. Choose a wider radius (250 metres or more). If you see under <x-ui k="places.android.title"></x-ui> that the last check was long ago, your phone is putting the app to sleep: set the battery of Tickory to <em>Unrestricted</em>, take it out of “sleeping apps”, and on Xiaomi, Huawei, OnePlus and Samsung look for <em>Autostart</em> or <em>Background activity</em>.</dd>
+  <dt>A reminder “on arrival” did not go off while I was already at the place</dt>
+  <dd>That is intended: a reminder you create while you are already there waits for the next arrival.</dd>
+  <dt>The position is often far from reality</dt>
+  <dd>Indoors or between tall buildings a position over networks is coarse. If you are outside, <x-ui k="places.android.checkNow"></x-ui> helps (it uses GPS if needed). Choose a wider radius for that place.</dd>
+</dl>
+
 <h2>After restoring a backup</h2>
 <p>Do devices show tasks that should no longer be there, or is something missing? Sign out and in again on every device. See <a href="backup.html#after-that-sign-in-again-on-every-device">Backup and restore</a>.</p>
 

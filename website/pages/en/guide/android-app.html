@@ -56,11 +56,12 @@ description: The Tickory Android app: your own server in an app, with reminders 
       <tr><td>Exact alarms</td><td class="wrap-ok">Making a reminder go off on the minute, also in sleep mode. On Android 13 and newer this is always on. On Android 12 you can turn it off; the reminder then sometimes arrives a few minutes late.</td></tr>
       <tr><td>Starting after boot</td><td class="wrap-ok">Android erases alarms when the phone is switched off; the app sets them again after boot (also after a time zone change, a changed clock or an update of the app).</td></tr>
       <tr><td>Nearby devices (Android 17 and newer only; the app asks for it)</td><td class="wrap-ok">Android 17 only lets an app reach addresses on your home network after this permission. The app only asks for it if your server is at home (such as <code>192.168.…</code> or <code>nas.local</code>) and only uses it to reach that server.</td></tr>
+      <tr><td>Location: precise, and ‘Allow all the time’ (only for reminders at a place; the app only asks when you yourself create such a reminder or turn the location check on, with an explanation first)</td><td class="wrap-ok">Noticing that you arrive at or leave a place, also when the app is closed. The position is compared with your places <strong>only on the device</strong> and never goes to the server or to anyone else. See <a href="places.html">Reminders at a place</a>.</td></tr>
       <tr><td>Network state and staying awake</td><td class="wrap-ok">For refreshing in the background: only with a connection, and finishing the work before the device sleeps again.</td></tr>
     </tbody>
   </table>
 </div>
-<p>The app asks for no access to location, contacts, files, camera or microphone.</p>
+<p>The app asks for no access to contacts, files, camera or microphone, and for location only if you yourself use reminders at a place.</p>
 
 <h2>Widgets</h2>
 <p>With the <strong>next version</strong> the app gets home screen widgets: Today, Project or list, Upcoming and an Add task button, with completing from the home screen, also without internet. See <a href="widgets.html">Widgets on Android</a>. The version that is out now does not have them yet.</p>

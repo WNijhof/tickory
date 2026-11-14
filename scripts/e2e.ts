@@ -30,6 +30,7 @@ import en from '../client/i18n/en.js';
 import { dragAndDropScenario } from './e2e-dnd.ts';
 import { attachmentScenario } from './e2e-attachments.ts';
 import { createAttachments } from '../server/attachments.ts';
+import { geoScenario } from './e2e-geo.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -574,7 +575,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -645,7 +646,7 @@ try {
   // het bewerkvenster
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Deadline']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Duration', 'Deadline']);
   assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Cancel', 'Save']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask', 'Write a comment…']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['Inbox', 'Thuis', '(no section)']);
@@ -741,7 +742,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1068,6 +1069,9 @@ try {
   await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart zonder brug');
   await waitFor(SYNCED, 'gesynchroniseerd');
   step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst (een vreemde waarde niet)');
+
+  // ---- 8d2. herinneringen op een locatie: plaatsen, de huidige positie (nagebootst), het taakvenster en de Android-brug ----
+  await geoScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, nav, BASE });
 
   // ---- 8e. het uiterlijk: projectenboom met kleur, favoriet, subproject, in- en uitklappen en archief ----
   const projectOnServer = (name: string) => (serverState().projects as any[]).find((p) => p.name === name);
@@ -1554,7 +1558,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('#task-dialog .comments .subheading').textContent`), 'Comments (2)');
   assert.ok((await texts('#task-dialog .comment-time')).every((x) => /^(just now|\d+ minutes? ago)$/.test(x)), `tijden in het Engels: ${JSON.stringify(await texts('#task-dialog .comment-time'))}`);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .quick-dates button')].map((b) => b.textContent)`), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date']);
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Assigned to', 'Deadline']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Assigned to', 'Duration', 'Deadline']);
   assert.match(await evaluate(`document.querySelector('#task-dialog .task-created').textContent`), /^Created by Alice, today$/);
   await noDutch('taakvenster met opmerkingen', mine);
   await fits('taakvenster met opmerkingen');

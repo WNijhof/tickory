@@ -8,7 +8,7 @@
 
 import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
 import { isValidKey, keyAfter } from '../../shared/orderKey.js';
-import { nextOccurrence } from '../../shared/recurrence.js';
+import { nextDue, nextOccurrence } from '../../shared/recurrence.js';
 
 export const RESOURCES = ENTITY_LIST.map((e) => e.resource);
 
@@ -98,6 +98,12 @@ function add(state, e, args, now, userId) {
     let count = 0;
     for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
     if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+  }
+  if (e.name === 'reminder') {
+    // een locatieherinnering heeft een eigen plaats nodig en een trigger, de andere soorten niet (zoals op de server)
+    if (row.type === 'location') {
+      if (!row.place_id || !state.places.has(row.place_id) || !row.trigger || row.due || row.minute_offset !== null) return;
+    } else if (row.place_id || row.trigger) return;
   }
   if (e.name === 'task' && row.parent_id) {
     const parent = state.tasks.get(row.parent_id);
@@ -197,6 +203,11 @@ function remove(state, e, args, now, userId) {
     case 'task':
       deleteTaskTree(state, [id]);
       break;
+    case 'place':
+      // de herinneringen op deze plaats gaan mee, zoals op de server
+      removeWhere(state, 'reminders', (r) => r.place_id === id);
+      state.places.delete(id);
+      break;
     case 'label':
       state.labels.delete(id);
       for (const t of [...state.tasks.values()]) {
@@ -256,7 +267,7 @@ function taskComplete(state, args, now) {
   // zoals de server: een terugkerende taak die al is doorgeschoven sinds de afzender hem zag, schuift niet nog eens door
   if (row.due?.recurrence && args.if_due !== undefined && args.if_due !== row.due.date) return;
   const count = (row.completed_count ?? 0) + 1;
-  const next = row.due?.recurrence ? nextOccurrence(row.due.date, row.due.recurrence) : null;
+  const next = row.due?.recurrence ? nextDue(row.due.date, row.due.recurrence, args.completed_on) : null;
   if (next) {
     // terugkerend: door naar de volgende datum, de taak blijft open
     patch(state, 'tasks', row.id, { due: { ...row.due, date: next }, completed_count: count }, now);

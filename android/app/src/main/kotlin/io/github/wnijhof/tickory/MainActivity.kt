@@ -49,6 +49,9 @@ import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.core.VoiceScript
+import io.github.wnijhof.tickory.geo.GeoEngine
+import io.github.wnijhof.tickory.geo.GeoPermissionFlow
+import io.github.wnijhof.tickory.geo.GeoPermissions
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.ShareStore
 import io.github.wnijhof.tickory.store.TokenVault
@@ -94,6 +97,9 @@ class MainActivity : ComponentActivity() {
     private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         onNotificationPermissionResult(granted)
     }
+
+    /** De toestemmingen voor locatie (herinneringen op een plek), met uitleg vooraf; zie GeoPermissionFlow. */
+    private val geoFlow = GeoPermissionFlow(this, { notifyPageOfStatusChange() }, { runScript(it) })
 
     private val voiceInput = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val spoken = if (result.resultCode == RESULT_OK) result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull() else null
@@ -213,6 +219,7 @@ class MainActivity : ComponentActivity() {
         Background.executor.execute {
             ReminderEngine.replan(app)
             if (Session.isActive(app)) SyncScheduler.refreshNow(app)
+            GeoEngine.refresh(app) // ook na terugkeer uit de instellingen, waar de locatietoestemming kan zijn veranderd
         }
     }
 
@@ -350,7 +357,7 @@ class MainActivity : ComponentActivity() {
         return ServerAddress.sameOrigin(url, origin)
     }
 
-    private fun notifyPageOfStatusChange() {
+    fun notifyPageOfStatusChange() {
         val view = webView ?: return
         if (!pageReady || !ServerAddress.sameOrigin(view.url, origin)) return
         view.evaluateJavascript("window.dispatchEvent(new Event('tickory-android-status'));", null)
@@ -701,6 +708,17 @@ class MainActivity : ComponentActivity() {
     private fun runScript(script: String) {
         if (pageReady) webView?.evaluateJavascript(script, null)
     }
+
+    // ---------- locatie: herinneringen op een plek (aangeroepen vanuit de brug, op de hoofddraad) ----------
+
+    /** De gebruiker wil herinneringen op een plek: uitleg, dan de toestemmingen (zie GeoPermissionFlow). */
+    fun requestLocationPermission() = geoFlow.start()
+
+    /** De instellingen van het toestel (als locatie uit staat) of van de app (voor de toestemming). */
+    fun openLocationSettings() = geoFlow.openLocationSettings(servicesOff = !GeoPermissions.servicesOn(this))
+
+    /** Eén keer de positie bepalen voor "Gebruik mijn huidige positie"; het antwoord gaat als gebeurtenis naar de pagina. */
+    fun requestCurrentPosition() = geoFlow.requestCurrentPosition()
 
     // ---------- toestemmingen en instellingen (aangeroepen vanuit de brug, op de hoofddraad) ----------
 

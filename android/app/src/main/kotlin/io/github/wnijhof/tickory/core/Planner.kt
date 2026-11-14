@@ -13,6 +13,9 @@ data class PlannedReminder(
     val triggerAtMs: Long,
     /** De datum van de taak zoals de server die gaf; voor de tekst van de melding ("vandaag 14:00"). */
     val taskDue: String? = null,
+    /** Bij een herinnering op een plek: de naam van de plaats, en "enter" of "leave". Voor de tekst van de melding. */
+    val place: String? = null,
+    val trigger: String? = null,
 ) {
     /** Herkent "deze herinnering op dit tijdstip". Verschuift het tijdstip, dan is het een nieuwe sleutel en gaat hij opnieuw af. */
     val key: String get() = "$reminderId@$triggerAtMs"

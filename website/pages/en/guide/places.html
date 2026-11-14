@@ -1,0 +1,104 @@
+<!--
+title: Reminders at a place
+description: A reminder when you arrive at or leave a place such as Home, Work or the supermarket. Adding places, choosing the radius, what the Android app does for it (only on your phone, without Google services), what it costs in battery and what it cannot do.
+-->
+<h1>Reminders at a place</h1>
+<p class="intro">“Remind me about the parcel when I get home.” A reminder like that does not go off at a time, but as soon as you enter or leave a place. It works in the <a href="android-app.html">Android app</a>; you create them in the web app.</p>
+
+<div class="note warn">
+  <span class="note-label">Comes with the next version, and not tried on a phone yet</span>
+  <p>Reminders at a place come with the <strong>next version</strong> of Tickory and the Android app. Everything that can be tested without a phone has been tested: the distance calculation, the rules for entering and leaving (also with noise in the position), requesting positions from Android and the notifications, on a simulated Android. <strong>How accurate and how frugal it is on a real phone</strong>, and how it behaves with the strict battery saving of your brand, has not been tried yet. If you notice something, report it on <a href="{{repo}}/issues">GitHub</a>.</p>
+</div>
+
+<h2>In short</h2>
+<ul>
+  <li>You save <strong>places</strong> (Home, Work, the supermarket) under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>. A place is a point on the map with a <strong>radius</strong>, 150 metres by default.</li>
+  <li>In the window of a task, choose <x-ui k="reminder.place"></x-ui> under <x-ui k="reminder.title"></x-ui>, then the place and <x-ui k="reminder.triggerEnter"></x-ui> or <x-ui k="reminder.triggerLeave"></x-ui>.</li>
+  <li>The <strong>Android app</strong> watches your location and shows the notification, with the same buttons as any other reminder: <x-ui k="sw.complete"></x-ui> and snooze.</li>
+  <li><strong>In the browser such a reminder does not go off</strong>: a website cannot follow your location in the background. The places and reminders are saved and synced, though, so they work on your phone.</li>
+</ul>
+
+<h2 id="privacy">Your location stays yours</h2>
+<ul>
+  <li>The <strong>position of your phone never leaves the device.</strong> The app compares it with your places itself. Nothing goes to your server, to Google or to anyone else; no map service, no location history and no Google service is involved.</li>
+  <li>The server only stores the <em>places</em> you create (name, coordinates, radius) and the reminders attached to them. They are private: other users of your server cannot see your places, not even in a shared project, and cannot use them.</li>
+  <li>The app only asks for permission for your location when <em>you</em> create your first reminder at a place or turn the location check on, with an explanation first. You can turn it off at any time, also under <x-ui k="settings.places"></x-ui>.</li>
+</ul>
+
+<h2 id="adding-a-place">Adding a place</h2>
+<p>Open <x-ui k="settings.title"></x-ui> › <x-ui k="settings.places"></x-ui>. Give the place a name and enter its position:</p>
+<ul>
+  <li><strong><x-ui k="places.useHere"></x-ui></strong>. Are you at the place itself? Tap this button: the browser or the app finds your position once and fills it in. This happens only after your tap; the position only reaches the server when you save the place.</li>
+  <li><strong>Paste coordinates or a map link.</strong> Two numbers (<code>52.09070, 5.12140</code>), a <code>geo:</code> link (<code>geo:52.0907,5.1214</code>), or a link from a map app with the position in it. <strong>Nothing is looked up</strong> and no request leaves your device, so an address or a place name is not recognised.</li>
+  <li>Or fill in the <x-ui k="places.lat"></x-ui> and <x-ui k="places.lon"></x-ui> yourself. A comma as decimal separator is fine.</li>
+</ul>
+<p>Choose the <strong>radius</strong>: how close you have to be. Between 100 and 5000 metres.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Radius</th><th>Suits</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>100 m</td><td class="wrap-ok">A small site or a shop. The smallest that makes sense: the position of a phone is accurate to a few tens of metres, and in a city sometimes worse.</td></tr>
+      <tr><td>150 m <em>(default)</em></td><td class="wrap-ok">A house or an office.</td></tr>
+      <tr><td>250 to 500 m</td><td class="wrap-ok">A shopping centre, a school, a station, a neighbourhood.</td></tr>
+      <tr><td>1 to 5 km</td><td class="wrap-ok">A village or a city (“when I am in Utrecht”). Coarse, but also more frugal.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>A larger radius goes off sooner, but also when you just walk past. You change a place with <x-ui k="places.editButton"></x-ui>; delete it, and the reminders at that place go with it (the question says how many). You can have at most 100 places.</p>
+
+<h2 id="a-reminder-at-a-place">A reminder at a place</h2>
+<ol>
+  <li>Open a task. Under <x-ui k="reminder.choose"></x-ui> choose <x-ui k="reminder.place"></x-ui>.</li>
+  <li>Choose the place, and <x-ui k="reminder.triggerEnter"></x-ui> (you come inside the radius) or <x-ui k="reminder.triggerLeave"></x-ui> (you go outside it).</li>
+  <li>Choose <x-ui k="reminder.add"></x-ui>. Adding the same one again does nothing.</li>
+</ol>
+<p>A task can have several reminders at a place, also next to reminders at a time. A reminder at a place has no time, and the task does not need a date. A completed or deleted task no longer gives notifications.</p>
+
+<h2 id="what-the-app-does">What the Android app does</h2>
+<ul>
+  <li>It notifies you <strong>once per arrival and once per departure</strong>. If you keep wandering around the edge you do not get a notification again and again: for “left” you have to be clearly outside the radius (the radius plus a margin). The next arrival gives a notification again.</li>
+  <li>If you create a reminder “on arrival” while you are already at the place, it does <strong>not go off right away</strong>; it waits for the next arrival.</li>
+  <li>The notification says “You have arrived at Home” or “You have left Home”, with the same buttons as other reminders: <x-ui k="sw.complete"></x-ui> and snooze.</li>
+  <li>It also works when the app is closed and the device is asleep, <strong>if you choose ‘Allow all the time’</strong> in the permission. Without it, it only works while Tickory is open.</li>
+  <li>After the phone restarts, the app picks it up again by itself.</li>
+</ul>
+
+<h3 id="permissions">The permissions</h3>
+<p>At your first reminder at a place (or under <x-ui k="settings.places"></x-ui> with <x-ui k="places.android.turnOn"></x-ui>) the app explains what it is going to do, and then Android asks for:</p>
+<ol>
+  <li><strong>Precise location.</strong> An approximate location alone is too coarse for a radius of hundreds of metres; the app says so.</li>
+  <li><strong>Allow all the time</strong> (also when the app is closed). On Android 11 and newer, Android takes you to the settings screen of the app for this: choose <em>Allow all the time</em> there.</li>
+</ol>
+<p>If you decline the first one, the app turns the location check off again and does not keep asking; under <x-ui k="settings.places"></x-ui> there is then a button to open the settings of the app.</p>
+
+<h2 id="battery">What it costs in battery</h2>
+<p>The app does <strong>not</strong> follow your position continuously and uses no GPS in the background, except sometimes once:</p>
+<ul>
+  <li>It asks Android for a position now and then, over wifi and the mobile network (frugal) and by riding along with positions that other apps already have determined (that costs nothing extra).</li>
+  <li>How far you are from the edge of the nearest place decides how often: far away at most once every twenty minutes, close by every minute.</li>
+  <li>Every quarter of an hour the app checks whether it has heard anything. If the last position is too old (the closer to a place, the stricter), it asks <strong>once</strong> for a fresh position, with GPS if needed.</li>
+  <li>Without a reminder at a place, or if you turn the location check off, nothing is scheduled.</li>
+</ul>
+<p>How much battery that is in practice depends on your phone and your day and has not been measured yet. The aim is “not noticeable”.</p>
+
+<h2 id="checking">Does it work? Check now</h2>
+<p>Under <x-ui k="settings.places"></x-ui> the app has a section <x-ui k="places.android.title"></x-ui>: whether the check is on, which permissions are still missing, <strong>when it last looked</strong>, how accurate the last position was and <strong>how far you are from each place</strong>. With <x-ui k="places.android.checkNow"></x-ui> the app finds your position right away. Only you see that distance, on your own phone.</p>
+
+<h2 id="limits">What it cannot do, and what disappoints</h2>
+<ul>
+  <li><strong>Not in the browser.</strong> A reminder at a place only goes off in the Android app.</li>
+  <li><strong>Not to the second.</strong> The notification comes as soon as the app has a new position, and depending on the distance that can take up to a few minutes. Driving through a small place often gives no notification.</li>
+  <li><strong>Accuracy.</strong> Indoors or between tall buildings the position is sometimes tens or hundreds of metres off. So do not choose a small radius if your place is hard to pinpoint.</li>
+  <li><strong>Strict battery saving.</strong> Some brands (Xiaomi, Huawei, OnePlus, Samsung and others) shut down apps in the background. Set Tickory to <em>Unrestricted</em> under battery and take it out of “sleeping apps”; see <a href="troubleshooting.html#reminders-at-a-place-do-not-go-off">Troubleshooting</a>.</li>
+  <li><strong>Phones without GPS</strong> only have a rough position from networks; choose a wider radius there. Phones without Google services sometimes have no network location at all; the app then uses GPS at an interval of at least five minutes, which costs more battery, and only when there is something to watch.</li>
+  <li>A position that jumps tens of kilometres in a short time is ignored as a measuring error.</li>
+</ul>
+
+<h2 id="for-administrators">For administrators</h2>
+<ul>
+  <li>There is nothing to set up or install on the server. A database from an earlier version gets the new table by itself.</li>
+  <li>The server never receives a position from a user. It stores at most 100 places per user (name, coordinates, radius); they are in the database and so in a <a href="backup.html">backup</a>. Treat a backup as private: the places can reveal a home address.</li>
+  <li>An older Android app does not understand the new reminders and skips them; an older server understands the new app: it then asks again without places.</li>
+</ul>

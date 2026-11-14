@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import io.github.wnijhof.tickory.R
+import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.core.ReminderLogic
 import io.github.wnijhof.tickory.sync.Completer
 import io.github.wnijhof.tickory.sync.Session
@@ -83,6 +84,8 @@ class SystemEventsReceiver : BroadcastReceiver() {
         try {
             Notifications.ensureChannel(app) // de naam van het kanaal volgt de taal van het toestel
             ReminderEngine.replan(app)
+            // na het opstarten zijn de aanvragen bij Android weg: opnieuw aanvragen (zonder te wachten op een positie)
+            GeoEngine.refresh(app, check = false)
             WidgetUpdater.updateAll(app) // nieuwe dag, andere tijdzone of taal: de widgets opnieuw tekenen (en het middernachtalarm opnieuw zetten)
             if (Session.isActive(app) && (action == Intent.ACTION_BOOT_COMPLETED || action == Intent.ACTION_MY_PACKAGE_REPLACED)) {
                 SyncScheduler.start(app)

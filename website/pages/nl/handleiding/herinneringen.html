@@ -23,12 +23,16 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 </ol>
 <p>Een herinnering verwijder je met de knop × achter de regel. Dit gaat <strong>direct</strong> door, net als subtaken toevoegen: je hoeft niet op <x-ui k="common.save"></x-ui> te klikken, en <x-ui k="common.cancel"></x-ui> maakt het niet ongedaan. Voeg je precies dezelfde herinnering nog eens toe, dan gebeurt er niets.</p>
 
-<h3>Twee soorten</h3>
+<h3>Twee soorten, en een derde</h3>
 <dl>
   <dt>Vooraf (<x-ui k="reminder.minutesBefore" n="30"></x-ui>)</dt>
   <dd>Hangt aan het tijdstip van de taak. Verschuif je de taak naar een ander tijdstip, dan schuift de herinnering mee. Dit werkt <strong>alleen bij een taak met een tijd</strong>, bijvoorbeeld “morgen om 14 uur”. Bij een taak met alleen een dag staat er achter de herinnering <em><x-ui k="reminder.waiting"></x-ui></em>: ze doet dan nog niets en gaat af zodra de taak een tijd krijgt.</dd>
   <dt><x-ui k="reminder.fixed"></x-ui></dt>
   <dd>Een eigen datum en tijd, los van de taak. Ook bij een taak zonder datum.</dd>
+</dl>
+<dl>
+  <dt><x-ui k="reminder.place"></x-ui></dt>
+  <dd>Een herinnering als je ergens <strong>aankomt of weggaat</strong>, zoals Thuis of de supermarkt. Ze heeft geen tijdstip en werkt alleen in de Android-app, op basis van de positie van je telefoon, die het toestel nooit verlaat. Zie <a href="plaatsen.html">Herinneringen op een plek</a>.</dd>
 </dl>
 <p>De regels staan op volgorde van afgaan; wat nog niets doet, staat onderaan. Haal je de tijd van een taak weg, dan verdwijnen je herinneringen vooraf (een herinnering op een vast tijdstip blijft). Geef je een taak zonder herinnering later een tijd, dan komt de automatische herinnering erbij.</p>
 

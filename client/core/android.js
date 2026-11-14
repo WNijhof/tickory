@@ -44,6 +44,34 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     openAttachment: (id, name, mime) => call('openAttachment', id, name, mime),
     /** Haalt een bijlage op en laat de gebruiker kiezen waar hij wordt opgeslagen. */
     saveAttachment: (id, name, mime) => call('saveAttachment', id, name, mime),
+
+    // ---- herinneringen op een locatie (zie locationStatusText in core/places.js voor de vorm van de status) ----
+    /**
+     * Wat de locatiecontrole van de app nu doet, of null als de app er geen kent of de tekst onleesbaar is.
+     * @returns {import('./places.js').LocationStatus | null}
+     */
+    locationStatus() {
+      try {
+        const raw = call('locationStatus');
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : null;
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) && Object.keys(parsed).length > 0 ? parsed : null;
+      } catch {
+        return null;
+      }
+    },
+    /** Zet de locatiecontrole aan en vraagt zo nodig de toestemmingen, met uitleg vooraf. Alleen na een tik van de gebruiker aanroepen. */
+    requestLocationPermission: () => call('requestLocationPermission'),
+    /** Zet de locatiecontrole aan of uit zonder iets te vragen (uit: alle controles stoppen). */
+    setLocationEnabled: (on) => call('setLocationEnabled', Boolean(on)),
+    /** Controleert nu één keer de positie (voor "Controleer nu"); de uitkomst staat daarna in locationStatus(). */
+    checkLocationNow: () => call('checkLocationNow'),
+    /**
+     * Vraagt één keer de positie van het toestel (voor "gebruik mijn huidige positie"); het antwoord komt als voorval
+     * `tickory-position` op window, met `detail` { lat, lon, accuracy } of { error: 'denied' | 'unavailable' | 'timeout' }.
+     */
+    requestCurrentPosition: () => call('requestCurrentPosition'),
+    /** Opent de instellingen van de app in Android, waar de locatietoestemming te wijzigen is. */
+    openLocationSettings: () => call('openLocationSettings'),
   };
 }
 
@@ -94,7 +122,12 @@ export function reminderFingerprint(view, userId) {
   for (const r of view.reminders.values()) {
     if (r.owner_id && userId && r.owner_id !== userId) continue;
     const t = view.tasks.get(r.task_id);
-    lines.push([r.id, r.type, r.minute_offset ?? '', r.due?.date ?? '', t ? `${t.due?.date ?? ''}|${t.checked ? 1 : 0}|${t.content}` : 'x'].join('\u0001'));
+    lines.push([r.id, r.type, r.minute_offset ?? '', r.due?.date ?? '', t ? `${t.due?.date ?? ''}|${t.checked ? 1 : 0}|${t.content}` : 'x', r.place_id ?? '', r.trigger ?? ''].join('\u0001'));
+  }
+  // de plaatsen horen erbij: een andere positie of straal verandert wanneer een locatieherinnering afgaat
+  for (const p of view.places.values()) {
+    if (p.owner_id && userId && p.owner_id !== userId) continue;
+    lines.push(['place', p.id, p.name, p.lat, p.lon, p.radius].join('\u0001'));
   }
   return lines.sort().join('\u0002');
 }

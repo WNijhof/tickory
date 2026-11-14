@@ -57,6 +57,8 @@
     <string name="channel_reminders_description">Notifications for the reminders on your tasks</string>
     <string name="notification_reminder">Reminder</string>
     <string name="notification_reminder_due">Reminder · %1$s</string>
+    <string name="notification_geo_enter">You have arrived at %1$s</string>
+    <string name="notification_geo_leave">You have left %1$s</string>
     <string name="task_untitled">Untitled task</string>
     <string name="action_complete">Complete</string>
     <string name="action_snooze">In 10 minutes</string>
@@ -114,4 +116,15 @@
     <string name="attachment_no_app">No app was found to open this file. Choose Save and open it yourself.</string>
     <string name="attachment_saved">Attachment saved.</string>
     <string name="attachment_save_failed">Saving did not work.</string>
+    <!-- Reminders at a place: permissions -->
+    <string name="geo_intro_title">Reminders at a place</string>
+    <string name="geo_intro_message">Tickory compares your phone\'s position with your places (such as Home and Work) and tells you when you arrive or leave.\n\nThis happens only on your phone: your position is never sent to your server or to anyone else, and no Google services are used. It uses little battery, because the app only looks now and then.\n\nAndroid will next ask for permission to use your precise location. You can turn this off again at any time under Places.</string>
+    <string name="geo_continue">Continue</string>
+    <string name="geo_later">Later</string>
+    <string name="geo_background_title">Also when the app is closed</string>
+    <string name="geo_background_message">In the next step choose ‘Allow all the time’. Then Tickory can tell you when you arrive or leave even when the app is not open. Without this choice it only works while Tickory is open.</string>
+    <string name="geo_denied">Without permission for location, reminders at a place do not work. You can turn this on later under Places.</string>
+    <string name="geo_approximate">Tickory only got an approximate location. That is too coarse for a place. Choose ‘Precise’ in the permission.</string>
+    <string name="geo_background_missing">Without ‘Allow all the time’, reminders at a place only work while Tickory is open.</string>
+    <string name="geo_services_off">Location is off on this device. Turn location on to get reminders at a place.</string>
 </resources>

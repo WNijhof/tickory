@@ -647,28 +647,79 @@ async function randomDndAction(c, rnd) {
   return 'tieTasks';
 }
 
+/**
+ * Plaatsen en locatieherinneringen: toevoegen, wijzigen, verwijderen (met de herinneringen erop), herinneringen aan taken hangen,
+ * en soms een taak afvinken of verwijderen terwijl er een locatieherinnering aan hangt. Ook een paar bedoeld ongeldige commando's.
+ */
+async function randomGeoAction(c, rnd) {
+  const v = c.store.view;
+  const pick = (map, pred = () => true) => {
+    const list = [...map.values()].filter(pred).sort((a, b) => (a.id < b.id ? -1 : 1));
+    return list.length ? list[rnd(list.length)] : null;
+  };
+  const place = pick(v.places);
+  const task = pick(v.tasks);
+  const what = rnd(10);
+  const uuid = () => `uuid-${String(++counter).padStart(10, '0')}`;
+  if (what <= 1 || !place) {
+    await c.actions.addPlace({ name: `Plaats ${rnd(1000)}`, lat: 50 + rnd(3000) / 1000, lon: 4 + rnd(3000) / 1000, radius: [100, 150, 500, 5000][rnd(4)] });
+    return 'addPlace';
+  }
+  if (what === 2) { await c.actions.updatePlace(place.id, { name: `Anders ${rnd(1000)}`, radius: 100 + rnd(900) }); return 'updatePlace'; }
+  if (what === 3) { if (rnd(3)) return 'skip'; await c.actions.deletePlace(place.id); return 'deletePlace'; }
+  if (what >= 4 && what <= 6) {
+    if (!task) return 'skip';
+    await c.actions.addReminder(task.id, { type: 'location', place_id: place.id, trigger: ['enter', 'leave'][rnd(2)] });
+    return 'addLocationReminder';
+  }
+  if (what === 7) {
+    const r = pick(v.reminders, (x) => x.type === 'location');
+    if (!r) return 'skip';
+    await c.actions.deleteReminder(r.id);
+    return 'deleteLocationReminder';
+  }
+  if (what === 8) {
+    // bedoeld ongeldig: een locatieherinnering zonder plaats of zonder trigger, en een plaats die niet bestaat
+    if (!task) return 'skip';
+    const id = `id${String(++counter).padStart(10, '0')}`;
+    const bad = [{ task_id: task.id, type: 'location', trigger: 'enter' }, { task_id: task.id, type: 'location', place_id: place.id }, { task_id: task.id, type: 'location', place_id: 'bestaat-niet-1', trigger: 'enter' },
+      { task_id: task.id, type: 'relative', minute_offset: 5, place_id: place.id }, { task_id: task.id, type: 'location', place_id: place.id, trigger: 'enter', minute_offset: 5 }][rnd(5)];
+    await c.store.enqueue([{ type: 'reminder_add', uuid: uuid(), args: { id, ...bad } }]);
+    return 'invalidLocationReminder';
+  }
+  if (!task) return 'skip';
+  if (rnd(2)) await c.actions.completeTask(task.id); else await c.actions.deleteTask(task.id);
+  return 'taskWithLocation';
+}
+
 // De eerste vier reeksen zijn ongewijzigd; de volgende drie voegen slepen en verplaatsen toe (met eigen reeks getallen, zodat de
 // eerste reeksen precies hetzelfde blijven doen) en eisen daarvoor andere handelingen.
-const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }];
+const RUNS = [{ seed: 1, every: 1 }, { seed: 7, every: 1 }, { seed: 42, every: 8 }, { seed: 2026, every: 25 }, { seed: 5, every: 1, dnd: true }, { seed: 31, every: 4, dnd: true }, { seed: 808, every: 25, dnd: true }, { seed: 77, every: 1, geo: true }, { seed: 123, every: 6, geo: true }];
 const BASE_KINDS = ['addTask', 'addSubtask', 'moveTask', 'moveUnderTask', 'completeTask', 'deleteTask', 'setTaskLabels', 'comment_add', 'comment_update', 'comment_delete', 'archiveProject'];
+const GEO_KINDS = ['addPlace', 'updatePlace', 'deletePlace', 'addLocationReminder', 'deleteLocationReminder', 'invalidLocationReminder'];
 const DND_KINDS = ['dragTask', 'keyTask', 'dropTask', 'dragProject', 'tieTasks'];
 
-for (const { seed, every, dnd = false } of RUNS) {
-  test(`differentieel${dnd ? ' met slepen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
+for (const { seed, every, dnd = false, geo = false } of RUNS) {
+  test(`differentieel${dnd ? ' met slepen' : ''}${geo ? ' met plaatsen' : ''} (seed ${seed}, sync na elke ${every} handelingen): optimistische toestand = toestand van de server`, async () => {
     const db = makeServer();
     const c = makeClient(db);
     await c.store.init();
     await c.sync.syncNow();
     const rnd = rng(seed);
     const rndDnd = rngMixed(seed + 999);
+    const rndGeo = rngMixed(seed + 4242);
     const log = [];
     for (let i = 1; i <= 400; i++) {
       log.push(await randomAction(c, rnd));
       if (dnd && rndDnd(2) === 0) log.push(await randomDndAction(c, rndDnd));
+      if (geo) log.push(await randomGeoAction(c, rndGeo));
       if (i % every !== 0) continue;
       const optimistic = snapshot(c.store.view);
       assert.equal(await c.sync.syncNow(), true);
-      assert.deepEqual(c.errors, [], `de server weigerde iets na: ${log.slice(-every * 2).join(', ')}`);
+      // de bedoeld ongeldige locatieherinneringen weigert de server; alles anders moet slagen
+      const unexpected = c.errors.filter((e) => !(geo && e.cmd.type === 'reminder_add'));
+      c.errors.length = 0;
+      assert.deepEqual(unexpected, [], `de server weigerde iets na: ${log.slice(-every * 2).join(', ')}`);
       assert.deepEqual(snapshot(c.store.view), optimistic, `verschil na stap ${i}: ${log.slice(-every * 2).join(', ')}`);
     }
     await c.sync.syncNow();
@@ -677,7 +728,7 @@ for (const { seed, every, dnd = false } of RUNS) {
     await fresh.sync.syncNow();
     assert.deepEqual(snapshot(fresh.store.view), snapshot(c.store.view), 'een nieuw apparaat ziet hetzelfde');
     const kinds = new Set(log);
-    for (const k of dnd ? DND_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
+    for (const k of dnd ? DND_KINDS : geo ? GEO_KINDS : BASE_KINDS) assert.ok(kinds.has(k), `handeling ${k} kwam niet voor in deze reeks`);
     if (dnd) assert.ok(log.filter((k) => DND_KINDS.includes(k)).length >= 60, 'genoeg verplaatsingen in de reeks');
   });
 }

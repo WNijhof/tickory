@@ -62,6 +62,8 @@
     <string name="channel_reminders_description">Meldingen voor de herinneringen bij je taken</string>
     <string name="notification_reminder">Herinnering</string>
     <string name="notification_reminder_due">Herinnering · %1$s</string>
+    <string name="notification_geo_enter">Je bent aangekomen bij %1$s</string>
+    <string name="notification_geo_leave">Je bent vertrokken bij %1$s</string>
     <string name="task_untitled">Taak zonder titel</string>
     <string name="action_complete">Voltooien</string>
     <string name="action_snooze">Over 10 minuten</string>
@@ -119,4 +121,15 @@
     <string name="attachment_no_app">Er is geen app gevonden om dit bestand te openen. Kies Opslaan en open het daarna zelf.</string>
     <string name="attachment_saved">Bijlage opgeslagen.</string>
     <string name="attachment_save_failed">Opslaan is niet gelukt.</string>
+    <!-- Herinneringen op een plek: toestemmingen -->
+    <string name="geo_intro_title">Herinneringen op een plek</string>
+    <string name="geo_intro_message">Tickory vergelijkt de positie van je telefoon met je plaatsen (zoals Thuis en Werk) en meldt het als je aankomt of vertrekt.\n\nDat gebeurt alleen op je telefoon: je positie gaat nooit naar je server of naar iemand anders, en er worden geen Google-diensten gebruikt. Het kost weinig batterij, want de app kijkt alleen af en toe.\n\nAndroid vraagt hierna om toestemming voor je nauwkeurige locatie. Je kunt dit altijd weer uitzetten bij Plaatsen.</string>
+    <string name="geo_continue">Doorgaan</string>
+    <string name="geo_later">Later</string>
+    <string name="geo_background_title">Ook als de app dicht is</string>
+    <string name="geo_background_message">Kies bij de volgende stap ‘Altijd toestaan’. Dan kan Tickory je aankomst of vertrek ook melden als de app niet open staat. Zonder deze keuze werkt het alleen terwijl Tickory open is.</string>
+    <string name="geo_denied">Zonder toestemming voor locatie werken herinneringen op een plek niet. Je kunt dit later aanzetten bij Plaatsen.</string>
+    <string name="geo_approximate">Tickory kreeg alleen een benaderde locatie. Dat is te grof voor een plaats. Kies bij de toestemming ‘Nauwkeurig’.</string>
+    <string name="geo_background_missing">Zonder ‘Altijd toestaan’ werken herinneringen op een plek alleen terwijl Tickory open is.</string>
+    <string name="geo_services_off">Locatie staat uit op dit toestel. Zet locatie aan om herinneringen op een plek te krijgen.</string>
 </resources>

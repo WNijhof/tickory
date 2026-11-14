@@ -5,6 +5,7 @@
 import { parseDateText } from '../core/dateNl.js';
 import { dateLanguageNote } from '../core/dateHint.js';
 import { dayOf } from '../core/timeAgo.js';
+import { DURATION_CHOICES, formatDuration } from '../core/duration.js';
 import { formatDateInput, formatDueLong } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
@@ -53,6 +54,11 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
     const due = h('input', { class: 'field', type: 'text', value: initialDue, placeholder: t('task.duePlaceholder'), autocomplete: 'off' });
     const dueHint = h('p', { class: 'hint', 'aria-live': 'polite' });
     const deadline = h('input', { class: 'field', type: 'date', value: task.deadline ?? '' });
+    // duur: een keuze uit de gewone lengtes, plus de huidige als die er niet bij hoort (bijvoorbeeld =1u20 in snel toevoegen)
+    const durationChoices = [...new Set([...DURATION_CHOICES, ...(task.duration ? [task.duration] : [])])].sort((a, b) => a - b);
+    const duration = h('select', { class: 'field', 'aria-label': t('task.duration') },
+      h('option', { value: '' }, t('task.durationNone')),
+      durationChoices.map((m) => h('option', { value: String(m), selected: m === task.duration }, formatDuration(m))));
     const quick = (label, date) => h('button', {
       class: 'chip-button', type: 'button',
       onclick: () => {
@@ -169,6 +175,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
       if (description.value !== (task.description ?? '')) changes.description = description.value;
       if (priorityValue !== task.priority) changes.priority = priorityValue;
       if (deadline.value !== (task.deadline ?? '')) changes.deadline = deadline.value || null;
+      if (duration.value !== (task.duration ? String(task.duration) : '')) changes.duration = duration.value ? Number(duration.value) : null;
       const dueText = due.value.trim();
       if (dueText !== initialDue) {
         if (!dueText) {
@@ -307,6 +314,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
             h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.priority')), priorityGroup),
             h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.labels')), h('div', { class: 'label-field' }, labelBox, labelOptions)),
             assigneeField,
+            field(t('task.duration'), duration),
             field(t('task.deadline'), deadline),
             reminders.node,
             createdLine && h('p', { class: 'task-created' }, createdLine)),

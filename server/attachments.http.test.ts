@@ -719,7 +719,7 @@ test('migratie: een bestaande database zonder bijlagen krijgt de tabellen erbij 
     const { createSchema } = await import('./schema.ts');
     createSchema(w.db);
     createSchema(w.db); // en nog eens: idempotent
-    assert.equal(Number((w.db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as Row).value) >= 3, true);
+    assert.equal(Number((w.db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as Row).value) >= 4, true);
     const full = w.sync('alice', []);
     assert.deepEqual(full.attachments, []);
     assert.equal((full.tasks as Row[]).filter((t) => t.id === w.T).length, 1, 'de taak is er nog');

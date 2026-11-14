@@ -28,12 +28,65 @@ sleutel zijn ondertekend (zie [Ondertekenen](#ondertekenen)). Android 8 of nieuw
 | Starten na opstarten van het toestel | Android wist alarmen bij uitschakelen; de app zet ze na het opstarten opnieuw. |
 | Exacte alarmen | Een herinnering op de minuut laten afgaan, ook in de slaapstand. Op Android 13+ staat dit vast aan; op Android 12 kun je het uitzetten. |
 | Apparaten in de buurt (alleen Android 17+, je wordt erom gevraagd) | Android 17 laat een app pas bij adressen op je thuisnetwerk na deze toestemming. De app vraagt hem alleen als je server thuis staat (`192.168.…`, `nas.local`), en gebruikt hem alleen om die server te bereiken. |
+| Locatie: nauwkeurig en "altijd toestaan" (de app vraagt er pas om als je zelf een herinnering op een plek maakt of de locatiecontrole aanzet, met uitleg vooraf) | Merken dat je ergens aankomt of weggaat, ook als de app dicht is. De positie blijft op het toestel; zie [Herinneringen op een plek](#herinneringen-op-een-plek). |
 | Netwerkstatus en wakker blijven | Voor het verversen op de achtergrond: alleen met verbinding, en het werk afmaken voordat het toestel weer slaapt. Komt mee met WorkManager. |
 
 De widgets vragen **geen extra toestemming**: ze doen zelf geen netwerkverkeer; het afvinken en verversen loopt via dezelfde
 WorkManager-taak als de herinneringen.
 
-De app vraagt geen toegang tot locatie, contacten, bestanden, camera of microfoon. Ook voor bijlagen niet: een bestand kiezen doet de kiezer van Android (die geeft de app alleen de gekozen bestanden), een foto maken doet de camera-app van het toestel (de foto komt in een eigen bestand in de cache van Tickory, via een FileProvider), en een bijlage opslaan laat Android je een plek kiezen.
+De app vraagt geen toegang tot contacten, bestanden, camera of microfoon, en alleen tot locatie als je zelf herinneringen op een plek gebruikt. Ook voor bijlagen niet voor bestanden en camera: een bestand kiezen doet de kiezer van Android (die geeft de app alleen de gekozen bestanden), een foto maken doet de camera-app van het toestel (de foto komt in een eigen bestand in de cache van Tickory, via een FileProvider), en een bijlage opslaan laat Android je een plek kiezen.
+
+## Herinneringen op een plek
+
+"Herinner me als ik bij Thuis aankom of vertrek." De plaatsen en herinneringen maak je in de web-app (Instellingen › Plaatsen); de app doet het bewaken. **De positie van het toestel verlaat het toestel nooit**: de server kent alleen de plaatsen die je zelf aanmaakt, en de app vergelijkt de positie er zelf mee.
+
+### Wat is gekozen, en waarom
+
+Zonder Google Play-services bestaat de Fused Geofencing API niet, dus de app doet het zelf met de gewone `LocationManager` van Android. Onderzocht en gekozen:
+
+| Onderdeel | Keuze | Reden |
+|---|---|---|
+| Bron van posities | `LocationManager` met een `PendingIntent` naar `GeoReceiver`: de **passieve** bron en de **netwerk**bron | Passief kost niets (posities die andere apps al laten bepalen); netwerk (wifi en mobiel) is zuinig. Een `PendingIntent` blijft bij Android staan als de app dicht is |
+| GPS | Niet continu. Alleen eenmalig door het zekerheidsnet, en als aanvraag (minstens elke 5 minuten) op toestellen zonder netwerkbron | Continue GPS leegt de batterij; de straal (minimaal 100 m) heeft geen centimeters nodig |
+| Frequentie | `GeoPolicy.cadence`: afstand tot de rand van de dichtstbijzijnde plaats gedeeld door 20 m/s, begrensd op 1 tot 20 minuten, met een minimale verplaatsing van 25 tot 1500 m. Wordt bijgesteld na elke positie | Ver weg zelden kijken, dichtbij vaker |
+| Zekerheidsnet | WorkManager, elk kwartier (zonder netwerkvoorwaarde), en alleen zolang er iets te bewaken valt. Gebruikt wat Android als laatste weet; vraagt alleen een verse positie (netwerk, dan GPS, 25 s) als de laatste te oud is voor de afstand tot een plaats (`GeoPolicy.needActiveFix`) | Vangt op wat de aanvragen missen: een merk dat de app afknijpt, een kwijtgeraakte aanvraag, een toestel zonder netwerklocatie |
+| Herstel | Na opstarten, update van de app, andere tijdzone of klok (zonder op een positie te wachten), bij het openen van de app en na elke verversing van de gegevens | Bij Android staan de aanvragen na een herstart niet meer |
+| Beslissen | Zuivere Kotlin (`core/Geofence.kt`, `Geo.kt`, `GeoPolicy.kt`, `GeoReminders.kt`), met veel tests | Alles wat zonder toestel kan, is zo te testen |
+
+De regels (`Geofence.evaluate`): binnen zodra de afstand tot het midden hooguit de straal is; weggegaan pas als de afstand min de onzekerheid van de bepaling nog een marge buiten de straal ligt (een kwart van de straal, minimaal 50 m). In de band daartussen verandert niets, dus **GPS-ruis rond de rand geeft één melding en geen reeks**. Een bepaling slechter dan 250 m, uit de toekomst, ouder dan tien minuten, niet nieuwer dan de vorige, of die in korte tijd sneller dan 140 m/s verspringt, telt niet. Een bepaling die onzekerder is dan de plaats groot is (en minstens 100 m), kan niet bewijzen dat je binnen bent. Van een plaats die we nog niet kennen (of waarvan we twaalf uur niets weten, of die van plek of straal is veranderd), leggen we alleen vast of je er binnen bent, zonder melding. Na een melding volgt de tegenovergestelde pas na twee minuten. Elke gebeurtenis geeft één melding; de volgende aankomst of het volgende vertrek een nieuwe. Niet voor een afgevinkte of verwijderde taak.
+
+De melding gebruikt hetzelfde kanaal en dezelfde knoppen (Voltooien, Over 10 minuten, Over 1 uur) als de tijdherinneringen; uitstellen brengt dezelfde tekst terug.
+
+### Toestemmingen
+
+`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` en `ACCESS_BACKGROUND_LOCATION`. De app vraagt er **alleen** om nadat de gebruiker zelf de eerste herinnering op een plek maakt of de locatiecontrole aanzet bij Plaatsen, en legt eerst uit waarom (alleen op het toestel, geen Google-diensten, weinig batterij). Daarna: nauwkeurige locatie (alleen "bij benadering" is te grof voor een plaats en wordt zo uitgelegd), dan een tweede uitleg en "Altijd toestaan" (op Android 11 en nieuwer brengt Android de gebruiker daarvoor naar het instellingenscherm van de app). Weigert de gebruiker, dan gaat de controle uit en onthoudt de app dat, zodat de web-app "Instellingen openen" kan aanbieden in plaats van steeds dezelfde vraag; zonder "Altijd toestaan" werkt het alleen terwijl de app open staat. Uitzetten kan altijd, bij Plaatsen; de toestemming intrekken in de instellingen van Android ook. "Gebruik mijn huidige positie" (bij een nieuwe plaats) vraagt alleen de gewone locatietoestemming, na een tik.
+
+### Hoe nauwkeurig, en hoe zuinig
+
+- **Nauwkeurigheid.** Buiten geeft GPS enkele meters tot tientallen meters; de netwerkbron in een stad tientallen tot een paar honderd meter; binnen of tussen hoge gebouwen kan elke bron enkele honderden meters ernaast zitten. Daarom is de kleinste straal 100 m en is 150 m de standaard. Een grotere straal gaat eerder af, maar ook als je er net langs loopt.
+- **Vertraging.** De melding komt zodra de app een positie heeft waaruit blijkt dat je binnen of buiten bent. Dichtbij een rand vraagt de app elke minuut, ver weg hooguit elke twintig minuten, en het zekerheidsnet kijkt elk kwartier: reken op een paar minuten, niet op seconden. Met de auto door een kleine plaats rijden geeft vaak geen melding.
+- **Batterij.** Geen continue GPS, geen voorgronddienst. Zonder herinnering op een plek, of als de gebruiker de controle uitzet, is er niets aangevraagd en niets ingepland. In de slaapstand (Doze) levert Android geen posities zolang het toestel stilligt; zodra het beweegt, komen ze weer. Hoeveel stroom het in de praktijk kost, is **nog niet gemeten**.
+
+### Beperkingen
+
+- Strenge batterijbesparing van sommige merken (Xiaomi, Huawei, OnePlus, Samsung, Oppo en andere) kan de aanvragen en het zekerheidsnet stilleggen. Zet Tickory op *Onbeperkt* en haal hem uit "slapende apps"/"optimaliseren".
+- Toestellen **zonder GPS** hebben alleen een grove positie via netwerken (ruimere straal kiezen). Toestellen **zonder Google-diensten** hebben soms helemaal geen netwerklocatie (er is dan een eigen netwerklocatiedienst voor nodig); de app vraagt dan GPS met minstens vijf minuten ertussen en gebruikt het zekerheidsnet, wat meer batterij kost.
+- Zonder "Altijd toestaan" levert Android op de achtergrond slechts af en toe een positie of geen; dat is te zien bij Plaatsen.
+- Een inlogpagina vóór de server of een server die lange tijd niet bereikbaar is, laat de herinneringen op een plek werken met de laatst bekende gegevens (zoals bij tijdherinneringen).
+
+### Handmatig testen op een toestel
+
+Zonder emulator is dit alleen op een toestel te controleren. Zet de app op een telefoon, log in, maak twee plaatsen (Thuis, en een tweede op ongeveer 500 m) en twee taken met een herinnering ("bij aankomst" bij Thuis, "bij vertrek" bij Thuis):
+
+1. **Eerste keer.** Maak de eerste herinnering op een plek: eerst komt de uitleg van de app, dan Android's vraag om nauwkeurige locatie, dan de uitleg en "Altijd toestaan". Annuleren of weigeren laat de controle uit, zonder nieuwe vragen. Controleer onder Plaatsen: *Locatiecontrole staat aan*, laatste controle, afstand tot je plaatsen. *Controleer nu* verandert de afstand.
+2. **Wandelen.** Loop met het scherm uit en de app dicht van Thuis weg: binnen enkele minuten na het passeren van de rand (straal plus marge) komt "Je bent vertrokken bij Thuis". Loop terug: "Je bent aangekomen bij Thuis". Eén melding per keer; blijf een tijd rond de rand lopen om te zien dat het niet herhaalt.
+3. **Rijden.** Rij van Thuis naar de tweede plaats en terug; noteer hoe laat de melding komt ten opzichte van het passeren van de rand, en of een snel passeren gemist wordt.
+4. **Al op de plek.** Maak een herinnering "bij aankomst" terwijl je thuis bent: er komt **geen** melding; ga weg en kom terug: dan wel.
+5. **Slaapstand.** Leg de telefoon een uur stil (Doze), loop dan weg: komt de melding zodra je beweegt?
+6. **Opnieuw opstarten.** Start de telefoon opnieuw op, zonder de app te openen, en loop weg: komt de melding? (Het zekerheidsnet en de aanvragen zijn na het opstarten hersteld.)
+7. **Batterijbesparing.** Zet Tickory op *Optimaliseren* en herhaal 2; noteer wat het merk doet.
+8. **Afvinken en uitzetten.** Vink de taak af: geen melding meer. Zet de locatiecontrole uit: Instellingen › Apps › Tickory › Rechten laat het niet langer gebruikt zien; geen meldingen meer.
+9. **Batterij.** Laat een dag draaien met een herinnering op een plek; bekijk Instellingen › Batterij › Tickory.
 
 ## Komen de meldingen niet?
 
@@ -150,6 +203,7 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `core/`: zuivere Kotlin zonder Android: het adres controleren, JSON lezen, de planner (`Planner.kt`), de regels rond
   tonen en uitstellen (`ReminderState.kt`) en de verzoeken aan de server (`ApiClient.kt`).
 - `reminders/`: alarmen (`AlarmManager`), meldingen en de ontvangers voor alarm, knoppen en opstarten.
+- `geo/`: de locatiecontrole voor herinneringen op een plek: aanvragen bij `LocationManager` (`GeoRegistrar`) en de ontvanger, het zekerheidsnet (`GeoScheduler`), de beslissingen en meldingen (`GeoEngine`), de toestemmingen (`GeoPermissionFlow`) en de status voor de pagina. De regels zelf staan als zuivere Kotlin in `core/` (`Geo`, `Geofence`, `GeoPolicy`, `GeoReminders`).
 - `sync/`: de aanmelding en het verversen met WorkManager (elk kwartier, alleen met verbinding).
 - `store/`: wat de app op het toestel bewaart: het serveradres, het versleutelde token, het plan van de herinneringen en (`WidgetStore`) de gegevens en de wachtrij van de widgets.
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
@@ -167,6 +221,12 @@ ingestelde server komt.
 | `requestNotificationPermission()` | Vraagt de toestemming voor meldingen; opent zo nodig de instellingen. |
 | `openNotificationSettings()`, `openBatterySettings()` | Openen de instellingen van Android voor deze app. |
 | `changeServer()` | Terug naar het instelscherm, na bevestiging. |
+| `locationStatus()` | JSON-tekst met de toestand van de locatiecontrole: `enabled`, `precise`, `approximate`, `background`, `servicesOn`, `hasGps`, `needed`, `running`, `declined`, `lastCheckAt`, `lastFixAt`, `accuracy`, `ignored` en `places` (per plaats `distance` in meters en `inside`). Nooit de coördinaten van het toestel. |
+| `requestLocationPermission()` | Zet de locatiecontrole aan: uitleg, dan de toestemmingen. Alleen na een tik van de gebruiker aanroepen. |
+| `setLocationEnabled(aan)` | Zet de controle aan of uit zonder vragen (uit stopt alles direct). |
+| `checkLocationNow()` | "Controleer nu": één verse positie bepalen; de uitkomst staat daarna in `locationStatus()`. |
+| `openLocationSettings()` | Opent de instellingen van Android voor locatie of voor deze app. |
+| `requestCurrentPosition()` | Bepaalt één keer de positie voor "Gebruik mijn huidige positie"; het antwoord komt als voorval `tickory-position` op `window` (`detail`: `{lat, lon, accuracy}` of `{error}`). De WebView zelf heeft geen locatie. |
 
 Na een toestemmingsvraag of terugkeer uit de instellingen stuurt de app het voorval `tickory-android-status` op
 `window`; de web-app kan dan `notificationStatus()` opnieuw opvragen. Een melding en een tik op een taak in een

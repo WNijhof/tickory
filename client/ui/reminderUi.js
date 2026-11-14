@@ -1,13 +1,17 @@
 // Schermen voor herinneringen: het stuk in het taakvenster, en het scherm "Herinneringen en meldingen" in de instellingen.
 
 import { hasTime } from '../../shared/reminders.js';
+import { androidBridge } from '../core/android.js';
 import { formatDateTimeLocal } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { needsTimeNote, presetOptions, reminderLine } from '../core/reminderText.js';
-import { mySettings, remindersOf } from '../core/selectors.js';
+import { locationAdvice } from '../core/places.js';
+import { mySettings, placeList, remindersOf } from '../core/selectors.js';
 import { h, openDialog, replace } from './dom.js';
+import { placesDialog } from './placesUi.js';
 
 const CUSTOM = 'custom';
+const PLACE = 'place';
 
 /**
  * Het stuk "Herinneringen" in het taakvenster: je eigen herinneringen bij deze taak, met de keuzes van Todoist
@@ -15,15 +19,22 @@ const CUSTOM = 'custom';
  * zoals bij subtaken. Geef `dispose` aan als het venster sluit.
  * @returns {{ node: HTMLElement, dispose: () => void }}
  */
-export function reminderSection({ task, store, actions, today }) {
+export function reminderSection({ task, store, actions, today, bridge = androidBridge() }) {
   const list = h('ul', { class: 'device-list' });
   const note = h('p', { class: 'hint', 'aria-live': 'polite' });
   const choose = h('select', { class: 'field', 'aria-label': t('reminder.choose') },
     presetOptions().map((o) => h('option', { value: String(o.minutes), selected: o.minutes === 30 }, o.label)),
-    h('option', { value: CUSTOM }, t('reminder.custom')));
+    h('option', { value: CUSTOM }, t('reminder.custom')),
+    h('option', { value: PLACE }, t('reminder.place')));
   const custom = h('input', { class: 'field', type: 'datetime-local', 'aria-label': t('reminder.customLabel'), hidden: true });
   // een eigen regel (niet de klasse 'error' van het taakvenster zelf), zodat de twee elkaar niet in de weg zitten
   const error = h('p', { class: 'hint hint-bad', role: 'alert', dataset: { role: 'reminder-error' } });
+  // Op een plek: een plaats van jezelf en aankomst of vertrek. Of het afgaat, bepaalt alleen de Android-app, op het toestel zelf.
+  const placeSelect = h('select', { class: 'field', 'aria-label': t('reminder.placeLabel'), hidden: true, dataset: { role: 'reminder-place' } });
+  const triggerSelect = h('select', { class: 'field', 'aria-label': t('reminder.triggerLabel'), hidden: true, dataset: { role: 'reminder-trigger' } },
+    h('option', { value: 'enter' }, t('reminder.triggerEnter')), h('option', { value: 'leave' }, t('reminder.triggerLeave')));
+  const placeNote = h('p', { class: 'hint', 'aria-live': 'polite', dataset: { role: 'reminder-place-note' } });
+  const managePlaces = h('button', { type: 'button', class: 'button button-small', hidden: true, dataset: { role: 'reminder-place-manage' }, onclick: () => placesDialog({ store, actions, bridge }) }, t('reminder.placeManage'));
 
   const current = () => store.view.tasks.get(task.id) ?? task;
 
@@ -31,16 +42,46 @@ export function reminderSection({ task, store, actions, today }) {
     const items = remindersOf(store.view, task.id, store.userId);
     replace(list, items.length > 0
       ? items.map(({ reminder, moment }) => h('li', { class: 'device' },
-        h('span', { class: 'device-info' }, reminderLine(reminder, moment, today())),
+        h('span', { class: 'device-info' }, reminderLine(reminder, moment, today(), store.view.places)),
         h('button', {
-          type: 'button', class: 'button button-small', 'aria-label': `${t('reminder.remove')}: ${reminderLine(reminder, moment, today())}`, onclick: () => actions.deleteReminder(reminder.id),
+          type: 'button', class: 'button button-small', 'aria-label': `${t('reminder.remove')}: ${reminderLine(reminder, moment, today(), store.view.places)}`, onclick: () => actions.deleteReminder(reminder.id),
         }, '×')))
       : [h('li', { class: 'hint' }, t('reminder.none'))]);
-    note.textContent = hasTime(current().due?.date) ? '' : needsTimeNote();
+    const onlyLocation = items.length > 0 && items.every(({ reminder }) => reminder.type === 'location');
+    note.textContent = hasTime(current().due?.date) || onlyLocation ? '' : needsTimeNote();
+    drawPlaceChoice(items);
+  };
+
+  const drawPlaceChoice = (items) => {
+    const places = placeList(store.view, store.userId);
+    const chosen = choose.value === PLACE;
+    const keep = placeSelect.value;
+    replace(placeSelect, places.map((p) => h('option', { value: p.id }, p.name)));
+    if (places.some((p) => p.id === keep)) placeSelect.value = keep;
+    placeSelect.hidden = !chosen || places.length === 0;
+    triggerSelect.hidden = placeSelect.hidden;
+    const anyLocation = chosen || items.some(({ reminder }) => reminder.type === 'location');
+    managePlaces.hidden = !anyLocation;
+    managePlaces.textContent = chosen && places.length === 0 ? t('reminder.placeCreate') : t('reminder.placeManage');
+    // In de browser gaat een herinnering op een plek niet af: zeg dat meteen, ook al worden ze wel bewaard en gesynchroniseerd.
+    placeNote.textContent = !anyLocation ? '' : chosen && places.length === 0 ? t('reminder.placeNone') : bridge.available ? t('reminder.placeNoteApp') : t('reminder.placeNoteBrowser');
   };
 
   const add = async () => {
     error.textContent = '';
+    if (choose.value === PLACE) {
+      if (!placeSelect.value) {
+        error.textContent = t('reminder.placeRequired');
+        return;
+      }
+      await actions.addReminder(task.id, { type: 'location', place_id: placeSelect.value, trigger: triggerSelect.value });
+      // De eerste locatieherinnering: nu mag de Android-app om locatietoegang vragen (met uitleg), nooit eerder.
+      if (bridge.available) {
+        const status = bridge.locationStatus();
+        if (locationAdvice(status) !== 'ok' && !status?.declined) bridge.requestLocationPermission();
+      }
+      return;
+    }
     if (choose.value === CUSTOM) {
       if (!custom.value) {
         error.textContent = t('reminder.customRequired');
@@ -56,6 +97,7 @@ export function reminderSection({ task, store, actions, today }) {
 
   choose.addEventListener('change', () => {
     custom.hidden = choose.value !== CUSTOM;
+    draw();
     if (!custom.hidden) {
       custom.value ||= formatDateTimeLocal(new Date(Date.now() + 3_600_000));
       custom.focus();
@@ -74,8 +116,10 @@ export function reminderSection({ task, store, actions, today }) {
   const node = h('section', { class: 'section-plain', 'aria-label': t('reminder.title') },
     h('h3', { class: 'subheading' }, t('reminder.title')),
     list,
-    h('div', { class: 'reminder-add' }, choose, custom, h('button', { type: 'button', class: 'button', onclick: add }, t('reminder.add'))),
+    h('div', { class: 'reminder-add' }, choose, custom, placeSelect, triggerSelect, h('button', { type: 'button', class: 'button', onclick: add }, t('reminder.add'))),
+    h('div', { class: 'reminder-add' }, managePlaces),
     note,
+    placeNote,
     error);
   return { node, dispose: unsubscribe };
 }

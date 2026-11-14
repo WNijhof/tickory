@@ -216,7 +216,22 @@ description: All dates and recurrences Tickory understands in plain Dutch, with 
 <p>This works for the first (eerste) to the fourth (vierde), and for the last (laatste). Mind the difference: <code>elke tweede dinsdag</code> is once a month, <code>elke andere dinsdag</code> or <code>om de week</code> is every fourteen days.</p>
 
 <h3>What happens when you tick off a recurrence</h3>
-<p>A recurring task does not disappear when you tick it off: the date moves on to the next occurrence and the task stays open. A message at the bottom tells you when that is (“Next due: …”). The next occurrence is counted from the date the task had, not from the day you tick it off. If you left a daily task for three days, ticking it off moves it one day and it is still listed as overdue; tick it off again until the date is right, or type a new date in the edit window.</p>
+<p>A recurring task does not disappear when you tick it off: the date moves on to the next occurrence and the task stays open. A message at the bottom tells you when that is (“Next due: …”). By default the next occurrence is counted from the date the task had, not from the day you tick it off (if you do want that, see “Repeating from completion” below). If you left a daily task for three days, ticking it off moves it one day and it is still listed as overdue; tick it off again until the date is right, or type a new date in the edit window.</p>
+
+<h3 id="repeating-from-completion">Repeating from completion</h3>
+<p>Put an exclamation mark after the repeat word (Dutch <em>elke</em>, <em>elk</em>, <em>iedere</em>, <em>ieder</em>) and the next occurrence is counted from the day you tick it off, not from the old date. Handy for tasks that should happen “a while after the last time”, such as watering plants or washing the car: tick them off late and the next occurrence moves along.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>You type</th><th>Meaning</th><th>First time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"daily","interval":3,"fromCompletion":true}'>elke! 3 dagen</code></td><td class="wrap-ok">three days after you tick it off</td><td>today</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"weekly","fromCompletion":true}'>elke! week</code></td><td class="wrap-ok">a week after you tick it off</td><td>today</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>The time of the task stays the same. Ticking off a task whose date is in the past or the future also counts from the day you tick it off. In the list you see the repeat as you typed it (with the exclamation mark).</p>
 
 <h2>In a line with a task</h2>
 <p>When <a href="adding-tasks.html">adding</a> a task, the app takes the date out of the line; what remains is the name of the task. The date can be at the start, at the end or in the middle.</p>

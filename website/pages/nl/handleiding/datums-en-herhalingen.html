@@ -216,7 +216,22 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
 <p>Dit werkt voor de eerste tot en met de vierde, en voor de laatste. Let op het verschil: <code>elke tweede dinsdag</code> is één keer per maand, <code>elke andere dinsdag</code> of <code>om de week</code> is om de veertien dagen.</p>
 
 <h3>Wat er gebeurt als je een herhaling afvinkt</h3>
-<p>Een terugkerende taak verdwijnt niet als je haar afvinkt: de datum schuift door naar de volgende keer en de taak blijft openstaan. In een melding onderaan lees je wanneer dat is (“Volgende keer: …”). De volgende keer wordt geteld vanaf de datum die de taak had, niet vanaf de dag waarop je afvinkt. Heb je een dagelijkse taak drie dagen laten liggen, dan schuift ze bij afvinken één dag op en staat ze nog steeds bij Te laat; vink haar nog een keer af tot de datum weer klopt, of typ in het bewerkvenster een nieuwe datum.</p>
+<p>Een terugkerende taak verdwijnt niet als je haar afvinkt: de datum schuift door naar de volgende keer en de taak blijft openstaan. In een melding onderaan lees je wanneer dat is (“Volgende keer: …”). Standaard wordt de volgende keer geteld vanaf de datum die de taak had, niet vanaf de dag waarop je afvinkt (wil je dat wel, zie hieronder “Herhalen vanaf het afvinken”). Heb je een dagelijkse taak drie dagen laten liggen, dan schuift ze bij afvinken één dag op en staat ze nog steeds bij Te laat; vink haar nog een keer af tot de datum weer klopt, of typ in het bewerkvenster een nieuwe datum.</p>
+
+<h3 id="herhalen-vanaf-het-afvinken">Herhalen vanaf het afvinken</h3>
+<p>Zet een uitroepteken achter <em>elke</em> (of <em>elk</em>, <em>iedere</em>, <em>ieder</em>) en de volgende keer wordt geteld vanaf de dag waarop je afvinkt, niet vanaf de oude datum. Handig voor taken die “een tijd na de vorige keer” moeten, zoals planten water geven of de auto laten wassen: vink je ze te laat af, dan schuift de volgende keer mee op.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Betekenis</th><th>Eerste keer</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"daily","interval":3,"fromCompletion":true}'>elke! 3 dagen</code></td><td class="wrap-ok">drie dagen na het afvinken</td><td>vandaag</td></tr>
+      <tr><td><code class="ex" data-date="2026-11-17" data-rule='{"freq":"weekly","fromCompletion":true}'>elke! week</code></td><td class="wrap-ok">een week na het afvinken</td><td>vandaag</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Het tijdstip van de taak blijft hetzelfde. Een datum in het verleden of in de toekomst afvinken telt ook vanaf de dag van het afvinken. In de lijst zie je de herhaling zoals je hem typte (met het uitroepteken).</p>
 
 <h2>In een regel met een taak</h2>
 <p>Bij het <a href="taken-toevoegen.html">toevoegen</a> haalt de app de datum uit de regel; wat overblijft is de naam van de taak. De datum mag vooraan, achteraan of in het midden staan.</p>

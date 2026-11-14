@@ -10,7 +10,7 @@
 //
 // Wie wat ziet (zie `visibility`):
 //   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
-//   - labels, filters en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
+//   - labels, filters, plaatsen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
 // Verandert wat iemand mag zien (lid worden, verwijderd worden, een taak die naar een project van anderen verhuist), dan
 // krijgt die persoon dat in de delta mee: alle inhoud van een nieuw project, of een verwijdering van wat verdween.
 
@@ -18,7 +18,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES, ENTITY_LIST, ID_RE, INBOX_ID, isInboxId, RESOURCE_NAMES, toApi, validateValue } from './schema.ts';
 import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
-import { isValidDate, nextOccurrence } from '../shared/recurrence.js';
+import { isValidDate, nextDue, nextOccurrence } from '../shared/recurrence.js';
+import { epochToFloating } from '../shared/reminders.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
 import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
@@ -61,7 +62,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -245,6 +246,14 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     }
     case 'reminder': {
       const due = v.due as { date: string } | null;
+      if (v.type === 'location') {
+        if (!v.place_id) fail('INVALID_ARG', 'een locatieherinnering heeft place_id nodig');
+        if (!v.trigger) fail('INVALID_ARG', 'een locatieherinnering heeft trigger nodig (enter of leave)');
+        if (due) fail('INVALID_ARG', 'een locatieherinnering heeft geen due');
+        if (v.minute_offset !== null && v.minute_offset !== undefined) fail('INVALID_ARG', 'een locatieherinnering heeft geen minute_offset');
+        break;
+      }
+      if (v.place_id || v.trigger) fail('INVALID_ARG', 'place_id en trigger horen alleen bij een locatieherinnering');
       if (v.type === 'relative') {
         if (v.minute_offset === null || v.minute_offset === undefined) fail('INVALID_ARG', 'een relatieve herinnering heeft minute_offset nodig');
         if (due) fail('INVALID_ARG', 'een relatieve herinnering heeft geen due');
@@ -319,6 +328,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
     case 'reminder':
       quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
       quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'place':
+      quota(ctx, `places:${ctx.userId}`, LIMITS.placesPerUser, 'plaatsen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
       break;
     default:
       break;
@@ -409,6 +421,11 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       break;
     }
     case 'task': deleteTaskTree(ctx, [id]); break;
+    case 'place':
+      // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
+      mark(ctx, 'reminders', 'place_id = ?', [id]);
+      mark(ctx, 'places', 'id = ?', [id]);
+      break;
     case 'label': {
       mark(ctx, 'labels', 'id = ?', [id]);
       // het label ook van alle taken halen; labels staan als id-lijst op de taak
@@ -489,15 +506,20 @@ function taskMove(ctx: Ctx, args: Args): void {
 function taskComplete(ctx: Ctx, args: Args): void {
   // `if_due` (optioneel): de datum die de afzender zag toen hij afvinkte. Is een terugkerende taak intussen al doorgeschoven
   // (op een ander apparaat, of vanuit de widget van de Android-app), dan is dit dezelfde afvinkactie en schuift hij niet nog eens door.
-  for (const k of Object.keys(args)) if (k !== 'id' && k !== 'if_due') fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
+  for (const k of Object.keys(args)) if (k !== 'id' && k !== 'if_due' && k !== 'completed_on') fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
   if (args.if_due !== undefined && !isValidDate(args.if_due)) fail('INVALID_ARG', 'if_due moet een geldige datum zijn');
+  // `completed_on` (optioneel): de dag waarop de afzender afvinkte, voor "elke!" (volgende keer vanaf het afvinken). Alleen YYYY-MM-DD.
+  if (args.completed_on !== undefined && !(typeof args.completed_on === 'string' && args.completed_on.length === 10 && isValidDate(args.completed_on))) fail('INVALID_ARG', 'completed_on moet een datum zijn (JJJJ-MM-DD)');
   const id = args.id as string;
   const row = requireLive(ctx, 'task', id, 'task.id');
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   if (due?.recurrence && args.if_due !== undefined && args.if_due !== due.date) return; // al doorgeschoven: dezelfde afvinkactie, niets doen
   const count = (row.completed_count as number) + 1;
-  const next = due?.recurrence ? nextOccurrence(due.date, due.recurrence) : null;
+  // "elke!" telt vanaf de afvinkdag: die geeft de afzender mee; ontbreekt hij (widget of melding van de Android-app), dan is het
+  // vandaag in de tijdzone van de gebruiker (anders UTC)
+  const completedOn = due?.recurrence?.fromCompletion ? (args.completed_on ?? todayFor(ctx)) : undefined;
+  const next = due?.recurrence ? nextDue(due.date, due.recurrence, completedOn) : null;
   if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
     updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
@@ -509,6 +531,16 @@ function taskComplete(ctx: Ctx, args: Args): void {
     ctx.db
       .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(part.length)})`)
       .run(ctx.now, ctx.rev, ctx.now, ...part);
+  }
+}
+
+/** Vandaag (JJJJ-MM-DD) in de tijdzone van de gebruiker van dit verzoek; zonder ingestelde tijdzone, of bij een onbekende, UTC. */
+function todayFor(ctx: Ctx): string {
+  const row = ctx.db.prepare('SELECT timezone FROM user_settings WHERE owner_id = ?').get(ctx.userId) as { timezone: string | null } | undefined;
+  try {
+    return epochToFloating(Date.now(), row?.timezone ?? 'UTC').slice(0, 10);
+  } catch {
+    return new Date().toISOString().slice(0, 10); // een tijdzone die Intl niet kent
   }
 }
 
@@ -623,11 +655,12 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
        UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
     since, since, since, since, since, since, since, since,
   );
-  // wat van één persoon is: labels, filters, herinneringen en instellingen
+  // wat van één persoon is: labels, filters, herinneringen, plaatsen en instellingen
   collect(
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
-     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?`,
-    since, since, since, since,
+     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
+     UNION SELECT owner_id FROM places WHERE rev > ?`,
+    since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -707,7 +740,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
   }
 }

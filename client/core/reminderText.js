@@ -20,10 +20,18 @@ export const presetOptions = () => REMINDER_PRESETS.map((minutes) => ({ minutes,
  * Eén herinnering als regel: wat het is en wanneer ze afgaat ("30 minuten vooraf · morgen 08:30").
  * `moment` is het zwevende tijdstip waarop ze afgaat, of null als ze nu niets doet (taak zonder tijd).
  */
-export function reminderLine(reminder, moment, today) {
+export function reminderLine(reminder, moment, today, places = null) {
+  if (reminder.type === 'location') return locationLine(reminder, places);
+  if (reminder.type !== 'absolute' && reminder.type !== 'relative') return t('reminder.unknown'); // een soort van een nieuwere versie
   const what = reminder.type === 'absolute' ? t('reminder.fixed') : offsetText(reminder.minute_offset);
   const when = moment ? formatDue({ date: moment }, today) : t('reminder.waiting');
   return t('reminder.line', { what, when });
+}
+
+/** "Bij aankomst: Thuis" of "Bij vertrek: Thuis". `places` is de verzameling plaatsen (id -> plaats) uit de toestand. */
+export function locationLine(reminder, places) {
+  const name = places?.get(reminder.place_id)?.name ?? '…';
+  return reminder.trigger === 'leave' ? t('reminder.locationLeave', { place: name }) : t('reminder.locationEnter', { place: name });
 }
 
 /** De uitleg bij een taak zonder tijd. In het Engels met een notatie die de datumherkenner wel leest. */

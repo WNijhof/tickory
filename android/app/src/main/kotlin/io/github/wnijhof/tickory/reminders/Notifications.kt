@@ -36,6 +36,8 @@ object Notifications {
     private const val EXTRA_TITLE = "io.github.wnijhof.tickory.extra.TITLE"
     private const val EXTRA_TASK_DUE = "io.github.wnijhof.tickory.extra.TASK_DUE"
     private const val EXTRA_TRIGGER_AT = "io.github.wnijhof.tickory.extra.TRIGGER_AT"
+    private const val EXTRA_PLACE = "io.github.wnijhof.tickory.extra.PLACE"
+    private const val EXTRA_GEO_TRIGGER = "io.github.wnijhof.tickory.extra.GEO_TRIGGER"
 
     /** Alle meldingen delen dit nummer; de herinnering-id is het label waarmee Android ze uit elkaar houdt. */
     private const val NOTIFICATION_ID = 1
@@ -140,11 +142,18 @@ object Notifications {
         val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID)?.takeIf(Ids::isSafeId) ?: return null
         val taskId = intent.getStringExtra(EXTRA_TASK_ID)?.takeIf(Ids::isSafeId) ?: return null
         val at = intent.getLongExtra(EXTRA_TRIGGER_AT, -1L).takeIf { it >= 0 } ?: return null
-        return PlannedReminder(reminderId, taskId, intent.getStringExtra(EXTRA_TITLE) ?: "", at, intent.getStringExtra(EXTRA_TASK_DUE))
+        return PlannedReminder(
+            reminderId, taskId, intent.getStringExtra(EXTRA_TITLE) ?: "", at, intent.getStringExtra(EXTRA_TASK_DUE),
+            intent.getStringExtra(EXTRA_PLACE), intent.getStringExtra(EXTRA_GEO_TRIGGER),
+        )
     }
 
     /** "Herinnering · vandaag 14:00", of alleen "Herinnering" als de taak geen datum heeft. */
     private fun defaultText(context: Context, reminder: PlannedReminder): String {
+        // een herinnering op een plek zegt waar je bent aangekomen of van waar je bent vertrokken
+        if (reminder.place != null && reminder.trigger != null) {
+            return context.getString(if (reminder.trigger == "leave") R.string.notification_geo_leave else R.string.notification_geo_enter, reminder.place)
+        }
         val lang = Lang.of(context.getString(R.string.language_code))
         val due = DueText.format(reminder.taskDue, AppClock.now(), ZoneId.systemDefault(), lang, DateFormat.is24HourFormat(context))
         return if (due != null) context.getString(R.string.notification_reminder_due, due) else context.getString(R.string.notification_reminder)
@@ -170,6 +179,8 @@ object Notifications {
             .putExtra(EXTRA_TITLE, reminder.title)
             .putExtra(EXTRA_TASK_DUE, reminder.taskDue)
             .putExtra(EXTRA_TRIGGER_AT, reminder.triggerAtMs)
+            .putExtra(EXTRA_PLACE, reminder.place)
+            .putExtra(EXTRA_GEO_TRIGGER, reminder.trigger)
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 }

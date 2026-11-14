@@ -3,7 +3,7 @@
 
 import { isInboxId } from '../../shared/schema.js';
 import { settingsId } from '../../shared/schema.js';
-import { reminderMoment } from '../../shared/reminders.js';
+import { isLocationActive, reminderMoment } from '../../shared/reminders.js';
 import { addDays } from './format.js';
 
 export const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -263,6 +263,13 @@ export const isForeignLabel = (label, userId) => Boolean(userId && label.owner_i
 // ---- herinneringen en instellingen ----
 
 /** Je persoonlijke instellingen; standaardwaarden zolang de server ze nog niet heeft gestuurd. */
+/** Je eigen plaatsen, op naam (zonder hoofdletters). */
+export function placeList(view, userId) {
+  return [...view.places.values()]
+    .filter((p) => !p.owner_id || !userId || p.owner_id === userId)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || (a.id < b.id ? -1 : 1));
+}
+
 export const mySettings = (view, userId) => view.settings.get(settingsId(userId)) ?? { auto_reminder: 30, timezone: null };
 
 /**
@@ -279,14 +286,15 @@ export function remindersOf(view, taskId, userId) {
 }
 
 /** Heeft deze taak een herinnering van jou die nog gaat afgaan of kan afgaan? (voor het belletje in de lijst) */
-export const hasReminder = (view, taskId, userId) => remindersOf(view, taskId, userId).some((x) => x.moment !== null);
+export const hasReminder = (view, taskId, userId) => remindersOf(view, taskId, userId).some((x) => x.moment !== null || isLocationActive(x.reminder, view.tasks.get(taskId)));
 
 /** De taken waar je een herinnering voor hebt die nog kan afgaan, in één keer voor de hele lijst (zelfde uitkomst als hasReminder, veel sneller). */
 export function tasksWithReminder(view, userId) {
   const out = new Set();
   for (const r of view.reminders.values()) {
     if ((r.owner_id && userId && r.owner_id !== userId) || out.has(r.task_id)) continue;
-    if (reminderMoment(r, view.tasks.get(r.task_id)) !== null) out.add(r.task_id);
+    const task = view.tasks.get(r.task_id);
+    if (reminderMoment(r, task) !== null || isLocationActive(r, task)) out.add(r.task_id);
   }
   return out;
 }

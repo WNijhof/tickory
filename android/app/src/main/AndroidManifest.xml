@@ -40,6 +40,22 @@
     -->
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
+    <!--
+      Herinneringen op een plek ("herinner me als ik bij Thuis aankom"). De positie wordt alleen op het toestel met de
+      plaatsen vergeleken en gaat nooit naar de server. De app vraagt dit pas als de gebruiker zelf een herinnering op een
+      plek maakt of de locatiecontrole aanzet, met uitleg vooraf. Nauwkeurige locatie is nodig (een straal van enkele
+      honderden meters is met een grove locatie niet te volgen); "altijd toestaan" laat het ook werken als de app dicht is.
+      Geen Google-diensten: de gewone locatiedienst van Android.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Ook toestellen zonder GPS mogen de app installeren; dan werkt alleen een grove positie via netwerken. -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
+
     <!-- WorkManager brengt dit recht mee voor langlopend werk op de voorgrond. Dat gebruikt deze app niet. -->
     <uses-permission
         android:name="android.permission.FOREGROUND_SERVICE"
@@ -125,6 +141,10 @@
             android:exported="false" />
         <receiver
             android:name=".reminders.ActionReceiver"
+            android:exported="false" />
+        <!-- Plaatsbepalingen van Android voor de locatiecontrole; alleen voor de app zelf. -->
+        <receiver
+            android:name=".geo.GeoReceiver"
             android:exported="false" />
         <receiver
             android:name=".reminders.SystemEventsReceiver"

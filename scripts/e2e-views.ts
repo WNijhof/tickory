@@ -28,6 +28,7 @@ function helpers(c: any) {
     await sleep(80);
     if (during) await during();
     await mouse('mouseReleased', to.x, to.y, 0);
+    await sleep(150); // de app negeert de klik die op het loslaten volgt 60 ms lang: een klik van de test mag daar niet binnen vallen
   }
   const touch = (type: string, x: number, y: number) => send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
   const settle = async () => { await sleep(150); await waitFor(`await ${SYNCED}`, 'gesynchroniseerd', 15_000); };
