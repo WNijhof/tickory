@@ -99,6 +99,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!--
+              Terug van de inlogdienst (SSO): de browser opent tickory://oidc?code=… na het inloggen. De code werkt alleen met een
+              geheim dat de web-app in deze app heeft (zie core/SignInLink.kt); een andere app die dit schema ook claimt, heeft er niets aan.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="oidc"
+                    android:scheme="tickory" />
+            </intent-filter>
             <!-- "Delen naar Tickory": tekst of een link uit een andere app wordt een voorgevuld venster "Taak toevoegen". -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

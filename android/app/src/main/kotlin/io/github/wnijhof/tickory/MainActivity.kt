@@ -51,6 +51,7 @@ import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.core.ShareLink
+import io.github.wnijhof.tickory.core.SignInLink
 import io.github.wnijhof.tickory.core.VoiceScript
 import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.geo.GeoPermissionFlow
@@ -210,7 +211,8 @@ class MainActivity : ComponentActivity() {
             return
         }
         val fragment = fragmentFrom(intent) ?: return
-        openFragment(fragment)
+        // Terug van de inlogdienst (SSO): de web-app opnieuw laden; die handelt de terugkeer af bij het starten.
+        if (SignInLink.isReturn(fragment)) loadStart(fragment) else openFragment(fragment)
     }
 
     override fun onStart() {
@@ -336,6 +338,8 @@ class MainActivity : ComponentActivity() {
      */
     private fun fragmentFrom(intent: Intent?): String? {
         if (intent == null) return null
+        // tickory://oidc?code=… of ?error=…: terug van de inlogdienst (zie SignInLink)
+        if (intent.action == Intent.ACTION_VIEW) return SignInLink.fragmentFor(intent.dataString)?.takeIf(DeepLink::isSafe)
         DeepLink.notification(intent.getStringExtra(InboxNotifier.EXTRA_NOTIFICATION_ID))?.let { return it }
         DeepLink.fromExtras(intent.getStringExtra(Notifications.EXTRA_TASK_ID), intent.hasExtra(DeepLink.EXTRA_ADD), intent.getStringExtra(DeepLink.EXTRA_ADD))?.let { return it }
         if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return null
@@ -456,6 +460,21 @@ class MainActivity : ComponentActivity() {
         item ?: return missing
         // Altijd als onbekend bestand: de pagina maakt er zelf een File van met de naam en het type uit het adres van de deling.
         return WebResourceResponse(AttachmentName.OCTET_STREAM, null, 200, "OK", headers + ("Content-Length" to item.size.toString()), FileInputStream(item.file))
+    }
+
+    /**
+     * Opent het begin van een SSO-poging in de browser van het toestel (een Custom Tab als de browser dat kent), aangeroepen vanuit
+     * de brug. Alleen het startadres op de eigen server (SignInLink.allowedStart); de server stuurt de browser door naar de provider.
+     */
+    fun openSignIn(url: String?) {
+        if (url == null || !SignInLink.allowedStart(url, origin)) return
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
+        intent.putExtras(Bundle().apply { putBinder(SignInLink.EXTRA_CUSTOM_TABS_SESSION, null) })
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.no_app_for_link, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun openExternally(uri: Uri) {

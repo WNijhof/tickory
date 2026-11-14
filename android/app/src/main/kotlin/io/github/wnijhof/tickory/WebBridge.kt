@@ -160,6 +160,16 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.requestCurrentPosition() }
     }
 
+    /**
+     * Inloggen of koppelen via SSO: opent het begin van de poging (een adres op de eigen server) in de browser van het toestel.
+     * De app opent niets anders dan dat startadres (zie SignInLink); terug komt de browser via tickory://oidc.
+     */
+    @JavascriptInterface
+    fun openSignIn(url: String?) {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.openSignIn(url) }
+    }
+
     /** Terug naar het instelscherm, na bevestiging in een dialoog van Android. */
     @JavascriptInterface
     fun changeServer() {
