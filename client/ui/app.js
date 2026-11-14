@@ -451,7 +451,7 @@ async function chooseLanguage() {
 async function accountFlow() {
   const next = await accountDialog({ me: store.me, api });
   if (next === 'admin') {
-    await adminDialog({ me: store.me, api });
+    await adminDialog({ me: store.me, api, inApp: bridge.available }); // in de Android-app kan een back-up niet worden gedownload
     return accountFlow();
   }
   if (next === 'logout') return logout();
@@ -462,6 +462,7 @@ async function accountFlow() {
 /**
  * Het inlogscherm. Lukt het, dan bewaren we het token. Logt er iemand anders in dan wiens gegevens op dit apparaat staan,
  * dan wissen we die eerst (na bevestiging als er nog wijzigingen wachten): gegevens van de één horen nooit bij de ander terecht te komen.
+ * Met tweestapsverificatie geeft het wachtwoord eerst alleen een tussentoken; het inlogscherm vraagt dan de code (loginDialog).
  */
 async function askLogin(note = '') {
   if (ui.askingLogin) return;
@@ -472,37 +473,47 @@ async function askLogin(note = '') {
       note: note || (store.me ? t('login.sessionEnded') : ''),
       attempt: async (username, password) => {
         const res = await api.login(username, password, deviceName(navigator.userAgent, { app: Boolean(window.TickoryAndroid) }));
-        const other = store.me && store.me.id !== res.me.id;
-        if (other) {
-          const waiting = store.queueLength;
-          const ok = await confirmDialog({
-            title: t('login.switchTitle', { name: res.me.name }),
-            text: waiting > 0 ? t('login.switchTextWaiting', { name: store.me.name, count: waiting }) : t('login.switchText', { name: store.me.name }),
-            okText: t('login.switchOk'),
-          });
-          if (!ok) {
-            api.logout(res.token).catch(() => {});
-            throw new Error('geannuleerd');
-          }
-          events.stop();
-          sync.stop();
-          localStorage.removeItem(ROUTE_KEY);
-          if (adapter.clear) await adapter.clear();
-          await attachments.clear();
-        }
-        backend.setToken(res.token);
-        bridge.setSession(res.token);
-        if (other) {
-          location.reload();
-          return res;
-        }
-        events.restart();
-        sync.requestSync(0);
+        return res.two_factor_required ? res : adopt(res);
+      },
+      attemptCode: async (challenge, code) => {
+        const res = await adopt(await api.loginCode(challenge, code));
+        if (res.recovery_code_used) toast(t('login.recoveryLeft', { count: res.recovery_codes_left ?? 0 }), { timeout: 12_000 });
         return res;
       },
     });
   } finally {
     ui.askingLogin = false;
+  }
+
+  /** Een gelukte aanmelding overnemen (na het wachtwoord, of na de code). */
+  async function adopt(res) {
+    const other = store.me && store.me.id !== res.me.id;
+    if (other) {
+      const waiting = store.queueLength;
+      const ok = await confirmDialog({
+        title: t('login.switchTitle', { name: res.me.name }),
+        text: waiting > 0 ? t('login.switchTextWaiting', { name: store.me.name, count: waiting }) : t('login.switchText', { name: store.me.name }),
+        okText: t('login.switchOk'),
+      });
+      if (!ok) {
+        api.logout(res.token).catch(() => {});
+        throw new Error('geannuleerd');
+      }
+      events.stop();
+      sync.stop();
+      localStorage.removeItem(ROUTE_KEY);
+      if (adapter.clear) await adapter.clear();
+      await attachments.clear();
+    }
+    backend.setToken(res.token);
+    bridge.setSession(res.token);
+    if (other) {
+      location.reload();
+      return res;
+    }
+    events.restart();
+    sync.requestSync(0);
+    return res;
   }
 }
 

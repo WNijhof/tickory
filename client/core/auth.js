@@ -27,14 +27,23 @@ function ownMessage(action, code) {
   const admin = action.startsWith('admin.');
   switch (code) {
     case 'INVALID_CREDENTIALS': return t('api.invalidCredentials');
+    case 'INVALID_CODE': return t('api.invalidCode');
+    case 'CHALLENGE_EXPIRED': return t('api.challengeExpired');
     case 'TOO_MANY_ATTEMPTS': return t('api.tooManyAttempts');
+    case 'TOO_MANY_REQUESTS': return action === 'admin.backup' ? t('api.tooManyBackups') : null;
     case 'BUSY': return t('api.busy');
     case 'UNAUTHORIZED': return t('error.unauthorized');
     case 'INTERNAL': return t('error.internal');
-    case 'FORBIDDEN': return action === 'changePassword' ? t('api.wrongCurrentPassword') : admin ? t('api.adminOnly') : t('error.forbidden');
+    case 'FORBIDDEN':
+      if (action === 'changePassword') return t('api.wrongCurrentPassword');
+      if (action.startsWith('twoFactor.') || action === 'admin.backup') return t('api.wrongPassword');
+      return admin ? t('api.adminOnly') : t('error.forbidden');
     case 'NOT_FOUND': return action === 'revokeSession' ? t('api.sessionGone') : admin ? t('api.userGone') : null;
     case 'DUPLICATE': return action === 'admin.createUser' ? t('api.usernameTaken') : null;
-    case 'CONFLICT': return action === 'admin.updateUser' ? t('api.lastAdmin') : null;
+    case 'CONFLICT':
+      if (action === 'admin.updateUser') return t('api.lastAdmin');
+      if (action === 'twoFactor.enable') return t('api.twoFactorStartOver');
+      return null;
     default: return null;
   }
 }
@@ -77,17 +86,32 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
   }
 
   return {
+    /** Geeft `{token, me}`, of bij tweestapsverificatie `{two_factor_required: true, challenge}`: dan volgt `loginCode`. */
     login: (username, password, deviceName) => call('login', 'POST', '/api/v1/auth/login', { username, password, device_name: deviceName }, { token: null }),
+    /** De tweede inlogstap: het tussentoken uit `login` en een code uit de app (of een herstelcode). */
+    loginCode: (challenge, code) => call('loginCode', 'POST', '/api/v1/auth/login/2fa', { challenge, code }, { token: null }),
     logout: (token) => call('logout', 'POST', '/api/v1/auth/logout', {}, token ? { token } : undefined),
     me: () => call('me', 'GET', '/api/v1/auth/me'),
     changePassword: (current_password, new_password) => call('changePassword', 'POST', '/api/v1/auth/password', { current_password, new_password }),
     sessions: () => call('sessions', 'GET', '/api/v1/auth/sessions'),
     revokeSession: (id) => call('revokeSession', 'POST', '/api/v1/auth/sessions/revoke', { id }),
+    revokeOtherSessions: () => call('revokeOtherSessions', 'POST', '/api/v1/auth/sessions/revoke-others', {}),
+    twoFactor: {
+      status: () => call('twoFactor.status', 'GET', '/api/v1/auth/2fa'),
+      setup: (password) => call('twoFactor.setup', 'POST', '/api/v1/auth/2fa/setup', { password }),
+      enable: (code) => call('twoFactor.enable', 'POST', '/api/v1/auth/2fa/enable', { code }),
+      disable: (password, code) => call('twoFactor.disable', 'POST', '/api/v1/auth/2fa/disable', { password, code }),
+      newRecoveryCodes: (password, code) => call('twoFactor.recovery', 'POST', '/api/v1/auth/2fa/recovery-codes', { password, code }),
+    },
     admin: {
       users: () => call('admin.users', 'GET', '/api/v1/admin/users'),
       createUser: (input) => call('admin.createUser', 'POST', '/api/v1/admin/users', input),
       updateUser: (id, changes) => call('admin.updateUser', 'POST', '/api/v1/admin/users/update', { id, ...changes }),
       resetPassword: (id, new_password) => call('admin.resetPassword', 'POST', '/api/v1/admin/users/password', { id, new_password }),
+      resetTwoFactor: (id) => call('admin.resetTwoFactor', 'POST', '/api/v1/admin/users/2fa-reset', { id }),
+      /** Een eenmalig downloadbewijs; `backupUrl` maakt er het adres van dat de browser zelf downloadt. */
+      backupTicket: (password, code) => call('admin.backup', 'POST', '/api/v1/admin/backup', { password, ...(code ? { code } : {}) }),
+      backupUrl: (ticket) => `${baseUrl}/api/v1/admin/backup/download?ticket=${encodeURIComponent(ticket)}`,
     },
   };
 }

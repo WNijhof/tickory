@@ -523,6 +523,13 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .device-info { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .badge { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: var(--bg-soft); color: var(--text-soft); border: 1px solid var(--line); }
 .badge-bad { color: var(--danger); }
+/* tweestapsverificatie en back-up (ui/accountDialogs.js); de QR-code is altijd zwart op wit, ook in donker, anders leest een camera hem slecht */
+.qr-box { display: flex; justify-content: center; padding: 8px 0; }
+.qr { width: min(240px, 70vw); height: auto; background: #fff; border-radius: 6px; }
+.two-factor-secret code, .recovery-codes { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.04em; overflow-wrap: anywhere; }
+.recovery-codes { resize: none; line-height: 1.5; }
+.login-code { font-size: 1.2rem; letter-spacing: 0.15em; }
+.warning { padding: 8px 10px; border-left: 3px solid var(--danger); background: var(--bg-soft); }
 .check-row { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
 .error:not(:empty) { color: var(--danger); }
