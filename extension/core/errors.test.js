@@ -54,6 +54,7 @@ test('fouten van de server zelf en onbekende codes', () => {
   assert.equal(errorText({ code: 'HTTP_502', status: 502 }, nl), nl('errServer'));
   assert.equal(errorText({ code: 'INTERNAL', status: 500 }, nl), nl('errServer'));
   assert.equal(errorText({ code: 'IETS_NIEUWS', status: 503 }, nl), nl('errServer'));
+  assert.equal(errorText({ code: 'IETS_NIEUWS', status: 500 }, nl), nl('errServer'));
   assert.equal(errorText({ code: 'IETS_NIEUWS', status: 400 }, nl), 'Er ging iets mis (IETS_NIEUWS).');
   assert.equal(errorText(new Error('kapot'), en), 'Something went wrong (?).');
   assert.equal(errorText(null, en), 'Something went wrong (?).');

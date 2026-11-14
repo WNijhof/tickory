@@ -255,6 +255,7 @@ test('grenzen: hooguit 10 codes per uur per gebruiker, 10 foute pogingen per adr
   try {
     const web = await w.tokenOf('alice');
     for (let i = 0; i < PAIR_CODES_PER_HOUR; i++) assert.equal((await w.makeCode(web)).status, 200);
+    w.clock.now += 120_000; // het telt per uur, niet per minuut
     const tooMany = await w.makeCode(web);
     assert.equal(tooMany.status, 429);
     assert.equal(tooMany.body.error_code, 'TOO_MANY_REQUESTS');

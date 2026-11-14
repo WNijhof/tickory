@@ -64,7 +64,7 @@ test('ongeldige adressen', () => {
   const bad = [
     'https://', 'https:///pad', 'http://:8787', 'http://host:99999', 'http://host:0', 'http://host:abc', 'http://host:',
     'http://host:-1', 'http://host:80:80', 'https://taken voorbeeld.nl', 'https://taken..voorbeeld.nl', 'https://.nl',
-    'https://-a.nl', 'https://a-.nl', 'https://taken.voorbeeld.nl\\pad', 'http://[::1', 'http://[::1]x', 'http://[zz::1]',
+    'https://-a.nl', 'https://a-.nl', 'https://taken.voorbeeld.nl\\pad', 'http://[::1', 'http://[::1]x', 'http://[::1]x80', 'http://[zz::1]',
     'http://[]', 'http://::1', 'https://a.nl:44 3', 'https://ex%61mple.nl', 'https://a,b.nl', `https://${'a'.repeat(64)}.nl`,
     `https://${'a.'.repeat(127)}nl`, 'http://[1:2:3:4:5:6:7:8:9]', 'http://[1.2.3.4]', 'http://[1::2::3]', 'http://[::12345]',
     'https://a.nl\u0000', 'https://a\u007f.nl', 'https://goed.nl\\.fout.nl', 'http://host:65536',
@@ -110,7 +110,7 @@ test('adressen op het eigen netwerk', () => {
 
 test('adressen op internet of op de computer zelf', () => {
   const notLocal = [
-    '8.8.8.8', '1.1.1.1', '172.15.0.1', '172.32.0.1', '192.169.1.1', '100.63.0.1', '100.128.0.1', '11.0.0.1', '127.0.0.1', '999.1.1.1', '169.253.1.1', '191.168.1.1',
+    '8.8.8.8', '1.1.1.1', '172.15.0.1', '172.32.0.1', '192.169.1.1', '100.63.0.1', '100.128.0.1', '11.0.0.1', '127.0.0.1', '999.1.1.1', '10.0.0.256', '192.168.1.300', '169.253.1.1', '191.168.1.1',
     '[2001:db8::1]', '[2a02:a45f::1]', '[::1]', '[::ffff:8.8.8.8]', '[geen-adres]', '[fec0::1]', '[fe00::1]', '[fe80::1',
     'taken.voorbeeld.nl', 'voorbeeld.nl', 'localhost', 'wnijhof.github.io', 'mijnlocal.nl', 'local.voorbeeld.nl',
   ];

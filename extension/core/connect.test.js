@@ -59,7 +59,7 @@ test('een koppelcode lezen zoals de server: vergevingsgezind, en een tikfout met
       assert.equal(normalizePairCode(pairCodeInput(typed)), normalizePairCode(code), 'de server leest hetzelfde');
     }
   }
-  for (const s of ['O0IL-1111-1111-1111', 'abcd efgh jkmn pqrs', 'ABCD-EFGH-JKMN-PQR', 'ABCD-EFGH-JKMN-PQRU', 'ABCD_EFGH_JKMN_PQRS', '', 'x'.repeat(70)]) {
+  for (const s of ['O0IL-1111-1111-1111', 'abcd efgh jkmn pqrs', 'ABCD-EFGH-JKMN-PQR', 'ABCD-EFGH-JKMN-PQRU', 'ABCD_EFGH_JKMN_PQRS', 'ABCD-EFGH-JKMN-PQRST', '', 'x'.repeat(70)]) {
     const mine = pairCodeInput(s);
     const server = normalizePairCode(s);
     assert.equal(mine === null, server === null, s);

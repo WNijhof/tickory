@@ -50,6 +50,9 @@ test('adressen: alleen http(s), zonder inloggegevens; lange titels netjes ingeko
   const long = contextDraft({ pageUrl: 'https://a.nl/', pageTitle: `${'woord '.repeat(60)}einde` }, nl).title;
   assert.ok(long.length <= 200 && long.endsWith('…'));
   assert.equal(shorten('kort', 10), 'kort');
+  assert.equal(shorten('abcde', 5), 'abcde', 'precies de grens past nog');
+  assert.equal(shorten('aaaaaa bbbbbbbbbb', 10), 'aaaaaa…', 'op een woordgrens als die niet te vroeg ligt');
+  assert.equal(contextDraft({ pageUrl: 'https://a.nl/', pageTitle: 'Ti\u001btel\u007f' }, nl).title, 'Titel', 'ook escape en delete');
   assert.equal(shorten('aaaaaaaaaaaaaaaaaaaa', 10), 'aaaaaaaaa…', 'zonder spatie: hard afgekapt');
   assert.equal(shorten(`${'a'.repeat(8)}😀bbb`, 10), 'aaaaaaaa…', 'geen halve emoji');
   const quote = contextDraft({ pageUrl: 'https://a.nl/', selectionText: 'x'.repeat(10_000) }, nl).description;
@@ -74,6 +77,7 @@ const sync = {
     { id: 'm2', project_id: 'p-werk', user_id: 'u1', role: 'owner' },
     { id: 'm3', project_id: 'p-werk', user_id: 'u2', role: 'viewer' },
     { id: 'm4', project_id: 'p-thuis', user_id: 'u1', role: 'viewer', is_deleted: true },
+    { id: 'm5', project_id: 'p-thuis', user_id: 'u1', role: 'member' },
   ],
   sections: [{ id: 's1', project_id: 'p-werk', name: 'Lezen', order_key: 'a' }, { id: 's2', project_id: 'p-werk', name: 'Oud', is_archived: true }],
   labels: [{ id: 'l1', name: 'lezen', owner_id: 'u1' }, { id: 'l2', name: 'Uitgaan met Zoë', owner_id: 'u1' }, { id: 'l3', is_deleted: true }],
@@ -152,11 +156,11 @@ test('de paginatitel blijft letterlijk; wat erachter getypt wordt, herkent de sn
 });
 
 test('het voorbeeld onder de titel: datum, prioriteit, project, sectie, labels, herinneringen en duur, in de taal van de extensie', () => {
-  const parsed = readTitle('Lezen vrijdag 9:00 p1 #Werk /Lezen @lezen @nieuw !2u !0 !(morgen om 8 uur) =45m {maandag}', { parse: parseQuickAdd, lists, defaultProjectId: 'inbox-u1', now: NOW });
+  const parsed = readTitle('Lezen vrijdag 9:00 p1 #Werk /Lezen @lezen @nieuw !2u !0 !(morgen om 8 uur) !90m =45m {maandag}', { parse: parseQuickAdd, lists, defaultProjectId: 'inbox-u1', now: NOW });
   const texts = previewChips(parsed, lists, { defaultProjectId: 'inbox-u1', locale: 'nl-NL', msg: nl }).map((c) => `${c.kind}:${c.text}`);
   assert.deepEqual(texts, [
     'due:vrijdag 9:00 · vr 20 nov 09:00', 'deadline:deadline 2026-11-16', 'priority:P1', 'project:#Werk', 'section:/Lezen', 'label:@lezen', 'label:@nieuw (nieuw)',
-    'reminder:herinnering 2 u vooraf', 'reminder:herinnering op het tijdstip', 'reminder:herinnering 2026-11-15 08:00', 'duration:duur 45 min',
+    'reminder:herinnering 2 u vooraf', 'reminder:herinnering op het tijdstip', 'reminder:herinnering 2026-11-15 08:00', 'reminder:herinnering 90 min vooraf', 'duration:duur 45 min',
   ]);
   const english = previewChips(readTitle('x elke maandag !1d !15m', { parse: parseQuickAdd, lists, defaultProjectId: 'inbox-u1', now: NOW }), lists, { defaultProjectId: 'inbox-u1', locale: 'en-GB', msg: en });
   assert.deepEqual(english.map((c) => c.text), ['elke maandag · Mon 16 Nov ↻', 'reminder 1 d before', 'reminder 15 min before']);
