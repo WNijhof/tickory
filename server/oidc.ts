@@ -488,9 +488,8 @@ export function createOidcClient(config: OidcConfig, options: OidcClientOptions 
       const r = await fetchJson(d.userinfo_endpoint, { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } }, { ...limits, maxBytes: Math.min(limits.maxBytes, 64 * 1024) });
       if (r.status === 200 && isObject(r.body) && r.body.sub === claims.sub) info = r.body;
     } catch { /* zonder userinfo gaan we verder met wat in het ID-token staat */ }
-    const merged: Record<string, unknown> = { ...info, ...claims };
-    if (claims[config.groupsClaim] === undefined && info[config.groupsClaim] !== undefined) merged[config.groupsClaim] = info[config.groupsClaim];
-    return { claims: merged };
+    // wat in het ID-token staat gaat voor; wat er niet in staat (naam, e-mail, groepen) komt uit userinfo
+    return { claims: { ...info, ...claims } };
   };
 
   return { config, discovery, authorizationUrl, redeem, verifyIdToken };

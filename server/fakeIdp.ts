@@ -49,6 +49,8 @@ export interface FakeIdp {
   redirect: Set<Endpoint>;
   /** Een andere `sub` in userinfo dan in het ID-token (dan mag de server userinfo niet gebruiken). */
   userinfoSub: string | null;
+  /** Een andere issuer in de discovery dan het adres waar die staat (dan mag de server de provider niet vertrouwen). */
+  discoveryIssuer: string | null;
   /** Welke methoden voor het clientgeheim de discovery noemt. */
   authMethods: string[];
   /** Tellers en wat er binnenkwam. */
@@ -90,7 +92,7 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
     issuer: '', base: '', clientId: opts.clientId ?? 'tickory-test', clientSecret: opts.clientSecret === undefined ? 'geheim-van-de-test' : opts.clientSecret,
     user: { sub: 'sub-alice', preferred_username: 'alice', name: 'Alice', email: 'alice@voorbeeld.test' }, userinfo: {},
     signWith: 'rsa', tweak: null, tweakOnce: true, algNone: false, tamper: false, hmacWithPublicKey: false, deny: false, addIss: false, issParam: null,
-    interactive: false, slow: new Set(), huge: new Set(), redirect: new Set(), userinfoSub: null, authMethods: ['client_secret_basic', 'client_secret_post'],
+    interactive: false, slow: new Set(), huge: new Set(), redirect: new Set(), userinfoSub: null, discoveryIssuer: null, authMethods: ['client_secret_basic', 'client_secret_post'],
     seen: { discovery: 0, jwks: 0, token: 0, userinfo: 0, authorize: [], tokenAuth: [] },
     keys: [makeKey('rsa'), makeKey('ec'), makeKey('ed')],
     addKey: ({ publish = true, kind = 'rsa' } = {}) => {
@@ -176,7 +178,7 @@ export async function startFakeIdp(opts: { clientId?: string; clientSecret?: str
     if (ep === 'discovery') {
       idp.seen.discovery++;
       return json(res, 200, {
-        issuer: idp.issuer, authorization_endpoint: `${idp.base}/authorize`, token_endpoint: `${idp.base}/token`, jwks_uri: `${idp.base}/jwks`,
+        issuer: idp.discoveryIssuer ?? idp.issuer, authorization_endpoint: `${idp.base}/authorize`, token_endpoint: `${idp.base}/token`, jwks_uri: `${idp.base}/jwks`,
         userinfo_endpoint: `${idp.base}/userinfo`, response_types_supported: ['code'], subject_types_supported: ['public'],
         id_token_signing_alg_values_supported: ['RS256', 'ES256', 'EdDSA'], code_challenge_methods_supported: ['S256'],
         token_endpoint_auth_methods_supported: idp.authMethods, authorization_response_iss_parameter_supported: idp.addIss,

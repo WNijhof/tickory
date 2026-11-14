@@ -99,6 +99,8 @@ test('handtekeningen: RS256, PS256, ES256, ES384 en EdDSA kloppen; de verkeerde 
   assert.equal(verifySignature('RS256', jwk(rsa.publicKey, { alg: 'RS512' }), t.signingInput, t.signature), false, 'de sleutel zegt een ander algoritme');
   assert.equal(verifySignature('RS256', jwk(rsa.publicKey, { use: 'enc' }), t.signingInput, t.signature), false, 'een sleutel voor versleutelen');
   assert.equal(verifySignature('RS256', { ...jwk(rsa.publicKey), d: 'geheim' }, t.signingInput, t.signature), false, 'een sleutel met privédelen nemen we niet');
+  assert.equal(verifySignature('RS256', jwk(rsa.publicKey, { key_ops: ['encrypt'] }), t.signingInput, t.signature), false, 'een sleutel die niet voor controleren is');
+  assert.equal(verifySignature('RS256', jwk(rsa.publicKey, { key_ops: ['verify'] }), t.signingInput, t.signature), true);
   assert.equal(verifySignature('HS256', { kty: 'oct', k: 'geheim' }, t.signingInput, t.signature), false, 'HMAC nooit');
   assert.equal(verifySignature('none', jwk(rsa.publicKey), t.signingInput, Buffer.alloc(0)), false);
   // een te korte RSA-sleutel (1024 bits) vertrouwen we niet
@@ -111,7 +113,9 @@ test('handtekeningen: RS256, PS256, ES256, ES384 en EdDSA kloppen; de verkeerde 
 });
 
 test('decodeJwt: alleen drie base64url-delen met JSON-objecten, niet te groot; alg none zonder handtekening valt af', () => {
-  for (const bad of ['', 'a.b', 'a.b.c.d', 'eyJ9.eyJ9.', `${'a'.repeat(17_000)}.b.c`, 'e30.W10.YQ', 42, null]) assert.equal(decodeJwt(bad), null, String(bad).slice(0, 20));
+  for (const bad of ['', 'a.b', 'a.b.c.d', 'eyJ9.eyJ9.', 'e30.e30.', 'e30.e30.YQ.YQ', 'e30..YQ', 'e30.e30.Y+Q', `e30.e30.${'A'.repeat(17_000)}`, 'e30.W10.YQ', 42, null]) {
+    assert.equal(decodeJwt(bad), null, String(bad).slice(0, 20));
+  }
   assert.ok(decodeJwt('e30.e30.YQ'));
 });
 

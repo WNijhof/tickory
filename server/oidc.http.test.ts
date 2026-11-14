@@ -548,6 +548,10 @@ test('een trage, onbereikbare of te grote provider: een tijdslimiet en een groot
     assert.equal((await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' })).status, 503);
     assert.match(w.lines.join('\n'), /te groot/);
     w.idp.huge.clear();
+    w.idp.discoveryIssuer = 'https://aanvaller.voorbeeld.test/realms/test';
+    assert.equal((await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' })).status, 503, 'de discovery noemt een andere issuer');
+    assert.match(w.lines.join('\n'), /discovery noemt een andere issuer/);
+    w.idp.discoveryIssuer = null;
     w.idp.redirect.add('discovery');
     assert.equal((await w.call('/api/v1/auth/oidc/start', { purpose: 'login', client: 'web' })).status, 503, 'een omleiding wordt niet gevolgd');
     w.idp.redirect.clear();
