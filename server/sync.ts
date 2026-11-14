@@ -53,7 +53,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
   switch (name) {
     case 'project': return isMember(db, userId, row.id);
     case 'section': case 'task': case 'member': return isMember(db, userId, row.project_id);
-    case 'comment': {
+    case 'comment': case 'attachment': {
       if (row.task_id) {
         const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
         return t !== undefined && isMember(db, userId, t.project_id);
@@ -87,6 +87,13 @@ function requireMayWrite(ctx: Ctx, e: Entity, row: Row): void {
     case 'comment':
       if (row.author_id !== null && row.author_id !== ctx.userId) fail('FORBIDDEN', 'je kunt alleen je eigen opmerkingen wijzigen of verwijderen');
       break;
+    case 'attachment': {
+      // verwijderen mag de maker, en de eigenaar van het project (die ruimt zo op wat anderen erin zetten)
+      if (row.creator_id === ctx.userId) break;
+      const t = ctx.db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
+      if (!t || roleOf(ctx.db, ctx.userId, t.project_id) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
+      break;
+    }
     default:
       break;
   }
@@ -227,6 +234,15 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     case 'comment':
       if ((v.task_id === null) === (v.project_id === null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
       break;
+    case 'attachment': {
+      // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak, en nog bij geen enkele bijlage horen. Wat de
+      // client over grootte, type en inhoud opgeeft, moet kloppen met wat de server bij de upload zelf zag.
+      const f = db.prepare('SELECT user_id, task_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
+      if (!f || f.user_id !== ctx.userId || f.task_id !== v.task_id || f.linked === 1) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
+      if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
+      db.prepare('UPDATE attachment_files SET linked = 1 WHERE id = ?').run(id);
+      break;
+    }
     case 'reminder': {
       const due = v.due as { date: string } | null;
       if (v.type === 'relative') {
@@ -297,6 +313,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
       quota(ctx, `comments:${parent}`, LIMITS.commentsPerParent, 'opmerkingen per taak of project', () => countOf(db, `SELECT COUNT(*) AS n FROM comments WHERE ${byTask ? 'task_id' : 'project_id'} = ? AND is_deleted = 0`, parent));
       break;
     }
+    case 'attachment':
+      quota(ctx, `attachments:${v.task_id}`, LIMITS.attachmentsPerTask, 'bijlagen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM attachments WHERE task_id = ? AND is_deleted = 0', v.task_id as string));
+      break;
     case 'reminder':
       quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
       quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
@@ -343,6 +362,7 @@ function deleteTaskTree(ctx: Ctx, rootIds: string[]): void {
     const ph = placeholders(part.length);
     mark(ctx, 'tasks', `id IN (${ph})`, part);
     mark(ctx, 'comments', `task_id IN (${ph})`, part);
+    mark(ctx, 'attachments', `task_id IN (${ph})`, part);
     mark(ctx, 'reminders', `task_id IN (${ph})`, part);
   }
 }
@@ -599,8 +619,9 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
        UNION SELECT project_id FROM project_members WHERE rev > ?
        UNION SELECT project_id FROM comments WHERE rev > ? AND project_id IS NOT NULL
        UNION SELECT t.project_id FROM comments c JOIN tasks t ON t.id = c.task_id WHERE c.rev > ?
+       UNION SELECT t.project_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.rev > ?
        UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
-    since, since, since, since, since, since, since,
+    since, since, since, since, since, since, since, since,
   );
   // wat van één persoon is: labels, filters, herinneringen en instellingen
   collect(
@@ -680,6 +701,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
     case 'project': return { sql: `id IN (${MY_PROJECTS})`, params: [uid] };
     case 'section': case 'task': case 'member': return { sql: `project_id IN (${MY_PROJECTS})`, params: [uid] };
     case 'comment': return { sql: `(project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine}))`, params: [uid, uid] };
+    case 'attachment': return { sql: `task_id IN (${tasksOfMine})`, params: [uid] };
     case 'label':
       return {
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
@@ -705,6 +727,7 @@ function inProjects(name: EntityName, uid: string, projects: string, params: (st
     case 'project': return { sql: `id IN (${projects})`, params: [...params] };
     case 'section': case 'task': case 'member': return { sql: `project_id IN (${projects})`, params: [...params] };
     case 'comment': return { sql: `(project_id IN (${projects}) OR task_id IN (${tasksIn}))`, params: [...params, ...params] };
+    case 'attachment': return { sql: `task_id IN (${tasksIn})`, params: [...params] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...params] };
     default: return null;
   }
@@ -742,7 +765,7 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
       const extraParams: (string | number)[] = [];
       const np = inProjects(e.name, uid, GAINED, [uid, since]);
       if (np) { extra.push(np.sql); extraParams.push(...np.params); }
-      if (e.name === 'comment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
+      if (e.name === 'comment' || e.name === 'attachment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
       if (e.name === 'reminder') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
       if (e.name === 'label') {
         extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);

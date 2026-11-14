@@ -17,14 +17,17 @@
 //   POST /api/v1/push/subscribe           {endpoint, keys, lang}   POST /api/v1/push/unsubscribe {endpoint}
 //   GET  /api/v1/push/subscriptions       eigen apparaten met meldingen   POST /api/v1/push/test   proefmelding
 //   POST /api/v1/push/action              {token}  een knop uit een melding (zonder aanmelding; het token is het bewijs)
+//   POST /api/v1/attachments?id=…&task_id=…   het bestand als body (zie attachments.ts)   GET /api/v1/attachments/<id>   het bestand
+//   GET  /api/v1/attachments/limits       -> grootste bestand, ruimte van de gebruiker, bijlagen per taak
 
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, extname, resolve, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
 import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
@@ -36,6 +39,8 @@ import {
 import type { UserRow } from './users.ts';
 import { createPush } from './push.ts';
 import type { Push } from './push.ts';
+import { createAttachments } from './attachments.ts';
+import type { Attachments } from './attachments.ts';
 
 const MAX_BODY = 1024 * 1024; // 1 MiB
 const DRAIN_LIMIT = 16 * MAX_BODY; // tot hier lezen we een te groot verzoek weg om netjes te kunnen antwoorden
@@ -81,6 +86,10 @@ export interface AppOptions {
   push?: Push | null;
   /** Hoe vaak de server kijkt welke herinneringen aan de beurt zijn; 0 = niet vanzelf (tests roepen `push.tick()` zelf aan). */
   pushIntervalMs?: number;
+  /** Bijlagen (bestanden bij taken). Zonder: de eindpunten onder /api/v1/attachments bestaan niet en een bijlage toevoegen lukt niet. */
+  attachments?: Attachments | null;
+  /** Hoe vaak de server oude uploads en bestanden van verwijderde bijlagen opruimt; 0 = niet vanzelf (tests roepen `attachments.sweep()` aan). */
+  attachmentSweepMs?: number;
 }
 
 export interface App {
@@ -145,7 +154,7 @@ export async function staticResponse(
 }
 
 const STATUS_FOR: Record<string, number> = {
-  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TOO_LARGE: 413, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
+  UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TIMEOUT: 408, LENGTH_REQUIRED: 411, TOO_LARGE: 413, LIMIT_REACHED: 409, ABORTED: 400, STORAGE_FULL: 507, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
 };
 
 interface Caller { user: UserRow; sessionId: string }
@@ -166,6 +175,12 @@ export function createApp(opts: AppOptions): App {
     ? setInterval(() => { push.tick().catch((err) => console.error('meldingen versturen mislukt', err)); }, pushInterval)
     : null;
   pushTimer?.unref(); // de klok houdt het proces niet in leven
+  const attachments = opts.attachments ?? null;
+  const sweepMs = opts.attachmentSweepMs ?? 10 * 60_000;
+  const sweepTimer = attachments && sweepMs > 0
+    ? setInterval(() => { try { attachments.sweep(); } catch (err) { console.error('bijlagen opruimen mislukt', err); } }, sweepMs)
+    : null;
+  sweepTimer?.unref();
 
   const authenticate = (req: IncomingMessage): Caller | null => {
     const header = req.headers.authorization;
@@ -375,6 +390,14 @@ export function createApp(opts: AppOptions): App {
 
       if (!path.startsWith('/api/')) return await serveStatic(req, res, path);
 
+      // Een verzoek moet binnen 30 seconden binnen zijn. Alleen een upload van een bijlage mag langer duren, maar die heeft zijn eigen
+      // bewaking (te langzaam of stilgevallen = afgebroken, zie attachments.ts); anders houdt een trage afzender een verbinding eindeloos vast.
+      if (!req.complete && !(path === '/api/v1/attachments' && req.method === 'POST')) {
+        const timer = setTimeout(() => req.destroy(), 30_000);
+        req.once('end', () => clearTimeout(timer));
+        req.once('close', () => clearTimeout(timer));
+      }
+
       // Een knop uit een melding: de browser is op dat moment niet ingelogd; het ondertekende token is het bewijs.
       if (path === '/api/v1/push/action' && push) {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
@@ -389,7 +412,8 @@ export function createApp(opts: AppOptions): App {
         return await login(req, res);
       }
 
-      const known = path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
+      const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
+      const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
         || (push !== null && path.startsWith('/api/v1/push/'));
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
@@ -442,6 +466,22 @@ export function createApp(opts: AppOptions): App {
         return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       }
 
+      if (attachments && path.startsWith('/api/v1/attachments')) {
+        if (path === '/api/v1/attachments') {
+          if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+          const up = await attachments.upload(req, caller.user.id, { id: url.searchParams.get('id'), taskId: url.searchParams.get('task_id') });
+          return send(res, 200, up);
+        }
+        if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        if (path === '/api/v1/attachments/limits') {
+          return send(res, 200, {
+            max_upload_bytes: attachments.maxUploadBytes, quota_bytes: attachments.quotaBytes, used_bytes: attachments.used(caller.user.id), per_task: LIMITS.attachmentsPerTask,
+          });
+        }
+        const id = path.slice('/api/v1/attachments/'.length);
+        return await attachments.download(req, res, caller.user.id, id, url.searchParams.get('inline') === '1', cors);
+      }
+
       if (path === '/api/v1/events') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
         let mine = 0;
@@ -483,11 +523,22 @@ export function createApp(opts: AppOptions): App {
       const result = handleSync(db, payload, caller.user.id);
       const after = currentRev(db);
       send(res, 200, result);
+      if (after !== before) attachments?.purgeDeleted(); // bestanden van verwijderde bijlagen weg, ruimte terug
       if (after !== before) broadcast(caller.user.id, clientId, audienceSince(db, before, caller.user.id));
     } catch (err) {
       if (err instanceof SyncError) {
         // De body is op dit punt volledig weggelezen, dus de verbinding kan gewoon open blijven.
+        // Is de body nog niet (helemaal) gelezen, dan sluiten we de verbinding niet meteen: sluiten met ongelezen gegevens geeft bij
+        // de afzender vaak een verbroken verbinding in plaats van ons antwoord. Node leest de rest weg zodra het antwoord klaar is; wij
+        // begrenzen hoe lang en hoeveel. Wie te langzaam was, krijgt zijn antwoord en daarna korte tijd om het te lezen.
         if (!res.headersSent && !res.destroyed) send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message }, err.code === 'BUSY' ? { 'Retry-After': '5' } : {});
+        if (!req.complete && !req.destroyed) {
+          let seen = 0;
+          const stop = (ms: number): void => { const t = setTimeout(() => req.destroy(), ms); t.unref(); req.once('close', () => clearTimeout(t)); };
+          req.on('data', (c: Buffer) => { seen += c.length; if (seen > DRAIN_LIMIT) req.destroy(); });
+          if (err.code === 'TIMEOUT') res.once('finish', () => stop(250));
+          else stop(10_000);
+        }
         return;
       }
       console.error('onverwachte fout', err);
@@ -495,8 +546,10 @@ export function createApp(opts: AppOptions): App {
     }
   });
 
-  // een afzender die een body eindeloos laat doorlopen, houdt een verbinding hooguit 30 seconden vast
-  server.requestTimeout = 30_000;
+  // Een afzender die een body eindeloos laat doorlopen, houdt een verbinding hooguit 30 seconden vast: dat bewaakt de routering
+  // hierboven per verzoek (voor een upload van een bijlage geldt een eigen, langere bewaking). `requestTimeout` van Node geldt voor
+  // alle verzoeken tegelijk en zou een grote upload na 30 seconden afkappen.
+  server.requestTimeout = 0;
   server.headersTimeout = 10_000;
 
   return {
@@ -504,6 +557,7 @@ export function createApp(opts: AppOptions): App {
     close: () =>
       new Promise((resolveClose) => {
         if (pushTimer) clearInterval(pushTimer);
+        if (sweepTimer) clearInterval(sweepTimer);
         for (const s of streams) s.res.end();
         streams.clear();
         server.close(() => resolveClose());
@@ -556,6 +610,38 @@ function openDatabase(): DatabaseSync {
   const db = new DatabaseSync(dbPath);
   createSchema(db);
   return db;
+}
+
+/** Een aantal megabytes uit de omgeving; ongeldig of niet ingesteld geeft de standaardwaarde (met een waarschuwing bij een ongeldige waarde). */
+export function megabytesFrom(env: Record<string, string | undefined>, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0 || n > 1_000_000) {
+    console.warn(`${name} is geen geldig aantal megabytes (${raw}); de standaardwaarde ${fallback} wordt gebruikt.`);
+    return fallback;
+  }
+  return n;
+}
+
+/**
+ * De map met bijlagen: ATTACHMENTS_DIR, anders `attachments` naast de database (in Docker dus in het datavolume). Bij een database in
+ * het geheugen een tijdelijke map. Controleert bij het opstarten of map en database nog bij elkaar passen.
+ */
+function openAttachments(db: DatabaseSync): Attachments {
+  const dbPath = process.env.DB_PATH ?? './data/todo.db';
+  const dir = process.env.ATTACHMENTS_DIR || (dbPath === ':memory:' ? mkdtempSync(join(tmpdir(), 'tickory-attachments-')) : join(dirname(resolve(dbPath)), 'attachments'));
+  mkdirSync(dir, { recursive: true });
+  const attachments = createAttachments(db, {
+    dir,
+    maxUploadBytes: Math.floor(megabytesFrom(process.env, 'MAX_UPLOAD_MB', 25) * 1_000_000),
+    quotaBytes: Math.floor(megabytesFrom(process.env, 'ATTACHMENT_QUOTA_MB', 1024) * 1_000_000),
+  });
+  const report = attachments.check();
+  if (report.strayFiles || report.rowsRemoved || report.missing) {
+    console.log(`Bijlagen gecontroleerd: ${report.strayFiles} bestand(en) zonder bijlage opgeruimd, ${report.rowsRemoved} verweesde regel(s) verwijderd${report.missing ? `, ${report.missing} bijlage(n) waarvan het bestand ontbreekt (teruggezette back-up?)` : ''}.`);
+  }
+  return attachments;
 }
 
 /**
@@ -672,7 +758,8 @@ if (import.meta.main) {
       console.error(`Fout: ${(err as Error).message}`);
       process.exit(1);
     }
-    const app = createApp({ db, push, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
+    const attachments = openAttachments(db);
+    const app = createApp({ db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
     app.server.listen(port, host, () => console.log(`Tickory luistert op http://${host}:${port} (database: ${process.env.DB_PATH ?? './data/todo.db'})`));
     const stop = () => app.close().then(() => { db.close(); process.exit(0); });
     process.on('SIGINT', stop);
