@@ -17,6 +17,7 @@
 //   POST /api/v1/auth/login/handoff       {code, binding} -> {token, me}: de eenmalige code na de terugkeer van de provider
 //   GET  /api/v1/auth/oidc/link           -> {enabled, linked, …}   POST /api/v1/auth/oidc/unlink
 //   POST /api/v1/sync                     de sync (zie sync.ts)
+//   POST /api/v1/quick-add                {text, project_id?, uuid, typed_at, tz, …} -> {task, preview}: snel toevoegen (zie quickadd.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
 //   POST /api/v1/admin/backup             (beheerder) {password, code?} -> {ticket}; GET /api/v1/admin/backup/download?ticket=… het archief
@@ -43,6 +44,7 @@ import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
 import { LIMITS } from './limits.ts';
 import { listActivity } from './activity.ts';
 import { myStats } from './stats.ts';
+import { QUICK_ADD_VERSION, QuickAddLimiter, quickAdd } from './quickadd.ts';
 import {
   consumeRecoveryCode, consumeStep, countUsers, createSession, createUser, DEFAULT_SESSION_POLICY, describeUserAgent, disableTwoFactor, enableTwoFactor,
   findSession, getTwoFactor, getUserById, getUserByName, hashPassword, hasTwoFactor, listSessions, listUsers, LoginLimiter, pruneSessions, publicMe,
@@ -129,6 +131,8 @@ export interface AppOptions {
   oidc?: OidcClient | null;
   /** Voor tests: eigen beperking van pogingen via OIDC (begin, terugkeer en het inwisselen van de code, per adres). */
   ssoLimiter?: LoginLimiter;
+  /** Voor tests: eigen beperking van snel toevoegen (per gebruiker per minuut). */
+  quickAddLimiter?: QuickAddLimiter;
 }
 
 /** Hoe lang de tweede inlogstap (de code) na het wachtwoord mag duren, en hoe vaak je daarin mag proberen. */
@@ -236,6 +240,7 @@ export function createApp(opts: AppOptions): App {
   const box = createSecretBox(opts.secretKey ?? randomBytes(32));
   // eigen tellers voor codes van tweestapsverificatie: per naam en adres 5, per adres 20, per naam 10, per kwartier
   const codeLimiter = opts.codeLimiter ?? new LoginLimiter({ pair: 5, ip: 20, user: 10 }, limiter.windowMs, limiter.now);
+  const quickAddLimiter = opts.quickAddLimiter ?? new QuickAddLimiter();
   const backup = opts.backup === null ? null : { tmpDir: opts.backup?.tmpDir ?? tmpdir(), attachmentsDir: opts.backup?.attachmentsDir ?? attachments?.dir ?? null };
   if (backup) removeStaleTemp(backup.tmpDir);
   /** De tweede inlogstap, per (gehasht) tussentoken. Alleen in het geheugen: een herstart betekent opnieuw het wachtwoord intypen. */
@@ -744,7 +749,8 @@ export function createApp(opts: AppOptions): App {
 
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
-        || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path === '/api/v1/stats';
+        || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path === '/api/v1/stats'
+        || path === '/api/v1/quick-add';
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
@@ -838,6 +844,29 @@ export function createApp(opts: AppOptions): App {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
         const q = url.searchParams;
         return send(res, 200, listActivity(db, caller.user.id, m[1], { before: q.get('before'), limit: q.get('limit'), kinds: q.get('kinds') }));
+      }
+
+      // Snel toevoegen (quickadd.ts): één regel tekst wordt een taak, met dezelfde herkenning en dezelfde commando's als de web-app.
+      // Elk antwoord, ook een weigering, heeft `quick_add`: zo ziet de Android-app het verschil met een oudere server (404).
+      if (path === '/api/v1/quick-add') {
+        if (req.method !== 'POST') return send(res, 405, { quick_add: QUICK_ADD_VERSION, error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        const body = await readJson(req);
+        const wait = quickAddLimiter.take(caller.user.id, body.dry_run === true ? 'preview' : 'add');
+        if (wait > 0) {
+          return send(res, 429, { quick_add: QUICK_ADD_VERSION, error_code: 'TOO_MANY_REQUESTS', error: `te veel verzoeken; probeer het over ${wait} seconden opnieuw` }, { 'Retry-After': String(wait) });
+        }
+        const before = currentRev(db);
+        try {
+          send(res, 200, await quickAdd(db, caller.user.id, body, clock()));
+        } catch (err) {
+          if (!(err instanceof SyncError)) throw err;
+          send(res, STATUS_FOR[err.code] ?? 400, { quick_add: QUICK_ADD_VERSION, error_code: err.code, error: err.message });
+        }
+        if (currentRev(db) !== before) {
+          broadcast(caller.user.id, null, audienceSince(db, before, caller.user.id));
+          push?.flushNotifications().catch((e) => console.error('meldingen versturen mislukt', e));
+        }
+        return;
       }
 
       if (path === '/api/v1/events') {
