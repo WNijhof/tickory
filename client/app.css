@@ -68,6 +68,28 @@
   }
 }
 
+/* Accentkleuren (Instellingen › Weergave, per apparaat; core/theme.js). De standaard (teal) staat hierboven in :root.
+   Bewaakt door core/theme.test.js: genoeg contrast in licht en donker. */
+/* accent-licht */
+:root[data-accent="blue"] { --accent: #1d5fd1; --accent-soft: #e7effc; --accent-text: #ffffff; }
+:root[data-accent="indigo"] { --accent: #4f46e5; --accent-soft: #ecebfc; --accent-text: #ffffff; }
+:root[data-accent="violet"] { --accent: #7c3aed; --accent-soft: #f1eafd; --accent-text: #ffffff; }
+:root[data-accent="rose"] { --accent: #be185d; --accent-soft: #fbe8f0; --accent-text: #ffffff; }
+:root[data-accent="orange"] { --accent: #b45309; --accent-soft: #fcefe3; --accent-text: #ffffff; }
+:root[data-accent="green"] { --accent: #15803d; --accent-soft: #e6f4ea; --accent-text: #ffffff; }
+:root[data-accent="graphite"] { --accent: #374151; --accent-soft: #eceef1; --accent-text: #ffffff; }
+/* accent-donker */
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="blue"] { --accent: #7aa7ff; --accent-soft: #172a47; --accent-text: #06142e; }
+  :root[data-accent="indigo"] { --accent: #a5b4fc; --accent-soft: #23244a; --accent-text: #11134a; }
+  :root[data-accent="violet"] { --accent: #c4a7ff; --accent-soft: #2c2147; --accent-text: #250b4d; }
+  :root[data-accent="rose"] { --accent: #f9a8c9; --accent-soft: #3d1a2a; --accent-text: #4a0a25; }
+  :root[data-accent="orange"] { --accent: #fdba74; --accent-soft: #3a2615; --accent-text: #3b1d02; }
+  :root[data-accent="green"] { --accent: #6ee7a0; --accent-soft: #15301f; --accent-text: #052e16; }
+  :root[data-accent="graphite"] { --accent: #cbd5e1; --accent-soft: #272c33; --accent-text: #111827; }
+}
+/* einde-accent */
+
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); overscroll-behavior-y: none; -webkit-text-size-adjust: 100%; }
@@ -803,3 +825,30 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .pc-grey { --dot: #98a3af; }
 }
 /* einde-palet */
+
+/* Weergave (Instellingen › Weergave): keuzerondjes voor thema en accentkleur */
+.choice-group { border: 0; margin: 0 0 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.choice-group legend { font-weight: 600; margin-bottom: 8px; padding: 0; }
+.choice-option { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; }
+.choice-option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.choice-option input { accent-color: var(--accent); margin: 0; }
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.accent-dot { width: 18px; height: 18px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 15%); }
+.accent-dot-teal { background: #0f766e; }
+.accent-dot-blue { background: #1d5fd1; }
+.accent-dot-indigo { background: #4f46e5; }
+.accent-dot-violet { background: #7c3aed; }
+.accent-dot-rose { background: #be185d; }
+.accent-dot-orange { background: #b45309; }
+.accent-dot-green { background: #15803d; }
+.accent-dot-graphite { background: #374151; }
+@media (prefers-color-scheme: dark) {
+  .accent-dot-teal { background: #2dd4bf; }
+  .accent-dot-blue { background: #7aa7ff; }
+  .accent-dot-indigo { background: #a5b4fc; }
+  .accent-dot-violet { background: #c4a7ff; }
+  .accent-dot-rose { background: #f9a8c9; }
+  .accent-dot-orange { background: #fdba74; }
+  .accent-dot-green { background: #6ee7a0; }
+  .accent-dot-graphite { background: #cbd5e1; }
+}

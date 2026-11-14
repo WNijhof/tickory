@@ -24,6 +24,7 @@ import { currentRev, fail, newId } from './rows.ts';
 import type { Row } from './rows.ts';
 import { handleSync } from './sync.ts';
 import { pushChoices } from '../shared/notifications.js';
+import { canEditRole } from '../shared/roles.js';
 
 /** Hoe lang na het tijdstip een herinnering nog verstuurd wordt (bijvoorbeeld na een herstart van de server). */
 export const LATE_WINDOW_MS = 60 * 60_000;
@@ -336,6 +337,7 @@ export function createPush(cfg: PushConfig) {
       const pick = db.prepare(
         `SELECT * FROM (
            SELECT r.id, r.type, r.minute_offset, r.due, r.owner_id, t.id AS task_id, t.content, t.due AS task_due,
+             (SELECT m.role FROM project_members m WHERE m.project_id = t.project_id AND m.user_id = r.owner_id AND m.is_deleted = 0) AS role,
              CASE r.type
                WHEN 'absolute' THEN substr(json_extract(r.due, '$.date'), 1, 16)
                ELSE strftime('%Y-%m-%dT%H:%M', replace(substr(json_extract(t.due, '$.date'), 1, 16), 'T', ' '), '-' || r.minute_offset || ' minutes')
@@ -372,7 +374,8 @@ export function createPush(cfg: PushConfig) {
           const base = { u: owner, t: r.task_id as string, r: r.id as string, m: moment, e: exp };
           const payload = {
             v: 1, type: 'reminder', id: r.id, task_id: r.task_id, title: String(r.content).slice(0, 300), time: taskDue?.date ?? null, moment,
-            complete: sign({ ...base, a: 'complete' }), snooze: sign({ ...base, a: 'snooze' }),
+            // een lezer (shared/roles.js) kan de taak niet afvinken: dan geen knop "Voltooien", alleen "Over 10 minuten"
+            complete: canEditRole(r.role as string | null) ? sign({ ...base, a: 'complete' }) : null, snooze: sign({ ...base, a: 'snooze' }),
           };
           const topic = createHash('sha256').update(`${r.id as string}|${moment}`).digest('base64url').slice(0, 32);
           const results = await Promise.all(subscriptionsOf(owner).map((s) => deliver(s, payload, topic)));

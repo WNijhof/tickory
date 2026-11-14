@@ -29,6 +29,9 @@ import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from '.
 import { LIMITS } from './limits.ts';
 import { restoreHandlers } from './restore.ts';
 import * as notify from './notify.ts';
+import * as activity from './activity.ts';
+import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../shared/roles.js';
+import { changedTaskFields } from '../shared/activity.js';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -39,10 +42,11 @@ type Args = Record<string, unknown>;
 
 const MY_PROJECTS = 'SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0';
 
-const roleOf = (db: DatabaseSync, userId: string, projectId: unknown): 'owner' | 'member' | null => {
+type Role = 'owner' | 'member' | 'viewer';
+const roleOf = (db: DatabaseSync, userId: string, projectId: unknown): Role | null => {
   if (typeof projectId !== 'string') return null;
   const r = db.prepare('SELECT role FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(projectId, userId) as Row | undefined;
-  return (r?.role as 'owner' | 'member' | undefined) ?? null;
+  return (r?.role as Role | undefined) ?? null;
 };
 const isMember = (db: DatabaseSync, userId: string, projectId: unknown): boolean => roleOf(db, userId, projectId) !== null;
 
@@ -112,6 +116,28 @@ function requireMayWrite(ctx: Ctx, e: Entity, row: Row): void {
 
 function requireOwner(ctx: Ctx, projectId: string, what: string): void {
   if (roleOf(ctx.db, ctx.userId, projectId) !== 'owner') fail('FORBIDDEN', what);
+}
+
+/**
+ * Wijzigen in een project (taken, secties, bijlagen, het project zelf, een subproject eronder) mag de eigenaar en wie kan
+ * bewerken; een lezer (`viewer`) niet. Opmerkingen en eigen herinneringen vallen hier niet onder. Wie het project niet ziet, is
+ * vóór deze controle al op NOT_FOUND gestuit (requireLive).
+ */
+function requireEditor(ctx: Ctx, projectId: unknown): void {
+  if (!canEditRole(roleOf(ctx.db, ctx.userId, projectId))) fail('FORBIDDEN', 'je kunt dit project alleen lezen');
+}
+
+const projectOfTask = (db: DatabaseSync, taskId: unknown): string | null =>
+  ((db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(taskId as string) as Row | undefined)?.project_id as string | undefined) ?? null;
+
+/** Het project waarvan de inhoud verandert als deze rij wordt gewijzigd of verwijderd; null voor wat ook een lezer mag (opmerkingen, herinneringen) of wat van één persoon is. */
+function editedProject(db: DatabaseSync, name: EntityName, row: Row): string | null {
+  switch (name) {
+    case 'project': return row.id as string;
+    case 'section': case 'task': return row.project_id as string;
+    case 'attachment': return projectOfTask(db, row.task_id);
+    default: return null;
+  }
 }
 
 // ---------- rijen lezen en schrijven ----------
@@ -230,8 +256,10 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     }
     case 'task': {
       for (const l of (v.labels as string[]) ?? []) requireLive(ctx, 'label', l, 'task.labels');
-      if (v.assignee_id && has(given, 'assignee_id') && !isMember(db, v.assignee_id as string, v.project_id)) {
-        fail('INVALID_ARG', 'de toegewezen persoon is geen lid van dit project');
+      if (v.assignee_id && has(given, 'assignee_id')) {
+        const role = roleOf(db, v.assignee_id as string, v.project_id);
+        if (role === null) fail('INVALID_ARG', 'de toegewezen persoon is geen lid van dit project');
+        if (!canEditRole(role)) fail('INVALID_ARG', 'de toegewezen persoon kan dit project alleen lezen');
       }
       if (mode === 'add') {
         const sectionId = v.section_id as string | null;
@@ -364,6 +392,9 @@ function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   if (e.name === 'project' && isInboxId(id)) fail('INVALID_ARG', 'ids die met "inbox-" beginnen zijn gereserveerd');
   if (getRow(ctx.db, e, id)) fail('ID_EXISTS', `${e.name} met dit id bestaat al`);
   const v = collect(ctx, e, args, 'add');
+  // een nieuw project onder een ander project hoort bij dat project; een sectie, taak of bijlage bij het hare
+  const edited = e.name === 'project' ? ((v.parent_id as string | null) ?? null) : editedProject(ctx.db, e.name, v);
+  if (edited !== null) requireEditor(ctx, edited);
   verify(ctx, e, id, v, 'add', v);
   checkLimits(ctx, e, v);
   const oc = e.cols.find((c) => c.orderKey);
@@ -372,17 +403,70 @@ function addEntity(ctx: Ctx, e: Entity, args: Args): void {
   if (e.name === 'project') addMembersForNewProject(ctx, id, (v.parent_id as string | null) ?? null);
   if (e.name === 'task' && v.assignee_id) notify.taskAssigned(ctx, id, v.assignee_id);
   if (e.name === 'comment') notify.commentAdded(ctx, { id, task_id: (v.task_id as string | null) ?? null, project_id: (v.project_id as string | null) ?? null, mentions: (v.mentions as string[]) ?? [] });
+  logAdded(ctx, e.name, id, v);
+}
+
+// ---------- het activiteitenlogboek (activity.ts) ----------
+
+const taskTitle = (db: DatabaseSync, taskId: unknown): string | null =>
+  ((db.prepare('SELECT content FROM tasks WHERE id = ?').get(taskId as string) as Row | undefined)?.content as string | undefined) ?? null;
+
+function logAdded(ctx: Ctx, name: EntityName, id: string, v: Row): void {
+  switch (name) {
+    case 'project': activity.record(ctx, id, 'project_created', { title: v.name }); break;
+    case 'section': activity.record(ctx, v.project_id as string, 'section_added', { section_id: id, title: v.name }); break;
+    case 'task': activity.record(ctx, v.project_id as string, 'task_added', { task_id: id, title: v.content }); break;
+    case 'comment': {
+      const project = notify.commentProject(ctx.db, v);
+      if (project) activity.record(ctx, project, 'comment_added', { comment_id: id, task_id: (v.task_id as string | null) ?? null, title: v.task_id ? taskTitle(ctx.db, v.task_id) : null });
+      break;
+    }
+    case 'attachment': {
+      const project = projectOfTask(ctx.db, v.task_id);
+      if (project) activity.record(ctx, project, 'attachment_added', { attachment_id: id, task_id: v.task_id as string, title: v.name });
+      break;
+    }
+    default: break;
+  }
+}
+
+function logUpdated(ctx: Ctx, e: Entity, row: Row, changes: Row): void {
+  switch (e.name) {
+    case 'project':
+      if (has(changes, 'name') && changes.name !== row.name) activity.record(ctx, row.id as string, 'project_renamed', { title: changes.name, extra: { from: row.name } });
+      if (has(changes, 'is_archived') && Boolean(changes.is_archived) !== (row.is_archived === 1)) {
+        activity.record(ctx, row.id as string, changes.is_archived ? 'project_archived' : 'project_unarchived', { title: has(changes, 'name') ? changes.name : row.name });
+      }
+      break;
+    case 'section':
+      if (has(changes, 'name') && changes.name !== row.name) activity.record(ctx, row.project_id as string, 'section_renamed', { section_id: row.id as string, title: changes.name, extra: { from: row.name } });
+      break;
+    case 'task': {
+      const fields = changedTaskFields(toApi(e, row), changes);
+      if (fields.length === 0) break;
+      activity.record(ctx, row.project_id as string, 'task_updated', {
+        task_id: row.id as string, title: has(changes, 'content') ? changes.content : row.content,
+        extra: { fields, ...(fields.includes('assignee_id') ? { assignee_id: changes.assignee_id ?? null } : {}) },
+      });
+      break;
+    }
+    default: break;
+  }
 }
 
 function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
   const row = requireLive(ctx, e.name, args.id, `${e.name}.id`);
   requireMayWrite(ctx, e, row);
+  const edited = editedProject(ctx.db, e.name, row);
+  if (edited !== null) requireEditor(ctx, edited);
   const changes = collect(ctx, e, args, 'update');
   if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) {
     requireOwner(ctx, row.id as string, 'alleen de eigenaar kan een project verplaatsen');
+    if (changes.parent_id !== null) requireEditor(ctx, changes.parent_id); // niet onder een project dat je alleen leest
   }
   verify(ctx, e, row.id as string, { ...toApi(e, row), ...changes }, 'update', changes);
   updateRow(ctx, e, row.id as string, changes);
+  logUpdated(ctx, e, row, changes);
   if (e.name === 'task' && changes.assignee_id && changes.assignee_id !== row.assignee_id) notify.taskAssigned(ctx, row.id as string, changes.assignee_id);
   if (e.name === 'comment' && has(changes, 'mentions')) notify.commentEdited(ctx, row, JSON.parse((row.mentions as string | null) ?? '[]'), changes.mentions);
 }
@@ -428,6 +512,7 @@ function deleteProject(ctx: Ctx, rootId: string): void {
     mark(ctx, 'projects', 'id = ?', [p]);
     mark(ctx, 'project_members', 'project_id = ?', [p]);
     notify.forgetProject(ctx, p);
+    activity.forgetProject(ctx, p);
   }
 }
 
@@ -435,6 +520,8 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
   const id = onlyId(args);
   const row = requireLive(ctx, e.name, id, `${e.name}.id`);
   requireMayWrite(ctx, e, row);
+  const edited = editedProject(ctx.db, e.name, row);
+  if (edited !== null) requireEditor(ctx, edited);
   switch (e.name) {
     case 'project':
       if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
@@ -445,9 +532,13 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE is_deleted = 0 AND section_id = ?').all(id) as Row[]).map((r) => r.id as string);
       deleteTaskTree(ctx, tasks);
       mark(ctx, 'sections', 'id = ?', [id]);
+      activity.record(ctx, row.project_id as string, 'section_deleted', { section_id: id, title: row.name });
       break;
     }
-    case 'task': deleteTaskTree(ctx, [id]); break;
+    case 'task':
+      deleteTaskTree(ctx, [id]);
+      activity.record(ctx, row.project_id as string, 'task_deleted', { task_id: id, title: row.content });
+      break;
     case 'place':
       // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
       mark(ctx, 'reminders', 'place_id = ?', [id]);
@@ -464,9 +555,18 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       }
       break;
     }
-    case 'comment':
+    case 'comment': {
+      const project = notify.commentProject(ctx.db, row);
       mark(ctx, 'comments', 'id = ?', [id]);
       notify.forgetComment(ctx, id);
+      if (project) activity.record(ctx, project, 'comment_deleted', { comment_id: id, task_id: (row.task_id as string | null) ?? null, title: row.task_id ? taskTitle(ctx.db, row.task_id) : null });
+      break;
+    }
+    case 'attachment':
+      mark(ctx, 'attachments', 'id = ?', [id]);
+      // de naam van een verwijderde bijlage wordt gewist (zie attachments.ts), dus ook uit het logboek
+      ctx.db.prepare('UPDATE activity SET title = NULL WHERE attachment_id = ?').run(id);
+      if (edited) activity.record(ctx, edited, 'attachment_deleted', { attachment_id: id, task_id: row.task_id as string });
       break;
     default: mark(ctx, e.table, 'id = ?', [id]);
   }
@@ -481,8 +581,12 @@ function taskMove(ctx: Ctx, args: Args): void {
   const id = row.id as string;
   if (!has(args, 'project_id') && !has(args, 'section_id') && !has(args, 'parent_id')) fail('MISSING_ARG', 'geef project_id, section_id of parent_id op');
 
+  requireEditor(ctx, row.project_id);
   const projectChanges = has(args, 'project_id') && args.project_id !== row.project_id;
-  if (has(args, 'project_id')) requireLive(ctx, 'project', args.project_id, 'task.project_id');
+  if (has(args, 'project_id')) {
+    requireLive(ctx, 'project', args.project_id, 'task.project_id');
+    requireEditor(ctx, args.project_id);
+  }
   const projectId = (has(args, 'project_id') ? args.project_id : row.project_id) as string;
   let parentId = (has(args, 'parent_id') ? args.parent_id : projectChanges ? null : row.parent_id) as string | null;
   let sectionId = (has(args, 'section_id') ? args.section_id : projectChanges ? null : row.section_id) as string | null;
@@ -528,9 +632,14 @@ function taskMove(ctx: Ctx, args: Args): void {
     // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
     for (const part of chunked([id, ...kids])) {
       const stale = (ctx.db.prepare(`SELECT id, assignee_id FROM tasks WHERE assignee_id IS NOT NULL AND id IN (${placeholders(part.length)})`).all(...part) as Row[])
-        .filter((t) => !isMember(ctx.db, t.assignee_id as string, projectId));
+        .filter((t) => !canEditRole(roleOf(ctx.db, t.assignee_id as string, projectId)));
       for (const t of stale) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
     }
+    const moved = { task_id: id, title: row.content, extra: { from_project: row.project_id, to_project: projectId } };
+    activity.record(ctx, row.project_id as string, 'task_moved', moved);
+    activity.record(ctx, projectId, 'task_moved', moved);
+  } else if (sectionId !== ((row.section_id as string | null) ?? null)) {
+    activity.record(ctx, projectId, 'task_moved', { task_id: id, title: row.content, extra: { from_section: (row.section_id as string | null) ?? null, to_section: sectionId } });
   }
 }
 
@@ -543,6 +652,7 @@ function taskComplete(ctx: Ctx, args: Args): void {
   if (args.completed_on !== undefined && !(typeof args.completed_on === 'string' && args.completed_on.length === 10 && isValidDate(args.completed_on))) fail('INVALID_ARG', 'completed_on moet een datum zijn (JJJJ-MM-DD)');
   const id = args.id as string;
   const row = requireLive(ctx, 'task', id, 'task.id');
+  requireEditor(ctx, row.project_id);
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   if (due?.recurrence && args.if_due !== undefined && args.if_due !== due.date) return; // al doorgeschoven: dezelfde afvinkactie, niets doen
@@ -552,6 +662,7 @@ function taskComplete(ctx: Ctx, args: Args): void {
   const completedOn = due?.recurrence?.fromCompletion ? (args.completed_on ?? todayFor(ctx)) : undefined;
   const next = due?.recurrence ? nextDue(due.date, due.recurrence, completedOn) : null;
   notify.taskCompleted(ctx, row); // ook bij een terugkerende taak: die is voor deze keer afgevinkt
+  activity.record(ctx, row.project_id as string, 'task_completed', { task_id: id, title: row.content, extra: due && next ? { recurring: true } : null });
   if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
     updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
@@ -579,8 +690,10 @@ function todayFor(ctx: Ctx): string {
 function taskUncomplete(ctx: Ctx, args: Args): void {
   const id = onlyId(args);
   const row = requireLive(ctx, 'task', id, 'task.id');
+  requireEditor(ctx, row.project_id);
   if (row.checked === 0) return;
   updateRow(ctx, ENTITIES.task, id, { checked: false, completed_at: null });
+  activity.record(ctx, row.project_id as string, 'task_uncompleted', { task_id: id, title: row.content });
 }
 
 // ---------- delen ----------
@@ -603,12 +716,16 @@ function removeMember(ctx: Ctx, projectId: string, userId: string): void {
 }
 
 function projectShare(ctx: Ctx, args: Args): void {
-  exactArgs(args, ['project_id', 'username']);
+  exactArgs(args, ['project_id', 'username', 'role']);
   const project = requireLive(ctx, 'project', args.project_id, 'project_id');
   const id = project.id as string;
   if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden gedeeld');
   requireOwner(ctx, id, 'alleen de eigenaar kan een project delen');
   if (typeof args.username !== 'string') fail('INVALID_ARG', 'username moet tekst zijn');
+  // de rol van het nieuwe lid: kan bewerken (de standaard) of alleen lezen; eigenaar maken kan niet
+  const role = args.role === undefined ? DEFAULT_SHARE_ROLE : args.role;
+  const roleProblem = shareRoleProblem(role);
+  if (roleProblem) fail('INVALID_ARG', roleProblem);
   const target = getUserByName(ctx.db, args.username);
   // zelfde melding voor "bestaat niet" en "geblokkeerd": zo is de lijst met gebruikers niet af te tasten
   if (!target || target.is_disabled) fail('NOT_FOUND', 'deze gebruiker bestaat niet');
@@ -617,8 +734,41 @@ function projectShare(ctx: Ctx, args: Args): void {
   for (const p of projectTree(ctx.db, id)) {
     if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || isMember(ctx.db, target.id, p)) continue;
     quota(ctx, `members:${p}`, LIMITS.membersPerProject, 'leden per project', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM project_members WHERE project_id = ? AND is_deleted = 0', p));
-    insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role: 'member' });
+    insertRow(ctx, ENTITIES.member, newId(), { project_id: p, user_id: target.id, role });
     if (p === id) notify.projectShared(ctx, id, target.id);
+    activity.record(ctx, p, 'member_added', { user_id: target.id, extra: { role } });
+  }
+}
+
+/**
+ * De rol van een lid wijzigen (`member` = kan bewerken, `viewer` = alleen lezen). Alleen de eigenaar, en niet van een eigenaar of
+ * van jezelf. Geldt ook in de subprojecten waar jij eigenaar bent en de persoon lid is (zoals delen en eruit halen). Wordt iemand
+ * lezer, dan vervallen zijn toewijzingen in die projecten: een lezer kan niet aan een taak werken.
+ */
+function memberUpdate(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['project_id', 'user_id', 'role']);
+  const project = requireLive(ctx, 'project', args.project_id, 'project_id');
+  const id = project.id as string;
+  requireOwner(ctx, id, 'alleen de eigenaar kan de rol van een lid wijzigen');
+  const userId = args.user_id;
+  if (typeof userId !== 'string' || !ID_RE.test(userId)) fail('INVALID_ARG', 'ongeldig gebruikers-id');
+  const roleProblem = shareRoleProblem(args.role);
+  if (roleProblem) fail('INVALID_ARG', roleProblem);
+  const role = args.role as Role;
+  if (userId === ctx.userId) fail('CONFLICT', 'je eigen rol kun je niet wijzigen');
+  const current = roleOf(ctx.db, userId, id);
+  if (current === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
+  if (current === 'owner') fail('CONFLICT', 'de rol van een eigenaar kan niet worden gewijzigd');
+  for (const p of projectTree(ctx.db, id)) {
+    const before = roleOf(ctx.db, userId, p);
+    if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || before === null || before === 'owner' || before === role) continue;
+    const m = ctx.db.prepare('SELECT id FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(p, userId) as Row;
+    updateRow(ctx, ENTITIES.member, m.id as string, { role });
+    if (!canEditRole(role)) {
+      const assigned = ctx.db.prepare('SELECT id FROM tasks WHERE is_deleted = 0 AND project_id = ? AND assignee_id = ?').all(p, userId) as Row[];
+      for (const t of assigned) updateRow(ctx, ENTITIES.task, t.id as string, { assignee_id: null });
+    }
+    activity.record(ctx, p, 'member_role', { user_id: userId, extra: { role, from: before } });
   }
 }
 
@@ -647,7 +797,10 @@ function projectUnshare(ctx: Ctx, args: Args): void {
   if (role === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
   if (role === 'owner') fail('CONFLICT', 'een eigenaar kan niet uit het project worden gehaald');
   for (const p of projectTree(ctx.db, id)) {
-    if (roleOf(ctx.db, ctx.userId, p) === 'owner' && roleOf(ctx.db, userId, p) === 'member') removeMember(ctx, p, userId);
+    const theirs = roleOf(ctx.db, userId, p);
+    if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || theirs === null || theirs === 'owner') continue;
+    removeMember(ctx, p, userId);
+    activity.record(ctx, p, 'member_removed', { user_id: userId });
   }
 }
 
@@ -657,7 +810,12 @@ function projectLeave(ctx: Ctx, args: Args): void {
   const id = project.id as string;
   if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden verlaten');
   if (roleOf(ctx.db, ctx.userId, id) === 'owner') fail('CONFLICT', 'de eigenaar kan het project niet verlaten; verwijder het project of laat het door iemand anders overnemen');
-  for (const p of projectTree(ctx.db, id)) if (roleOf(ctx.db, ctx.userId, p) === 'member') removeMember(ctx, p, ctx.userId);
+  for (const p of projectTree(ctx.db, id)) {
+    const mine = roleOf(ctx.db, ctx.userId, p);
+    if (mine === null || mine === 'owner') continue; // lid of lezer: vertrekken kan
+    removeMember(ctx, p, ctx.userId);
+    activity.record(ctx, p, 'member_left', { user_id: ctx.userId });
+  }
 }
 
 // ---------- commandoregister ----------
@@ -677,6 +835,7 @@ HANDLERS.task_uncomplete = taskUncomplete;
 HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
+HANDLERS.member_update = memberUpdate;
 Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 HANDLERS.notification_read_all = notificationReadAll;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();
@@ -904,8 +1063,10 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
       db.prepare('DELETE FROM command_log WHERE at < ?').run(cutoff);
       pruneTaskMoves(db);
       notify.pruneNotifications(db);
+      activity.pruneActivity(db);
     }
     const counts = new Map<string, number>(); // tellingen voor de limieten, gedeeld door de commando's van dit verzoek
+    const touched = new Set<string>(); // projecten waarvan het activiteitenlogboek groeide (zie activity.capProjects)
     for (const cmd of commands) {
       const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
       if (seen) {
@@ -919,7 +1080,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
         const handler = Object.hasOwn(HANDLERS, cmd.type) ? HANDLERS[cmd.type] : undefined;
         if (!handler) fail('UNKNOWN_COMMAND', `onbekend commando "${cmd.type}"`);
         rev = bumpRev(db);
-        handler({ db, rev, now, userId, counts }, cmd.args ?? {});
+        handler({ db, rev, now, userId, counts, activity: touched }, cmd.args ?? {});
         result = 'ok';
         db.exec('RELEASE cmd');
       } catch (err) {
@@ -936,6 +1097,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
       status[cmd.uuid] = result;
     }
 
+    activity.capProjects(db, touched);
     const cur = currentRev(db);
     let since = token === '*' ? 0 : Number(token);
     let full = token === '*';

@@ -6,7 +6,7 @@ import { formatDate, formatDayHeading, formatDue, todayString } from '../core/fo
 import { getLanguage, t } from '../core/i18n.js';
 import { offsetText } from '../core/reminderText.js';
 import { parseQuickAdd } from '../core/quickadd.js';
-import { projectList } from '../core/selectors.js';
+import { canEditProject, editableProjectList } from '../core/access.js';
 import { startVoice, voiceSupport } from '../core/voice.js';
 import { h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
@@ -59,7 +59,9 @@ function voiceErrorText(code) {
 export function openQuickAddDialog({ store, actions, context = {}, onTemplate = null }) {
   const view = store.view;
   const inbox = store.me?.inbox_project_id ?? null;
-  const startProject = context.projectId && view.projects.has(context.projectId) ? context.projectId : inbox;
+  // in een project dat je alleen leest, kan geen taak: dan de Inbox
+  const canAddTo = (id) => canEditProject(view, id, store.userId);
+  const startProject = context.projectId && view.projects.has(context.projectId) && canAddTo(context.projectId) ? context.projectId : inbox;
   let voice = null; // de lopende spraakopname, als die er is
   return openDialog((finish) => {
     const input = h('input', {
@@ -68,7 +70,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     const description = h('textarea', { class: 'field', rows: context.description ? 4 : 2, maxLength: 16000, placeholder: t('task.description'), 'aria-label': t('task.descriptionLabel') });
     description.value = context.description ?? ''; // bijvoorbeeld de link bij tekst die uit een andere app is gedeeld
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
-      projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
+      editableProjectList(view, store.userId).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });
     // bestanden die uit een andere app zijn gedeeld: ze worden bijlagen van de taak zodra je Toevoegen kiest
     const shared = context.files?.length ? h('p', { class: 'hint quick-files' }, icon('paperclip'), t('quick.sharedFiles', { names: context.files.join(', ') })) : null;
@@ -76,7 +78,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     // `due` is 'today' (Vandaag), of een dag 'YYYY-MM-DD' (een "+" in de kalender): dan staat de taak op die dag, ook zonder dat je die typt.
     const day = /^\d{4}-\d{2}-\d{2}$/.test(context.due ?? '') ? context.due : null;
     const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : day ? { date: day } : null);
-    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor() });
+    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), canAddTo });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);

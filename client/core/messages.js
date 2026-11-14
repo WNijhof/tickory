@@ -21,7 +21,7 @@ const VERB = {
 };
 
 // Delen en samenwerken hebben eigen zinnen; hun foutmeldingen van de server zijn al begrijpelijk Nederlands en preciezer dan een algemene tekst.
-const SPECIAL = { project_share: () => t('command.share'), project_unshare: () => t('command.unshare'), project_leave: () => t('command.leave') };
+const SPECIAL = { project_share: () => t('command.share'), project_unshare: () => t('command.unshare'), project_leave: () => t('command.leave'), member_update: () => t('command.memberUpdate') };
 
 const BY_CODE = {
   NOT_FOUND: () => t('error.notFound'),
@@ -52,6 +52,9 @@ const BY_COMMAND_AND_CODE = {
   'project_unshare:NOT_FOUND': () => t('error.unshareNotMember'),
   'project_unshare:CONFLICT': () => t('error.unshareOwner'),
   'project_leave:CONFLICT': () => t('error.leaveOwner'),
+  'member_update:FORBIDDEN': () => t('error.memberUpdateOwnerOnly'),
+  'member_update:NOT_FOUND': () => t('error.unshareNotMember'),
+  'member_update:CONFLICT': () => t('error.memberUpdateOwner'),
   'project_delete:FORBIDDEN': () => t('error.projectDeleteOwnerOnly'),
   'project_update:FORBIDDEN': () => t('error.projectMoveOwnerOnly'),
   'label_update:FORBIDDEN': () => t('error.labelForeign'),
@@ -110,5 +113,7 @@ export function describeCommandError(e) {
     return sentence(general ?? e.error ?? t('error.notApplied'));
   }
   // Een andere taal dan die van de server: eerst de eigen vertaling, de tekst van de server alleen als er niets beters is.
+  // Een lezer (shared/roles.js) die iets probeert te wijzigen: de server zegt "alleen lezen", ongeacht het soort handeling.
+  if (e.error_code === 'FORBIDDEN' && /dit project alleen lezen/.test(e.error ?? '') && type !== 'member_update') return sentence(t('error.readOnlyProject'));
   return sentence(pick(BY_COMMAND_AND_CODE, `${type}:${e.error_code}`) ?? general ?? pick(BY_CODE_TRANSLATED, e.error_code) ?? e.error ?? t('error.notApplied'));
 }

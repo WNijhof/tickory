@@ -21,13 +21,15 @@ import { ENTITIES, ID_RE } from './schema.ts';
 import { chunked, fail, getRow, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { LIMITS, RESTORE } from './limits.ts';
+import { canEditRole } from '../shared/roles.js';
+import * as activity from './activity.ts';
 
 type Args = Record<string, unknown>;
 export type RestoreHandler = (ctx: Ctx, args: Args) => void;
 
 /** Wat dit bestand van sync.ts nodig heeft (zo hoeft sync.ts hier niet vanuit te worden geïmporteerd). */
 export interface RestoreDeps {
-  roleOf: (db: DatabaseSync, userId: string, projectId: unknown) => 'owner' | 'member' | null;
+  roleOf: (db: DatabaseSync, userId: string, projectId: unknown) => 'owner' | 'member' | 'viewer' | null;
   quota: (ctx: Ctx, key: string, limit: number, what: string, count: () => number) => void;
   countOf: (db: DatabaseSync, sql: string, ...params: string[]) => number;
 }
@@ -51,6 +53,7 @@ export function restoreHandlers(deps: RestoreDeps): Record<string, RestoreHandle
   function checkMayRestore(ctx: Ctx, row: Row, projectId: unknown, types: string[], what: string): void {
     const role = roleOf(ctx.db, ctx.userId, projectId);
     if (role === null) fail('NOT_FOUND', `${what} bestaat niet`);
+    if (!canEditRole(role)) fail('FORBIDDEN', 'je kunt dit project alleen lezen'); // een lezer zet niets terug (shared/roles.js)
     if (Date.parse(ctx.now) - Date.parse(row.updated_at as string) > RESTORE.windowMs) {
       fail('CONFLICT', `${what} is te lang geleden verwijderd om terug te zetten (binnen ${Math.round(RESTORE.windowMs / 60_000)} minuten kan het nog)`);
     }
@@ -98,7 +101,7 @@ export function restoreHandlers(deps: RestoreDeps): Record<string, RestoreHandle
       const labels = JSON.parse((t.labels as string | null) ?? '[]') as string[];
       const liveLabels = labels.filter((l) => (db.prepare('SELECT 1 FROM labels WHERE id = ? AND is_deleted = 0').get(l) !== undefined));
       if (liveLabels.length !== labels.length) changes.labels = liveLabels;
-      if (t.assignee_id && roleOf(db, t.assignee_id as string, projectId) === null) changes.assignee_id = null;
+      if (t.assignee_id && !canEditRole(roleOf(db, t.assignee_id as string, projectId))) changes.assignee_id = null; // geen lid meer, of lezer
       if (Object.keys(changes).length > 0) updateRow(ctx, ENTITIES.task, t.id as string, changes);
     }
     // herinneringen: van wie nog lid is, met een bestaande plaats, en binnen zijn grens
@@ -136,6 +139,7 @@ export function restoreHandlers(deps: RestoreDeps): Record<string, RestoreHandle
       if (!section || section.is_deleted === 1) fail('CONFLICT', 'de sectie van deze taak is verwijderd; zet die eerst terug');
     }
     restoreTasks(ctx, deletedTree(ctx.db, id, row.rev as number), row.rev as number, row.project_id as string, sectionId);
+    activity.record(ctx, row.project_id as string, 'task_restored', { task_id: id, title: row.content });
   }
 
   function sectionRestore(ctx: Ctx, args: Args): void {
@@ -149,6 +153,7 @@ export function restoreHandlers(deps: RestoreDeps): Record<string, RestoreHandle
     ctx.db.prepare('UPDATE sections SET is_deleted = 0, rev = ?, updated_at = ? WHERE id = ?').run(ctx.rev, ctx.now, id);
     const ids = (ctx.db.prepare('SELECT id FROM tasks WHERE is_deleted = 1 AND rev = ? AND section_id = ?').all(row.rev as number, id) as Row[]).map((r) => r.id as string);
     if (ids.length > 0) restoreTasks(ctx, ids, row.rev as number, projectId, undefined);
+    activity.record(ctx, projectId, 'section_restored', { section_id: id, title: row.name });
   }
 
   return { task_restore: taskRestore, section_restore: sectionRestore };

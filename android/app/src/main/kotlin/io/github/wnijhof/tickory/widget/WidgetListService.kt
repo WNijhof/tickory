@@ -63,6 +63,8 @@ class WidgetListService : RemoteViewsService() {
             views.setTextViewText(R.id.item_title, title)
             views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, if (size == WidgetSize.LARGE) 16f else 14f)
             views.setImageViewResource(R.id.check, checkIcon(row.priority))
+            // alleen lezen: geen cirkel (afvinken zou de server weigeren); de plek blijft, zodat de regels netjes onder elkaar staan
+            views.setViewVisibility(R.id.check, if (row.readOnly) View.INVISIBLE else View.VISIBLE)
 
             // De tweede regel (datum en project) alleen als er plek is: in een klein formaat telt elke regel.
             val showSecondLine = size != WidgetSize.SMALL && (row.due != null || row.meta != null)
@@ -87,7 +89,7 @@ class WidgetListService : RemoteViewsService() {
 
         /** Wat de twee tikvlakken van een regel aan het sjabloon toevoegen: eerst de cirkel (afvinken), dan de tekst (openen). */
         internal fun clickIntents(row: WidgetRow.Item): Pair<Intent, Intent> =
-            WidgetIntents.fillIn(WidgetIntents.KIND_COMPLETE, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)
+            WidgetIntents.fillIn(if (row.readOnly) WidgetIntents.KIND_OPEN else WidgetIntents.KIND_COMPLETE, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)
 
         override fun getLoadingView(): RemoteViews? = null
 

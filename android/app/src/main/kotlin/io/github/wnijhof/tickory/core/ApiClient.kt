@@ -115,7 +115,8 @@ class ApiClient(
 
     /** Haalt alle taken en de herinneringen van de ingelogde gebruiker op, en de meldingen bij samenwerken. */
     fun fetchSnapshot(token: String): FetchResult {
-        val types = listOf("tasks", "reminders", "projects", "sections", "labels")
+        // "members": de rol per project, zodat een widget geen cirkel toont in een project dat je alleen leest
+        val types = listOf("tasks", "reminders", "projects", "sections", "labels", "members")
         // "places": de plaatsen voor herinneringen op een locatie (van de gebruiker zelf, privé); "notifications" met "settings"
         // (welke soorten als melding) en "comments" (het begin van een opmerking in de melding): de meldingen bij samenwerken.
         // Een oudere server kent een van die bronnen niet en weigert het verzoek (400): dan steeds met minder.

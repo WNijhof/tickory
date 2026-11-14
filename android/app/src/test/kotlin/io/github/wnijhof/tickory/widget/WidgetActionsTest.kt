@@ -56,6 +56,19 @@ class WidgetActionsTest : WidgetTestBase() {
     }
 
     @Test
+    fun `een taak in een project dat je alleen leest, gaat niet in de wachtrij`() {
+        val readOnly = snapshot(
+            listOf(task("lezen", "2026-11-13", project = "gelezen")),
+            projects = listOf(io.github.wnijhof.tickory.core.WidgetFixtures.project("inbox-project", "Inbox"), io.github.wnijhof.tickory.core.WidgetFixtures.project("gelezen", "Familie", readOnly = true)),
+        )
+        signIn(withData = readOnly)
+        assertEquals(WidgetActions.Result.IGNORED, WidgetActions.complete(app, "lezen"))
+        assertTrue(WidgetStore.queue(app).isEmpty())
+        val row = (WidgetModel.state(app, WidgetSource.Today) as WidgetModel.State.Ready).content.rows.filterIsInstance<io.github.wnijhof.tickory.core.WidgetRow.Item>().single()
+        assertTrue("de rij weet dat ze alleen te lezen is", row.readOnly)
+    }
+
+    @Test
     fun `dubbel tikken geeft een actie met een uuid`() {
         signIn(withData = data)
         assertEquals(WidgetActions.Result.QUEUED, WidgetActions.complete(app, "gewoon"))

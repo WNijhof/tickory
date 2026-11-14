@@ -102,7 +102,7 @@ class ApiClientTest {
             assertEquals("application/json", request.headers["content-type"])
             // behalve taken en herinneringen vraagt de app ook projecten, secties en labels (voor de widgets), plaatsen (voor herinneringen op
             // een plek) en de meldingen bij samenwerken met de instellingen en opmerkingen die daarbij horen
-            assertEquals(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders", "projects", "sections", "labels", "places", "notifications", "settings", "comments")), Json.parse(request.body))
+            assertEquals(mapOf("sync_token" to "*", "resource_types" to listOf("tasks", "reminders", "projects", "sections", "labels", "members", "places", "notifications", "settings", "comments")), Json.parse(request.body))
         }
     }
 

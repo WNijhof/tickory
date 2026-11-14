@@ -103,6 +103,15 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       disable: (password, code) => call('twoFactor.disable', 'POST', '/api/v1/auth/2fa/disable', { password, code }),
       newRecoveryCodes: (password, code) => call('twoFactor.recovery', 'POST', '/api/v1/auth/2fa/recovery-codes', { password, code }),
     },
+    /** Een pagina van het activiteitenlogboek van een project (server/activity.ts): `{ entries, next }`, de nieuwste eerst. */
+    activity: (projectId, { before = null, limit = null, kinds = null } = {}) => {
+      const q = new URLSearchParams();
+      if (before) q.set('before', before);
+      if (limit) q.set('limit', String(limit));
+      if (kinds?.length) q.set('kinds', kinds.join(','));
+      const query = q.toString();
+      return call('activity', 'GET', `/api/v1/projects/${encodeURIComponent(projectId)}/activity${query ? `?${query}` : ''}`);
+    },
     admin: {
       users: () => call('admin.users', 'GET', '/api/v1/admin/users'),
       createUser: (input) => call('admin.createUser', 'POST', '/api/v1/admin/users', input),

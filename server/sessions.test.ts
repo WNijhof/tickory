@@ -237,3 +237,26 @@ test('migratie: een database van vóór versie 8 krijgt het soort apparaat, de k
   assert.ok(findSession(db, s.token));
   assert.deepEqual(listSessions(db, a.id)[0].device, { kind: 'other', browser: null, os: null });
 });
+
+test('migratie naar 8: een database op versie 7 (activiteitenlogboek, zonder 2FA) en een van vóór het logboek (met 2FA) komen allebei compleet uit', () => {
+  const cols = (db: DatabaseSync, t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
+  const tables = (db: DatabaseSync) => (db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name);
+  // versie 7: wel het activiteitenlogboek, nog geen tweestapsverificatie en geen soort apparaat
+  const v7 = new DatabaseSync(':memory:');
+  createSchema(v7);
+  mk(v7, 'alice');
+  v7.exec('ALTER TABLE sessions DROP COLUMN device; DROP TABLE recovery_codes');
+  for (const col of ['totp_secret', 'totp_enabled_at', 'totp_last_step', 'totp_pending', 'totp_pending_at']) v7.exec(`ALTER TABLE users DROP COLUMN ${col}`);
+  v7.prepare("UPDATE meta SET value = '7' WHERE key = 'schema_version'").run();
+  // de stand van deze branch vóór het samenvoegen: wel 2FA, nog geen activiteitenlogboek
+  const own = new DatabaseSync(':memory:');
+  createSchema(own);
+  mk(own, 'bob');
+  own.exec('DROP TABLE activity');
+  for (const db of [v7, own]) {
+    createSchema(db);
+    assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, '8');
+    assert.ok(tables(db).includes('activity') && tables(db).includes('recovery_codes'));
+    assert.ok(cols(db, 'sessions').includes('device') && cols(db, 'users').includes('totp_secret'));
+  }
+});

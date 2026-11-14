@@ -60,7 +60,7 @@ const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.r
  *   reminders: ({ type: 'relative', minute_offset: number } | { type: 'absolute', due: { date: string } })[],
  * }}
  */
-export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null }) {
+export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
@@ -72,7 +72,8 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }
 
   // project
-  const project = matchNamed(rest, '#', [...view.projects.values()].filter((p) => !p.is_archived));
+  // `canAddTo`: alleen projecten waar je een taak in kunt zetten (niet een project dat je alleen leest, zie core/access.js)
+  const project = matchNamed(rest, '#', [...view.projects.values()].filter((p) => !p.is_archived && canAddTo(p.id)));
   if (project) {
     out.project_id = project.item.id;
     if (project.item.id !== defaultProjectId) out.section_id = null; // de standaardsectie hoort bij een ander project

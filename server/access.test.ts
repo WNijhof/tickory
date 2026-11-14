@@ -217,13 +217,15 @@ test('delen met onbekende of geblokkeerde gebruikers, de Inbox en jezelf', () =>
   const inbox = cmd('project_share', { project_id: alice.inbox_project_id, username: 'bob' });
   const self = cmd('project_share', { project_id: P, username: 'Alice' });
   const bad = cmd('project_share', { project_id: P, username: 42 });
-  const extra = cmd('project_share', { project_id: P, username: 'bob', role: 'owner' });
-  const res = run(db, alice, [none, inbox, self, bad, extra]);
+  const extra = cmd('project_share', { project_id: P, username: 'bob', kleur: 'rood' });
+  const asOwner = cmd('project_share', { project_id: P, username: 'bob', role: 'owner' }); // eigenaarschap geven kan niet (zie roles.test.ts)
+  const res = run(db, alice, [none, inbox, self, bad, extra, asOwner]);
   err(res, none, 'NOT_FOUND');
   err(res, inbox, 'CONFLICT');
   ok(res, self);
   err(res, bad, 'INVALID_ARG');
   err(res, extra, 'UNKNOWN_ARG');
+  err(res, asOwner, 'INVALID_ARG');
   db.prepare("UPDATE users SET is_disabled = 1 WHERE username = 'carol'").run();
   const blocked = cmd('project_share', { project_id: P, username: 'carol' });
   const r2 = run(db, alice, [blocked]);

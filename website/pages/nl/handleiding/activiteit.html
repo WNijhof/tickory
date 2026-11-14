@@ -1,0 +1,49 @@
+<!--
+title: Activiteit
+description: Per project zien wie wat deed en wanneer in Tickory: taken toegevoegd, gewijzigd, afgevinkt, verplaatst en verwijderd, opmerkingen, bijlagen en leden, per dag, met een filter en zonder verbinding.
+-->
+<h1>Activiteit</h1>
+<p class="intro">Wie heeft de boodschappen afgevinkt, en wanneer kwam die nieuwe taak erbij? Elk project houdt bij wie wat deed. Je ziet het onder <x-ui k="activity.menu"></x-ui> in het menu van het project.</p>
+
+<h2 id="openen">Openen</h2>
+<ol>
+  <li>Open het project en kies <x-ui k="project.menu"></x-ui>.</li>
+  <li>Kies <x-ui k="activity.menu"></x-ui>. Met <x-ui k="activity.back"></x-ui> ga je weer naar de taken.</li>
+</ol>
+<p>Het werkt in elk project, ook als je het met niemand deelt, en ook als je in een gedeeld project <a href="delen.html#rollen">alleen kunt lezen</a>.</p>
+
+<h2 id="wat-je-ziet">Wat je ziet</h2>
+<ul>
+  <li><strong>Per dag,</strong> de nieuwste bovenaan, met de tijd erbij.</li>
+  <li><strong>Wie het deed en wat:</strong> een taak toegevoegd, gewijzigd (met wat er veranderde: de titel, de datum, de prioriteit, een toewijzing), afgevinkt of heropend, verplaatst (naar een andere sectie of een ander project), verwijderd of teruggezet; een sectie toegevoegd, hernoemd of verwijderd; een opmerking geplaatst of verwijderd; een bijlage toegevoegd of verwijderd; iemand toegevoegd, een rol gewijzigd, iemand uit het project gehaald of zelf vertrokken; het project gemaakt, hernoemd of gearchiveerd.</li>
+  <li><strong>De taak:</strong> onder de regel staat de titel. Klik erop om de taak te openen. Staat de taak niet meer in dit project (verwijderd of verhuisd), dan staat er <x-ui k="activity.notHere"></x-ui>.</li>
+  <li><strong>Meer:</strong> er staan steeds 50 regels; met <x-ui k="activity.more"></x-ui> komen de volgende.</li>
+  <li><strong>Filteren:</strong> kies bovenaan wat je wilt zien: <x-ui k="activity.filter.all"></x-ui>, <x-ui k="activity.filter.tasks"></x-ui>, <x-ui k="activity.filter.sections"></x-ui>, <x-ui k="activity.filter.comments"></x-ui>, <x-ui k="activity.filter.attachments"></x-ui>, <x-ui k="activity.filter.members"></x-ui> of <x-ui k="activity.filter.project"></x-ui>.</li>
+</ul>
+<p>Doet iemand anders iets terwijl je kijkt, dan komt het er na een paar seconden vanzelf bij. Met <x-ui k="activity.refresh"></x-ui> haal je het meteen op.</p>
+
+<h2 id="wat-er-niet-in-staat">Wat er niet in staat</h2>
+<ul>
+  <li>De tekst van opmerkingen en beschrijvingen: je ziet dát iemand reageerde of de beschrijving wijzigde, de tekst zelf staat bij de taak.</li>
+  <li>Wat persoonlijk is: herinneringen, plaatsen, labels (alleen dát de labels van een taak veranderden), filters en sjablonen.</li>
+  <li>Inklappen en de volgorde van taken.</li>
+  <li>De naam van een bijlage die is verwijderd.</li>
+</ul>
+
+<h2 id="wie-het-ziet">Wie het ziet</h2>
+<ul>
+  <li>Iedereen die nu in het project zit, ook wie alleen kan lezen. Wie er later bij komt, ziet ook wat er eerder gebeurde.</li>
+  <li>Wie het project verlaat of eruit wordt gehaald, ziet het niet meer.</li>
+  <li>Namen zie je zoals overal in de app; iemand die geen project meer met je deelt, heet <x-ui k="activity.formerMember"></x-ui>.</li>
+  <li>Verwijder je een project, dan is ook de activiteit ervan weg.</li>
+</ul>
+
+<h2 id="zonder-verbinding">Zonder verbinding</h2>
+<p>De activiteit staat op de server, niet op je apparaat. Zonder verbinding zie je wat je in deze sessie al had geladen, met de melding <x-ui k="activity.offlineCached"></x-ui> Had je nog niets geladen, dan staat er <x-ui k="activity.offlineEmpty"></x-ui></p>
+
+<h2>Beperkingen</h2>
+<ul>
+  <li>De server bewaart de activiteit 180 dagen, en per project de laatste 10.000 regels.</li>
+  <li>Er is één lijst per project; zoeken in de activiteit, of alles van alle projecten samen, kan niet.</li>
+  <li>Wat er gebeurde vóór deze versie van Tickory, staat er niet in.</li>
+</ul>

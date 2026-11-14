@@ -53,6 +53,20 @@ class WidgetDataTest {
     }
 
     @Test
+    fun `alleen lezen - een project waar je lezer bent (rol viewer), en dat blijft zo na bewaren en teruglezen`() {
+        val projects = "[" + listOf("inbox-project", "gelezen", "samen", "anders").joinToString(",") { """{"id":"$it","name":"$it","parent_id":null,"is_archived":false,"order_key":"a0","is_deleted":false}""" } + "]"
+        val members = """[{"project_id":"gelezen","user_id":"user-anna-0001","role":"viewer"},{"project_id":"samen","user_id":"user-anna-0001","role":"member"},
+            {"project_id":"anders","user_id":"user-bram-0001","role":"viewer"},{"project_id":"anders","user_id":"user-anna-0001","role":"owner"},{"id":"x","is_deleted":true}]"""
+        val snapshot = WidgetParser.parse(syncBody(projectsJson = projects, membersJson = members))!!
+        assertEquals(listOf("gelezen"), snapshot.projects.filter { it.readOnly }.map { it.id })
+        assertEquals(snapshot, WidgetCodec.decode(WidgetCodec.encode(snapshot)))
+        // een server die geen leden meestuurt: niets is alleen lezen (de server weigert het afvinken dan zelf)
+        assertTrue(WidgetParser.parse(syncBody(projectsJson = projects))!!.projects.none { it.readOnly })
+        // een bewaarde tekst van vóór de rollen: ook niets alleen lezen
+        assertFalse(WidgetCodec.decode(WidgetCodec.encode(snapshot).replace("\"readOnly\":true", "\"x\":1"))!!.projects.any { it.readOnly })
+    }
+
+    @Test
     fun `een onbruikbaar antwoord geeft niets, zodat de widgets laten staan wat er was`() {
         assertNull(WidgetParser.parse(null))
         assertNull(WidgetParser.parse(""))

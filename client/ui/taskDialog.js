@@ -10,13 +10,14 @@ import { formatDateInput, formatDueLong } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { quickDates } from '../core/quickDates.js';
-import { byOrder, membersOf, projectList, subtasksOf } from '../core/selectors.js';
+import { byOrder, membersOf, subtasksOf } from '../core/selectors.js';
 import { nameKey } from '../../shared/text.js';
 import { commentsSection } from './comments.js';
 import { confirmDialog, h, replace } from './dom.js';
 import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
 import { attachmentsSection } from './attachments.js';
+import { canEditProject, canBeAssigned, editableProjectList } from '../core/access.js';
 
 const priorityLabel = (p) => (p === 1 ? t('task.priorityHighest') : p === 4 ? t('task.priorityNone') : `P${p}`);
 /** Inspringen van een subproject in de keuzelijst: twee harde spaties (gewone spaties vallen in een keuzelijst weg). */
@@ -34,6 +35,8 @@ const INDENT = String.fromCharCode(160, 160);
 export function openTaskDialog({ task, store, actions, today, toggle = null, onUndoable = null, saveTemplate = null }) {
   return new Promise((resolve) => {
     const view = store.view;
+    // een project dat je alleen leest (core/access.js): alles is te zien, maar alleen opmerkingen en eigen herinneringen gaan door
+    const readOnly = !canEditProject(view, task.project_id, store.userId);
     const current = () => store.view.tasks.get(task.id) ?? task;
     const parent = task.parent_id ? view.tasks.get(task.parent_id) : null;
     const initialDue = formatDateInput(task.due);
@@ -41,10 +44,10 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     let labelNames = [...initialLabelNames];
 
     // ---- titel, beschrijving ----
-    const content = h('textarea', { class: 'field task-title-input', rows: 1, required: true, maxLength: 4000, value: task.content, 'aria-label': t('task.contentLabel'), autofocus: globalThis.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? true });
+    const content = h('textarea', { class: 'field task-title-input', rows: 1, required: true, maxLength: 4000, value: task.content, readOnly, 'aria-label': t('task.contentLabel'), autofocus: !readOnly && (globalThis.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? true) });
     const grow = (el) => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; };
-    const description = h('textarea', { class: 'field task-description', rows: 3, maxLength: 16000, value: task.description ?? '', placeholder: t('task.description'), 'aria-label': t('task.descriptionLabel') });
-    const check = h('button', { class: `check check-large prio-${task.priority}`, type: 'button', onclick: () => completeFromDialog() });
+    const description = h('textarea', { class: 'field task-description', rows: 3, maxLength: 16000, value: task.description ?? '', readOnly, placeholder: readOnly ? '' : t('task.description'), 'aria-label': t('task.descriptionLabel') });
+    const check = h('button', { class: `check check-large prio-${task.priority}`, type: 'button', disabled: readOnly, title: readOnly ? t('readonly.cannotComplete') : null, onclick: () => completeFromDialog() });
     const drawCheck = () => {
       const done = Boolean(current().checked);
       check.setAttribute('aria-pressed', String(done));
@@ -53,12 +56,12 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     };
 
     // ---- datum ----
-    const due = h('input', { class: 'field', type: 'text', value: initialDue, placeholder: t('task.duePlaceholder'), autocomplete: 'off' });
+    const due = h('input', { class: 'field', type: 'text', value: initialDue, readOnly, placeholder: t('task.duePlaceholder'), autocomplete: 'off' });
     const dueHint = h('p', { class: 'hint', 'aria-live': 'polite' });
-    const deadline = h('input', { class: 'field', type: 'date', value: task.deadline ?? '' });
+    const deadline = h('input', { class: 'field', type: 'date', value: task.deadline ?? '', readOnly });
     // duur: een keuze uit de gewone lengtes, plus de huidige als die er niet bij hoort (bijvoorbeeld =1u20 in snel toevoegen)
     const durationChoices = [...new Set([...DURATION_CHOICES, ...(task.duration ? [task.duration] : [])])].sort((a, b) => a - b);
-    const duration = h('select', { class: 'field', 'aria-label': t('task.duration') },
+    const duration = h('select', { class: 'field', 'aria-label': t('task.duration'), disabled: readOnly },
       h('option', { value: '' }, t('task.durationNone')),
       durationChoices.map((m) => h('option', { value: String(m), selected: m === task.duration }, formatDuration(m))));
     const quick = (label, date) => h('button', {
@@ -70,7 +73,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       },
     }, label);
     const dates = quickDates(today());
-    const quickRow = h('div', { class: 'quick-dates', role: 'group', 'aria-label': t('task.quickDates') },
+    const quickRow = h('div', { class: 'quick-dates', role: 'group', 'aria-label': t('task.quickDates'), hidden: readOnly },
       quick(t('task.quickToday'), dates.today), quick(t('task.quickTomorrow'), dates.tomorrow), quick(t('task.quickWeekend'), dates.weekend),
       quick(t('task.quickNextWeek'), dates.nextWeek), quick(t('task.quickNone'), null));
 
@@ -79,20 +82,21 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const priorityGroup = h('div', { class: 'prio-group', role: 'radiogroup', 'aria-label': t('task.priority') },
       [1, 2, 3, 4].map((p) => h('label', { class: `prio-option prio-${p}`, title: priorityLabel(p) },
         h('input', {
-          type: 'radio', name: 'priority', value: String(p), checked: p === task.priority,
+          type: 'radio', name: 'priority', value: String(p), checked: p === task.priority, disabled: readOnly,
           onchange: () => { priorityValue = p; check.className = `check check-large prio-${p}${check.classList.contains('task-done') ? ' task-done' : ''}`; },
         }),
         h('span', {}, icon('check'), `P${p}`))));
 
     // ---- project, sectie, toegewezen aan ----
-    const project = h('select', { class: 'field' },
-      projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === task.project_id }, `${INDENT.repeat(depth)}${p.name}`)));
+    // verplaatsen kan alleen naar een project waar je kunt bewerken
+    const project = h('select', { class: 'field', disabled: readOnly },
+      editableProjectList(view, store.userId, task.project_id).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === task.project_id }, `${INDENT.repeat(depth)}${p.name}`)));
     const section = h('select', { class: 'field' });
-    const assignee = h('select', { class: 'field', 'aria-label': t('task.assignedTo') });
+    const assignee = h('select', { class: 'field', 'aria-label': t('task.assignedTo'), disabled: readOnly });
     const fillSections = (selected) => {
       const list = [...view.sections.values()].filter((s) => s.project_id === project.value && !s.is_archived).sort(byOrder);
       replace(section, h('option', { value: '' }, t('task.noSection')), list.map((s) => h('option', { value: s.id, selected: s.id === selected }, s.name)));
-      section.disabled = list.length === 0;
+      section.disabled = readOnly || list.length === 0;
     };
     fillSections(task.section_id);
     // Toewijzen kan aan de leden van het project; in een project dat je met niemand deelt is er niets te kiezen.
@@ -101,7 +105,8 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       return id === store.userId ? t('task.memberYou', { name }) : name;
     };
     const fillAssignees = (projectId, selected) => {
-      const members = membersOf(view, projectId);
+      // een lezer kan geen taak krijgen (shared/roles.js); wie al is toegewezen, blijft in de lijst staan
+      const members = membersOf(view, projectId).filter((m) => canBeAssigned(view, projectId, m.user_id) || m.user_id === selected);
       replace(assignee, h('option', { value: '' }, t('task.nobody')), members.map((m) => h('option', { value: m.user_id, selected: m.user_id === selected }, memberName(m.user_id))));
       assigneeField.hidden = members.length < 2;
     };
@@ -112,12 +117,12 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
 
     // ---- labels als chips ----
     const labelBox = h('div', { class: 'label-chips' });
-    const labelInput = h('input', { class: 'label-input', type: 'text', list: 'task-dialog-labels', placeholder: t('task.labelsPlaceholder'), autocomplete: 'off', 'aria-label': t('task.labels'), maxLength: 100 });
+    const labelInput = h('input', { class: 'label-input', type: 'text', list: 'task-dialog-labels', placeholder: t('task.labelsPlaceholder'), autocomplete: 'off', 'aria-label': t('task.labels'), maxLength: 100, hidden: readOnly });
     const labelOptions = h('datalist', { id: 'task-dialog-labels' }, [...view.labels.values()].filter((l) => !l.owner_id || l.owner_id === store.userId).map((l) => h('option', { value: l.name })));
     const drawLabels = () => replace(labelBox,
       labelNames.map((name) => h('span', { class: `chip chip-label chip-removable ${colorClass([...view.labels.values()].find((l) => nameKey(l.name) === nameKey(name))?.color)}` },
         `@${name}`,
-        h('button', { class: 'chip-x', type: 'button', 'aria-label': t('task.removeLabel', { name }), onclick: () => { labelNames = labelNames.filter((x) => x !== name); drawLabels(); labelInput.focus(); } }, icon('close')))),
+        !readOnly && h('button', { class: 'chip-x', type: 'button', 'aria-label': t('task.removeLabel', { name }), onclick: () => { labelNames = labelNames.filter((x) => x !== name); drawLabels(); labelInput.focus(); } }, icon('close')))),
       labelInput);
     const addLabels = () => {
       for (const raw of labelInput.value.split(',')) {
@@ -165,6 +170,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
 
     /** Bewaart de wijzigingen. Geeft true terug als het gelukt is (en het venster dicht is). */
     const save = async () => {
+      if (readOnly) { close(); return true; } // er is niets te bewaren
       error.textContent = '';
       const changes = {};
       const newContent = content.value.trim();
@@ -237,7 +243,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       const done = subs.filter((s) => s.checked).length;
       subtaskTitle.textContent = subs.length > 0 ? t('task.subtasksHeadingCount', { done, total: subs.length }) : t('task.subtasksHeading');
       replace(subtaskList, subs.map((s) => {
-        const title = h('input', { class: 'subtask-title', type: 'text', value: s.content, maxLength: 4000, 'aria-label': t('task.subtaskTitleLabel'), autocomplete: 'off' });
+        const title = h('input', { class: 'subtask-title', type: 'text', value: s.content, maxLength: 4000, readOnly, 'aria-label': t('task.subtaskTitleLabel'), autocomplete: 'off' });
         const saveTitle = async () => {
           const text = title.value.trim();
           if (!text) title.value = s.content;
@@ -257,12 +263,12 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         });
         return h('li', { class: `subtask prio-${s.priority}${s.checked ? ' task-done' : ''}` },
           h('button', {
-            class: 'check', type: 'button', 'aria-pressed': String(Boolean(s.checked)),
+            class: 'check', type: 'button', 'aria-pressed': String(Boolean(s.checked)), disabled: readOnly,
             'aria-label': s.checked ? t('task.reopenLabel', { name: s.content }) : t('task.completeLabel', { name: s.content }),
             onclick: () => (s.checked ? actions.uncompleteTask(s.id) : actions.completeTask(s.id)),
           }),
           title,
-          h('button', { class: 'icon-button', type: 'button', 'aria-label': t('task.subtaskDelete', { name: s.content }), title: t('common.delete'), onclick: () => actions.deleteTask(s.id) }, icon('trash')));
+          !readOnly && h('button', { class: 'icon-button', type: 'button', 'aria-label': t('task.subtaskDelete', { name: s.content }), title: t('common.delete'), onclick: () => actions.deleteTask(s.id) }, icon('trash')));
       }));
     };
     const addSubtask = async () => {
@@ -293,7 +299,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     fillAssignees(task.project_id, task.assignee_id ?? null);
     const reminders = reminderSection({ task, store, actions, today });
     const comments = commentsSection({ target: { taskId: task.id }, store, actions });
-    const attachments = attachmentsSection({ task, store, actions });
+    const attachments = attachmentsSection({ task, store, actions, readOnly });
 
     // wie maakte de taak en wanneer
     const creator = task.creator_id ? (task.creator_id === store.userId ? store.me?.name : store.userName(task.creator_id)) ?? t('common.unknownUser') : null;
@@ -301,7 +307,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const createdLine = created && (creator ? t('task.createdBy', { name: creator, date: created }) : t('task.createdOn', { date: created }));
 
     const startProject = view.projects.get(task.project_id);
-    const heading = h('h2', { id: 'task-dialog-heading' }, parent ? t('task.subtaskOf', { name: parent.content }) : t('task.edit'));
+    const heading = h('h2', { id: 'task-dialog-heading' }, parent ? t('task.subtaskOf', { name: parent.content }) : readOnly ? t('readonly.taskHeading') : t('task.edit'));
     const dialog = h('dialog', { class: 'dialog dialog-wide dialog-task', id: 'task-dialog', 'aria-labelledby': 'task-dialog-heading' },
       h('form', { class: 'task-form', onsubmit: (e) => { e.preventDefault(); save(); } },
         h('header', { class: 'task-top' },
@@ -311,6 +317,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('common.close'), title: t('common.close'), onclick: close }, icon('close'))),
         h('div', { class: 'task-columns' },
           h('div', { class: 'task-col task-col-main' },
+            readOnly && h('p', { class: 'banner banner-readonly', role: 'note', dataset: { fk: 'task-readonly' } }, icon('eye'), h('span', {}, t('readonly.taskBanner'))),
             h('div', { class: 'task-title-row' }, check, content),
             description),
           h('aside', { class: 'task-col task-col-side', 'aria-label': t('task.properties') },
@@ -329,17 +336,17 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
             h('section', { class: 'subtasks', 'aria-label': t('task.subtasksHeading') },
               subtaskTitle,
               subtaskList,
-              h('div', { class: 'subtask-row' }, subtask, h('button', { type: 'button', class: 'button', onclick: addSubtask }, t('common.add'))),
+              !readOnly && h('div', { class: 'subtask-row' }, subtask, h('button', { type: 'button', class: 'button', onclick: addSubtask }, t('common.add'))),
               added),
             attachments?.node,
             comments.node)),
         error,
         h('div', { class: 'dialog-buttons' },
-          h('button', { type: 'button', class: 'button button-danger button-left', onclick: remove }, t('common.delete')),
-          saveTemplate && h('button', { type: 'button', class: 'button button-small', onclick: () => saveTemplate(current()) }, icon('template'), t('template.save.button')),
-          h('span', { class: 'save-tip' }, t('task.saveTip')),
-          h('button', { type: 'button', class: 'button', onclick: close }, t('common.cancel')),
-          h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),
+          !readOnly && h('button', { type: 'button', class: 'button button-danger button-left', onclick: remove }, t('common.delete')),
+          saveTemplate && h('button', { type: 'button', class: `button button-small${readOnly ? ' button-left' : ''}`, onclick: () => saveTemplate(current()) }, icon('template'), t('template.save.button')),
+          !readOnly && h('span', { class: 'save-tip' }, t('task.saveTip')),
+          h('button', { type: 'button', class: 'button', onclick: close }, readOnly ? t('common.close') : t('common.cancel')),
+          !readOnly && h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),
         ),
       ));
     // Ctrl+Enter of Cmd+Enter bewaart de taak (in het opmerkingenveld plaatst het de opmerking; zie comments.js)

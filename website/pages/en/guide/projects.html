@@ -19,22 +19,23 @@ description: Organizing tasks in Tickory: making and editing projects with a col
 
 <h2 id="the-project-menu">The project menu</h2>
 <x-shot name="projectmenu" alt="The menu of the project Huishouden with the choices Edit, Add subproject, Remove from favorites, View completed tasks, Share, Archive and Delete project (in red).">The project menu of the owner. A member sees a shorter list.</x-shot>
-<p>Open it with <x-ui k="project.menu"></x-ui> at the top right of the project. What you see depends on whether you are the owner or a member (see <a href="sharing.html#owner-and-member">owner and member</a>):</p>
+<p>Open it with <x-ui k="project.menu"></x-ui> at the top right of the project. What you see depends on your <a href="sharing.html#roles">role</a> in the project:</p>
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Choice</th><th>Owner</th><th>Member</th></tr>
+      <tr><th>Choice</th><th>Owner</th><th>Can edit</th><th>View only</th></tr>
     </thead>
     <tbody>
-      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: name, color, favorite</td><td>yes</td><td>yes</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>yes</td><td>yes</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="template.menu.insert"></x-ui> and <x-ui k="template.menu.save"></x-ui></td><td>yes</td><td>yes</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui></td><td>yes</td><td>yes</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (see <a href="completed.html">Completed</a>)</td><td>yes</td><td>yes</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (for a member: <x-ui k="project.members"></x-ui>)</td><td>yes</td><td>view only</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>yes</td><td>no</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>yes</td><td>no</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>no</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: name, color, favorite</td><td>yes</td><td>yes</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>yes</td><td>yes</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="template.menu.insert"></x-ui> and <x-ui k="template.menu.save"></x-ui></td><td>yes</td><td>yes</td><td>saving only</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> or <x-ui k="project.unfavorite"></x-ui></td><td>yes</td><td>yes</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (see <a href="completed.html">Completed</a>)</td><td>yes</td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="activity.menu"></x-ui> (see <a href="activity.html">Activity</a>)</td><td>yes</td><td>yes</td><td>yes</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (otherwise: <x-ui k="project.members"></x-ui>)</td><td>yes</td><td>view only</td><td>view only</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>yes</td><td>no</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>yes</td><td>no</td><td>no</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>no</td><td>yes</td><td>yes</td></tr>
     </tbody>
   </table>
 </div>

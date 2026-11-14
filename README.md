@@ -58,11 +58,12 @@ The image is published with the first release. If pulling it asks for a sign-in,
 ## What it does
 
 - Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
-- Sharing a project with other users of the same server, and assigning tasks to members.
+- Sharing a project with other users of the same server with a **role**: can edit (the default) or **view only** (sees everything, comments and sets their own reminders, changes nothing), and assigning tasks to members who can edit. The owner chooses and changes the role in the Share window.
+- **Activity** per project (in the project menu): who did what and when, per day, with "Load more" and a filter; stored on the server (180 days, at most 10,000 entries per project), only for current members.
 - **Collaboration notifications and @-mentions**: when someone assigns you a task, comments on your task or project, mentions you with `@` in a comment, completes your task or adds you to a project, it shows up under Notifications (unread count in the sidebar, a bell on a phone), and if you like as a push notification in the browser or a notification of the Android app. Typing `@` in a comment lists the project's members.
 - Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, **comments** on tasks and projects, and **attachments** on tasks (photos and files, also choosable offline, with a preview of images).
 - Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
-- Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile.
+- Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile. Light, dark or system theme and eight accent colours, chosen per device.
 - **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
 - **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
 - **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).
@@ -96,7 +97,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Missing entirely:**
 
-- Statistics, import and export of whole projects or accounts (only templates can be imported as a file), an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, and transferring ownership of a project.
+- Statistics, import and export of whole projects or accounts (only templates can be imported as a file), an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, transferring ownership of a project, and roles beyond the three fixed ones (owner, can edit, view only).
 
 What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
 

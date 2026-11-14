@@ -35,6 +35,7 @@ import { bulkScenario } from './e2e-bulk.ts';
 import { templatesScenario } from './e2e-templates.ts';
 import { notifyScenario } from './e2e-notify.ts';
 import { accountScenario } from './e2e-account.ts';
+import { rolesScenario } from './e2e-roles.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -585,7 +586,7 @@ try {
   const englishText = pieces(en).join('\n');
   const dutchPieces = [...new Set(pieces(dutchTexts).flatMap((text) => text.split(/\{\w+\}/)).map((s) => s.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')))]
     .filter((s) => s.replace(/[^\p{L}]/gu, '').length >= 3 && !asWord(s).test(englishText));
-  assert.ok(dutchPieces.length > 150 && dutchPieces.includes('Vandaag') && dutchPieces.includes('lid') && !dutchPieces.includes('Project'), `de lijst met Nederlandse teksten klopt niet (${dutchPieces.length})`);
+  assert.ok(dutchPieces.length > 150 && dutchPieces.includes('Vandaag') && dutchPieces.includes('kan bewerken') && !dutchPieces.includes('Project'), `de lijst met Nederlandse teksten klopt niet (${dutchPieces.length})`);
   const checked: string[] = [];
   /** Controleert dat er op dit scherm geen Nederlandse tekst van de app staat (gegevens van de gebruiker mogen Nederlands zijn). */
   const noDutch = async (screen: string, userTexts: string[] = []) => {
@@ -632,9 +633,52 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'exportscherm gesloten');
   await evaluate(`delete HTMLAnchorElement.prototype.click`);
 
+  // weergave: donker en een andere accentkleur, meteen zichtbaar, bewaard na herladen; licht kiezen op een donker apparaat; terug naar de standaard
+  const wasDark = await evaluate<boolean>(`matchMedia('(prefers-color-scheme: dark)').matches`);
+  const emulateScheme = (value: string) => send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
+  const accentNow = () => evaluate<string>(`getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()`);
+  const bgNow = () => evaluate<string>(`getComputedStyle(document.body).backgroundColor`);
+  const LIGHT_BG = 'rgb(255, 255, 255)';
+  const DARK_BG = 'rgb(22, 25, 28)';
+  const openAppearance = async () => {
+    await openMenu('Alice');
+    await clickText('Weergave');
+    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Weergave'`, 'scherm Weergave');
+  };
+  await emulateScheme('light');
+  assert.equal(await bgNow(), LIGHT_BG, 'het apparaat staat licht');
+  await openAppearance();
+  await click('dialog[open] [data-role="theme-choice"] input[value="dark"]');
+  await click('dialog[open] [data-role="accent-choice"] input[value="rose"]');
+  await waitFor(`document.documentElement.dataset.theme === 'dark' && document.documentElement.dataset.accent === 'rose'`, 'donker en roze gekozen');
+  assert.equal(await accentNow(), '#f9a8c9', 'de donkere roze accentkleur');
+  assert.equal(await bgNow(), DARK_BG, 'donker, ook al staat het apparaat licht');
+  assert.equal(await evaluate(`document.querySelector('meta[name="theme-color"]').content`), '#f9a8c9');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'weergave gesloten');
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.documentElement.dataset.theme === 'dark'`, 'na herladen nog steeds donker');
+  assert.equal(await accentNow(), '#f9a8c9');
+  assert.equal(await bgNow(), DARK_BG);
+  await emulateScheme('dark');
+  await openAppearance();
+  await click('dialog[open] [data-role="theme-choice"] input[value="light"]');
+  await waitFor(`document.documentElement.dataset.theme === 'light'`, 'licht gekozen');
+  assert.equal(await bgNow(), LIGHT_BG, 'licht, ook al staat het apparaat donker');
+  assert.equal(await accentNow(), '#be185d', 'de lichte roze accentkleur');
+  await click('dialog[open] [data-role="theme-choice"] input[value="system"]');
+  await waitFor(`!document.documentElement.dataset.theme`, 'zoals het apparaat');
+  assert.equal(await bgNow(), DARK_BG, 'zoals het apparaat: donker');
+  await click('dialog[open] [data-role="accent-choice"] input[value="teal"]');
+  await waitFor(`!document.documentElement.dataset.accent`, 'standaardkleur');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.theme') === null && localStorage.getItem('tickory.accent') === null`), true, 'de standaard staat niet in de opslag');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'weergave weer gesloten');
+  await emulateScheme(wasDark ? 'dark' : 'light');
+
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -769,7 +813,7 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
-  assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · member']);
+  assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · can edit']);
   assert.deepEqual(await buttons(), ['Remove', 'Share', 'Close']);
   assert.deepEqual(await evaluate(`[document.querySelector('dialog[open] input').placeholder, document.querySelector('dialog[open] input').getAttribute('aria-label')]`), ['Username', "The person's username"]);
   await typeInto(`dialog[open] input[aria-label="The person's username"]`, 'niemand-bekend');
@@ -792,7 +836,7 @@ try {
   // het projectmenu
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Activity', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Delete project');
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete project?')`, 'bevestiging project verwijderen');
   assert.ok(await evaluate(`document.querySelector('dialog[open] p').textContent === '"Thuis" will be deleted, along with all its sections, tasks and subprojects — also for the people you share it with.'`));
@@ -802,7 +846,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Templates', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1194,7 +1238,7 @@ try {
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Activiteit', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
   await clickText('Bewerken…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Project bewerken'`, 'projectvenster (bewerken)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] input[name="project-color"]:checked').value`), 'green');
@@ -1414,6 +1458,10 @@ try {
   // ---- 8g1. meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts) ----
   await notifyScenario(notifyCtx());
 
+  // ---- 8g1b. rollen (alleen lezen) en het activiteitenlogboek (scripts/e2e-roles.ts) ----
+  await rolesScenario({ ...notifyCtx(), openTask, noDialog, buttons, texts });
+  step('rollen en activiteit: alles in scripts/e2e-roles.ts');
+
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
     send, evaluate, waitFor, sleep, js, shot, step, serverState, startServer, stopServer, workDir, BASE, bobToken, alice, aliceToken: createSession(db, alice.id, 'Controle bijlagen').token,
@@ -1613,7 +1661,7 @@ try {
   await noDialog();
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Activity', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Edit…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Edit project'`, 'projectvenster (Engels)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] input[name="project-color"]')].map((e) => e.getAttribute('aria-label'))`),
@@ -2668,7 +2716,7 @@ try {
   // Bob is lid, geen eigenaar: hij kan het project niet archiveren of verwijderen, en ziet de opmerkingen van Alice (niet te wijzigen)
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van Bob');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);

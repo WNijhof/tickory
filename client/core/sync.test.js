@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { handleSync } from '../../server/sync.ts';
-import { firstUser, mkdb } from '../../server/testutil.ts';
+import { addUser, firstUser, freshDb, mkdb } from '../../server/testutil.ts';
 import { INBOX_ID } from '../../shared/schema.js';
 import { RESOURCES } from './reducer.js';
 import { MemoryAdapter, Store } from './store.js';
@@ -17,7 +17,7 @@ import { planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, pl
 const makeServer = mkdb;
 
 let counter = 0;
-function makeClient(db, { adapter = new MemoryAdapter(), batchSize, undo = null } = {}) {
+function makeClient(db, { adapter = new MemoryAdapter(), batchSize, undo = null, user = null } = {}) {
   let clock = Date.parse('2026-11-13T10:00:00Z');
   const store = new Store(adapter, { now: () => new Date((clock += 1000)).toISOString(), onPersistError: () => {} });
   const net = { online: true, loseResponse: false, calls: 0, sizes: [], maxCommands: Infinity, db };
@@ -26,7 +26,7 @@ function makeClient(db, { adapter = new MemoryAdapter(), batchSize, undo = null 
     net.sizes.push(body.commands.length);
     if (!net.online) throw new TypeError('fetch failed');
     if (body.commands.length > net.maxCommands) throw new HttpError(413);
-    const res = handleSync(net.db, JSON.parse(JSON.stringify(body)), firstUser(net.db).id);
+    const res = handleSync(net.db, JSON.parse(JSON.stringify(body)), (user ?? firstUser(net.db)).id);
     if (net.loseResponse) {
       net.loseResponse = false;
       throw new TypeError('verbinding verbroken');
@@ -810,3 +810,69 @@ for (const { seed, every, dnd = false, geo = false, templates = false, undo = fa
     }
   });
 }
+
+// ---------- differentieel met rollen: een lezer probeert van alles, de eigenaar wisselt zijn rol ----------
+
+test('differentieel met een lezer: wat een lezer niet mag, weigert de server (FORBIDDEN) en voert de app ook niet uit; een rolwissel rekent de app vooruit', async () => {
+  const db = freshDb();
+  const anna = addUser(db, 'anna', 'Anna');
+  const carol = addUser(db, 'carol', 'Carol');
+  const owner = makeClient(db, { user: anna });
+  const viewer = makeClient(db, { user: carol });
+  for (const c of [owner, viewer]) { await c.store.init(); await c.sync.syncNow(); }
+  // anna bouwt een project op en deelt het met carol als lezer
+  const rndOwner = rng(4711);
+  const shared = await owner.actions.addProject({ name: 'Gezin' });
+  await owner.actions.addSection(shared, 'Deze week');
+  for (let i = 0; i < 25; i++) await owner.actions.addTask({ content: `Taak ${i}`, project_id: shared, priority: 1 + rndOwner(4), ...(i % 5 === 4 ? { due: { date: '2026-12-01', recurrence: { freq: 'weekly', byweekday: [2] } } } : {}) });
+  await owner.actions.addProject({ name: 'Tuin', parent_id: shared });
+  await owner.actions.shareProject(shared, 'carol', 'viewer');
+  assert.equal(await owner.sync.syncNow(), true);
+  assert.deepEqual(owner.errors, []);
+  await viewer.sync.syncNow();
+  // wat er in de projecten staat waar carol lezer is (een subproject dat zij als lid maakte, is van haar: daar mag ze alles)
+  const ownerContent = () => {
+    const v = owner.store.view;
+    const read = new Set([...v.members.values()].filter((m) => m.user_id === carol.id && m.role === 'viewer').map((m) => m.project_id));
+    const snap = snapshot(v);
+    return JSON.stringify([snap.projects.filter((p) => read.has(p.id)), snap.sections.filter((x) => read.has(x.project_id)), snap.tasks.filter((x) => read.has(x.project_id)).map(({ labels, ...x }) => x)]); // haar eigen label verwijderen haalt het ook van die taken: dat mag
+  };
+  let before = ownerContent();
+
+  const rnd = rng(31337);
+  const log = [];
+  let refused = 0;
+  let role = 'viewer';
+  for (let i = 1; i <= 360; i++) {
+    log.push(await randomAction(viewer, rnd));
+    if (i % 4 !== 0) continue;
+    const optimistic = snapshot(viewer.store.view);
+    assert.equal(await viewer.sync.syncNow(), true);
+    // (de willekeurige handelingen kennen alleen de Inbox van de eerste testgebruiker; de eigen Inbox weigert de server met CONFLICT)
+    // en een herinnering bij een taak die als lezer niet werd aangemaakt (de automatische herinnering van addTask), bestaat niet: NOT_FOUND
+    const unexpected = viewer.errors.filter((e) => !(e.error_code === 'CONFLICT' && /Inbox/.test(e.error)) && !(role === 'viewer' && e.error_code === 'NOT_FOUND' && e.cmd.type === 'reminder_add') && (e.error_code !== 'FORBIDDEN' || role !== 'viewer'));
+    refused -= viewer.errors.length - viewer.errors.filter((e) => e.error_code === 'FORBIDDEN').length;
+    refused += viewer.errors.length;
+    viewer.errors.length = 0;
+    assert.deepEqual(unexpected, [], `alleen FORBIDDEN, en alleen als lezer: ${log.slice(-8).join(', ')}`);
+    assert.deepEqual(snapshot(viewer.store.view), optimistic, `de lezer zag direct wat de server daarna bevestigde (stap ${i}: ${log.slice(-8).join(', ')})`);
+    await owner.sync.syncNow();
+    if (role === 'viewer') assert.equal(ownerContent(), before, `als lezer veranderde carol niets aan het project van anna (stap ${i})`);
+    if (i % 120 === 0) {
+      // anna wisselt de rol van carol; ook dat rekent de app van anna vooruit zoals de server
+      role = role === 'viewer' ? 'member' : 'viewer';
+      await owner.actions.updateMemberRole(shared, carol.id, role);
+      const mine = snapshot(owner.store.view);
+      assert.equal(await owner.sync.syncNow(), true);
+      assert.deepEqual(owner.errors, []);
+      assert.deepEqual(snapshot(owner.store.view), mine, 'de rolwissel stond direct goed bij anna');
+      assert.equal(await viewer.sync.syncNow(), true);
+      before = ownerContent();
+    }
+  }
+  assert.ok(refused >= 40, `genoeg geweigerde pogingen in de reeks (${refused})`);
+  const fresh = makeClient(db, { user: carol });
+  await fresh.store.init();
+  await fresh.sync.syncNow();
+  assert.deepEqual(snapshot(fresh.store.view), snapshot(viewer.store.view), 'een nieuw apparaat van carol ziet hetzelfde');
+});

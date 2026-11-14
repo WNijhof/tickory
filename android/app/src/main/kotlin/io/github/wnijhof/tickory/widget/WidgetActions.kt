@@ -39,8 +39,8 @@ object WidgetActions {
         if (!Session.isActive(app)) return Result.IGNORED
         val snapshot = WidgetStore.visibleSnapshot(app) ?: return Result.IGNORED
         val task = snapshot.tasks.firstOrNull { it.id == id }
-        if (task == null) {
-            WidgetUpdater.updateAll(app) // de widget liep achter: laat zien hoe het nu is
+        if (task == null || snapshot.project(task.projectId)?.readOnly == true) {
+            WidgetUpdater.updateAll(app) // de widget liep achter (of de taak is alleen te lezen): laat zien hoe het nu is
             return Result.IGNORED
         }
         val item = QueuedComplete(

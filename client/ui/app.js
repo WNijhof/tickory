@@ -32,13 +32,17 @@ import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
+import { appearanceDialog } from './appearance.js';
 import { exportDialog } from './exportDialog.js';
+import { applyAppearance, readAppearance } from '../core/theme.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installInbox } from './inbox.js';
+import { installActivity } from './activity.js';
+import { canEditProject } from '../core/access.js';
 
 const ROUTE_KEY = 'tickory.route';
 
@@ -72,6 +76,8 @@ let sync;
 let actions;
 let events;
 let attachments;
+/** Het scherm Activiteit (ui/activity.js). */
+let activityUi = null;
 /** De stappen die "Ongedaan maken" kan terugdraaien (core/undo.js), en de selectie van meerdere taken (ui/selection.js). */
 const undo = createUndo();
 let selection;
@@ -153,10 +159,12 @@ function renderStatus() {
 // ---------- snel toevoegen ----------
 
 function quickContext() {
-  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id)) return { defaultProjectId: ui.route.id };
+  // in een project dat je alleen leest (core/access.js) kan geen taak: dan gaat ze naar de Inbox, en #project noemt alleen projecten waar het wel kan
+  const canAddTo = (id) => canEditProject(store.view, id, store.userId);
+  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo };
   // `string` en `lang` horen bij de datumtaal (wat de herkenner leest), niet bij de taal van de interface: die blijven Nederlands.
-  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' } };
-  return { defaultProjectId: inboxId() };
+  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo };
+  return { defaultProjectId: inboxId(), canAddTo };
 }
 
 function renderPreview() {
@@ -203,6 +211,7 @@ const handlers = {
   refresh: () => render(),
 
   async toggle(task) {
+    if (!canEditProject(store.view, task.project_id, store.userId)) return handlers.readOnlyNotice(task);
     if (task.checked) return actions.track(t('task.completed'), () => actions.uncompleteTask(task.id));
     const { entry } = await actions.track(t('task.completed'), () => actions.completeTask(task.id));
     if (task.due?.recurrence) {
@@ -214,6 +223,7 @@ const handlers = {
 
   /** Een voltooide taak terugzetten (overzicht Voltooid); een terugkerende taak zegt welke datum hij heeft. */
   async restoreTask(task) {
+    if (!canEditProject(store.view, task.project_id, store.userId)) return handlers.readOnlyNotice(task);
     const { entry } = await actions.track(t('completed.restored', { name: task.content }), () => actions.uncompleteTask(task.id));
     const now = store.view.tasks.get(task.id);
     undoToast(now?.due?.recurrence ? t('completed.restoredRecurring', { name: task.content, date: formatDue({ date: now.due.date }, todayString()) }) : t('completed.restored', { name: task.content }), entry);
@@ -225,6 +235,9 @@ const handlers = {
     toast(item ? t('undo.done') : t('undo.nothing'));
     selection?.announce(item ? t('undo.done') : t('undo.nothing'));
   },
+
+  /** Een taak in een project dat je alleen leest: afvinken of wijzigen kan niet; dat zeggen we in plaats van niets te doen. */
+  readOnlyNotice: () => toast(t('readonly.cannotComplete')),
 
   open(task) {
     return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, onUndoable: undoToast, saveTemplate: (x) => templatesUi().saveTask(x) });
@@ -325,23 +338,27 @@ const handlers = {
 
   async projectMenu(project) {
     const mine = roleIn(store.view, project.id, store.userId);
+    const edit = mine !== 'viewer'; // een lezer wijzigt niets aan het project (shared/roles.js)
     const choice = await menuDialog({
       title: project.name,
       items: [
-        { value: 'edit', label: t('project.editMenu') },
-        { value: 'sub', label: t('project.addSub') },
-        !isArchivedProject(store.view, project.id) && { value: 'taskTemplate', label: t('template.menu.insert') },
+        edit && { value: 'edit', label: t('project.editMenu') },
+        edit && { value: 'sub', label: t('project.addSub') },
+        edit && !isArchivedProject(store.view, project.id) && { value: 'taskTemplate', label: t('template.menu.insert') },
         { value: 'saveTemplate', label: t('template.menu.save') },
-        { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
+        edit && { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
         { value: 'completed', label: t('project.completedMenu') },
-        { value: 'share', label: mine === 'member' ? t('project.members') : t('project.shareMenu') },
+        { value: 'activity', label: t('activity.menu') },
+        { value: 'share', label: mine === 'owner' ? t('project.shareMenu') : t('project.members') },
         mine === 'owner' && !isArchivedProject(store.view, project.id) && { value: 'archive', label: t('project.archive') }, // een gearchiveerd project zet je terug (de balk bovenaan)
-        mine === 'member'
-          ? { value: 'leave', label: t('project.leave'), danger: true }
-          : { value: 'delete', label: t('project.delete'), danger: true },
+        mine === 'owner'
+          ? { value: 'delete', label: t('project.delete'), danger: true }
+          : { value: 'leave', label: t('project.leave'), danger: true },
       ].filter(Boolean),
     });
-    if (choice === 'edit') {
+    if (choice === 'activity') {
+      activityUi.open(project);
+    } else if (choice === 'edit') {
       await handlers.editProject(project);
     } else if (choice === 'sub') {
       await handlers.addProject(project.id);
@@ -415,6 +432,7 @@ const handlers = {
         { value: 'export', label: t('settings.export') },
         { value: 'templates', label: t('settings.templates') },
         { value: 'sync', label: t('settings.syncNow') },
+        { value: 'appearance', label: t('settings.appearance') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
       ],
@@ -425,6 +443,7 @@ const handlers = {
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'export') await exportDialog({ store, bridge });
     else if (choice === 'templates') await templatesUi().manage();
+    else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
@@ -636,7 +655,16 @@ function maybeSetTimezone() {
 
 // ---------- opstarten ----------
 
+/** Thema en accentkleur van dit apparaat: meteen bij het starten, nog eens als alle stylesheets binnen zijn, en mee met het systeem. */
+function startAppearance() {
+  const apply = () => applyAppearance(document, readAppearance());
+  apply();
+  window.addEventListener('load', apply, { once: true });
+  globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', apply);
+}
+
 async function boot() {
+  startAppearance();
   try {
     // In de demo bewaren we niets: elke keer openen begint opnieuw met de voorbeeldgegevens.
     adapter = backend.demo ? new MemoryAdapter() : new IdbAdapter();
@@ -704,6 +732,7 @@ async function boot() {
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
   installCompleted({ store, handlers, getRoute: () => ui.route }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
+  activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
     content: $('content'), sidebar: $('sidebar'), actions, selection,

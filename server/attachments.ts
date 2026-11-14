@@ -21,6 +21,7 @@ import { pipeline } from 'node:stream/promises';
 import { PassThrough, Transform, Writable } from 'node:stream';
 import { join } from 'node:path';
 import { DEFAULT_MIME, effectiveMime, isInlineMime, normalizeMime } from '../shared/attachments.js';
+import { canEditRole } from '../shared/roles.js';
 import { ID_RE } from './schema.ts';
 import { LIMITS, RESTORE } from './limits.ts';
 import { SyncError } from './rows.ts';
@@ -54,6 +55,10 @@ const MAX_UPLOAD_MS = 2 * 60 * 60 * 1000;
 const memberOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean =>
   db.prepare(`SELECT 1 FROM tasks t JOIN project_members m ON m.project_id = t.project_id
               WHERE t.id = ? AND t.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(taskId, userId) !== undefined;
+/** Een bijlage toevoegen mag wie in het project kan bewerken; een lezer (shared/roles.js) ziet en downloadt alleen. */
+const editorOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean =>
+  canEditRole((db.prepare(`SELECT m.role FROM tasks t JOIN project_members m ON m.project_id = t.project_id
+              WHERE t.id = ? AND t.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(taskId, userId) as { role?: string } | undefined)?.role ?? null);
 
 /** Bestandsnaam voor de Content-Disposition: een veilige ASCII-terugval plus de echte naam als filename* (RFC 6266 / 8187). */
 export function contentDisposition(kind: 'attachment' | 'inline', name: string): string {
@@ -195,6 +200,7 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       if (typeof id !== 'string' || !ID_RE.test(id)) problem = new SyncError('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
       else if (typeof taskId !== 'string' || !ID_RE.test(taskId)) problem = new SyncError('INVALID_ARG', 'task_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
       else if (!memberOfTask(db, userId, taskId)) problem = new SyncError('NOT_FOUND', 'deze taak bestaat niet');
+      else if (!editorOfTask(db, userId, taskId)) problem = new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
       else if (length === 0) problem = new SyncError('INVALID_ARG', 'het bestand is leeg');
       else if (length > options.maxUploadBytes) problem = new SyncError('TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(options.maxUploadBytes / 1_000_000)} MB)`);
       else if (used(userId) + (inflight.get(userId) ?? 0) + length > options.quotaBytes) problem = new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
@@ -239,6 +245,7 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
           throw new SyncError('CONFLICT', 'er is al een ander bestand met dit id geüpload');
         }
         if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
+        if (!editorOfTask(db, userId, uploadTask)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
         if (used(userId) + size > options.quotaBytes) throw new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
         // ook hier nog eens: gelijktijdige uploads voor dezelfde taak hebben de controle vooraf allemaal gepasseerd
         if (perTaskCount(uploadTask) >= LIMITS.attachmentsPerTask) throw new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);

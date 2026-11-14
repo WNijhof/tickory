@@ -85,10 +85,11 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     }
     return labels.get(key);
   };
-  const project = (owner, name, members = [], extra = {}) => {
+  const project = (owner, name, members = [], extra = {}, viewers = []) => {
     const pid = id('project');
     run(owner, 'project_add', { id: pid, name, ...extra });
     for (const m of members) addMember(state, pid, m, 'member', at, id('member'));
+    for (const m of viewers) addMember(state, pid, m, 'viewer', at, id('member')); // alleen lezen (shared/roles.js)
     return pid;
   };
   const section = (owner, projectId, name) => {
@@ -228,6 +229,13 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   task(joost, { content: 'Playlist maken', project: feest });
   const lenen = comment(mila, { task: tent }, '@Anna, kun jij de partytent van je zus lenen? Dan regel ik de tafels.', 40, [anna]);
 
+  // ---- Familieweekend: van Sanne; jij kunt alleen lezen (en reageren) ----
+  const weekend = project(sanne, 'Familieweekend', [bram], { color: 'rose' }, [anna]);
+  const huisje = task(sanne, { content: 'Huisje op de Veluwe boeken', project: weekend, due: due('over drie weken'), priority: 2, assignee: sanne });
+  task(bram, { content: 'Spelletjes inpakken', project: weekend, assignee: bram });
+  task(sanne, { content: 'Wandelroute uitzoeken', project: weekend, due: due('over twee weken') });
+  comment(sanne, { task: huisje }, 'Ik heb er drie gevonden, ik kies morgen.', 600);
+
   // ---- Meldingen: wat anderen deden in de gedeelde projecten (de lijst Meldingen, met het belletje) ----
   notification(joost, 'shared', { project: feest }, 3 * 24 * 60, { read: true });
   notification(joost, 'assigned', { task: tent }, 2 * 24 * 60, { read: true });
@@ -236,8 +244,31 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   notification(bram, 'assigned', { task: stofzuigen }, 26 * 60);
   notification(mila, 'mention', { task: tent }, 40, { comment: lenen });
 
+  // ---- het activiteitenlogboek (zoals de server het zou hebben bijgehouden): wie maakte, deelde, voegde toe, vinkte af en reageerde ----
+  const log = [];
+  const entry = (projectId, actor, kind, when, ref = {}) => log.push({ project_id: projectId, at: when, actor_id: actor, kind, task_id: null, section_id: null, comment_id: null, attachment_id: null, user_id: null, title: null, extra: null, ...ref });
+  const ownerOf = (pid) => [...state.members.values()].find((m) => m.project_id === pid && m.role === 'owner')?.user_id ?? DEMO_ME;
+  for (const p of state.projects.values()) {
+    if (p.id === INBOX) continue;
+    const owner = ownerOf(p.id);
+    entry(p.id, owner, 'project_created', at, { title: p.name });
+    for (const m of state.members.values()) if (m.project_id === p.id && m.role !== 'owner') entry(p.id, owner, 'member_added', at, { user_id: m.user_id, extra: { role: m.role } });
+  }
+  for (const s of state.sections.values()) entry(s.project_id, ownerOf(s.project_id), 'section_added', at, { section_id: s.id, title: s.name });
+  for (const x of state.tasks.values()) {
+    entry(x.project_id, x.creator_id, 'task_added', at, { task_id: x.id, title: x.content });
+    if (x.checked) entry(x.project_id, x.creator_id, 'task_completed', at, { task_id: x.id, title: x.content });
+  }
+  for (const c of state.comments.values()) {
+    const pid = c.task_id ? state.tasks.get(c.task_id)?.project_id : c.project_id;
+    if (pid) entry(pid, c.author_id, 'comment_added', c.created_at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? state.tasks.get(c.task_id)?.content : null });
+  }
+  log.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const activity = log.map((e, i) => ({ id: String(i + 1), ...e }));
+
   const meRow = DEMO_USERS.find((u) => u.id === DEMO_ME);
   return {
+    activity,
     state,
     me: { id: meRow.id, username: meRow.username, name: meRow.name, is_admin: meRow.is_admin, inbox_project_id: INBOX },
     users: DEMO_USERS.map((u) => ({ ...u, inbox_project_id: `inbox-${u.id}`, created_at: at })),

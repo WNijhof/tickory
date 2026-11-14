@@ -32,6 +32,7 @@ import { periodTitle } from '../client/core/calendar.js';
 import { todayString } from '../client/core/format.js';
 import { describeCommandError } from '../client/core/messages.js';
 import { handleSync } from '../server/sync.ts';
+import { listActivity } from '../server/activity.ts';
 import { createAttachments } from '../server/attachments.ts';
 import { makePng } from './e2e-attachments.ts';
 import { addUser, freshDb } from '../server/testutil.ts';
@@ -398,10 +399,12 @@ if (wants('demo')) {
       }
     }
     const seed = createSeed(new Date(2026, 10, 17, 10, 0), { strict: true });
-    assert.deepEqual([...seed.state.projects.values()].map((p) => p.name).sort(), ['Buurtfeest', 'Fietsroute', 'Huishouden', 'Inbox', 'Vakantie Texel', 'Verhuizing 2025']);
+    assert.deepEqual([...seed.state.projects.values()].map((p) => p.name).sort(), ['Buurtfeest', 'Familieweekend', 'Fietsroute', 'Huishouden', 'Inbox', 'Vakantie Texel', 'Verhuizing 2025']);
     const byName = (name: string) => [...seed.state.projects.values()].find((p) => p.name === name).id;
     assert.deepEqual(membersOf(seed.state, byName('Huishouden')).map((m: any) => `${m.user_id}:${m.role}`), ['user-anna:owner', 'user-bram:member', 'user-sanne:member']);
     assert.deepEqual(membersOf(seed.state, byName('Buurtfeest')).map((m: any) => `${m.user_id}:${m.role}`), ['user-joost:owner', 'user-anna:member', 'user-mila:member']);
+    assert.deepEqual(membersOf(seed.state, byName('Familieweekend')).map((m: any) => `${m.user_id}:${m.role}`).sort(), ['user-anna:viewer', 'user-bram:member', 'user-sanne:owner'], 'een project waar Anna alleen lezer is');
+    assert.ok(seed.activity.length >= 40 && seed.activity.every((e: any, i: number) => e.id === String(i + 1) && typeof e.kind === 'string'), 'het activiteitenlogboek heeft voorbeeldregels, de oudste eerst');
     assert.equal(projectView(seed.state, byName('Huishouden')).groups.length, 4, 'Huishouden: taken zonder sectie en drie secties');
     assert.ok([...seed.state.tasks.values()].some((t) => t.parent_id), 'er zijn subtaken');
     assert.ok([...seed.state.tasks.values()].some((t) => t.checked), 'er is een voltooide taak');
@@ -464,20 +467,27 @@ if (wants('demo')) {
     const real: Record<string, any> = {};
     for (const [username, name] of [['anna', 'Anna'], ['bram', 'Bram'], ['joost', 'Joost'], ['kees', 'Opa Kees']]) real[username] = addUser(db, username, name);
     const realFeest = 'check-proj-feest';
+    const realRead = 'check-proj-lezen', realReadTask = 'check-task-lees1';
     assert.deepEqual(Object.values(handleSync(db, { commands: [
       { type: 'project_add', uuid: 'check-setup-0001', args: { id: realFeest, name: 'Buurtfeest' } },
       { type: 'project_share', uuid: 'check-setup-0002', args: { project_id: realFeest, username: 'anna' } },
-    ] }, real.joost.id).sync_status), ['ok', 'ok']);
+      // een project waar Anna alleen lezer is (in de demo: Familieweekend van Sanne)
+      { type: 'project_add', uuid: 'check-setup-0003', args: { id: realRead, name: 'Familieweekend' } },
+      { type: 'task_add', uuid: 'check-setup-0004', args: { id: realReadTask, project_id: realRead, content: 'Huisje boeken' } },
+      { type: 'project_share', uuid: 'check-setup-0005', args: { project_id: realRead, username: 'anna', role: 'viewer' } },
+    ] }, real.joost.id).sync_status), ['ok', 'ok', 'ok', 'ok', 'ok']);
 
     const demo = new DemoServer({ strict: true });
     const demoFirst = demo.sync({ sync_token: '*' });
     const demoFeest = demoFirst.projects.find((p: any) => p.name === 'Buurtfeest').id;
+    const demoRead = demoFirst.projects.find((p: any) => p.name === 'Familieweekend').id;
+    const demoReadTask = demoFirst.tasks.find((t: any) => t.project_id === demoRead && !t.parent_id).id;
     // een melding van Anna aan beide kanten: op de echte server die van het delen van Buurtfeest, in de demo een uit de voorbeeldgegevens
     const realNotif = (handleSync(db, { sync_token: '*' }, real.anna.id).notifications as any[])[0].id;
     const demoNotif = demoFirst.notifications[0].id;
     const sides = {
-      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, notif: realNotif, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
-      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, notif: demoNotif, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
+      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, read: realRead, readTask: realReadTask, notif: realNotif, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
+      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, read: demoRead, readTask: demoReadTask, notif: demoNotif, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
     };
     const C1 = 'check-comm-0001', C2 = 'check-comm-0002', C3 = 'check-comm-0007', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', TP1 = 'check-tpl-0001', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
     const weekly = { date: '2030-01-07', string: 'elke maandag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [1] } };
@@ -646,8 +656,32 @@ if (wants('demo')) {
       ['section_delete', { id: 'check-sect-geen' }, 'NOT_FOUND'],
       ['bestaat_niet', { id: P }, 'UNKNOWN_COMMAND'],
       ['member_add', { project_id: P, user_id: x.kees, role: 'owner' }, 'UNKNOWN_COMMAND'],
+      // rollen: in een project dat Anna alleen leest, wijzigt ze niets; reageren en eigen herinneringen kan wel (shared/roles.js)
+      ['task_add', { id: 'check-task-9101', project_id: x.read, content: 'x' }, 'FORBIDDEN'],
+      ['task_update', { id: x.readTask, content: 'x' }, 'FORBIDDEN'],
+      ['task_complete', { id: x.readTask }, 'FORBIDDEN'],
+      ['task_uncomplete', { id: x.readTask }, 'FORBIDDEN'],
+      ['task_delete', { id: x.readTask }, 'FORBIDDEN'],
+      ['task_move', { id: x.readTask, project_id: x.inbox }, 'FORBIDDEN'],
+      ['task_move', { id: T3, project_id: x.read }, 'FORBIDDEN'],
+      ['section_add', { id: 'check-sect-9101', project_id: x.read, name: 'x' }, 'FORBIDDEN'],
+      ['project_update', { id: x.read, name: 'x' }, 'FORBIDDEN'],
+      ['project_add', { id: 'check-proj-9101', name: 'x', parent_id: x.read }, 'FORBIDDEN'],
+      ['project_share', { project_id: x.read, username: 'bram' }, 'FORBIDDEN'],
+      ['comment_add', { id: 'check-comm-0101', task_id: x.readTask, content: 'Lijkt me leuk' }, 'ok'],
+      ['reminder_add', { id: 'check-remi-0101', task_id: x.readTask, type: 'relative', minute_offset: 15 }, 'ok'],
+      // de rol van een lid wijzigen: alleen de eigenaar, niet van jezelf; een lezer kan geen taak krijgen
+      ['member_update', { project_id: P, user_id: x.bram, role: 'viewer' }, 'ok'],
+      ['task_update', { id: T1, assignee_id: x.bram }, 'INVALID_ARG'],
+      ['member_update', { project_id: P, user_id: x.bram, role: 'member' }, 'ok'],
+      ['task_update', { id: T1, assignee_id: x.bram }, 'ok'],
+      ['member_update', { project_id: P, user_id: x.bram, role: 'owner' }, 'INVALID_ARG'],
+      ['member_update', { project_id: P, user_id: x.joost, role: 'viewer' }, 'NOT_FOUND'],
+      ['member_update', { project_id: x.feest, user_id: x.joost, role: 'viewer' }, 'FORBIDDEN'],
+      ['project_share', { project_id: P, username: 'bram', role: 'owner' }, 'INVALID_ARG'],
+      ['project_share', { project_id: P, username: 'bram', role: 'viewer' }, 'ok'],
     ];
-    const names = (x: typeof sides.real) => new Map([[x.inbox, 'INBOX'], [x.bram, 'BRAM'], [x.kees, 'KEES'], [x.joost, 'JOOST'], [x.feest, 'FEEST'], [x === sides.real ? real.anna.id : 'user-anna', 'ANNA']]);
+    const names = (x: typeof sides.real) => new Map([[x.inbox, 'INBOX'], [x.bram, 'BRAM'], [x.kees, 'KEES'], [x.joost, 'JOOST'], [x.feest, 'FEEST'], [x.read, 'LEZEN'], [x.readTask, 'LEESTAAK'], [x === sides.real ? real.anna.id : 'user-anna', 'ANNA']]);
     /** Rijen vergelijkbaar maken: eigen id's van elke kant krijgen dezelfde naam; tijdstippen en id's van leden tellen niet. */
     const normalize = (x: typeof sides.real, rows: any[], keep: (row: any) => boolean, resource: string) => {
       const map = names(x);
@@ -681,7 +715,7 @@ if (wants('demo')) {
     const demoStatus = outcome(sides.demo);
     assert.deepEqual(demoStatus, realStatus, 'de demo geeft per commando dezelfde status en dezelfde foutmelding als de echte server');
 
-    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, C3, PL1, PL2, TP1, 'check-tpl-0003']);
+    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, C3, PL1, PL2, TP1, 'check-tpl-0003', 'check-comm-0101', 'check-remi-0101']);
     const state = (x: typeof sides.real) => {
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
       const projects = new Set([P, x.feest]);
@@ -702,6 +736,16 @@ if (wants('demo')) {
     // De volgorde van de eigen taken hangt af van wat er al in de Inbox stond; de demo heeft daar voorbeeldtaken.
     const loose = (s: typeof a) => ({ ...s, tasks: s.tasks.map((t: any) => ({ ...t, order_key: t.project_id === 'INBOX' ? '?' : t.order_key })), labels: s.labels.map((l: any) => ({ ...l, order_key: '?' })), projects: s.projects.map((p: any) => ({ ...p, order_key: '?' })) });
     assert.deepEqual(loose(b), loose(a), 'na dezelfde commando\'s staan in de demo dezelfde rijen als op de echte server');
+    // het activiteitenlogboek van het eigen project: dezelfde regels, in dezelfde volgorde (server/activity.ts en de demo)
+    const activityOf = (x: typeof sides.real) => {
+      const page = x === sides.real ? listActivity(db, real.anna.id, P, { limit: '100' }) : demo.activityPage(P, { limit: 100 });
+      const map = names(x);
+      const swap = (v: any): any => (typeof v === 'string' && map.has(v) ? map.get(v) : Array.isArray(v) ? v.map(swap) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, w]) => [k, swap(w)])) : v);
+      return page.entries.map((e: any) => swap({ kind: e.kind, actor: e.actor_id, task: e.task_id, section: e.section_id, comment: e.comment_id, user: e.user_id, title: e.title, extra: e.extra }));
+    };
+    const realLog = activityOf(sides.real);
+    assert.deepEqual(activityOf(sides.demo), realLog, 'de demo houdt hetzelfde logboek bij als de echte server');
+    assert.ok(realLog.length >= 15 && realLog.some((e: any) => e.kind === 'member_role') && realLog.some((e: any) => e.kind === 'task_moved'), 'met allerlei soorten regels');
     assert.equal(a.tasks.length, 4);
     assert.deepEqual((a.comments.find((c: any) => c.id === C3) as any).mentions, ['BRAM'], 'Kees is geen lid en valt weg, aan beide kanten');
     assert.deepEqual((a.settings[0] as any).notify_push, { completed: true, comment: false });
@@ -718,6 +762,7 @@ if (wants('demo')) {
       ['project_unshare', { project_id: P, user_id: x.bram }, 'ok'],
       ['project_unshare', { project_id: P, user_id: x.bram }, 'NOT_FOUND'],
       ['project_leave', { project_id: x.feest }, 'ok'],
+      ['project_leave', { project_id: x.read }, 'ok'], // ook een lezer kan vertrekken
       ['project_leave', { project_id: x.feest }, 'NOT_FOUND'],
       ['label_delete', { id: L }, 'ok'],
       ['section_delete', { id: S }, 'ok'],
@@ -854,7 +899,7 @@ if (wants('demo')) {
     const actions = createActions(store);
     assert.equal(await sync.syncNow(), true);
     assert.equal(store.me.name, 'Anna');
-    assert.equal(store.view.projects.size, 6);
+    assert.equal(store.view.projects.size, 7);
     const huis = [...store.view.projects.values()].find((p: any) => p.name === 'Huishouden').id;
 
     const id = await actions.addTask({ content: 'Ramen lappen', project_id: huis, newLabels: ['buiten', 'zomer'] });
@@ -1113,7 +1158,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo();
         assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'er staat geen (inlog)venster open');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
@@ -1212,7 +1257,7 @@ if (wants('browser')) {
         await typeInto('dialog[open] input[aria-label="Gebruikersnaam van de persoon"]', 'kees');
         await submit('dialog[open] form.subtask-row');
         await waitFor(`[...document.querySelectorAll('dialog[open] .device-info strong')].some((e) => e.textContent.startsWith('Opa Kees'))`, 'Opa Kees in de ledenlijst');
-        assert.ok(await evaluate(`[...document.querySelectorAll('dialog[open] .device')].find((d) => d.textContent.includes('Opa Kees')).textContent.includes('@kees · lid')`));
+        assert.ok(await evaluate(`[...document.querySelectorAll('dialog[open] .device')].find((d) => d.textContent.includes('Opa Kees')).textContent.includes('@kees · kan bewerken')`));
         await clickText('Sluiten', `document.querySelector('dialog[open]')`);
         await waitFor(`document.querySelector('.shared-with')?.textContent === 'Gedeeld met Bram, Opa Kees en Sanne'`, 'regel "Gedeeld met …"');
         await taskDo('Fietsenschuur opruimen', '.task-body');
@@ -1230,13 +1275,13 @@ if (wants('browser')) {
         assert.deepEqual(await chips('Vergunning aanvragen bij de gemeente'), [await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Vergunning aanvragen bij de gemeente').querySelector('.chip').textContent`), '@buurt', 'voor Joost']);
         await clickText('Project…');
         await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten']);
         await clickText('Project verlaten', `document.querySelector('dialog[open]')`);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Project verlaten?')`, 'bevestiging');
         await clickText('Verlaten', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
         await viewTitle('Inbox');
         await waitFor(`await ${SYNCED}`, 'bijgewerkt');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Familieweekend', 'Anna']);
         assert.deepEqual(b.errors, []);
         assertClean('delen en verlaten');
       });
@@ -1608,7 +1653,7 @@ if (wants('browser')) {
 
         // favoriet: uit de lijst halen en weer in
         await openProjectMenu();
-        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen']);
+        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Activiteit', 'Delen…', 'Archiveren', 'Project verwijderen']);
         await clickText('Uit favorieten halen', `document.querySelector('dialog[open]')`);
         await waitFor(`![...document.querySelectorAll('.nav-heading span')].some((e) => e.textContent === 'Favorieten')`, 'Favorieten verdwenen');
         await openProjectMenu();
@@ -1919,7 +1964,7 @@ if (wants('browser')) {
         await b.send('Page.reload');
         await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'de demo is opnieuw gestart');
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag', 'ook het laatst bekeken scherm is vergeten');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Binnenkort', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         await nav('Huishouden');
         await viewTitle('Huishouden');
         const list = await titles();
@@ -1972,7 +2017,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo('?lang=en');
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Today');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-long').textContent`), 'This is a demo: changes are not saved.');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-link').href`), `${site.url}en/`, 'de link in de balk gaat naar de Engelse website');

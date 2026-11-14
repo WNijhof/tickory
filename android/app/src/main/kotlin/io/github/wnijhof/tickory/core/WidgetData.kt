@@ -16,12 +16,14 @@ data class WidgetTask(
     val orderKey: String,
 )
 
+/** @property readOnly de gebruiker is in dit project lezer (alleen lezen): de widget toont dan geen cirkel om af te vinken */
 data class WidgetProject(
     val id: String,
     val name: String,
     val parentId: String?,
     val archived: Boolean,
     val orderKey: String,
+    val readOnly: Boolean = false,
 )
 
 data class WidgetSection(
@@ -53,7 +55,7 @@ data class WidgetSnapshot(
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
 
-/** Leest het antwoord van de server (`POST /api/v1/sync` met taken, projecten, secties en labels) naar [WidgetSnapshot]. */
+/** Leest het antwoord van de server (`POST /api/v1/sync` met taken, projecten, secties, labels en leden) naar [WidgetSnapshot]. */
 object WidgetParser {
     /** Meer open taken bewaren we niet voor de widgets: een lijst op een scherm van een telefoon is al lang ingekort. */
     const val MAX_TASKS = 5000
@@ -92,11 +94,17 @@ object WidgetParser {
             )
             if (tasks.size >= MAX_TASKS) break
         }
+        // De projecten waar deze gebruiker alleen lezer is (rol "viewer"): daar kan hij niets afvinken. Een server zonder "members"
+        // in het antwoord: geen enkel project telt als alleen lezen (de server weigert het afvinken dan zelf, en de wachtrij ruimt het op).
+        val readOnly = (root.list("members") ?: emptyList()).mapNotNullTo(HashSet()) { entry ->
+            val o = Json.asObject(entry) ?: return@mapNotNullTo null
+            if (o.flag("is_deleted") || o.text("user_id") != accountId || o.text("role") != "viewer") null else o.text("project_id")
+        }
         val projects = rawProjects.mapNotNull { entry ->
             val o = Json.asObject(entry) ?: return@mapNotNull null
             if (o.flag("is_deleted")) return@mapNotNull null
             val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
-            WidgetProject(id, SyncParser.cleanTitle(o.text("name")), o.text("parent_id")?.takeIf { Ids.isSafeId(it) }, o.flag("is_archived"), o.text("order_key") ?: "")
+            WidgetProject(id, SyncParser.cleanTitle(o.text("name")), o.text("parent_id")?.takeIf { Ids.isSafeId(it) }, o.flag("is_archived"), o.text("order_key") ?: "", id in readOnly)
         }
         val sections = (root.list("sections") ?: emptyList()).mapNotNull { entry ->
             val o = Json.asObject(entry) ?: return@mapNotNull null
@@ -130,7 +138,7 @@ object WidgetCodec {
                     "due" to it.due, "recurring" to it.recurring, "priority" to it.priority.toLong(), "labels" to it.labelIds, "order" to it.orderKey,
                 )
             },
-            "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey) },
+            "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey, "readOnly" to it.readOnly) },
             "sections" to s.sections.map { mapOf("id" to it.id, "project" to it.projectId, "name" to it.name, "archived" to it.archived, "order" to it.orderKey) },
             "labels" to s.labels.map { mapOf("id" to it.id, "name" to it.name) },
         ),
@@ -151,7 +159,7 @@ object WidgetCodec {
             )
         }
         val projects = objects("projects").mapNotNull { o ->
-            WidgetProject(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("parent"), o.flag("archived"), o.text("order") ?: "")
+            WidgetProject(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("parent"), o.flag("archived"), o.text("order") ?: "", o.flag("readOnly"))
         }
         val sections = objects("sections").mapNotNull { o ->
             WidgetSection(
