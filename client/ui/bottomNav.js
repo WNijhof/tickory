@@ -8,11 +8,11 @@
 // De terugknop van Android (en van de browser) sluit Bladeren: bij openen komt er een stap in de geschiedenis bij.
 //
 // Welke knop actief is en waar "+" toevoegt, staat in core/bottomNav.js. Tijdens het selecteren staat de actiebalk van
-// ui/selection.js onderaan in de plaats van de balk; terwijl je in een invoerveld typt (het toetsenbord is open) zijn balk en "+" weg,
-// zodat ze niet boven het toetsenbord over het veld schuiven. Een melding ("Ongedaan maken") staat boven de balk; de "+" schuift
+// ui/selection.js onderaan in de plaats van de balk; terwijl je in een invoerveld typt en het toetsenbord open is, zijn balk en "+"
+// weg, zodat ze niet boven het toetsenbord over het veld schuiven (in de Android-app maakt het toetsenbord de WebView kleiner). Een melding ("Ongedaan maken") staat boven de balk; de "+" schuift
 // er dan boven.
 
-import { TABS, activeTab, fabTarget } from '../core/bottomNav.js';
+import { TABS, activeTab, fabTarget, keyboardTracker } from '../core/bottomNav.js';
 import { todayString } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { counts } from '../core/selectors.js';
@@ -131,13 +131,19 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
     measure();
   });
 
-  // ---------- typen: het toetsenbord is open ----------
+  // ---------- typen: een invoerveld heeft de focus en het toetsenbord is open ----------
+  // Alleen de focus is niet genoeg: na "klaar" of de terugknop gaat het toetsenbord dicht terwijl het veld de focus houdt.
+  const viewport = globalThis.visualViewport ?? null;
+  const keyboardOpen = keyboardTracker();
   const typing = () => {
-    const on = isTyping(document.activeElement);
+    const open = keyboardOpen({ width: window.innerWidth, height: viewport?.height ?? window.innerHeight });
+    const on = open && isTyping(document.activeElement);
     if (body.classList.contains('text-entry') !== on) body.classList.toggle('text-entry', on);
   };
   document.addEventListener('focusin', typing);
   document.addEventListener('focusout', () => setTimeout(typing, 0)); // de focus springt even naar body voordat hij op het volgende veld staat
+  (viewport ?? window).addEventListener('resize', typing);
+  typing();
 
   // ---------- maten: hoe hoog de balk is (met grote letters hoger) en hoeveel ruimte de meldingen innemen ----------
   function measure() {

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyState } from './reducer.js';
-import { TABS, activeTab, fabTarget } from './bottomNav.js';
+import { KEYBOARD_MIN, TABS, activeTab, fabTarget, keyboardTracker } from './bottomNav.js';
 
 const INBOX = 'inbox-alice';
 const ME = 'u-alice';
@@ -91,4 +91,23 @@ test('geen "+" waar je niets kunt toevoegen', () => {
 test('zonder bekende gebruiker beslist de server: een gedeeld project houdt dan de "+"', () => {
   const view = sample();
   assert.deepEqual(fabTarget({ type: 'project', id: 'p-bob' }, { view, userId: null, inboxId: INBOX }), { projectId: 'p-bob' });
+});
+
+test('toetsenbord: open als het zichtbare deel flink lager wordt dan het hoogste bij deze breedte, dicht als het terugkomt', () => {
+  const open = keyboardTracker();
+  assert.equal(open({ width: 390, height: 780 }), false, 'het begin');
+  assert.equal(open({ width: 390, height: 730 }), false, 'de adresbalk van een browser schuift in beeld: geen toetsenbord');
+  assert.equal(open({ width: 390, height: 780 - KEYBOARD_MIN }), false, 'precies de grens: nog niet');
+  assert.equal(open({ width: 390, height: 460 }), true, 'het toetsenbord schuift omhoog');
+  assert.equal(open({ width: 390, height: 780 }), false, 'en weer weg');
+  assert.equal(open({ width: 390, height: 800 }), false, 'hoger dan eerst: dat wordt de nieuwe maat');
+  assert.equal(open({ width: 390, height: 640 }), true, '160 lager dan de nieuwe maat');
+});
+
+test('toetsenbord: een andere breedte (het toestel gedraaid) begint opnieuw', () => {
+  const open = keyboardTracker();
+  open({ width: 390, height: 780 });
+  assert.equal(open({ width: 780, height: 390 }), false, 'liggend is lager, maar geen toetsenbord');
+  assert.equal(open({ width: 780, height: 200 }), true, 'liggend met toetsenbord');
+  assert.equal(open({ width: 390, height: 780 }), false, 'weer staand');
 });

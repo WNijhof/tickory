@@ -2128,7 +2128,8 @@ try {
   step('telefoonformaat: Bladeren in plaats van een uitschuifmenu, geen horizontaal scrollen, alles aan te tikken is minstens 44 px, het taakvenster vult het scherm in één kolom, geen snelle knoppen die een aanwijzer vragen; "minder beweging" slaat de afvinkanimatie over; donkere modus werkt');
 
   // ---- 9a. de menubalk onderaan (telefoon): vier knoppen, Bladeren, de ronde knop "+", ruimte onderaan, meldingen, selecteren, typen ----
-  await send('Emulation.setFocusEmulationEnabled', { enabled: true }); // focus en focusin zoals in een echt venster: typen verbergt de balk
+  await send('Emulation.setFocusEmulationEnabled', { enabled: true }); // focus en focusin zoals in een echt venster
+  await evaluate(`document.activeElement?.blur()`);
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (telefoon)');
   const barState = () => evaluate<any>(`(() => {
@@ -2220,11 +2221,18 @@ try {
   await sleep(300);
   barNow = await barState();
   assert.ok(barNow.fab.above >= 8 && barNow.fab.above <= 24, `zonder melding staat de "+" weer vlak boven de balk: ${barNow.fab.above}`);
-  // typen: het toetsenbord is open, dan geen balk en geen "+" die boven het toetsenbord over het veld schuiven
+  // typen: het toetsenbord is open, dan geen balk en geen "+" die boven het toetsenbord over het veld schuiven. Het toetsenbord nabootsen
+  // zoals de Android-app het doet: de WebView wordt lager (de app geeft het toetsenbord ruimte onderaan).
+  const barShown = `getComputedStyle(document.getElementById('bottom-nav')).display === 'flex' && getComputedStyle(document.getElementById('fab')).display === 'flex'`;
   await evaluate(`document.getElementById('quick-input').focus()`);
-  await waitFor(`getComputedStyle(document.getElementById('bottom-nav')).display === 'none' && getComputedStyle(document.getElementById('fab')).display === 'none'`, 'tijdens het typen geen balk en geen "+"');
+  await sleep(150);
+  assert.equal(await evaluate(barShown), true, 'alleen de focus (zonder toetsenbord, of met een hardwaretoetsenbord): de balk blijft');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 520, deviceScaleFactor: 2, mobile: true });
+  await waitFor(`getComputedStyle(document.getElementById('bottom-nav')).display === 'none' && getComputedStyle(document.getElementById('fab')).display === 'none'`, 'met het toetsenbord open geen balk en geen "+"');
+  await shot('telefoon-balk-typen');
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await waitFor(barShown, 'toetsenbord dicht (het veld houdt de focus): de balk is terug');
   await evaluate(`document.getElementById('quick-input').blur()`);
-  await waitFor(`getComputedStyle(document.getElementById('bottom-nav')).display === 'flex'`, 'na het typen is de balk terug');
   // selecteren: de actiebalk staat onderaan in de plaats van de balk
   await click('.bulk-toggle');
   await waitFor(`document.body.classList.contains('select-mode')`, 'selecteren (telefoon)');

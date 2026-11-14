@@ -302,10 +302,14 @@ async function shootAll() {
   await capture('telefoon-kalender', PHONE);
   await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
   await waitFor(`document.querySelector('.group-title')`, 'lijst terug op een telefoon');
-  await evaluate(`document.getElementById('menu-button').click()`);
-  await sleep(350); // het menu schuift in beeld
+  // Bladeren (de knop rechts in de balk onderaan): wat op een computer in de zijbalk staat, met zoeken bovenaan
+  await evaluate(`document.querySelector('[data-tab="browse"]').click()`);
+  await sleep(350); // het scherm komt in beeld
+  await evaluate(`document.activeElement?.blur()`);
+  await settle();
   await capture('telefoon-menu', PHONE);
-  await evaluate(`document.getElementById('scrim').click()`);
+  await evaluate(`document.querySelector('[data-tab="browse"]').click()`);
+  await sleep(250);
   await evaluate(`document.querySelector('.topbar-search').click()`);
   await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster op een telefoon');
   await typeInto('#search-dialog .search-input', 'boodschap');

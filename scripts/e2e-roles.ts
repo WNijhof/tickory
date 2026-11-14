@@ -109,16 +109,23 @@ export async function rolesScenario(c: any) {
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: 'light' }] });
   await click('[data-fk="activity-back"]');
   await waitFor(`document.getElementById('view-title').textContent === 'Familieweekend'`, 'terug naar het project');
+  // op een telefoon: de menubalk onderaan wel, de ronde knop "+" niet (een lezer voegt niets toe)
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(200);
+  assert.deepEqual(await evaluate(`[getComputedStyle(document.getElementById('bottom-nav')).display, document.getElementById('fab').hidden, getComputedStyle(document.getElementById('fab')).display]`), ['flex', true, 'none'], 'geen "+" in een project dat je alleen leest');
 
   // ---- Bob maakt Alice lid: alles werkt weer ----
   await as(bobToken, [['member_update', { project_id: P, user_id: alice.id, role: 'member' }]]);
   await waitFor(`!document.querySelector('[data-fk="readonly-banner"]') && document.querySelectorAll('#content .add-inline').length > 0`, 'Alice kan nu bewerken', 8000);
+  await waitFor(`!document.getElementById('fab').hidden && getComputedStyle(document.getElementById('fab')).display === 'flex'`, 'als lid staat de "+" er wel (telefoon)');
+  await send('Emulation.clearDeviceMetricsOverride', {});
+  await sleep(200);
   await click('#content li.task .check');
   await sleep(400);
   await waitFor(`await ${SYNCED}`, 'afgevinkt en gesynchroniseerd');
   assert.ok((serverState().tasks as any[]).some((t) => t.project_id === P && t.checked && t.content !== 'Spelletjes inpakken'), 'als lid vinkt Alice af');
   await closeToasts();
-  step('rol wijzigen: Bob maakt Alice lid (member_update), de balk verdwijnt en afvinken werkt meteen');
+  step('rol wijzigen: Bob maakt Alice lid (member_update), de balk verdwijnt, op een telefoon verschijnt de "+", en afvinken werkt meteen');
 
   // ---- Alice zet Bob in haar eigen project op "alleen lezen" via het deelvenster ----
   await as(aliceToken, [['project_add', { id: Q, name: 'Moestuin' }], ['project_share', { project_id: Q, username: 'bob' }], ['task_add', { project_id: Q, content: 'Tomaten zaaien', assignee_id: bob.id }]]);

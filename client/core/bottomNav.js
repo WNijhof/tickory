@@ -53,3 +53,22 @@ export function fabTarget(route, { view, userId = null, inboxId = null, browseOp
     default: return null;
   }
 }
+
+/** Hoeveel lager het zichtbare deel van het scherm moet worden voordat we aannemen dat het schermtoetsenbord open is. */
+export const KEYBOARD_MIN = 150;
+
+/**
+ * Houdt bij of het schermtoetsenbord open lijkt: het zichtbare deel van het scherm is flink lager dan het hoogste dat we bij deze
+ * breedte zagen (in de Android-app maakt het toetsenbord de WebView kleiner, in een browser het zichtbare deel). Een andere breedte
+ * (draaien) begint opnieuw. Alleen de hoogte telt niet: de balk verdwijnt pas als er ook in een invoerveld wordt getypt (ui/bottomNav.js),
+ * zodat een lager venster (gesplitst scherm) hem niet laat verdwijnen.
+ * @returns {(size: { width: number, height: number }) => boolean}
+ */
+export function keyboardTracker(min = KEYBOARD_MIN) {
+  let base = null;
+  return ({ width, height }) => {
+    if (!base || width !== base.width) base = { width, height };
+    else if (height > base.height) base.height = height;
+    return base.height - height > min;
+  };
+}
