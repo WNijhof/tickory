@@ -2074,7 +2074,7 @@ if (wants('browser')) {
         assert.deepEqual(site.log.filter((r) => !r.path.startsWith(BASE)).map((r) => r.path), [], `de server zag geen verzoek buiten ${BASE}`);
       });
 
-      await check('demo op een telefoon, licht en donker: uitschuifmenu, niets valt buiten beeld; Engelse balk via ?lang=en', async () => {
+      await check('demo op een telefoon, licht en donker: menubalk onderaan en Bladeren, niets valt buiten beeld; Engelse balk via ?lang=en', async () => {
         b.reset();
         await b.viewport(360, 740, { scale: 2, mobile: true });
         await openDemo('?lang=en');
@@ -2084,10 +2084,21 @@ if (wants('browser')) {
         const bar = await evaluate<{ short: string; long: string; href: string; fits: boolean }>(`(() => { const el = document.getElementById('demo-bar'); const vis = (s) => getComputedStyle(el.querySelector(s)).display !== 'none'; return { short: vis('.demo-bar-short') ? el.querySelector('.demo-bar-short').textContent : '', long: vis('.demo-bar-long') ? el.querySelector('.demo-bar-long').textContent : '', href: el.querySelector('.demo-bar-link').href, fits: el.scrollWidth <= el.clientWidth && el.querySelector('.demo-bar-link').getBoundingClientRect().right <= 360 }; })()`);
         assert.deepEqual(bar, { short: 'Demo: nothing is saved.', long: '', href: `${site.url}en/`, fits: true });
         assert.equal(await evaluate(`getComputedStyle(document.getElementById('sidebar')).position`), 'fixed');
-        await evaluate(`document.getElementById('menu-button').click()`);
+        // de menubalk onderaan (ui/bottomNav.js): vier knoppen, niets afgekapt (Linux-lettertypen zijn breder), de "+" erboven
+        const nav = await evaluate<{ labels: string[]; current: string; clipped: number; bottom: number; small: number; fab: boolean; menu: boolean }>(`(() => {
+          const bar = document.getElementById('bottom-nav'); const items = [...bar.querySelectorAll('.bnav-item')]; const f = document.getElementById('fab');
+          return { labels: items.map((b) => b.querySelector('.bnav-label').textContent), current: bar.querySelector('[aria-current="page"]').dataset.tab,
+            clipped: items.filter((b) => { const l = b.querySelector('.bnav-label'); return l.scrollWidth > l.clientWidth + 1; }).length,
+            bottom: Math.round(window.innerHeight - bar.getBoundingClientRect().bottom), small: Math.min(...items.map((b) => Math.min(b.offsetWidth, b.offsetHeight))),
+            fab: !f.hidden && f.getBoundingClientRect().bottom < bar.getBoundingClientRect().top, menu: Boolean(document.getElementById('menu-button')) };
+        })()`);
+        assert.deepEqual(nav, { labels: ['Inbox', 'Today', 'Upcoming', 'Browse'], current: 'today', clipped: 0, bottom: 0, small: nav.small, fab: true, menu: false });
+        assert.ok(nav.small >= 48, `de knoppen van de balk zijn minstens 48 pixels: ${nav.small}`);
+        await evaluate(`document.querySelector('[data-tab="browse"]').click()`);
         await sleep(300);
-        assert.ok(await evaluate(`(() => { const r = document.getElementById('sidebar').getBoundingClientRect(); return r.left === 0 && r.top === 0 && r.bottom === window.innerHeight; })()`), 'het menu schuift over het hele scherm, ook over de balk');
-        await evaluate(`document.getElementById('scrim').click()`);
+        assert.ok(await evaluate(`(() => { const r = document.getElementById('sidebar').getBoundingClientRect(); const bar = document.getElementById('bottom-nav').getBoundingClientRect(); return r.left === 0 && r.top === 0 && r.right === window.innerWidth && Math.abs(r.bottom - bar.top) <= 1; })()`), 'Bladeren vult het scherm boven de balk, ook over de demobalk');
+        assert.equal(await evaluate(`document.documentElement.scrollWidth`), 360, 'Bladeren past op het scherm');
+        await evaluate(`document.querySelector('[data-tab="browse"]').click()`);
         await evaluate(`document.querySelector('.demo-tips > summary').click()`);
         assert.ok(await evaluate(`(() => { const r = document.querySelector('.demo-tips-body').getBoundingClientRect(); return r.left >= 0 && r.right <= 360 && r.width > 200; })()`), 'de tips passen op het scherm');
         assert.match(await evaluate(`document.querySelector('.demo-tips-body').textContent`), /Things to try/);
@@ -2096,9 +2107,10 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.querySelector('.demo-tips').open`), false, 'Escape sluit de tips');
         await b.colorScheme('dark');
         await sleep(150);
-        const colors = await evaluate<{ bar: string; body: string }>(`({ bar: getComputedStyle(document.getElementById('demo-bar')).backgroundColor, body: getComputedStyle(document.body).backgroundColor })`);
+        const colors = await evaluate<{ bar: string; body: string; nav: string }>(`({ bar: getComputedStyle(document.getElementById('demo-bar')).backgroundColor, body: getComputedStyle(document.body).backgroundColor, nav: getComputedStyle(document.getElementById('bottom-nav')).backgroundColor })`);
         assert.equal(colors.body, 'rgb(22, 25, 28)', 'donker thema');
         assert.notEqual(colors.bar, 'rgba(0, 0, 0, 0)');
+        assert.equal(colors.nav, colors.body, 'de menubalk onderaan is ook donker');
         await b.colorScheme('light');
         assertClean('telefoon');
       });
