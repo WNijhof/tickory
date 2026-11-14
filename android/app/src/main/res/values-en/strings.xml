@@ -161,6 +161,7 @@
     <string name="quick_added">Added</string>
     <string name="quick_added_offline">Added; it will be sent as soon as there is a connection</string>
     <string name="quick_draft_saved">Not added: your text will still be here next time</string>
+    <string name="quick_returned">Not added: %1$s Change it or add it again.</string>
     <string name="quick_draft_restored">Your text from last time is still here</string>
     <string name="quick_queue_full">Too many tasks are already waiting for a connection. Open the app.</string>
     <string name="quick_preview_description">Will be: %1$s</string>

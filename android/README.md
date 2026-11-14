@@ -461,6 +461,8 @@ scherm, boven wat er al staat, zoals de widget van Todoist (`quickadd/QuickAddAc
    - `401`: blijft staan, de sessie is verlopen (zoals bij het afvinken);
    - geen verbinding, `5xx`, `408` of `429`: blijft staan, opnieuw met hetzelfde uuid (oplopende pauzes, daarna het kwartierwerk);
    - na **veertien dagen** zonder verbinding: weg, met een melding.
+   - Mag de app geen meldingen tonen (geen toestemming, meldingen of het kanaal uit), dan komt de tekst met de reden terug in het venster,
+     de volgende keer dat je het opent (`QuickAddStore.keepReturned`, per account, hooguit twintig); na afmelden of bij een ander account niet.
 5. **Wie.** Een taak heeft het account van de gecontroleerde widgetgegevens bij het intypen. Hij gaat alleen mee als dat account nu
    is aangemeld; was het account bij het intypen nog niet bekend (net ingelogd, eerste gegevens nog niet binnen), dan alleen onder
    dezelfde aanmelding. Zolang na een nieuwe aanmelding niet vaststaat van wie de gegevens zijn, wordt niets verstuurd. Een taak van
@@ -524,6 +526,7 @@ Niets hiervan is op een telefoon of emulator geprobeerd. Alleen daar te controle
 - **Herinneringen van meer dan een uur geleden** (toestel stond uit) worden niet alsnog getoond.
 - **Meldingen bij samenwerken komen tot een kwartier later**: zonder pushdienst haalt de app ze op bij het verversen.
 - **Het kleine venster** herkent datums alleen in het Nederlands (zoals de web-app) en heeft geen eigen knoppen voor sectie, labels,
-  herinnering of een andere dag dan vandaag of morgen: typ ze, of gebruik "Openen in de app". Zonder toestemming voor meldingen komt
-  een taak die de server weigert niet als melding terug.
+  herinnering of een andere dag dan vandaag of morgen: typ ze, of gebruik "Openen in de app". Mag de app geen meldingen tonen, dan komt
+  een taak die de server weigert niet als melding terug, maar de volgende keer in het venster zelf (met de reden); na afmelden of bij
+  een ander account niet, want dan hoort er niets van het vorige account op het toestel te blijven.
 - De app plant hooguit 200 herinneringen, tot 30 dagen vooruit; bij elke verversing schuift dat venster mee.

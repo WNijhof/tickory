@@ -289,6 +289,18 @@ class QuickAddActivityTest : WidgetTestBase() {
     }
 
     @Test
+    fun `een taak die niet aankwam (zonder meldingen) staat de volgende keer in het venster, met de reden en het project`() {
+        signIn(withData = data)
+        val item = io.github.wnijhof.tickory.core.QueuedQuickAdd("tickory-q-000000000000000000000009", "Terug van de server", "werk", null, null, "2026-11-13T09:00+01:00", "Europe/Amsterdam", "user-anna-0001", "0123456789abcdef", now)
+        QuickAddStore.keepReturned(app, item, "Je kunt dit project alleen lezen.")
+        val activity = open().get()
+        assertEquals("Terug van de server", activity.input.text.toString())
+        assertEquals("Niet toegevoegd: Je kunt dit project alleen lezen. Pas het aan of voeg het opnieuw toe.", activity.status.text.toString())
+        assertEquals("# Werk", activity.project.text.toString())
+        assertEquals("maar één keer", "", open().get().input.text.toString())
+    }
+
+    @Test
     fun `het concept van een andere gebruiker komt niet terug`() {
         signIn(withData = data)
         QuickAddStore.saveDraft(app, "user-bram-0002", "Van Bram")

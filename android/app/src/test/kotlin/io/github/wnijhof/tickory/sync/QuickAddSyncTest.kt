@@ -271,9 +271,26 @@ class QuickAddSyncTest : WidgetTestBase() {
     }
 
     @Test
-    fun `de melding zonder toestemming voor meldingen - geen fout`() {
+    fun `zonder toestemming voor meldingen - de tekst komt terug in het venster, met de reden, na afmelden of bij een ander account niet`() {
         shadowOf(app).denyPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
-        QuickAddNotifier.notDelivered(app, item(), QuickAddNotifier.Reason.FORBIDDEN)
+        QuickAddNotifier.notDelivered(app, item(n = 1, text = "Geweigerd", project = "project-werk-001"), QuickAddNotifier.Reason.FORBIDDEN)
+        QuickAddNotifier.notDelivered(app, item(n = 2, text = "Afgemeld"), QuickAddNotifier.Reason.SIGNED_OUT)
+        QuickAddNotifier.notDelivered(app, item(n = 3, text = "Ander account"), QuickAddNotifier.Reason.OTHER_ACCOUNT)
+        QuickAddNotifier.notDelivered(app, item(n = 4, text = "Van Bram", account = bram), QuickAddNotifier.Reason.EXPIRED)
+        assertTrue(notifications.isEmpty())
+        assertEquals("niet voor een ander account", null, QuickAddStore.takeReturned(app, "user-carol-003"))
+        val first = QuickAddStore.takeReturned(app, anna)!!
+        assertEquals("Geweigerd", first.text)
+        assertEquals("project-werk-001", first.projectId)
+        assertEquals("Je kunt dit project alleen lezen.", first.why)
+        assertEquals("de taak van Bram krijgt Anna niet te zien", null, QuickAddStore.takeReturned(app, anna))
+        assertEquals("Van Bram", QuickAddStore.takeReturned(app, bram)!!.text)
+        // ook als meldingen voor de app uit staan (Android 12 en ouder: geen toestemming, wel een schakelaar)
+        shadowOf(app).grantPermissions(android.Manifest.permission.POST_NOTIFICATIONS)
+        shadowOf(app.getSystemService(NotificationManager::class.java)).setNotificationsEnabled(false)
+        assertFalse(QuickAddNotifier.canNotify(app))
+        QuickAddNotifier.notDelivered(app, item(n = 5, text = "Meldingen uit"), QuickAddNotifier.Reason.LIMIT)
+        assertEquals("Meldingen uit", QuickAddStore.takeReturned(app, anna)!!.text)
         assertNotNull(notifications)
     }
 

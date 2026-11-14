@@ -18,6 +18,7 @@ import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.QueuedQuickAdd
 import io.github.wnijhof.tickory.core.QuickAddQueue
+import io.github.wnijhof.tickory.store.QuickAddStore
 import java.time.DateTimeException
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -64,17 +65,32 @@ object QuickAddNotifier {
         manager.createNotificationChannel(channel)
     }
 
-    /** Eén melding per taak die niet aankwam. Zonder toestemming voor meldingen kan het niet; dan staat de tekst nergens meer (zie README). */
-    fun notDelivered(context: Context, item: QueuedQuickAdd, reason: Reason, code: String? = null) {
+    /** Kan de app nu een melding in dit kanaal tonen? (De toestemming op Android 13 en nieuwer, meldingen aan, het kanaal niet uit.) */
+    fun canNotify(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "melding niet getoond: geen toestemming") // geen tekst in het logboek
+            return false
+        }
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        val channel = context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(CHANNEL_ID)
+        return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
+    }
+
+    /**
+     * Eén melding per taak die niet aankwam. Mag de app geen meldingen tonen, dan komt de tekst (bij een weigering, een oudere
+     * server of na veertien dagen) terug in het kleine venster, de volgende keer dat je het opent, met de reden erbij. Na afmelden of
+     * bij een ander account niet: dan hoort er niets van het vorige account op het toestel te blijven.
+     */
+    fun notDelivered(context: Context, item: QueuedQuickAdd, reason: Reason, code: String? = null) {
+        val why = explanation(context, reason, code)
+        if (!canNotify(context)) {
+            Log.w(TAG, "melding niet getoond: meldingen staan uit") // geen tekst in het logboek
+            if (reason != Reason.SIGNED_OUT && reason != Reason.OTHER_ACCOUNT) QuickAddStore.keepReturned(context, item, why)
             return
         }
         ensureChannel(context)
         val title = context.getString(R.string.quick_failed_title, item.text.replace(Regex("\\s+"), " ").trim())
-        val why = explanation(context, reason, code)
         val open = openIntent(context, item)
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_reminder)

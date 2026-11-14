@@ -159,11 +159,16 @@ class QuickAddActivity : ComponentActivity() {
             }
         }
         if (savedInstanceState == null) {
-            QuickAddStore.draft(app, account)?.let { text ->
+            val draft = QuickAddStore.draft(app, account)
+            // zonder concept: een taak die niet aankwam terwijl de app geen meldingen mocht tonen, met de reden
+            val returned = if (draft == null) QuickAddStore.takeReturned(app, account) else null
+            val text = draft ?: returned?.text
+            if (text != null) {
                 input.setText(text)
                 input.setSelection(input.text.length)
-                showStatus(getString(R.string.quick_draft_restored))
+                showStatus(if (returned != null) getString(R.string.quick_returned, returned.why) else getString(R.string.quick_draft_restored))
             }
+            returned?.projectId?.takeIf { id -> choices.any { it.id == id } }?.let { projectId = it }
         }
 
         projectButton.setOnClickListener { chooseProject() }

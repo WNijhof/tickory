@@ -166,6 +166,7 @@
     <string name="quick_added">Toegevoegd</string>
     <string name="quick_added_offline">Toegevoegd, wordt verstuurd zodra er verbinding is</string>
     <string name="quick_draft_saved">Niet toegevoegd: je tekst staat er de volgende keer nog</string>
+    <string name="quick_returned">Niet toegevoegd: %1$s Pas het aan of voeg het opnieuw toe.</string>
     <string name="quick_draft_restored">Je tekst van de vorige keer staat er nog</string>
     <string name="quick_queue_full">Er wachten al te veel taken op verbinding. Open de app.</string>
     <string name="quick_preview_description">Wordt: %1$s</string>
