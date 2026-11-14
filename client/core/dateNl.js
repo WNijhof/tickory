@@ -206,7 +206,7 @@ function adjustToDaypart(time, part) {
 const isoWeekday = (d) => d.getDay() || 7;
 
 /** De eerste datum vanaf vandaag die bij de regel past. */
-function firstOccurrence(rule, now, time) {
+export function firstOccurrence(rule, now, time) {
   const today = startOfDay(now);
   let d = new Date(today);
   if (rule.nth !== undefined) {
