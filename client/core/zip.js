@@ -94,7 +94,7 @@ const isNoise = (path) => path.endsWith('/') || /(^|\/)__MACOSX\//.test(path) ||
  * Pakt "deflate" uit met de ingebouwde uitpakker, in kleine stukjes, en stopt zodra er meer uitkomt dan `max`.
  * @returns {Promise<Uint8Array | 'tooBig' | 'corrupt'>}
  */
-async function inflate(data, max) {
+export async function inflate(data, max) {
   if (typeof DecompressionStream !== 'function') return 'corrupt';
   let stream;
   try {
@@ -244,8 +244,7 @@ export async function readZip(bytes, { accept = () => true, limits = {} } = {}) 
     const data = bytes.subarray(r.start, r.start + r.compressed);
     let out;
     if (r.method === 0) {
-      if (r.compressed !== r.size) return fail('corrupt', `${path}: verkeerde grootte`);
-      out = data.slice();
+      out = data.slice(); // een verkeerde grootte valt hieronder op
     } else if (r.method === 8) {
       out = await inflate(data, Math.min(r.size, lim.fileBytes, lim.totalBytes - total));
       if (out === 'tooBig') return fail('corrupt', `${path}: groter dan het register zegt`);

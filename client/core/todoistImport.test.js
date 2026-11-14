@@ -117,6 +117,7 @@ test('labels: @naam uit de titel, leestekens erachter, dubbel, ongeldig en een e
   assert.deepEqual(extractLabels('@a @A @a'), { text: '', labels: ['a'] });
   assert.deepEqual(extractLabels('Lang @'.concat('x'.repeat(101))), { text: `Lang @${'x'.repeat(101)}`, labels: [] });
   assert.deepEqual(extractLabels('Zoë @café_bezoek'), { text: 'Zoë', labels: ['café_bezoek'] });
+  assert.deepEqual(extractLabels('Iets @a,b'), { text: 'Iets @a,b', labels: [] }, 'een komma in een labelnaam kan niet');
   const p = one(csv(HEADER, 'task,@alleen_label,,4,1', 'task,* Niet af te vinken @werk,,4,1'));
   assert.deepEqual(tasksOf(p).map((x) => [x.content, x.labels]), [['@alleen_label', []], ['Niet af te vinken', ['werk']]], 'alleen een label: de tekst blijft de titel');
   assert.deepEqual(p.stats.labels, ['werk']);
@@ -286,6 +287,8 @@ test('mappen uit bestandsnamen: "Werk - Klanten" onder "Werk" alleen als dat een
   assert.deepEqual(set.map((p) => [p.name, p.parentKey]), [['Werk', null], ['Klanten', 'a'], ['Acme', 'b'], ['Boodschappen - Markt', null], ['Huis - Tuin', null]]);
   const twice = nestByName([mk('Werk', 'a'), mk('werk', 'b'), mk('Werk - Klanten', 'c')]);
   assert.deepEqual(twice.map((p) => [p.name, p.parentKey]), [['Werk', null], ['werk', null], ['Werk - Klanten', null]], 'twee mogelijke ouders: niet raden');
+  const deeper = nestByName([mk('A', 'a'), mk('A - B', 'b'), mk('a - b', 'c'), mk('A - B - C', 'd')]);
+  assert.deepEqual(deeper.map((p) => [p.name, p.parentKey]), [['A', null], ['B', 'a'], ['b', 'a'], ['A - B - C', null]], 'het langste begin is dubbelzinnig: dan ook geen korter begin proberen');
   const own = nestByName([{ ...mk('Werk', 'a'), source: 'tickory-json' }, mk('Werk - Klanten', 'b')]);
   assert.equal(own[1].parentKey, null, 'alleen tussen bestanden van Todoist');
 });
@@ -429,7 +432,7 @@ test('het plan: per project één reeks in de goede volgorde, ouders eerst, kort
   assert.equal(tasks.length, 401);
   assert.ok(tasks.every((c) => isValidKey(c.args.order_key) && c.args.order_key.length <= 64));
   const keys = tasks.slice(0, 400).map((c) => c.args.order_key);
-  assert.deepEqual([...keys].sort(), keys, 'oplopend');
+  assert.ok(keys.every((k, i) => i === 0 || keys[i - 1] < k), 'strikt oplopend');
   assert.equal(tasks[400].args.parent_id, tasks[399].args.id);
   assert.equal(tasks[400].args.section_id, undefined, 'een subtaak volgt de sectie van haar ouder');
   const note = first.at(-1);
@@ -438,6 +441,13 @@ test('het plan: per project één reeks in de goede volgorde, ouders eerst, kort
   assert.equal(plan.counts.projects, 3);
   assert.equal(plan.counts.tasks, 402);
   assert.equal(plan.counts.comments, 1);
+});
+
+test('het plan: een opmerking bij het project komt direct na het project', () => {
+  const p = one(csv(HEADER, 'note,Over alles,,,,', 'task,Iets,,4,1'), 'Notities.csv');
+  const commands = planFor([p]).batches[0].commands;
+  assert.deepEqual(commands.slice(0, 2).map((c) => c.type), ['project_add', 'comment_add']);
+  assert.deepEqual([commands[1].args.project_id, commands[1].args.content, commands[1].args.task_id], [commands[0].args.id, 'Over alles', undefined]);
 });
 
 test('het plan: los bovenaan, een Inbox krijgt een eigen naam, een kind zonder gekozen ouder komt bovenaan', () => {

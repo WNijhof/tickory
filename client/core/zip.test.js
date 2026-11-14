@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { crc32 as fixtureCrc, deflateRaw, makeZip } from '../../scripts/zipFixture.ts';
-import { crc32, isSafeZipName, looksLikeZip, readZip } from './zip.js';
+import { crc32, inflate, isSafeZipName, looksLikeZip, readZip } from './zip.js';
 
 const text = (bytes) => new TextDecoder().decode(bytes);
 const csv = 'TYPE,CONTENT\r\ntask,Brood halen\r\n';
@@ -78,6 +78,17 @@ test('readZip: een naam zonder UTF-8-vlag in de oude codering wordt toch leesbaa
 
 test('readZip: versleuteld, ZIP64 en geen zip worden geweigerd', async () => {
   assert.equal((await readZip(await makeZip([{ name: 'a.csv', data: csv, flags: 1 }]))).code, 'encrypted');
+  const onlyCentral = await makeZip([{ name: 'a.csv', data: csv }]);
+  const oc = new DataView(onlyCentral.buffer);
+  oc.setUint16(oc.getUint32(onlyCentral.length - 22 + 16, true) + 8, 0x801, true);
+  assert.equal((await readZip(onlyCentral)).code, 'encrypted', 'de vlag alleen in het register');
+  const onlyLocal = await makeZip([{ name: 'a.csv', data: csv }]);
+  new DataView(onlyLocal.buffer).setUint16(6, 0x801, true);
+  assert.equal((await readZip(onlyLocal)).code, 'encrypted', 'de vlag alleen in de lokale kop');
+  const aes = await makeZip([{ name: 'a.csv', data: csv, method: 0 }]);
+  const av = new DataView(aes.buffer);
+  av.setUint16(av.getUint32(aes.length - 22 + 16, true) + 10, 99, true);
+  assert.equal((await readZip(aes)).code, 'encrypted', 'AES (methode 99)');
   assert.equal((await readZip(await makeZip([{ name: 'a.csv', data: csv }], { zip64Locator: true }))).code, 'zip64');
   const z64 = await makeZip([{ name: 'a.csv', data: csv }]);
   new DataView(z64.buffer).setUint32(z64.length - 22 + 16, 0xffffffff, true);
@@ -90,6 +101,8 @@ test('readZip: versleuteld, ZIP64 en geen zip worden geweigerd', async () => {
   assert.equal((await readZip(new Uint8Array(3))).code, 'notZip');
   assert.equal((await readZip('PK')).code, 'notZip');
   assert.equal(looksLikeZip(new TextEncoder().encode(csv)), false);
+  assert.equal(looksLikeZip(new TextEncoder().encode('PKZIP is een oud programma')), false, 'PK alleen is niet genoeg');
+  assert.equal(looksLikeZip(await makeZip([])), true, 'een lege zip begint met PK 5 6');
 });
 
 test('readZip: afgekapt of kapot geeft een fout, nooit een half resultaat', async () => {
@@ -124,6 +137,15 @@ test('readZip: afgekapt of kapot geeft een fout, nooit een half resultaat', asyn
   new DataView(count.buffer).setUint16(count.length - 22 + 8, 2, true);
   new DataView(count.buffer).setUint16(count.length - 22 + 10, 2, true);
   assert.equal((await readZip(count)).code, 'corrupt');
+  // het register zegt groter te zijn dan het is (loopt over het einde heen)
+  const longer = await makeZip([{ name: 'a.csv', data: csv }]);
+  const lv = new DataView(longer.buffer);
+  lv.setUint32(longer.length - 22 + 12, lv.getUint32(longer.length - 22 + 12, true) + 30, true);
+  assert.equal((await readZip(longer)).code, 'corrupt');
+  // de lokale kop heeft geen handtekening
+  const unsigned = await makeZip([{ name: 'a.csv', data: csv }]);
+  unsigned[0] = 0;
+  assert.equal((await readZip(unsigned)).code, 'corrupt');
   // meerdere schijven
   const disks = await makeZip([{ name: 'a.csv', data: csv }]);
   new DataView(disks.buffer).setUint16(disks.length - 22 + 4, 1, true);
@@ -174,6 +196,20 @@ test('readZip: een onbekende compressiemethode wordt overgeslagen, niet geraden'
   const r = await readZip(zip);
   assert.deepEqual(r.files.map((f) => f.name), ['b.csv']);
   assert.deepEqual(r.skipped, [{ name: 'a.csv', reason: 'method' }]);
+});
+
+test('inflate: stopt bij de grens in plaats van alles uit te pakken', async () => {
+  const packed = await deflateRaw(new Uint8Array(1024 * 1024));
+  assert.equal(await inflate(packed, 1000), 'tooBig');
+  assert.equal((await inflate(packed, 1024 * 1024)).length, 1024 * 1024);
+  assert.equal(await inflate(Uint8Array.from([0xff, 0xff, 0xff]), 100), 'corrupt');
+});
+
+test('readZip: een naam met de UTF-8-vlag maar zonder geldige UTF-8 wordt overgeslagen', async () => {
+  const zip = await makeZip([{ name: '', rawName: Uint8Array.from([0xff, 0x2e, 0x63, 0x73, 0x76]), flags: 0x800, data: csv }]);
+  const r = await readZip(zip);
+  assert.deepEqual(r.files, []);
+  assert.deepEqual(r.skipped, [{ name: '?', reason: 'unsafe' }]);
 });
 
 test('readZip: een lege zip en het meest compacte geval', async () => {
