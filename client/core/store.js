@@ -219,6 +219,8 @@ export class Store {
     }
     drop('comments', (c) => (c.task_id ? !base.tasks.has(c.task_id) : false));
     drop('reminders', (r) => !base.tasks.has(r.task_id));
+    // een locatieherinnering zonder plaats (de plaats is weg) doet niets meer
+    drop('reminders', (r) => Boolean(r.place_id) && !base.places.has(r.place_id));
   }
 
   /**

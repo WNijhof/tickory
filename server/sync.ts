@@ -10,7 +10,7 @@
 //
 // Wie wat ziet (zie `visibility`):
 //   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
-//   - labels, filters en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
+//   - labels, filters, plaatsen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet).
 // Verandert wat iemand mag zien (lid worden, verwijderd worden, een taak die naar een project van anderen verhuist), dan
 // krijgt die persoon dat in de delta mee: alle inhoud van een nieuw project, of een verwijdering van wat verdween.
 
@@ -61,7 +61,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -229,6 +229,14 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       break;
     case 'reminder': {
       const due = v.due as { date: string } | null;
+      if (v.type === 'location') {
+        if (!v.place_id) fail('INVALID_ARG', 'een locatieherinnering heeft place_id nodig');
+        if (!v.trigger) fail('INVALID_ARG', 'een locatieherinnering heeft trigger nodig (enter of leave)');
+        if (due) fail('INVALID_ARG', 'een locatieherinnering heeft geen due');
+        if (v.minute_offset !== null && v.minute_offset !== undefined) fail('INVALID_ARG', 'een locatieherinnering heeft geen minute_offset');
+        break;
+      }
+      if (v.place_id || v.trigger) fail('INVALID_ARG', 'place_id en trigger horen alleen bij een locatieherinnering');
       if (v.type === 'relative') {
         if (v.minute_offset === null || v.minute_offset === undefined) fail('INVALID_ARG', 'een relatieve herinnering heeft minute_offset nodig');
         if (due) fail('INVALID_ARG', 'een relatieve herinnering heeft geen due');
@@ -300,6 +308,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
     case 'reminder':
       quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
       quota(ctx, `reminders:u:${ctx.userId}`, LIMITS.remindersPerUser, 'herinneringen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'place':
+      quota(ctx, `places:${ctx.userId}`, LIMITS.placesPerUser, 'plaatsen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
       break;
     default:
       break;
@@ -389,6 +400,11 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       break;
     }
     case 'task': deleteTaskTree(ctx, [id]); break;
+    case 'place':
+      // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
+      mark(ctx, 'reminders', 'place_id = ?', [id]);
+      mark(ctx, 'places', 'id = ?', [id]);
+      break;
     case 'label': {
       mark(ctx, 'labels', 'id = ?', [id]);
       // het label ook van alle taken halen; labels staan als id-lijst op de taak
@@ -602,11 +618,12 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
        UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
     since, since, since, since, since, since, since,
   );
-  // wat van één persoon is: labels, filters, herinneringen en instellingen
+  // wat van één persoon is: labels, filters, herinneringen, plaatsen en instellingen
   collect(
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
-     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?`,
-    since, since, since, since,
+     UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
+     UNION SELECT owner_id FROM places WHERE rev > ?`,
+    since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -685,7 +702,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
   }
 }
