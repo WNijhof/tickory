@@ -99,6 +99,7 @@
         { "nl": "handleiding/meldingen.html", "en": "guide/notifications.html" },
         { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
         { "nl": "handleiding/exporteren.html", "en": "guide/export.html" },
+        { "nl": "handleiding/weergave.html", "en": "guide/appearance.html" },
         { "nl": "handleiding/installeren-als-app.html", "en": "guide/install-as-app.html" },
         { "nl": "handleiding/android-app.html", "en": "guide/android-app.html" },
         { "nl": "handleiding/widgets.html", "en": "guide/widgets.html" },

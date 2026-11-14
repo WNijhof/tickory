@@ -32,7 +32,9 @@ import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
+import { appearanceDialog } from './appearance.js';
 import { exportDialog } from './exportDialog.js';
+import { applyAppearance, readAppearance } from '../core/theme.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
@@ -430,6 +432,7 @@ const handlers = {
         { value: 'export', label: t('settings.export') },
         { value: 'templates', label: t('settings.templates') },
         { value: 'sync', label: t('settings.syncNow') },
+        { value: 'appearance', label: t('settings.appearance') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
       ],
@@ -440,6 +443,7 @@ const handlers = {
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'export') await exportDialog({ store, bridge });
     else if (choice === 'templates') await templatesUi().manage();
+    else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
@@ -640,7 +644,16 @@ function maybeSetTimezone() {
 
 // ---------- opstarten ----------
 
+/** Thema en accentkleur van dit apparaat: meteen bij het starten, nog eens als alle stylesheets binnen zijn, en mee met het systeem. */
+function startAppearance() {
+  const apply = () => applyAppearance(document, readAppearance());
+  apply();
+  window.addEventListener('load', apply, { once: true });
+  globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', apply);
+}
+
 async function boot() {
+  startAppearance();
   try {
     // In de demo bewaren we niets: elke keer openen begint opnieuw met de voorbeeldgegevens.
     adapter = backend.demo ? new MemoryAdapter() : new IdbAdapter();

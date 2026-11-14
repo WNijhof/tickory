@@ -617,9 +617,52 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'exportscherm gesloten');
   await evaluate(`delete HTMLAnchorElement.prototype.click`);
 
+  // weergave: donker en een andere accentkleur, meteen zichtbaar, bewaard na herladen; licht kiezen op een donker apparaat; terug naar de standaard
+  const wasDark = await evaluate<boolean>(`matchMedia('(prefers-color-scheme: dark)').matches`);
+  const emulateScheme = (value: string) => send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value }] });
+  const accentNow = () => evaluate<string>(`getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()`);
+  const bgNow = () => evaluate<string>(`getComputedStyle(document.body).backgroundColor`);
+  const LIGHT_BG = 'rgb(255, 255, 255)';
+  const DARK_BG = 'rgb(22, 25, 28)';
+  const openAppearance = async () => {
+    await openMenu('Alice');
+    await clickText('Weergave');
+    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Weergave'`, 'scherm Weergave');
+  };
+  await emulateScheme('light');
+  assert.equal(await bgNow(), LIGHT_BG, 'het apparaat staat licht');
+  await openAppearance();
+  await click('dialog[open] [data-role="theme-choice"] input[value="dark"]');
+  await click('dialog[open] [data-role="accent-choice"] input[value="rose"]');
+  await waitFor(`document.documentElement.dataset.theme === 'dark' && document.documentElement.dataset.accent === 'rose'`, 'donker en roze gekozen');
+  assert.equal(await accentNow(), '#f9a8c9', 'de donkere roze accentkleur');
+  assert.equal(await bgNow(), DARK_BG, 'donker, ook al staat het apparaat licht');
+  assert.equal(await evaluate(`document.querySelector('meta[name="theme-color"]').content`), '#f9a8c9');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'weergave gesloten');
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.documentElement.dataset.theme === 'dark'`, 'na herladen nog steeds donker');
+  assert.equal(await accentNow(), '#f9a8c9');
+  assert.equal(await bgNow(), DARK_BG);
+  await emulateScheme('dark');
+  await openAppearance();
+  await click('dialog[open] [data-role="theme-choice"] input[value="light"]');
+  await waitFor(`document.documentElement.dataset.theme === 'light'`, 'licht gekozen');
+  assert.equal(await bgNow(), LIGHT_BG, 'licht, ook al staat het apparaat donker');
+  assert.equal(await accentNow(), '#be185d', 'de lichte roze accentkleur');
+  await click('dialog[open] [data-role="theme-choice"] input[value="system"]');
+  await waitFor(`!document.documentElement.dataset.theme`, 'zoals het apparaat');
+  assert.equal(await bgNow(), DARK_BG, 'zoals het apparaat: donker');
+  await click('dialog[open] [data-role="accent-choice"] input[value="teal"]');
+  await waitFor(`!document.documentElement.dataset.accent`, 'standaardkleur');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.theme') === null && localStorage.getItem('tickory.accent') === null`), true, 'de standaard staat niet in de opslag');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'weergave weer gesloten');
+  await emulateScheme(wasDark ? 'dark' : 'light');
+
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -787,7 +830,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Templates', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
