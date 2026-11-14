@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { shareDraft, shareFromHash } from './share.js';
+import { shareDraft, shareFromHash, shareTarget } from './share.js';
 
 const hashOf = (obj) => `#share=${Buffer.from(JSON.stringify(obj), 'utf8').toString('base64url')}`;
 
@@ -81,4 +81,19 @@ test('inkorten gebeurt op een woordgrens: er blijft geen half woord staan', () =
   const d = shareDraft({ title: 'abcdefghij '.repeat(40) });
   const words = d.title.slice(0, -1).split(' ');
   assert.ok(words.every((w) => w === 'abcdefghij'), d.title);
+});
+
+test('"Openen in de app" uit het kleine venster: project, sectie en dag gaan mee, alleen als ze geldig zijn', () => {
+  const d = shareFromHash(hashOf({ title: 'Tandarts bellen morgen p1', text: '', project: 'project-thuis-01', section: 'section-klus-01', due: 'today' }));
+  assert.deepEqual(d, { title: 'Tandarts bellen morgen p1', description: '', projectId: 'project-thuis-01', sectionId: 'section-klus-01', due: 'today' });
+  assert.deepEqual(shareTarget({ project: 'inbox-abc', due: '2026-11-14' }), { projectId: 'inbox-abc', due: '2026-11-14' });
+  // een sectie zonder project telt niet; vreemde waarden vallen weg
+  assert.deepEqual(shareTarget({ section: 'section-klus-01' }), {});
+  for (const bad of [{ project: 'a b' }, { project: 'x'.repeat(41) }, { project: 5 }, { project: '<img>' }, { due: 'morgen' }, { due: '2026-02-30' }, { due: '2026-11-14T09:00' }, { due: 20261114 }, null, undefined, 'tekst']) {
+    assert.deepEqual(shareTarget(bad), {}, JSON.stringify(bad));
+  }
+  // met bestanden blijft het doel er ook bij
+  const withFiles = shareFromHash(hashOf({ title: 'Bon', text: '', project: 'project-thuis-01', token: 'abcdefghijklmnop', files: [{ name: 'bon.pdf', mime: 'application/pdf', size: 10 }] }));
+  assert.equal(withFiles.projectId, 'project-thuis-01');
+  assert.equal(withFiles.files.length, 1);
 });

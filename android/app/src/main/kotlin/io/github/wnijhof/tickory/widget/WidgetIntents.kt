@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.quickadd.QuickAddActivity
 import io.github.wnijhof.tickory.reminders.Notifications
 
 /**
@@ -31,12 +32,15 @@ object WidgetIntents {
         return PendingIntent.getActivity(context, REQUEST_OPEN_APP, intent, IMMUTABLE)
     }
 
-    /** De knop "+": de app openen op het venster Taak toevoegen ([target]: zie DeepLink.add). */
+    /**
+     * De knop "+": het kleine venster Taak toevoegen over het startscherm ([target]: "today" met de knop Vandaag aan, een
+     * project-id in dat project, of niets voor het laatst gekozen project). Zonder aanmelding opent dat venster zelf de app.
+     */
     fun addTask(context: Context, target: String?): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java)
+        val intent = Intent(context, QuickAddActivity::class.java)
             .setData(Uri.Builder().scheme("tickory").authority("widget").appendPath("add").appendPath(target ?: "-").build())
             .putExtra(DeepLink.EXTRA_ADD, target ?: "")
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(context, REQUEST_ADD, intent, IMMUTABLE)
     }
 

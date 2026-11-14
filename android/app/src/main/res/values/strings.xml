@@ -144,4 +144,55 @@
     <string name="inbox_other">%1$s deed iets in een gedeeld project</string>
     <string name="inbox_someone">Iemand</string>
     <string name="inbox_open">Openen</string>
+
+    <!-- Het kleine venster "Taak toevoegen" (over het startscherm, vanuit een widget of de tegel) -->
+    <string name="quick_title">Taak toevoegen</string>
+    <string name="quick_hint">Bijv. Tandarts bellen morgen 9 uur #Thuis p1</string>
+    <string name="quick_add">Toevoegen</string>
+    <string name="quick_today">Vandaag</string>
+    <string name="quick_tomorrow">Morgen</string>
+    <string name="quick_priority">Prioriteit</string>
+    <string name="quick_priority_short">P%1$d</string>
+    <string name="quick_priority_1">Prioriteit 1 (hoogste)</string>
+    <string name="quick_priority_2">Prioriteit 2</string>
+    <string name="quick_priority_3">Prioriteit 3</string>
+    <string name="quick_priority_4">Geen prioriteit</string>
+    <string name="quick_priority_description">Prioriteit: %1$s. Tik om te wijzigen.</string>
+    <string name="quick_inbox">Inbox</string>
+    <string name="quick_project_description">Project: %1$s. Tik om te wijzigen.</string>
+    <string name="quick_choose_project">Kies een project</string>
+    <string name="quick_keep_open">Nog een toevoegen</string>
+    <string name="quick_open_app">Openen in de app</string>
+    <string name="quick_added">Toegevoegd</string>
+    <string name="quick_added_offline">Toegevoegd, wordt verstuurd zodra er verbinding is</string>
+    <string name="quick_draft_saved">Niet toegevoegd: je tekst staat er de volgende keer nog</string>
+    <string name="quick_returned">Niet toegevoegd: %1$s Pas het aan of voeg het opnieuw toe.</string>
+    <string name="quick_draft_restored">Je tekst van de vorige keer staat er nog</string>
+    <string name="quick_queue_full">Er wachten al te veel taken op verbinding. Open de app.</string>
+    <string name="quick_preview_description">Wordt: %1$s</string>
+    <string name="quick_preview_no_name">(zonder naam)</string>
+    <string name="quick_preview_new_label">@%1$s (nieuw)</string>
+    <string name="quick_preview_deadline">Deadline %1$s</string>
+    <string name="quick_preview_reminder">Herinnering %1$s</string>
+    <string name="quick_reminder_at_time">op het tijdstip</string>
+    <string name="quick_reminder_minutes">%1$d min ervoor</string>
+    <string name="quick_reminder_hours">%1$d uur ervoor</string>
+    <plurals name="quick_reminder_days">
+        <item quantity="one">%1$d dag ervoor</item>
+        <item quantity="other">%1$d dagen ervoor</item>
+    </plurals>
+    <string name="quick_recurring">elke keer: %1$s</string>
+    <string name="channel_quickadd">Taken toevoegen</string>
+    <string name="channel_quickadd_description">Als een taak uit het kleine venster Taak toevoegen niet kon worden toegevoegd</string>
+    <string name="quick_failed_title">Niet toegevoegd: %1$s</string>
+    <string name="quick_failed_forbidden">Je kunt dit project alleen lezen.</string>
+    <string name="quick_failed_not_found">Het project bestaat niet meer, of je bent er geen lid meer van.</string>
+    <string name="quick_failed_limit">Er is een grens bereikt (bijvoorbeeld het aantal taken of labels).</string>
+    <string name="quick_failed_invalid">Van deze tekst kon geen taak worden gemaakt (bijvoorbeeld alleen een datum of label).</string>
+    <string name="quick_failed_unsupported">Je server kent het snelle toevoegen nog niet. Werk Tickory op de server bij, of voeg de taak toe in de app.</string>
+    <string name="quick_failed_expired">Er was twee weken geen verbinding met de server.</string>
+    <string name="quick_failed_signed_out">Je bent afgemeld voordat de taak verstuurd was.</string>
+    <string name="quick_failed_other_account">Er is intussen met een ander account ingelogd.</string>
+    <string name="quick_failed_other">De server weigerde de taak (%1$s).</string>
+    <string name="quick_failed_action">In de app toevoegen</string>
 </resources>

@@ -249,6 +249,21 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.NoDisplay" />
 
+        <!--
+          Het kleine venster "Taak toevoegen" over het startscherm (de "+" van een widget, de knop-widget en de tegel). Alleen de app
+          zelf kan het openen (exported="false", via haar eigen onveranderlijke intenties); een eigen taak (taskAffinity leeg), niet in
+          de lijst met recente apps, zodat het boven het startscherm verschijnt en niet de volledige app naar voren haalt.
+        -->
+        <activity
+            android:name=".quickadd.QuickAddActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/quick_title"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Tickory.QuickAdd"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
+
         <activity
             android:name=".widget.WidgetConfigActivity"
             android:exported="true"

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Het streepje bovenaan het vlak: een teken dat het een los venster is. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="2dp" />
+    <solid android:color="@color/quick_stroke" />
+    <size android:width="36dp" android:height="4dp" />
+</shape>

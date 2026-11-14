@@ -8,4 +8,9 @@
     <color name="text_soft">#9AA5B1</color>
     <color name="danger">#F97066</color>
     <color name="warn">#FDB022</color>
+
+    <color name="quick_surface">#1F2327</color>
+    <color name="quick_stroke">#46505A</color>
+    <color name="quick_chip">#2A3036</color>
+    <color name="quick_chip_on">#123F3A</color>
 </resources>

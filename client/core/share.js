@@ -3,11 +3,15 @@
 // Alles wat hier binnenkomt is tekst van een andere app en dus onbetrouwbaar: alleen tekst, nooit HTML, en met grenzen.
 // Deelt de andere app ook bestanden, dan staan in hetzelfde JSON-object `token` en `files` ([{ name, mime, size }]): de inhoud van elk
 // bestand haalt de pagina op bij `/__tickory_share/<token>/<nummer>`, dat de Android-app zelf beantwoordt (zie fetchSharedFiles).
+// "Openen in de app" in het kleine venster Taak toevoegen van de Android-app gebruikt dezelfde weg, met waar de taak moet komen:
+// `project`, `section` (id's) en `due` ('today' of 'YYYY-MM-DD'). Een oudere web-app slaat die over en opent in de Inbox.
 
 import { cleanFileName, normalizeMime } from '../../shared/attachments.js';
+import { isValidDate } from '../../shared/recurrence.js';
 
 const MAX_SHARED_FILES = 20;
 const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
+const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
 const MAX_TITLE = 200; // een titel is een korte regel; wat langer is gaat naar de beschrijving
 const MAX_DESCRIPTION = 16_000; // gelijk aan de grens van het veld
@@ -65,13 +69,27 @@ export function shareFromHash(hash) {
     if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
     const files = sharedFiles(data);
     const draft = shareDraft(data);
-    if (files.length === 0) return draft;
+    const where = shareTarget(data);
+    if (files.length === 0) return draft && { ...draft, ...where };
     // Alleen bestanden: de titel is de naam van het eerste bestand (zonder uitgang), de gebruiker past hem nog aan.
     const first = files[0].name.replace(/\.[A-Za-z0-9]{1,8}$/, '');
-    return { title: draft?.title ?? first, description: draft?.description ?? '', files, token: data.token };
+    return { title: draft?.title ?? first, description: draft?.description ?? '', ...where, files, token: data.token };
   } catch {
     return null;
   }
+}
+
+/**
+ * Waar de taak moet komen, als de Android-app dat meegeeft ("Openen in de app"): `{ projectId, sectionId, due }` met alleen wat
+ * geldig is. Of de gebruiker in dat project iets mag zetten, beslist het venster zelf (anders de Inbox).
+ * @returns {{ projectId?: string, sectionId?: string, due?: string }}
+ */
+export function shareTarget(data) {
+  const out = {};
+  if (typeof data?.project === 'string' && ID_RE.test(data.project)) out.projectId = data.project;
+  if (out.projectId && typeof data.section === 'string' && ID_RE.test(data.section)) out.sectionId = data.section;
+  if (data?.due === 'today' || (typeof data?.due === 'string' && data.due.length === 10 && isValidDate(data.due))) out.due = data.due;
+  return out;
 }
 
 /**

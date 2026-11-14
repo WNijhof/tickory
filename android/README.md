@@ -32,7 +32,9 @@ sleutel zijn ondertekend (zie [Ondertekenen](#ondertekenen)). Android 8 of nieuw
 | Netwerkstatus en wakker blijven | Voor het verversen op de achtergrond: alleen met verbinding, en het werk afmaken voordat het toestel weer slaapt. Komt mee met WorkManager. |
 
 De widgets vragen **geen extra toestemming**: ze doen zelf geen netwerkverkeer; het afvinken en verversen loopt via dezelfde
-WorkManager-taak als de herinneringen.
+WorkManager-taak als de herinneringen. Het kleine venster "Taak toevoegen" ook niet: het toevoegen gaat via die taak, en alleen
+de voorvertoning tijdens het typen vraagt de server zelf wat de tekst wordt (zie [Het kleine venster](#het-kleine-venster-taak-toevoegen)). Het kleine venster "Taak toevoegen" ook niet: het toevoegen gaat via die taak, en alleen
+de voorvertoning tijdens het typen vraagt de server zelf wat de tekst wordt (zie [Het kleine venster](#het-kleine-venster-taak-toevoegen)).
 
 De app vraagt geen toegang tot contacten, bestanden, camera of microfoon, en alleen tot locatie als je zelf herinneringen op een plek gebruikt. Ook voor bijlagen niet voor bestanden en camera: een bestand kiezen doet de kiezer van Android (die geeft de app alleen de gekozen bestanden), een foto maken doet de camera-app van het toestel (de foto komt in een eigen bestand in de cache van Tickory, via een FileProvider), en een bijlage opslaan laat Android je een plek kiezen.
 
@@ -271,6 +273,7 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `sync/`: de aanmelding en het verversen met WorkManager (elk kwartier, alleen met verbinding).
 - `store/`: wat de app op het toestel bewaart: het serveradres, het versleutelde token, het plan van de herinneringen, (`WidgetStore`) de gegevens en de wachtrij van de widgets en (`InboxStore`) welke meldingen bij samenwerken bekend zijn.
 - `inbox/`: de meldingen bij samenwerken op het toestel (`InboxNotifier`); de regels staan zonder Android in `core/Inbox.kt`.
+- `quickadd/`: het kleine venster Taak toevoegen (`QuickAddActivity`) en de melding als een taak niet aankwam (`QuickAddNotifier`); de wachtrij staat in `store/QuickAddStore`, het versturen in `sync/QuickAddSync`, de regels zonder Android in `core/QuickAdd.kt`.
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
 - `MainActivity` (de WebView), `SetupActivity` (het serveradres) en `WebBridge`.
 
@@ -304,14 +307,13 @@ ingestelde server komt.
 
 Na een toestemmingsvraag of terugkeer uit de instellingen stuurt de app het voorval `tickory-android-status` op
 `window`; de web-app kan dan `notificationStatus()` opnieuw opvragen. Een melding en een tik op een taak in een
-widget openen de web-app op `<server>/#task=<id>`, een melding bij samenwerken op `<server>/#notification=<id>`; de knop "+" van een widget op `<server>/#add` (`#add=today` met vandaag als
-datum, `#add=<project-id>` in dat project). Alleen veilige tekens komen in zo'n adres (`core/DeepLink.kt`).
+widget openen de web-app op `<server>/#task=<id>`, een melding bij samenwerken op `<server>/#notification=<id>`. De knop "+" van een widget opent het kleine venster (zie hieronder); alleen zonder aanmelding, of met "Openen in de app" zonder tekst, gaat het naar `<server>/#add` (`#add=today` met vandaag als datum, `#add=<project-id>` in dat project), en met tekst naar `<server>/#share=…` met het project en de dag erbij (`ShareLink.draftFragment`). Alleen veilige tekens komen in zo'n adres (`core/DeepLink.kt`).
 
 **Exporteren:** de web-app geeft tekst (JSON of CSV) via `TickoryAndroid.saveText(naam, type, tekst)` aan de app, die hem in de cache zet (`AttachmentFiles.prepareText`, eigen willekeurige map, hooguit 50 miljoen tekens) en het opslaan-scherm van Android opent; een blob-download werkt in een WebView niet.
 
 **Spraakinvoer:** de microfoonknop in het venster Taak toevoegen roept `TickoryAndroid.startVoiceInput(taal)` aan; de app opent het spraakscherm van Android (`RecognizerIntent`, taal `nl-NL` of `en-US`) en geeft de tekst als gebeurtenis `tickory-voice` terug (`core/VoiceScript.kt`). Tickory vraagt zelf geen microfoontoestemming; de herkenner van het toestel doet dat. `voiceAvailable()` zegt of er een herkenner is (`<queries>` in het manifest); zo niet, dan is er geen knop.
 
-**Tegel "Taak toevoegen"** in de snelle instellingen (`AddTaskTileService`): een tik opent de app op `#add` (ook vanaf het vergrendelscherm, na ontgrendelen); vanaf Android 14 via een `PendingIntent`, daarvoor via de oude `Intent`-variant.
+**Tegel "Taak toevoegen"** in de snelle instellingen (`AddTaskTileService`): een tik opent het kleine venster Taak toevoegen (ook vanaf het vergrendelscherm, na ontgrendelen: `unlockAndRun`; het venster zelf toont zich nooit boven een vergrendeld scherm); vanaf Android 14 via een `PendingIntent`, daarvoor via de oude `Intent`-variant.
 
 **Delen naar Tickory:** de app staat in het deelmenu van andere apps voor gewone tekst (`ACTION_SEND`, `text/plain`). Onderwerp en tekst gaan als
 `<server>/#share=<base64url van JSON>` naar de web-app (`core/ShareLink.kt`, afgekapt op 300 en 8000 tekens); de web-app (`client/core/share.js`)
@@ -334,7 +336,7 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
 | Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Binnenkort; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
 | Binnenkort | Vanaf morgen veertien dagen, per dag met een kop |
-| Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die de app opent op `#add`, voor de Inbox |
+| Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie
 klassen (`WidgetSize`: klein, middel, groot) bepalen de opmaak: klein zet het aantal naast de titel en laat de tweede regel
@@ -410,7 +412,7 @@ emulator kon op de ontwikkelmachine niet starten en er is niets op een telefoon 
 3. Zet vliegtuigmodus aan, vink twee taken af in de widget, zet de modus uit: zijn ze binnen een paar minuten afgevinkt op de server?
 4. Vink een terugkerende taak af: komt hij terug met de volgende datum (niet twee keer doorgeschoven, ook niet als je dezelfde taak
    in de app aftikt)?
-5. Tik op een titel: opent de app bij die taak? Tik op "+": opent het venster Taak toevoegen (in Vandaag met datum vandaag)?
+5. Tik op een titel: opent de app bij die taak? Tik op "+": opent het kleine venster Taak toevoegen boven het startscherm (in Vandaag met de knop Vandaag aan)? Zie de testlijst bij [Het kleine venster](#het-kleine-venster-taak-toevoegen).
 6. Plaats **Project of lijst** voor een project en voor de Inbox; kies opnieuw via lang indrukken; maak het groot en klein.
 7. Wissel donker/licht en (Android 12+) het kleurenthema van je achtergrond: volgt de widget?
 8. Wijzig een taak in de app: staat de wijziging binnen een paar seconden in de widget? Verwijder de taak op een andere browser:
@@ -419,6 +421,98 @@ emulator kon op de ontwikkelmachine niet starten en er is niets op een telefoon 
    het vorige?
 10. Laat een widget een dag op het scherm staan zonder de app te openen: staat "Vandaag" na middernacht goed?
 11. Zet TalkBack aan: wordt "Voltooien: <taak>" voorgelezen bij de cirkel?
+
+## Het kleine venster Taak toevoegen
+
+De "+" van elke widget, de knop-widget "Taak toevoegen" en de tegel in de snelle instellingen openen een klein venster onderaan het
+scherm, boven wat er al staat, zoals de widget van Todoist (`quickadd/QuickAddActivity`). De volledige app (de WebView) gaat niet open.
+
+### Wat is gekozen, en waarom
+
+| Onderdeel | Keuze | Reden |
+|---|---|---|
+| Venster | Een eigen `ComponentActivity` met een doorzichtig thema (`Theme.Tickory.QuickAdd`: `windowIsTranslucent`, gedimde achtergrond, schuift omhoog als een toetsenbord), de inhoud een vlak onderaan met afgeronde hoeken; zonder Material Components | Geen WebView: het venster is er meteen, ook als de app niet draait, en werkt zonder verbinding. De gewone Android-onderdelen (`EditText`, `ToggleButton`, `Switch`, `PopupMenu`, `AlertDialog`) zijn genoeg, zonder extra bibliotheek |
+| Taak en recente apps | `taskAffinity=""`, `excludeFromRecents`, `exported="false"` | Een eigen taak: het venster komt boven het startscherm en haalt de app niet naar voren; alleen de eigen widgets en de tegel kunnen het openen, met expliciete, onveranderlijke intenties |
+| Herkennen | De server (`POST /api/v1/quick-add`, SPEC.md 5i) met `parseQuickAdd` en `addTask` van de web-app | Eén herkenner (`client/core/quickadd.js` en `dateNl.js`), geen Kotlin-kopie die uit de pas loopt. Het venster stuurt alleen tekst, het gekozen project, Vandaag/Morgen en de prioriteit |
+| Zonder verbinding | Altijd eerst in een wachtrij op het toestel (`files/quickadd/queue.json`, atomair geschreven), dan versturen met de gewone verversing (`SyncWorker` → `sync/QuickAddSync`) | Eén weg, met en zonder verbinding; een herstart of een afgebroken verzoek laat niets vallen; het uuid blijft bij opnieuw proberen gelijk, dus de server maakt de taak één keer |
+| "Morgen" | Het moment van intypen (`typed_at`, met de UTC-afwijking) en de tijdzone van het toestel gaan mee | Wat vrijdagavond laat offline is ingetypt en zondag aankomt, staat op zaterdag |
+| Terug of ernaast tikken | Sluit zonder toe te voegen; staat er tekst, dan blijft die als **concept** tot de volgende keer, en het venster zegt dat ("Niet toegevoegd: je tekst staat er de volgende keer nog") | Niets kwijt zonder dat je het merkt, en geen extra vraag ("Weggooien?") in een venster dat juist snel moet zijn. Ook de thuisknop of een scherm dat uitgaat bewaart het concept |
+| Project | Uit de gegevens van de widgets: de Inbox en de projecten waar je niet alleen lezer bent, als boom. Eerst dat van de widget (de widget "Project of lijst"), anders het laatst gekozen, anders de Inbox | Zoals Todoist; een lezer kan er toch niets in zetten |
+
+### Hoe het werkt
+
+1. **Openen.** Zonder aanmelding (of met een verlopen sessie, of een http-adres buiten het eigen netwerk) opent het venster meteen de app,
+   op `#add`, en sluit. Anders: het veld krijgt de focus en het toetsenbord komt omhoog (`stateAlwaysVisible`, en nog eens via
+   `WindowInsetsController` als het venster de focus heeft). Het vlak schuift mee met het toetsenbord en de navigatiebalk (insets; ook
+   op Android 15 en nieuwer, waar de app altijd van rand tot rand tekent), en is op een breed scherm hooguit 560 dp breed.
+2. **Typen.** Toevoegen kan pas met tekst. Met verbinding vraagt het venster 450 ms na de laatste toets de **voorvertoning**
+   (`dry_run`; er wordt niets aangemaakt) en toont die als labels onder het veld: titel, datum (`DueText`, of de herhaling), deadline,
+   een ander project of sectie dan gekozen, labels (een nieuw label met "(nieuw)"), prioriteit en herinneringen. Een oud antwoord
+   (je typte intussen verder) telt niet. Zonder verbinding, of als het niet lukt: geen voorvertoning.
+3. **Toevoegen** (de knop of Enter, ook van een los toetsenbord). De taak gaat in de wachtrij met `{uuid, tekst, project (null = Inbox),
+   due (today/tomorrow), prioriteit, typed_at, tz, account, vingerafdruk van de aanmelding}`; `SyncScheduler.refreshNow` start de
+   verversing. Het venster zegt "Toegevoegd", of zonder netwerk "Toegevoegd, wordt verstuurd zodra er verbinding is", en sluit. Met
+   **Nog een toevoegen** blijft het open: het veld wordt leeg, project en dag blijven, de prioriteit begint opnieuw.
+4. **Versturen** (`QuickAddSync.flush`, na de afvink-wachtrij van de widgets). Per taak één verzoek, hooguit 25 per verversing:
+   - gelukt (ook "met dit uuid al gelukt"): weg uit de wachtrij, en daarna ververst de verversing de widgets;
+   - geweigerd (`FORBIDDEN`, `NOT_FOUND`, `LIMIT_REACHED`, `INVALID_ARG`, …) of een **oudere server** (404 zonder `quick_add`): weg, met een
+     **melding** in het kanaal "Taken toevoegen" met de tekst en de reden; een tik opent de app met de tekst in Taak toevoegen, in het
+     gekozen project en op de gekozen dag;
+   - `401`: blijft staan, de sessie is verlopen (zoals bij het afvinken);
+   - geen verbinding, `5xx`, `408` of `429`: blijft staan, opnieuw met hetzelfde uuid (oplopende pauzes, daarna het kwartierwerk);
+   - na **veertien dagen** zonder verbinding: weg, met een melding.
+   - Mag de app geen meldingen tonen (geen toestemming, meldingen of het kanaal uit), dan komt de tekst met de reden terug in het venster,
+     de volgende keer dat je het opent (`QuickAddStore.keepReturned`, per account, hooguit twintig); na afmelden of bij een ander account niet.
+5. **Wie.** Een taak heeft het account van de gecontroleerde widgetgegevens bij het intypen. Hij gaat alleen mee als dat account nu
+   is aangemeld; was het account bij het intypen nog niet bekend (net ingelogd, eerste gegevens nog niet binnen), dan alleen onder
+   dezelfde aanmelding. Zolang na een nieuwe aanmelding niet vaststaat van wie de gegevens zijn, wordt niets verstuurd. Een taak van
+   een ander account (of een vorige aanmelding) gaat weg, met een melding; **afmelden** leegt de wachtrij, het concept en het laatst
+   gekozen project, met een melding per taak die nog niet verstuurd was.
+6. **Openen in de app.** Opent `MainActivity` met de tekst (met de gekozen prioriteit als "p2" erachter, tenzij je er al een typte),
+   het project en de dag als extra's; de app maakt er `#share=` van (`ShareLink.draftFragment`, gekeurd door `DeepLink.isSafe`) en de
+   web-app opent Taak toevoegen in dat project op die dag. Zonder tekst: `#add` zoals vroeger.
+
+**Veiligheid.** Het venster is niet exporteerbaar; de intenties van de widgets en de tegel zijn expliciet en `FLAG_IMMUTABLE`, de
+melding ook. Het token komt alleen uit de Keystore (`TokenVault`) en gaat alleen in de header naar de eigen server; een
+`http://`-adres buiten het eigen netwerk opent het venster niet (dan de app, met zijn foutscherm). In de wachtrij staat de tekst
+onversleuteld in de privé-opslag (zoals de gegevens van de widgets) en de **vingerafdruk** van de aanmelding (16 tekens van een
+SHA-256, niet het token). `MainActivity` neemt de tekst-extra's ook van een andere app aan (hij is exporteerbaar, zoals voor Delen
+naar Tickory): dat opent alleen het venster Taak toevoegen met tekst, en er wordt niets aangemaakt zonder bevestiging.
+
+**Tests** (`core/QuickAddTest`, `sync/QuickAddSyncTest`, `quickadd/QuickAddActivityTest`, op een nagebootst Android): het venster opent
+met de focus in het veld, het project komt uit de widget of de vorige keer, Vandaag/Morgen/prioriteit, toevoegen met en zonder
+verbinding (en daarna versturen), Enter, Nog een toevoegen, het concept bij terug, ernaast tikken en de thuisknop, Openen in de app (en
+wat `MainActivity` ervan maakt), de voorvertoning (pas na het typen, alleen met verbinding), elke weigering als melding, een oudere
+server, `401`, tijdelijke fouten, de wachtrij na een herstart en per account, afmelden, veertien dagen, het manifest, 48 dp en de
+teksten. Een mutatietest (`.mut/mutate_kt.py`, niet in de repo) controleert dat de tests de regels van de wachtrij echt bewaken.
+
+### Alleen op een toestel te zien
+
+Niets hiervan is op een telefoon of emulator geprobeerd. Alleen daar te controleren:
+
+- hoe het venster eruitziet (vlak, hoeken, knoppen, de voorvertoning) in licht en donker, en op een tablet of liggend;
+- of het toetsenbord echt meteen omhoog komt, per toetsenbord-app (Gboard, SwiftKey, Samsung) en per Android-versie, en of het vlak er
+  netjes boven blijft (ook met gebaren- en knoppennavigatie);
+- de animatie en het dimmen van wat erachter ligt, per launcher; of het venster boven het startscherm verschijnt en niet de app naar voren haalt;
+- de tegel vanaf het vergrendelscherm (eerst ontgrendelen, dan het venster);
+- TalkBack: wat er bij de knoppen, de schakelaar en de voorvertoning wordt voorgelezen;
+- hoe snel een taak met verbinding in de widget staat, en of een taak die offline is toegevoegd na een nacht aankomt.
+
+### Korte testlijst voor op een toestel
+
+1. Tik op "+" in de widget Vandaag: komt het venster onderaan, met het toetsenbord omhoog, de knop Vandaag aan en de app niet geopend?
+2. Typ "Tandarts bellen morgen om 9 uur #Werk p1": verschijnen er na een halve seconde labels (morgen 09:00, #Werk, P1)? Tik Toevoegen:
+   "Toegevoegd", venster dicht, en binnen enkele seconden staat de taak in de widget en in de app?
+3. Zet "Nog een toevoegen" aan en voeg er twee toe met Enter: blijft het venster open, met hetzelfde project?
+4. Vliegtuigmodus aan: voeg een taak toe ("…wordt verstuurd zodra er verbinding is"), herstart de telefoon, zet de modus uit: komt
+   de taak aan, met de goede datum?
+5. Typ iets en tik ernaast: zegt het venster dat je tekst blijft, en staat die er bij de volgende keer nog?
+6. "Openen in de app": opent de app Taak toevoegen met je tekst, in het gekozen project en op de gekozen dag?
+7. Kies een project waar je lezer bent geworden (op een ander apparaat net zo ingesteld) of zet de server een versie terug: komt er een
+   melding "Niet toegevoegd: …" met je tekst, en opent een tik de app met de tekst?
+8. Plaats de tegel en tik erop vanaf het vergrendelscherm: eerst ontgrendelen, dan het venster?
+9. Draai de telefoon, wissel donker/licht, gebruik een tablet: blijft alles leesbaar en bereikbaar?
+10. TalkBack aan: worden het veld, de knoppen (met hun keuze) en de voorvertoning voorgelezen?
 
 ## Bekende beperkingen
 
@@ -431,4 +525,8 @@ emulator kon op de ontwikkelmachine niet starten en er is niets op een telefoon 
   werkt wel: dan staat de server open en doet Tickory het inloggen bij de provider.
 - **Herinneringen van meer dan een uur geleden** (toestel stond uit) worden niet alsnog getoond.
 - **Meldingen bij samenwerken komen tot een kwartier later**: zonder pushdienst haalt de app ze op bij het verversen.
+- **Het kleine venster** herkent datums alleen in het Nederlands (zoals de web-app) en heeft geen eigen knoppen voor sectie, labels,
+  herinnering of een andere dag dan vandaag of morgen: typ ze, of gebruik "Openen in de app". Mag de app geen meldingen tonen, dan komt
+  een taak die de server weigert niet als melding terug, maar de volgende keer in het venster zelf (met de reden); na afmelden of bij
+  een ander account niet, want dan hoort er niets van het vorige account op het toestel te blijven.
 - De app plant hooguit 200 herinneringen, tot 30 dagen vooruit; bij elke verversing schuift dat venster mee.

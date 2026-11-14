@@ -1,9 +1,9 @@
 <!--
 title: Widgets on Android
-description: The widgets of the Tickory Android app: Today, Project or list, Upcoming and an Add task button. Complete tasks from the home screen, also without internet; placing them, resizing, colours and what they do and do not do. From version 0.3.0.
+description: The widgets of the Tickory Android app: Today, Project or list, Upcoming and an Add task button. Complete tasks from the home screen, also without internet, and add a task in a small window without opening the app; placing them, resizing, colours and what they do and do not do. From version 0.3.0.
 -->
 <h1>Widgets on Android</h1>
-<p class="intro">A widget shows your tasks on the home screen of your phone and lets you complete them there, without opening the app. The widgets are part of the <a href="android-app.html">Android app</a>; they do not exist in a browser.</p>
+<p class="intro">A widget shows your tasks on the home screen of your phone and lets you complete them and add one there, without opening the app. The widgets are part of the <a href="android-app.html">Android app</a>; they do not exist in a browser.</p>
 
 <div class="note warn">
   <span class="note-label">Not tried on a phone yet</span>
@@ -20,7 +20,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
       <tr><td><strong>Today</strong></td><td class="wrap-ok">What is overdue and what is due today, in the same order as in the app: by time first, then by priority. The date and the number of tasks are at the top. If there is nothing to do, it says so.</td></tr>
       <tr><td><strong>Project or list</strong></td><td class="wrap-ok">The open tasks of one place that you choose when you place the widget: the Inbox, a project (with its sections and subtasks), Today or Upcoming. You can place more of them, each with its own choice. Saved filters cannot be shown yet; the list of choices is prepared for them.</td></tr>
       <tr><td><strong>Upcoming</strong></td><td class="wrap-ok">The next two weeks starting tomorrow, by day with a heading. What is overdue is in Today.</td></tr>
-      <tr><td><strong>Add task</strong></td><td class="wrap-ok">A button (small, 1×1 or wider) that opens Tickory on the <em>Add task</em> window, for the Inbox.</td></tr>
+      <tr><td><strong>Add task</strong></td><td class="wrap-ok">A button (small, 1×1 or wider) that opens the <a href="#small-window">small Add task window</a> over your home screen, in the project you chose last time (at first the Inbox).</td></tr>
     </tbody>
   </table>
 </div>
@@ -61,7 +61,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <ul>
   <li><strong>Tap the circle</strong> to complete a task. It disappears from all widgets right away. The circle and the row are at least 48 points big, the smallest tap target Android recommends.</li>
   <li><strong>Tap the title</strong> to open the task in the app.</li>
-  <li><strong>Tap +</strong> to open the <em>Add task</em> window. In Today the date is already set to today, in a project the task goes into that project, in the other lists the place stays as the app knows it.</li>
+  <li><strong>Tap +</strong> to open the <a href="#small-window">small Add task window</a>. In Today the <em>Today</em> button is already on, in a project the task goes into that project, in the other lists into the project you chose last time.</li>
   <li><strong>Tap the header</strong> to open the app.</li>
 </ul>
 
@@ -72,6 +72,20 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   <li>If the server refuses (the task has been removed in the meantime, or you are no longer a member of the project), nothing gets stuck: the widget shows how things really are at the next refresh.</li>
   <li>The reminders and notifications of a completed task expire right away, also without internet.</li>
 </ul>
+
+<h2 id="small-window">The small Add task window</h2>
+<p>The <strong>+</strong> of a widget, the <em>Add task</em> button widget and the <a href="android-app.html#tile">quick settings tile</a> open a small window at the bottom of the screen, over whatever is already there, as with Todoist. The full app does not open. The keyboard comes up straight away.</p>
+<ul>
+  <li><strong>Type the task</strong> as in the app: <em>Water the plants #Home @garden p1</em>. <code>#project</code>, <code>/section</code>, <code>@label</code>, <code>p1</code> to <code>p4</code> and <code>!30m</code> work the same as in <a href="adding-tasks.html">Adding tasks</a>: your server recognises them, with the same rules as the app. Dates in plain language are recognised in Dutch for now (<em>morgen</em>, <em>vrijdag om 9 uur</em>); for English use the Today and Tomorrow buttons.</li>
+  <li>With a connection you see shortly after typing, below the field, <strong>what it will be</strong>: the title, the date, the project, the labels (a new label marked <em>(new)</em>), the priority and the reminder. Without a connection you do not see this; adding still works.</li>
+  <li>Below the field you choose the <strong>project</strong> (only projects you can add to; the window remembers your choice for next time), <strong>Today</strong> or <strong>Tomorrow</strong>, and a <strong>priority</strong>. What you type wins: <em>vrijdag</em> in the text beats the Tomorrow button, <em>p1</em> beats the chosen priority.</li>
+  <li><strong>Add</strong> or <strong>Enter</strong> adds the task and closes the window. Turn on <strong>Add another</strong> to type the next one straight away; the project and the day then stay as they are.</li>
+  <li><strong>Open in the app</strong> opens the full app with what you typed in the <em>Add task</em> window, in the chosen project and on the chosen day: there you can also add a description, a section or an attachment.</li>
+  <li><strong>Back</strong> or <strong>tapping outside</strong> closes the window without adding anything. If you had typed something, the window says so and your text is still there next time.</li>
+</ul>
+<h3>Without internet</h3>
+<p>You can also add without a connection. The window then says <em>Added; it will be sent as soon as there is a connection</em>, and the task waits on the phone, also if it restarts. As soon as there is a connection, it goes to your server and shows up in the widgets and the app. <em>Tomorrow</em> counts from the moment you typed the task, not from the moment it arrives: what you type late on Friday evening without signal is on Saturday, even if it only arrives on Sunday.</p>
+<p>If it does not work, nothing is lost silently: you get a notification <em>Not added: …</em> with your text and the reason. For example: you can only read the project, the project is gone, a limit was reached, your server is an older version, there was no connection for two weeks, or you have signed out or signed in with another account since. Tapping the notification opens the app with your text in <em>Add task</em>. If notifications are off for Tickory, your text and the reason are in the small window the next time you open it. A task of one account is never sent under another account.</p>
 
 <h2>Refreshing</h2>
 <p>The widgets read their data from the device itself, not through the built-in browser, so they also work when the app is not running. The device fetches the data:</p>
@@ -87,16 +101,18 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <ul>
   <li><strong>Light and dark</strong> follow the setting of your phone.</li>
   <li>On <strong>Android 12 and newer</strong> the background, the text and the accent take the colours of your theme (<em>Material You</em>), and the corners those of your phone. On older versions or without dynamic colours they are the fixed Tickory colours. The priority colours stay fixed, because they mean something.</li>
-  <li>The widgets have descriptions for <strong>TalkBack</strong>: the circle reads as <em>Complete: …</em> with the name of the task, the title as <em>Open task: …</em>.</li>
+  <li>The widgets have descriptions for <strong>TalkBack</strong>: the circle reads as <em>Complete: …</em> with the name of the task, the title as <em>Open task: …</em>. In the small window TalkBack says for every button what it does and what is chosen (<em>Project: Home</em>, <em>Priority: none</em>) and reads out the preview.</li>
+  <li>The small window follows the light and dark setting of your phone, with the green Tickory colour.</li>
   <li>The widgets come in Dutch and English, following the language of the phone.</li>
 </ul>
 
 <h2>Privacy and security</h2>
 <ul>
   <li>The tasks are kept in the private storage of the app on the phone, not encrypted and not in backups; anyone who roots the device can read them. The sign-in stays encrypted in the Android Keystore, as for the reminders.</li>
-  <li><strong>Signing out clears everything</strong>: the tasks, the projects and the queue. If you sign in with another account, the tasks of the previous account are hidden at once and whatever was still in the queue is dropped; what one account completed is never sent under the other. If you change the server address, everything is wiped too.</li>
+  <li><strong>Signing out clears everything</strong>: the tasks, the projects, the queues and any text kept in the small window (what had not been sent yet comes back as a notification). If you sign in with another account, the tasks of the previous account are hidden at once and whatever was still in the queue is dropped; what one account completed is never sent under the other. If you change the server address, everything is wiped too.</li>
   <li>In a <strong>shared project</strong> the widget shows only what you may see: the server sends nothing else. If you are no longer a member, the project disappears at the next refresh and a widget that was showing it says the project is gone.</li>
   <li>The widgets use the same connection and sign-in to your server as the reminders, and the app refuses an <code>http://</code> address outside your own network here too. No tasks end up in the log of the phone.</li>
+  <li>Only the app itself can open the small window (through the widgets and the tile), no other app. For the preview it sends your text to your own server, without creating anything.</li>
 </ul>
 
 <h2>If a widget is empty or out of date</h2>
@@ -111,5 +127,6 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <ul>
   <li>Saved filters in a widget. The list of choices is prepared; filters come later.</li>
   <li>Editing a task in the widget, postponing it or giving it a date; open the task for that.</li>
+  <li>In the small window, <em>choosing</em> a section, label, reminder or a day other than today or tomorrow: type it (<code>/section</code>, <code>@label</code>, <code>!30m</code>), or tap <em>Open in the app</em>.</li>
   <li>Widgets on the lock screen or in a browser.</li>
 </ul>

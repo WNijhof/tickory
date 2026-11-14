@@ -2,4 +2,6 @@
 <resources>
     <!-- De naam van de app is in elke taal hetzelfde. -->
     <string name="app_name" translatable="false">Tickory</string>
+    <!-- Het gekozen project op de knop in het kleine venster Taak toevoegen, zoals je het typt: "# Werk". -->
+    <string name="quick_project_named" translatable="false"># %1$s</string>
 </resources>

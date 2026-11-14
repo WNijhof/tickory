@@ -10,7 +10,6 @@ import android.widget.RemoteViews
 import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.WidgetSource
 import io.github.wnijhof.tickory.store.WidgetConfigStore
-import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
 
@@ -47,7 +46,7 @@ class UpcomingWidgetProvider : ListWidgetProvider(WidgetSource.Upcoming)
 /** De widget waarvan je bij het plaatsen kiest wat hij toont (zie [WidgetConfigActivity]). */
 class ProjectWidgetProvider : ListWidgetProvider(null)
 
-/** De knop "Taak toevoegen": opent de app op het venster Taak toevoegen, in de Inbox. */
+/** De knop "Taak toevoegen": opent het kleine venster Taak toevoegen, in het laatst gekozen project (eerst de Inbox). */
 class AddWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
         for (id in appWidgetIds) manager.updateAppWidget(id, render(context, manager, id))
@@ -65,7 +64,7 @@ class AddWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_add)
             val width = manager.getAppWidgetOptions(appWidgetId)?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
             views.setViewVisibility(R.id.add_label, if (width == 0 || width >= LABEL_MIN_WIDTH_DP) View.VISIBLE else View.GONE)
-            views.setOnClickPendingIntent(R.id.add_root, WidgetIntents.addTask(context, WidgetStore.visibleSnapshot(context)?.inboxId))
+            views.setOnClickPendingIntent(R.id.add_root, WidgetIntents.addTask(context, null))
             return views
         }
     }

@@ -12,4 +12,20 @@
         <item name="android:textColorPrimary">@color/text</item>
         <item name="android:textColorSecondary">@color/text_soft</item>
     </style>
+    <!--
+      Het kleine venster "Taak toevoegen" (QuickAddActivity): een doorzichtig scherm over het startscherm, met het vlak onderaan.
+      Wat erachter ligt, wordt iets donkerder (dim); het venster schuift omhoog zoals een toetsenbord.
+    -->
+    <style name="Theme.Tickory.QuickAdd" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorAccent">@color/brand</item>
+        <item name="android:textColorPrimary">@color/text</item>
+        <item name="android:textColorSecondary">@color/text_soft</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.4</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.InputMethod</item>
+    </style>
 </resources>

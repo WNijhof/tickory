@@ -898,6 +898,16 @@ export interface SyncResponse {
 }
 
 const UUID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+/** De weigering die een verzoek met `atomic` laat terugdraaien; `uuid` zegt welk commando het was. */
+export class AtomicFailure extends SyncError {
+  uuid: string;
+  constructor(uuid: string, status: Exclude<CommandStatus, 'ok'>) {
+    super(status.error_code, status.error);
+    this.uuid = uuid;
+  }
+}
+
 const MAX_COMMANDS = 100;
 const COMMAND_RETENTION_DAYS = 30;
 /** Hoe lang de sync onthoudt welke taken naar een ander project zijn verhuisd (voor wie die taak kende en het nieuwe project niet ziet). */
@@ -1035,7 +1045,12 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
   }
 }
 
-export function handleSync(db: DatabaseSync, req: unknown, userId: string): SyncResponse {
+/**
+ * @param options.atomic alles of niets: weigert de server één commando (of weigerde hij het eerder), dan wordt het hele verzoek
+ *   teruggedraaid, ook wat al gelukt was en het commandoregister, en volgt een SyncError met de code van dat commando (`uuid`
+ *   erbij). Voor snel toevoegen (quickadd.ts): een nieuw label zonder de taak waarvoor het was, blijft dan niet achter.
+ */
+export function handleSync(db: DatabaseSync, req: unknown, userId: string, options: { atomic?: boolean } = {}): SyncResponse {
   if (!req || typeof req !== 'object' || Array.isArray(req)) fail('INVALID_REQUEST', 'verzoek moet een JSON-object zijn');
   const r = req as SyncRequest;
   const token = r.sync_token ?? '*';
@@ -1071,6 +1086,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
       const seen = db.prepare('SELECT status, error_code, error FROM command_log WHERE user_id = ? AND uuid = ?').get(userId, cmd.uuid) as Row | undefined;
       if (seen) {
         status[cmd.uuid] = seen.status === 'ok' ? 'ok' : { error_code: seen.error_code as string, error: seen.error as string };
+        if (options.atomic && seen.status !== 'ok') throw new AtomicFailure(cmd.uuid, { error_code: seen.error_code as string, error: seen.error as string });
         continue;
       }
       db.exec('SAVEPOINT cmd');
@@ -1090,6 +1106,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string): Sync
         const se = err instanceof SyncError ? err : new SyncError('INTERNAL', 'interne fout');
         result = { error_code: se.code, error: se.message };
         rev = currentRev(db);
+        if (options.atomic) throw new AtomicFailure(cmd.uuid, result);
       }
       db.prepare('INSERT INTO command_log (user_id, uuid, type, status, error_code, error, rev, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
         userId, cmd.uuid, cmd.type.slice(0, 64), result === 'ok' ? 'ok' : 'error', result === 'ok' ? null : result.error_code, result === 'ok' ? null : result.error, rev, now,

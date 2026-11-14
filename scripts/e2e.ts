@@ -1185,6 +1185,19 @@ try {
   await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
   assert.equal(serverTask('Fietsroute Texel'), undefined, 'annuleren maakt geen taak');
+  // "Openen in de app" uit het kleine venster Taak toevoegen van de Android-app: dezelfde weg, met het project en de dag erbij
+  const thuisProject = (serverState().projects as any[]).find((p) => p.name === 'Thuis');
+  const popupDay = await evaluate(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`) as string;
+  const fromPopup = Buffer.from(JSON.stringify({ title: 'Fietsband plakken p2', text: '', project: thuisProject.id, due: popupDay }), 'utf8').toString('base64url');
+  await evaluate(`location.hash = ${js(`#share=${fromPopup}`)}`);
+  await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]')?.value === 'Fietsband plakken p2'`, 'de getypte tekst uit het kleine venster');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Thuis', 'in het project dat in het kleine venster gekozen was');
+  assert.match(await evaluate(`document.querySelector('.dialog-quick[open] .quick-day').textContent`) as string, /^Voor /, 'met de dag van de knop Morgen');
+  assert.ok((await evaluate(`[...document.querySelectorAll('.dialog-quick[open] .preview .chip')].map((c) => c.textContent)`) as string[]).includes('P2'), 'de prioriteit uit het venster staat in de voorvertoning');
+  // niet toevoegen: Thuis wordt verderop nog geteld
+  await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
+  assert.equal(serverTask('Fietsband plakken'), undefined);
   // een kapot of vreemd #share=… doet niets
   await evaluate(`location.hash = '#share=@@@'`);
   await evaluate(`location.hash = '#share=e30'`);
@@ -1196,7 +1209,7 @@ try {
   await send('Page.reload');
   await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart zonder brug');
   await waitFor(SYNCED, 'gesynchroniseerd');
-  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst (een vreemde waarde niet)');
+  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst, ook met project en dag uit het kleine venster van de app (een vreemde waarde niet)');
 
   // ---- 8d2. herinneringen op een locatie: plaatsen, de huidige positie (nagebootst), het taakvenster en de Android-brug ----
   await geoScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, nav, BASE });
@@ -2698,6 +2711,31 @@ try {
 
   // ---- 9d. meerdere taken selecteren en bewerken, ongedaan maken, Voltooid ----
   await bulkScenario(bulkCtx);
+
+  // ---- 9e. snel toevoegen via de server (het kleine venster van de Android-app): de web-app ziet de taak meteen ----
+  const quickToken = createSession(db, alice.id, 'Telefoon (klein venster)').token;
+  const quickHeaders = { Authorization: `Bearer ${quickToken}`, 'Content-Type': 'application/json' };
+  const quick = async (body: object) => (await fetch(`${BASE}/api/v1/quick-add`, { method: 'POST', headers: quickHeaders, body: JSON.stringify(body) })).json();
+  const typedAt = new Date().toISOString();
+  const quickBody = { text: 'Melk halen morgen p1', typed_at: typedAt, tz: 'Europe/Amsterdam' };
+  const quickPreview = await quick({ ...quickBody, dry_run: true });
+  assert.equal(quickPreview.preview.content, 'Melk halen');
+  assert.equal(quickPreview.preview.priority, 1);
+  assert.equal(serverTask('Melk halen'), undefined, 'de voorvertoning maakt niets');
+  await nav('Inbox');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const quickAdded = await quick({ ...quickBody, uuid: 'tickory-q-e2e-000000000001' });
+  assert.equal(quickAdded.task.content, 'Melk halen');
+  assert.equal(quickAdded.task.priority, 1);
+  await waitFor(`[...document.querySelectorAll('.task .task-title')].some((e) => e.textContent === 'Melk halen')`, 'de taak uit het kleine venster staat meteen in de web-app (live, via de server)', 10_000);
+  const quickAgain = await quick({ ...quickBody, uuid: 'tickory-q-e2e-000000000001' });
+  assert.equal(quickAgain.repeated, true);
+  assert.equal(quickAgain.task.id, quickAdded.task.id);
+  assert.equal((serverState().tasks as any[]).filter((t) => t.content === 'Melk halen' && !t.checked).length, 1, 'hetzelfde uuid nog eens maakt geen tweede');
+  await fetch(`${BASE}/api/v1/sync`, { method: 'POST', headers: quickHeaders, body: JSON.stringify({ commands: [{ type: 'task_delete', uuid: 'e2e-klein-venster-opruimen', args: { id: quickAdded.task.id } }] }) });
+  await waitFor(`![...document.querySelectorAll('.task .task-title')].some((e) => e.textContent === 'Melk halen')`, 'weer opgeruimd', 10_000);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  step('snel toevoegen via de server (het kleine venster van de Android-app): de voorvertoning maakt niets, de taak staat meteen in de web-app, hetzelfde uuid nog eens maakt geen tweede');
 
   // ---- 10. installeerbaar als app ----
   try {

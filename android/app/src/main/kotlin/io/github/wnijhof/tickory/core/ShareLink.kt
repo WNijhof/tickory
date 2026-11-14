@@ -41,6 +41,22 @@ object ShareLink {
         return "share=" + Base64.getUrlEncoder().withoutPadding().encodeToString(json.toString().toByteArray(Charsets.UTF_8))
     }
 
+    /**
+     * "Openen in de app" uit het kleine venster: de getypte tekst als titel (de web-app herkent er datum, project en labels in), met
+     * het gekozen project en de dag (`today` of `YYYY-MM-DD`) erbij. Een ongeldig project of een ongeldige dag valt weg; een oudere
+     * web-app slaat ze over en opent in de Inbox.
+     */
+    fun draftFragment(text: CharSequence?, projectId: String?, due: String?): String? {
+        val t = clean(text, QuickAddQueue.MAX_TEXT)
+        if (t.isEmpty()) return null
+        val q = '"'
+        val json = StringBuilder("{${q}title${q}:${quote(t)},${q}text${q}:${q}${q}")
+        if (projectId != null && projectId.length <= 40 && Ids.isSafeId(projectId)) json.append(",${q}project${q}:${quote(projectId)}")
+        if (due == QuickAddQueue.DUE_TODAY || QuickAddParser.isDay(due)) json.append(",${q}due${q}:${quote(due!!)}")
+        json.append("}")
+        return "share=" + Base64.getUrlEncoder().withoutPadding().encodeToString(json.toString().toByteArray(Charsets.UTF_8))
+    }
+
     /** Afkappen zonder een teken in tweeën te breken (surrogaatpaar) en zonder lege randen. */
     internal fun clean(value: CharSequence?, max: Int): String {
         val v = value?.toString()?.trim() ?: return ""

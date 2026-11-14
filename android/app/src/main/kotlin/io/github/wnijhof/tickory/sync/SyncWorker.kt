@@ -21,8 +21,9 @@ import io.github.wnijhof.tickory.reminders.Notifications
 import io.github.wnijhof.tickory.reminders.ReminderEngine
 
 /**
- * Eén verversing: eerst wat er nog aan "Voltooien" wacht alsnog versturen (uit een melding en uit een widget), dan de
- * taken, projecten en herinneringen ophalen, de alarmen bijwerken en de widgets opnieuw tekenen. Lukt het ophalen niet,
+ * Eén verversing: eerst wat er nog aan "Voltooien" wacht alsnog versturen (uit een melding en uit een widget) en de taken uit
+ * het kleine venster "Taak toevoegen", dan de taken, projecten en herinneringen ophalen, de alarmen bijwerken en de widgets
+ * opnieuw tekenen. Lukt het ophalen niet,
  * dan blijft het bestaande plan en de bestaande inhoud van de widgets staan.
  */
 class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
@@ -45,13 +46,23 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             fetched = client.fetchSnapshot(token)
             if (fetched is FetchResult.Ok) apply(app, fetched)
         }
-        when (WidgetSync.flush(app, client, token)) {
-            WidgetSync.Outcome.NOTHING -> if (fetched is FetchResult.Ok) return Result.success() // net al opgehaald en verwerkt
-            WidgetSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
-            WidgetSync.Outcome.OFFLINE -> return failed(app, prefs, origin)
-            WidgetSync.Outcome.UNAUTHORIZED -> {
+        val completed = WidgetSync.flush(app, client, token) // afgevinkt in een widget
+        if (completed == WidgetSync.Outcome.OFFLINE) return failed(app, prefs, origin)
+        if (completed == WidgetSync.Outcome.UNAUTHORIZED) {
+            ReminderEngine.replan(app)
+            return Result.success()
+        }
+        // de taken uit het kleine venster "Taak toevoegen" (zelfde aanmelding, zelfde controle van wie ze zijn)
+        when (QuickAddSync.flush(app, client, token)) {
+            QuickAddSync.Outcome.OFFLINE -> return failed(app, prefs, origin)
+            QuickAddSync.Outcome.UNAUTHORIZED -> {
                 ReminderEngine.replan(app)
                 return Result.success()
+            }
+            QuickAddSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
+            QuickAddSync.Outcome.NOTHING -> when {
+                completed == WidgetSync.Outcome.SENT -> fetched = null
+                fetched is FetchResult.Ok -> return Result.success() // net al opgehaald en verwerkt
             }
         }
 
