@@ -9,7 +9,6 @@ import { inboxItems, inboxSentence, newestAt, unreadCount } from '../core/inbox.
 import { t } from '../core/i18n.js';
 import { mentionParts } from '../core/mentions.js';
 import { initials } from '../core/rowModel.js';
-import { isShared } from '../core/selectors.js';
 import { timeAgo } from '../core/timeAgo.js';
 import { h, iconButton } from './dom.js';
 import { icon } from './icons.js';
@@ -30,7 +29,17 @@ export const notificationIdFromHash = (hash) => HASH.exec(hash ?? '')?.[1] ?? nu
 export function installInbox({ store, actions, handlers, navigate, getRoute }) {
   const items = () => (store.me ? inboxItems(store.view, { userId: store.userId, userName: (id) => store.userName(id) }) : []);
   /** Alleen tonen voor wie samenwerkt: een gedeeld project, of al eens een melding. */
-  const relevant = () => Boolean(store.me) && ((store.view.notifications?.size ?? 0) > 0 || [...store.view.projects.keys()].some((id) => isShared(store.view, id)));
+  const relevant = () => {
+    if (!store.me) return false;
+    if ((store.view.notifications?.size ?? 0) > 0) return true;
+    // een project met meer dan één lid (één keer door de leden, ook bij heel veel projecten)
+    const seen = new Set();
+    for (const m of store.view.members.values()) {
+      if (seen.has(m.project_id)) return true;
+      seen.add(m.project_id);
+    }
+    return false;
+  };
   const bellLabel = (count) => (count > 0 ? t('inbox.bellLabel', { count }) : t('inbox.title'));
 
   /** De melding in de browser (als die er nog staat) hoeft niet meer: je hebt hem in de app gelezen. */

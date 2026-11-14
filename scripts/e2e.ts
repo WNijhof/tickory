@@ -1128,7 +1128,7 @@ try {
 
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort, dan de projecten');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Binnenkort (en Meldingen: Thuis is gedeeld), dan de projecten');
   await click('.nav-heading button');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw project'`, 'projectvenster');
   assert.equal(await evaluate(`document.querySelectorAll('dialog[open] input[name="project-color"]').length`), 16, 'zestien kleuren');
@@ -1145,7 +1145,7 @@ try {
   const tuin = projectOnServer('Tuin');
   assert.deepEqual([tuin.color, tuin.is_favorite, tuin.parent_id], ['green', true, thuisId], 'kleur, favoriet en bovenliggend project staan op de server');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorieten', 'Projecten']);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
   assert.ok(await evaluate(`document.querySelector('.nav-row[data-depth="1"] .dot').classList.contains('pc-green')`), 'het bolletje heeft de kleur van het project');
   assert.equal(await evaluate(`document.querySelector('#view-lead .dot').classList.contains('pc-green')`), true, 'ook in de kop');
   await shot('zijbalk-projecten');
@@ -1154,12 +1154,12 @@ try {
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, true);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Binnenkort', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-expanded')`), 'false');
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, false);
-  assert.equal((await labelsOfNav()).length, 7);
+  assert.equal((await labelsOfNav()).length, 8);
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');

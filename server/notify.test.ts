@@ -241,8 +241,11 @@ test('alles gelezen: alleen eigen meldingen, en met up_to alleen wat de afzender
   const all = cmd('notification_read_all');
   ok(run(db, bram, [all]), all);
   assert.deepEqual(unread(db, bram), []);
+  const fresh = cmd('task_add', { id: T2, project_id: P, content: 'Nieuw voor Bram', assignee_id: bram.id });
+  ok(run(db, anna, [fresh]), fresh);
   const other = cmd('notification_read_all');
   ok(run(db, anna, [other]), other);
+  assert.equal(unread(db, bram).length, 1, 'alles gelezen van Anna laat de meldingen van Bram met rust');
 });
 
 test('wat verdwijnt neemt de melding mee: taak, opmerking, project, lidmaatschap; een verhuisde taak verbergt haar meldingen', () => {
@@ -267,6 +270,9 @@ test('wat verdwijnt neemt de melding mee: taak, opmerking, project, lidmaatschap
   const away = cmd('task_move', { id: T, project_id: anna.inbox_project_id });
   ok(run(db, anna, [away]), away);
   assert.ok(!mine(db, bram).some((x) => x.task_id === T), 'na verhuizen niet meer te zien');
+  const hidden = (db.prepare('SELECT id FROM notifications WHERE owner_id = ? AND task_id = ? AND is_deleted = 0').get(bram.id, T) as Row).id;
+  const touch = cmd('notification_update', { id: hidden, is_read: true });
+  err(run(db, bram, [touch]), touch, 'NOT_FOUND');
   const t2tok = run(db, bram, [], t1).sync_token;
   const back = cmd('task_move', { id: T, project_id: P });
   ok(run(db, anna, [back]), back);

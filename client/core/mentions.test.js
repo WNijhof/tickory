@@ -42,6 +42,18 @@ test('mentionCandidates: hoofdletter- en accentongevoelig, ook IJ; beste treffer
   assert.equal(mentionCandidates(PEOPLE, '', { limit: 2 }).length, 2);
 });
 
+test('mentionCandidates: het begin van de naam gaat voor het begin van een woord, en dat voor ergens in de naam', () => {
+  const people = [
+    { id: 'user-emil-0001', name: 'Emil', username: 'emil' },
+    { id: 'user-mila-0001', name: 'Mila van Dam', username: 'mila' },
+    { id: 'user-anda-0001', name: 'Andaluz', username: 'andaluz' },
+    { id: 'user-dani-0001', name: 'Daniëlle', username: 'dani' },
+  ];
+  const names = (q) => mentionCandidates(people, q).map((p) => p.name);
+  assert.deepEqual(names('mi'), ['Mila van Dam', 'Emil'], 'Mila begint ermee, Emil heeft het ergens');
+  assert.deepEqual(names('da'), ['Daniëlle', 'Mila van Dam', 'Andaluz'], 'naam, dan woord, dan ergens');
+});
+
 test('insertMention: de naam komt op de plek van wat je typte, met een spatie erachter; de rest van de tekst blijft', () => {
   assert.deepEqual(insertMention('Hoi @jo', 4, 7, PEOPLE[1]), { text: 'Hoi @José Martínez ', caret: 19 });
   assert.deepEqual(insertMention('Hoi @jo kom je?', 4, 7, PEOPLE[1]), { text: 'Hoi @José Martínez kom je?', caret: 19 });

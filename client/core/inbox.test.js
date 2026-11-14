@@ -68,6 +68,19 @@ test('reducer: één gelezen, alles gelezen tot een tijdstip, alleen eigen meldi
   assert.equal(s.notifications.size, before, 'aanmaken en verwijderen bestaat niet');
 });
 
+test('reducer: een melding verdwijnt met haar opmerking, taak of project, zoals op de server', () => {
+  const s = state();
+  applyCommand(s, { type: 'comment_delete', args: { id: 'comm-0001' } }, at(0), 'user-anna');
+  assert.ok(!s.notifications.has('n-mention'), 'de opmerking is weg');
+  assert.ok(s.notifications.has('n-assigned'));
+  applyCommand(s, { type: 'task_delete', args: { id: 'task-0001' } }, at(0), 'user-anna');
+  assert.ok(!s.notifications.has('n-assigned'), 'de taak is weg');
+  assert.ok(s.notifications.has('n-shared'));
+  s.members.set('m-owner', { id: 'm-owner', project_id: 'proj-0001', user_id: 'user-anna', role: 'owner' });
+  applyCommand(s, { type: 'project_delete', args: { id: 'proj-0001' } }, at(0), 'user-anna');
+  assert.ok(!s.notifications.has('n-shared'), 'het project is weg');
+});
+
 test('reducer: in een opmerking blijven alleen vermelde leden van het project staan, zoals op de server', () => {
   const s = state();
   s.members.set('m1', { id: 'm1', project_id: 'proj-0001', user_id: 'user-anna' });
