@@ -1184,13 +1184,11 @@ try {
   await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]')?.value === 'Fietsband plakken p2'`, 'de getypte tekst uit het kleine venster');
   assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Thuis', 'in het project dat in het kleine venster gekozen was');
   assert.match(await evaluate(`document.querySelector('.dialog-quick[open] .quick-day').textContent`) as string, /^Voor /, 'met de dag van de knop Morgen');
-  await clickText('Toevoegen', `document.querySelector('.dialog-quick')`);
-  await waitFor(`!document.querySelector('dialog[open]')`, 'toegevoegd');
-  await waitFor(SYNCED, 'gesynchroniseerd');
-  const plakken = serverTask('Fietsband plakken');
-  assert.equal(plakken?.project_id, thuisProject.id);
-  assert.equal(plakken?.due?.date, nextDay);
-  assert.equal(plakken?.priority, 2);
+  assert.ok((await evaluate(`[...document.querySelectorAll('.dialog-quick[open] .preview .chip')].map((c) => c.textContent)`) as string[]).includes('P2'), 'de prioriteit uit het venster staat in de voorvertoning');
+  // niet toevoegen: Thuis wordt verderop nog geteld
+  await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
+  assert.equal(serverTask('Fietsband plakken'), undefined);
   // een kapot of vreemd #share=… doet niets
   await evaluate(`location.hash = '#share=@@@'`);
   await evaluate(`location.hash = '#share=e30'`);

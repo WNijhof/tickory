@@ -265,7 +265,7 @@ class QuickAddActivity : ComponentActivity() {
 
     private fun showProject() {
         val name = projectName()
-        projectButton.text = if (projectId == null) name else "# $name"
+        projectButton.text = if (projectId == null) name else getString(R.string.quick_project_named, name)
         projectButton.contentDescription = getString(R.string.quick_project_description, name)
     }
 
