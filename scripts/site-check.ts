@@ -1113,7 +1113,7 @@ if (wants('browser')) {
         await taskDo('Tandarts bellen voor controle', '.task-body');
         await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
         assert.deepEqual(await lines(), ['1 dag vooraf · vandaag 09:00', 'Op een vast tijdstip · vandaag 20:00', '30 minuten vooraf · morgen 08:30'], 'de voorbeeldherinneringen, op volgorde van moment');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] select option')].map((o) => o.textContent)`), ['Op het tijdstip van de taak', '10 minuten vooraf', '30 minuten vooraf', '45 minuten vooraf', '1 uur vooraf', '2 uur vooraf', '3 uur vooraf', '1 dag vooraf', '2 dagen vooraf', '3 dagen vooraf', 'Datum en tijd kiezen…']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] select option')].map((o) => o.textContent)`), ['Op het tijdstip van de taak', '10 minuten vooraf', '30 minuten vooraf', '45 minuten vooraf', '1 uur vooraf', '2 uur vooraf', '3 uur vooraf', '1 dag vooraf', '2 dagen vooraf', '3 dagen vooraf', 'Datum en tijd kiezen…', 'Op een plek…', 'Bij aankomst', 'Bij vertrek']); // de laatste drie: de keuze 'Op een plek' (plaatsen zijn er in de demo niet) en haar aankomst/vertrek
         await evaluate(`document.querySelector('#task-dialog button[aria-label^="Herinnering verwijderen: Op een vast tijdstip"]').click()`);
         await waitFor(`document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info').length === 2`, 'herinnering verwijderd');
         await pick('120');
@@ -1211,6 +1211,35 @@ if (wants('browser')) {
         await submit('#task-dialog form');
         await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
         assertClean('automatische herinnering');
+      });
+
+      await check('demo: Plaatsen en herinneringen op een plek: een plaats toevoegen met een geo:-link, kiezen in het taakvenster, met de uitleg dat het alleen in de Android-app afgaat; niets naar buiten', async () => {
+        b.reset();
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        await nav('Anna');
+        await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+        await clickText('Plaatsen');
+        await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Plaatsen'`, 'scherm Plaatsen');
+        const text = await evaluate<string>(`document.querySelector('dialog[open]').textContent`);
+        assert.ok(text.includes('gaat nooit naar de server') && text.includes('In de browser werken herinneringen op een plek niet'), 'privacy en de uitleg voor de browser');
+        await typeInto('dialog[open] [data-role="place-name"]', 'Thuis');
+        await typeInto('dialog[open] [data-role="place-paste"]', 'geo:52.0907,5.1214');
+        await waitFor(`document.querySelector('dialog[open] [data-role="place-lat"]').value === '52.0907'`, 'geo-link ingelezen');
+        await clickText('Plaats toevoegen', `document.querySelector('dialog[open]')`);
+        await waitFor(`document.querySelector('dialog[open] [data-role="place-list"]').textContent.includes('Thuis') && document.querySelector('dialog[open] [data-role="place-list"]').textContent.includes('150 m')`, 'plaats in de lijst');
+        await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+        await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');
+        await taskDo('Tandarts bellen voor controle', '.task-body');
+        await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
+        await evaluate(`(() => { const s = document.querySelector('#task-dialog select[aria-label="Wanneer?"]'); s.value = 'place'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [data-role="reminder-place"] option')].map((o) => o.textContent)`), ['Thuis']);
+        assert.match(await evaluate(`document.querySelector('#task-dialog [data-role="reminder-place-note"]').textContent`), /In de browser gaat een herinnering op een plek niet af/);
+        await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
+        await waitFor(`[...document.querySelectorAll('#task-dialog section[aria-label="Herinneringen"] .device-info')].some((e) => e.textContent === 'Bij aankomst: Thuis')`, 'locatieherinnering in de lijst');
+        await submit('#task-dialog form');
+        await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
+        assertClean('plaatsen');
       });
 
       await check('demo: opmerkingen, favoriet, subproject, kleur, archiveren en terugzetten; venster Taak toevoegen en sneltoetsen', async () => {

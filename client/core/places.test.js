@@ -302,3 +302,25 @@ test('positie via de Android-app: het antwoord komt als voorval, en een fout of 
   await assert.rejects(silent, (e) => e.code === 'timeout');
   assert.equal(listeners.size, 0);
 });
+
+// ---------- teksten bij de status en bij een mislukte positie ----------
+
+test('de uitleg bij de toestand van de locatiecontrole, in beide talen', async () => {
+  const { adviceText, positionErrorText } = await import('../ui/placesUi.js');
+  setLanguage('nl');
+  assert.match(adviceText('off', { declined: false }), /staat uit/);
+  assert.match(adviceText('off', { declined: true }), /geweigerd/);
+  assert.match(adviceText('services', {}), /Locatie staat uit op dit toestel/);
+  assert.match(adviceText('permission', { approximate: true }), /alleen bij benadering/);
+  assert.match(adviceText('permission', { approximate: false }), /nauwkeurige positie/);
+  assert.match(adviceText('background', {}), /Altijd toestaan/);
+  assert.match(adviceText('ok', { needed: true }), /let op je plaatsen/);
+  assert.match(adviceText('ok', { needed: false }), /pas iets zodra je een herinnering op een plek hebt/);
+  assert.match(positionErrorText(new PositionError('denied')), /Geen toestemming/);
+  assert.match(positionErrorText(new PositionError('timeout')), /te lang/);
+  assert.match(positionErrorText(new PositionError('unsupported')), /kan zijn positie niet doorgeven/);
+  assert.match(positionErrorText(new Error('rare fout')), /niet te bepalen/);
+  setLanguage('en');
+  assert.match(adviceText('background', {}), /Allow all the time/);
+  assert.match(positionErrorText(new PositionError('denied')), /No permission/);
+});

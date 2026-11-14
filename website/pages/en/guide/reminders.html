@@ -23,12 +23,16 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 </ol>
 <p>You delete a reminder with the × button after its line. This takes effect <strong>immediately</strong>, just like adding subtasks: you do not have to click <x-ui k="common.save"></x-ui>, and <x-ui k="common.cancel"></x-ui> does not undo it. If you add exactly the same reminder again, nothing happens.</p>
 
-<h3>Two kinds</h3>
+<h3>Two kinds, and a third</h3>
 <dl>
   <dt>Before (<x-ui k="reminder.minutesBefore" n="30"></x-ui>)</dt>
   <dd>Tied to the time of the task. If you move the task to another time, the reminder moves with it. This works <strong>only on a task with a time</strong>, for example “tomorrow at 2 pm”. On a task with only a day, the reminder shows <em><x-ui k="reminder.waiting"></x-ui></em>: it does nothing yet and goes off as soon as the task gets a time.</dd>
   <dt><x-ui k="reminder.fixed"></x-ui></dt>
   <dd>A date and time of your own, independent of the task. Also on a task without a date.</dd>
+</dl>
+<dl>
+  <dt><x-ui k="reminder.place"></x-ui></dt>
+  <dd>A reminder when you <strong>arrive at or leave</strong> a place, such as Home or the supermarket. It has no time and only works in the Android app, based on the position of your phone, which never leaves the device. See <a href="places.html">Reminders at a place</a>.</dd>
 </dl>
 <p>The lines are in the order they go off; whatever does nothing yet is at the bottom. If you remove the time from a task, your reminders before it disappear (a reminder at a set time stays). If you later give a task without any reminder a time, the automatic reminder is added.</p>
 

@@ -87,6 +87,7 @@
         { "nl": "handleiding/filters.html", "en": "guide/filters.html" },
         { "nl": "handleiding/taakvenster.html", "en": "guide/task-window.html" },
         { "nl": "handleiding/herinneringen.html", "en": "guide/reminders.html" },
+        { "nl": "handleiding/plaatsen.html", "en": "guide/places.html" },
         { "nl": "handleiding/sneltoetsen.html", "en": "guide/shortcuts.html" },
         { "nl": "handleiding/delen.html", "en": "guide/sharing.html" },
         { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
