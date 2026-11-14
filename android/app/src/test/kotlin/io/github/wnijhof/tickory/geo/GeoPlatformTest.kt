@@ -179,7 +179,7 @@ class GeoPlatformTest {
             GeoEngine.sourceFactory = { FakeSource(known = listOf(fix(30.0))) }
             assertEquals(ListenableWorker.Result.success(), syncWorker().doWork())
 
-            assertEquals(listOf("tasks", "reminders", "projects", "sections", "labels", "places", "notifications", "settings", "comments"), io.github.wnijhof.tickory.core.Json.parseObject(server.requests.last().body)!!.let { (it["resource_types"] as List<*>) })
+            assertEquals(listOf("tasks", "reminders", "projects", "sections", "labels", "members", "places", "notifications", "settings", "comments"), io.github.wnijhof.tickory.core.Json.parseObject(server.requests.last().body)!!.let { (it["resource_types"] as List<*>) })
             assertEquals(listOf("place-home-1"), ReminderStore.load(app).snapshot.places.map { it.id })
             assertTrue("er wordt bij Android om posities gevraagd", locations.getLocationUpdatePendingIntents().isNotEmpty())
             assertEquals(WorkInfo.State.ENQUEUED, work("tickory-geo-safety-net").single().state)

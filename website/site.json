@@ -95,6 +95,7 @@
         { "nl": "handleiding/plaatsen.html", "en": "guide/places.html" },
         { "nl": "handleiding/sneltoetsen.html", "en": "guide/shortcuts.html" },
         { "nl": "handleiding/delen.html", "en": "guide/sharing.html" },
+        { "nl": "handleiding/activiteit.html", "en": "guide/activity.html" },
         { "nl": "handleiding/meldingen.html", "en": "guide/notifications.html" },
         { "nl": "handleiding/offline.html", "en": "guide/offline.html" },
         { "nl": "handleiding/exporteren.html", "en": "guide/export.html" },

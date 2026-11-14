@@ -34,6 +34,7 @@ import { geoScenario } from './e2e-geo.ts';
 import { bulkScenario } from './e2e-bulk.ts';
 import { templatesScenario } from './e2e-templates.ts';
 import { notifyScenario } from './e2e-notify.ts';
+import { rolesScenario } from './e2e-roles.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -753,7 +754,7 @@ try {
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
-  assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · member']);
+  assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · can edit']);
   assert.deepEqual(await buttons(), ['Remove', 'Share', 'Close']);
   assert.deepEqual(await evaluate(`[document.querySelector('dialog[open] input').placeholder, document.querySelector('dialog[open] input').getAttribute('aria-label')]`), ['Username', "The person's username"]);
   await typeInto(`dialog[open] input[aria-label="The person's username"]`, 'niemand-bekend');
@@ -1174,7 +1175,7 @@ try {
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Activiteit', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
   await clickText('Bewerken…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Project bewerken'`, 'projectvenster (bewerken)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] input[name="project-color"]:checked').value`), 'green');
@@ -1393,6 +1394,10 @@ try {
 
   // ---- 8g1. meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts) ----
   await notifyScenario(notifyCtx());
+
+  // ---- 8g1b. rollen (alleen lezen) en het activiteitenlogboek (scripts/e2e-roles.ts) ----
+  await rolesScenario({ ...notifyCtx(), openTask, noDialog, buttons, texts });
+  step('rollen en activiteit: alles in scripts/e2e-roles.ts');
 
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
@@ -2646,7 +2651,7 @@ try {
   // Bob is lid, geen eigenaar: hij kan het project niet archiveren of verwijderen, en ziet de opmerkingen van Alice (niet te wijzigen)
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van Bob');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);

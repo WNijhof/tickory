@@ -23,6 +23,8 @@ import { addMember, createSeed } from './demoSeed.js';
 import { AttachmentError } from './attachmentsApi.js';
 import { DEFAULT_MIME, effectiveMime, isInlineMime } from '../../shared/attachments.js';
 import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
+import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../../shared/roles.js';
+import { changedTaskFields, parseActivityQuery, shortTitle } from '../../shared/activity.js';
 
 const MAX_COMMANDS = 100;
 /** Hoe lang na het verwijderen een taak of sectie nog kan worden teruggezet (gelijk aan RESTORE.windowMs op de server, server/limits.ts). */
@@ -54,6 +56,8 @@ const roleOf = (state, userId, projectId) => {
   return null;
 };
 const isMember = (state, userId, projectId) => roleOf(state, userId, projectId) !== null;
+/** Het project waarvan de inhoud verandert bij een wijziging van deze rij; null voor wat ook een lezer mag (zoals server/sync.ts). */
+const editedProject = (state, name, row) => (name === 'project' ? row.id : name === 'section' || name === 'task' ? row.project_id : name === 'attachment' ? state.tasks.get(row.task_id)?.project_id ?? null : null);
 
 /** Het project en al zijn subprojecten (alle niveaus), de wortel eerst. */
 function projectTree(state, rootId) {
@@ -111,6 +115,9 @@ export class DemoServer {
     this.gone = new Map(); // verwijderde rijen: "resource/id" -> versienummer van het verwijderen
     /** Wat er verwijderd is, met inhoud, zodat `task_restore` en `section_restore` het kunnen terugzetten: "resource/id" -> { row, rev, at }. */
     this.trash = new Map();
+    /** Het activiteitenlogboek (zoals server/activity.ts): de regels van alle projecten, de oudste eerst. */
+    this.activity = seed.activity ?? [];
+    this.activitySeq = this.activity.length;
     for (const r of RESOURCE_NAMES) for (const id of this.state[r].keys()) this.revs.set(`${r}/${id}`, 1);
     /** Uitkomst per uuid: een herhaald commando wordt niet opnieuw uitgevoerd. */
     this.seen = new Map();
@@ -210,6 +217,7 @@ export class DemoServer {
         this.gone.set(`${r}/${id}`, this.rev);
       }
     }
+    this.logActivity(cmd.type, deepNormalize(cmd.args ?? {}), this.state, next, at);
     this.state = next;
     // bestanden van bijlagen die er niet meer zijn (verwijderd, of met hun taak of project verdwenen)
     for (const [id, f] of this.files) if (f.linked && !next.attachments.has(id) && !this.trash.has(`attachments/${id}`)) this.files.delete(id);
@@ -226,9 +234,10 @@ export class DemoServer {
         exactArgs(args, ['id', 'if_due', 'completed_on']);
         if (args.if_due !== undefined && !isValidDate(args.if_due)) fail('INVALID_ARG', 'if_due moet een geldige datum zijn');
         if (args.completed_on !== undefined && !(typeof args.completed_on === 'string' && args.completed_on.length === 10 && isValidDate(args.completed_on))) fail('INVALID_ARG', 'completed_on moet een datum zijn (JJJJ-MM-DD)');
-        requireLive(state, 'task', args.id, 'task.id');
+        this.requireEditor(state, requireLive(state, 'task', args.id, 'task.id').project_id);
         return apply();
-      case 'task_uncomplete': exactArgs(args, ['id']); requireLive(state, 'task', args.id, 'task.id'); return apply();
+      case 'task_uncomplete': exactArgs(args, ['id']); this.requireEditor(state, requireLive(state, 'task', args.id, 'task.id').project_id); return apply();
+      case 'member_update': return this.memberUpdate(state, args, at);
       case 'task_restore': case 'section_restore': return this.restore(state, type, args, at);
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
@@ -250,25 +259,149 @@ export class DemoServer {
       if (e.name === 'project' && isInboxId(id)) fail('INVALID_ARG', 'ids die met "inbox-" beginnen zijn gereserveerd');
       if (state[e.resource].has(id) || this.gone.has(`${e.resource}/${id}`)) fail('ID_EXISTS', `${e.name} met dit id bestaat al`);
       const v = this.collect(state, e, args, 'add');
+      const edited = e.name === 'project' ? v.parent_id ?? null : editedProject(state, e.name, v);
+      if (edited !== null) this.requireEditor(state, edited);
       this.verify(state, e, id, v, 'add', v);
       return apply({ ...args, id });
     }
     if (m[2] === 'update') {
       const row = requireLive(state, e.name, args.id, `${e.name}.id`);
       this.requireMayWrite(e, row, state);
+      const edited = editedProject(state, e.name, row);
+      if (edited !== null) this.requireEditor(state, edited);
       const changes = this.collect(state, e, args, 'update');
-      if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verplaatsen');
+      if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) {
+        this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verplaatsen');
+        if (changes.parent_id !== null) this.requireEditor(state, changes.parent_id);
+      }
       this.verify(state, e, row.id, { ...row, ...changes }, 'update', changes);
       return apply();
     }
     exactArgs(args, ['id']);
     const row = requireLive(state, e.name, args.id, `${e.name}.id`);
     this.requireMayWrite(e, row, state);
+    const edited = editedProject(state, e.name, row);
+    if (edited !== null) this.requireEditor(state, edited);
     if (e.name === 'project') {
       if (isInboxId(row.id)) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
       this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verwijderen; gebruik "verlaten" om er zelf uit te gaan');
     }
     return apply();
+  }
+
+  // ---------- het activiteitenlogboek (zoals server/activity.ts; alleen in het geheugen) ----------
+
+  record(projectId, kind, at, ref = {}) {
+    this.activity.push({
+      id: String(++this.activitySeq), project_id: projectId, at, actor_id: this.me.id, kind, task_id: ref.task_id ?? null, section_id: ref.section_id ?? null,
+      comment_id: ref.comment_id ?? null, attachment_id: ref.attachment_id ?? null, user_id: ref.user_id ?? null, title: shortTitle(ref.title) ?? null, extra: ref.extra ?? null,
+    });
+  }
+
+  /** Na een geslaagd commando: wat het deed, vergeleken tussen de toestand ervoor (`a`) en erna (`b`), met dezelfde regels als de server. */
+  logActivity(type, args, a, b, at) {
+    const taskProject = (state, taskId) => state.tasks.get(taskId)?.project_id ?? null;
+    const commentProject = (state, c) => (c.task_id ? taskProject(state, c.task_id) : c.project_id);
+    switch (type) {
+      case 'project_add': if (b.projects.has(args.id)) this.record(args.id, 'project_created', at, { title: b.projects.get(args.id).name }); return;
+      case 'project_update': {
+        const before = a.projects.get(args.id);
+        const after = b.projects.get(args.id);
+        if (!before || !after) return;
+        if (has(args, 'name') && after.name !== before.name) this.record(after.id, 'project_renamed', at, { title: after.name, extra: { from: before.name } });
+        if (has(args, 'is_archived') && Boolean(after.is_archived) !== Boolean(before.is_archived)) this.record(after.id, after.is_archived ? 'project_archived' : 'project_unarchived', at, { title: after.name });
+        return;
+      }
+      case 'project_delete': this.activity = this.activity.filter((x) => b.projects.has(x.project_id)); return; // een verwijderd project neemt zijn logboek mee
+      case 'section_add': { const s = b.sections.get(args.id); if (s) this.record(s.project_id, 'section_added', at, { section_id: s.id, title: s.name }); return; }
+      case 'section_update': {
+        const before = a.sections.get(args.id);
+        const after = b.sections.get(args.id);
+        if (before && after && has(args, 'name') && after.name !== before.name) this.record(after.project_id, 'section_renamed', at, { section_id: after.id, title: after.name, extra: { from: before.name } });
+        return;
+      }
+      case 'section_delete': { const s = a.sections.get(args.id); if (s) this.record(s.project_id, 'section_deleted', at, { section_id: s.id, title: s.name }); return; }
+      case 'section_restore': { const s = b.sections.get(args.id); if (s && !a.sections.has(args.id)) this.record(s.project_id, 'section_restored', at, { section_id: s.id, title: s.name }); return; }
+      case 'task_add': { const x = b.tasks.get(args.id); if (x) this.record(x.project_id, 'task_added', at, { task_id: x.id, title: x.content }); return; }
+      case 'task_update': {
+        const before = a.tasks.get(args.id);
+        const after = b.tasks.get(args.id);
+        if (!before || !after) return;
+        const { id: _id, ...changes } = args;
+        const fields = changedTaskFields(before, changes);
+        if (fields.length > 0) this.record(after.project_id, 'task_updated', at, { task_id: after.id, title: after.content, extra: { fields, ...(fields.includes('assignee_id') ? { assignee_id: changes.assignee_id ?? null } : {}) } });
+        return;
+      }
+      case 'task_complete': case 'task_uncomplete': {
+        const before = a.tasks.get(args.id);
+        const after = b.tasks.get(args.id);
+        if (!before || !after || before === after) return; // niets gedaan (al afgevinkt, of al doorgeschoven)
+        if (type === 'task_uncomplete') this.record(after.project_id, 'task_uncompleted', at, { task_id: after.id, title: before.content });
+        else this.record(after.project_id, 'task_completed', at, { task_id: after.id, title: before.content, extra: after.checked ? null : { recurring: true } });
+        return;
+      }
+      case 'task_move': {
+        const before = a.tasks.get(args.id);
+        const after = b.tasks.get(args.id);
+        if (!before || !after) return;
+        if (before.project_id !== after.project_id) {
+          const ref = { task_id: after.id, title: before.content, extra: { from_project: before.project_id, to_project: after.project_id } };
+          this.record(before.project_id, 'task_moved', at, ref);
+          this.record(after.project_id, 'task_moved', at, ref);
+        } else if ((before.section_id ?? null) !== (after.section_id ?? null)) {
+          this.record(after.project_id, 'task_moved', at, { task_id: after.id, title: before.content, extra: { from_section: before.section_id ?? null, to_section: after.section_id ?? null } });
+        }
+        return;
+      }
+      case 'task_delete': { const x = a.tasks.get(args.id); if (x) this.record(x.project_id, 'task_deleted', at, { task_id: x.id, title: x.content }); return; }
+      case 'task_restore': { const x = b.tasks.get(args.id); if (x && !a.tasks.has(args.id)) this.record(x.project_id, 'task_restored', at, { task_id: x.id, title: x.content }); return; }
+      case 'comment_add': {
+        const c = b.comments.get(args.id);
+        const p = c ? commentProject(b, c) : null;
+        if (p) this.record(p, 'comment_added', at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? b.tasks.get(c.task_id)?.content : null });
+        return;
+      }
+      case 'comment_delete': {
+        const c = a.comments.get(args.id);
+        const p = c ? commentProject(a, c) : null;
+        if (p) this.record(p, 'comment_deleted', at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? a.tasks.get(c.task_id)?.content : null });
+        return;
+      }
+      case 'attachment_add': { const x = b.attachments.get(args.id); if (x) this.record(taskProject(b, x.task_id), 'attachment_added', at, { attachment_id: x.id, task_id: x.task_id, title: x.name }); return; }
+      case 'attachment_delete': {
+        const x = a.attachments.get(args.id);
+        if (!x) return;
+        for (const e of this.activity) if (e.attachment_id === x.id) e.title = null; // de naam van een verwijderde bijlage verdwijnt
+        this.record(taskProject(a, x.task_id), 'attachment_deleted', at, { attachment_id: x.id, task_id: x.task_id });
+        return;
+      }
+      case 'project_share': case 'member_update': case 'project_unshare': case 'project_leave': {
+        const key = (m) => `${m.project_id}/${m.user_id}`;
+        const before = new Map([...a.members.values()].map((m) => [key(m), m]));
+        const after = new Map([...b.members.values()].map((m) => [key(m), m]));
+        for (const [k, m] of after) {
+          const old = before.get(k);
+          if (!old) this.record(m.project_id, 'member_added', at, { user_id: m.user_id, extra: { role: m.role } });
+          else if (old.role !== m.role) this.record(m.project_id, 'member_role', at, { user_id: m.user_id, extra: { role: m.role, from: old.role } });
+        }
+        for (const [k, m] of before) {
+          if (after.has(k) || (type === 'project_leave' && m.user_id !== this.me.id)) continue; // bij verlaten verdwijnen voor jou alle leden; alleen jij vertrok
+          this.record(m.project_id, type === 'project_leave' ? 'member_left' : 'member_removed', at, { user_id: m.user_id });
+        }
+        return;
+      }
+      default:
+    }
+  }
+
+  /** Wat `GET /api/v1/projects/<id>/activity` doet: een pagina, de nieuwste eerst, alleen voor een project dat je (nog) ziet. */
+  activityPage(projectId, { before = null, limit = null, kinds = null } = {}) {
+    if (!this.state.projects.has(projectId)) throw apiError(404, 'NOT_FOUND', 'dit project bestaat niet');
+    const q = parseActivityQuery({ before: before ?? null, limit: limit === null ? null : String(limit), kinds: kinds?.length ? kinds.join(',') : null });
+    if (q.error) throw apiError(400, 'INVALID_ARG', q.error);
+    const list = this.activity.filter((e) => e.project_id === projectId && (q.before === null || Number(e.id) < q.before) && (!q.kinds || q.kinds.includes(e.kind))).reverse();
+    const page = list.slice(0, q.limit).map(({ project_id: _p, ...e }) => structuredClone(e));
+    return { entries: page, next: list.length > q.limit ? page[page.length - 1].id : null };
   }
 
   // ---------- terugzetten (zoals server/restore.ts) ----------
@@ -283,6 +416,7 @@ export class DemoServer {
     if (state[resource].has(args.id)) return undefined; // al terug (of nooit weg)
     const entry = this.trash.get(`${resource}/${args.id}`);
     if (!entry || !state.projects.has(entry.row.project_id)) fail('NOT_FOUND', task ? 'task.id: taak bestaat niet' : 'section.id: sectie bestaat niet');
+    this.requireEditor(state, entry.row.project_id);
     if (Date.parse(at) - Date.parse(entry.at) > RESTORE_WINDOW_MS) {
       fail('CONFLICT', `${task ? 'task.id' : 'section.id'}: ${what} is te lang geleden verwijderd om terug te zetten (binnen ${Math.round(RESTORE_WINDOW_MS / 60_000)} minuten kan het nog)`);
     }
@@ -317,6 +451,11 @@ export class DemoServer {
 
   requireOwner(state, projectId, what) {
     if (roleOf(state, this.me.id, projectId) !== 'owner') fail('FORBIDDEN', what);
+  }
+
+  /** Een lezer (shared/roles.js) wijzigt niets aan taken, secties of het project. */
+  requireEditor(state, projectId) {
+    if (!canEditRole(roleOf(state, this.me.id, projectId))) fail('FORBIDDEN', 'je kunt dit project alleen lezen');
   }
 
   /** Iets zien is niet altijd genoeg om het te wijzigen: een label van een ander lees je alleen. */
@@ -374,7 +513,11 @@ export class DemoServer {
       }
       case 'task': {
         for (const l of v.labels ?? []) requireLive(state, 'label', l, 'task.labels');
-        if (v.assignee_id && has(given, 'assignee_id') && !isMember(state, v.assignee_id, v.project_id)) fail('INVALID_ARG', 'de toegewezen persoon is geen lid van dit project');
+        if (v.assignee_id && has(given, 'assignee_id')) {
+          const role = roleOf(state, v.assignee_id, v.project_id);
+          if (role === null) fail('INVALID_ARG', 'de toegewezen persoon is geen lid van dit project');
+          if (!canEditRole(role)) fail('INVALID_ARG', 'de toegewezen persoon kan dit project alleen lezen');
+        }
         if (mode === 'add') {
           if (v.parent_id) {
             const parent = requireLive(state, 'task', v.parent_id, 'task.parent_id');
@@ -428,8 +571,12 @@ export class DemoServer {
     exactArgs(args, ['id', 'project_id', 'section_id', 'parent_id', 'order_key']);
     const row = requireLive(state, 'task', args.id, 'task.id');
     if (!has(args, 'project_id') && !has(args, 'section_id') && !has(args, 'parent_id')) fail('MISSING_ARG', 'geef project_id, section_id of parent_id op');
+    this.requireEditor(state, row.project_id);
     const projectChanges = has(args, 'project_id') && args.project_id !== row.project_id;
-    if (has(args, 'project_id')) requireLive(state, 'project', args.project_id, 'task.project_id');
+    if (has(args, 'project_id')) {
+      requireLive(state, 'project', args.project_id, 'task.project_id');
+      this.requireEditor(state, args.project_id);
+    }
     const projectId = has(args, 'project_id') ? args.project_id : row.project_id;
     const parentId = (has(args, 'parent_id') ? args.parent_id : projectChanges ? null : row.parent_id) ?? null;
     const sectionId = (has(args, 'section_id') ? args.section_id : projectChanges ? null : row.section_id) ?? null;
@@ -451,26 +598,44 @@ export class DemoServer {
   dropStrangers(state, taskId, at) {
     for (const id of [taskId, ...descendantIds(state, [taskId])]) {
       const t = state.tasks.get(id);
-      if (t?.assignee_id && !isMember(state, t.assignee_id, t.project_id)) replaceRow(state, 'tasks', id, { assignee_id: null }, at);
+      if (t?.assignee_id && !canEditRole(roleOf(state, t.assignee_id, t.project_id))) replaceRow(state, 'tasks', id, { assignee_id: null }, at);
     }
   }
 
   // ---------- delen ----------
 
   projectShare(state, args, at) {
-    exactArgs(args, ['project_id', 'username']);
+    exactArgs(args, ['project_id', 'username', 'role']);
     const id = requireLive(state, 'project', args.project_id, 'project_id').id;
     if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden gedeeld');
     this.requireOwner(state, id, 'alleen de eigenaar kan een project delen');
     if (typeof args.username !== 'string') fail('INVALID_ARG', 'username moet tekst zijn');
+    const role = args.role === undefined ? DEFAULT_SHARE_ROLE : args.role;
+    const roleProblem = shareRoleProblem(role);
+    if (roleProblem) fail('INVALID_ARG', roleProblem);
     const target = this.accounts.find((u) => nameKey(u.username) === nameKey(args.username));
     // zelfde melding voor "bestaat niet" en "geblokkeerd", net als de echte server
     if (!target || target.is_disabled) fail('NOT_FOUND', 'deze gebruiker bestaat niet');
     if (target.id === this.me.id) return;
     for (const p of projectTree(state, id)) {
       if (roleOf(state, this.me.id, p) !== 'owner' || isMember(state, target.id, p)) continue;
-      addMember(state, p, target.id, 'member', at, newId());
+      addMember(state, p, target.id, role, at, newId());
     }
+  }
+
+  /** De rol van een lid wijzigen, zoals `memberUpdate` in server/sync.ts (de app rekent het zelf ook vooruit, core/reducer.js). */
+  memberUpdate(state, args, at) {
+    exactArgs(args, ['project_id', 'user_id', 'role']);
+    const id = requireLive(state, 'project', args.project_id, 'project_id').id;
+    this.requireOwner(state, id, 'alleen de eigenaar kan de rol van een lid wijzigen');
+    if (typeof args.user_id !== 'string' || !ID_RE.test(args.user_id)) fail('INVALID_ARG', 'ongeldig gebruikers-id');
+    const roleProblem = shareRoleProblem(args.role);
+    if (roleProblem) fail('INVALID_ARG', roleProblem);
+    if (args.user_id === this.me.id) fail('CONFLICT', 'je eigen rol kun je niet wijzigen');
+    const current = roleOf(state, args.user_id, id);
+    if (current === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
+    if (current === 'owner') fail('CONFLICT', 'de rol van een eigenaar kan niet worden gewijzigd');
+    return applyCommand(state, { type: 'member_update', args }, at, this.me.id);
   }
 
   /** Haalt iemand uit één project: het lidmaatschap, diens toewijzingen en diens herinneringen bij die taken. */
@@ -492,7 +657,8 @@ export class DemoServer {
     if (role === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
     if (role === 'owner') fail('CONFLICT', 'een eigenaar kan niet uit het project worden gehaald');
     for (const p of projectTree(state, id)) {
-      if (roleOf(state, this.me.id, p) === 'owner' && roleOf(state, userId, p) === 'member') this.removeMember(state, p, userId, at);
+      const theirs = roleOf(state, userId, p);
+      if (roleOf(state, this.me.id, p) === 'owner' && theirs !== null && theirs !== 'owner') this.removeMember(state, p, userId, at);
     }
   }
 
@@ -502,7 +668,7 @@ export class DemoServer {
     if (isInboxId(id)) fail('CONFLICT', 'de Inbox kan niet worden verlaten');
     const me = this.me.id;
     if (roleOf(state, me, id) === 'owner') fail('CONFLICT', 'de eigenaar kan het project niet verlaten; verwijder het project of laat het door iemand anders overnemen');
-    const left = new Set(projectTree(state, id).filter((p) => roleOf(state, me, p) === 'member'));
+    const left = new Set(projectTree(state, id).filter((p) => { const mine = roleOf(state, me, p); return mine !== null && mine !== 'owner'; }));
     for (const p of left) this.removeMember(state, p, me, at);
     // Wat je niet meer mag zien, bestaat voor jou niet meer: het project verdwijnt met alles erin.
     const tasks = new Set([...state.tasks.values()].filter((t) => left.has(t.project_id)).map((t) => t.id));
@@ -572,6 +738,7 @@ export class DemoServer {
       me: async () => ({ me: { ...this.me } }),
       changePassword: async () => { throw apiError(403, 'DEMO', notInDemo()); },
       sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s })) }),
+      activity: async (projectId, q) => this.activityPage(projectId, q),
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);
         if (i < 0) throw apiError(404, 'NOT_FOUND', 'deze sessie bestaat niet');

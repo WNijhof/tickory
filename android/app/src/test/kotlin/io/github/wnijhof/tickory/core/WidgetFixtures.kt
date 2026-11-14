@@ -23,8 +23,8 @@ object WidgetFixtures {
         order: String = id,
     ) = WidgetTask(id, project, section, parent, content, due, recurring, priority, labels, order)
 
-    fun project(id: String, name: String = "Project $id", parent: String? = null, archived: Boolean = false, order: String = id) =
-        WidgetProject(id, name, parent, archived, order)
+    fun project(id: String, name: String = "Project $id", parent: String? = null, archived: Boolean = false, order: String = id, readOnly: Boolean = false) =
+        WidgetProject(id, name, parent, archived, order, readOnly)
 
     fun snapshot(
         tasks: List<WidgetTask> = emptyList(),
@@ -43,8 +43,9 @@ object WidgetFixtures {
         sectionsJson: String = "[]",
         labelsJson: String = "[]",
         remindersJson: String = "[]",
+        membersJson: String? = null,
     ) = """{"sync_token":"9","full_sync":true,"sync_status":{},"me":{"id":"$account","username":"anna","name":"Anna","inbox_project_id":"inbox-project"},
-        "tasks":$tasksJson,"projects":$projectsJson,"reminders":$remindersJson,"sections":$sectionsJson,"labels":$labelsJson}"""
+        "tasks":$tasksJson,"projects":$projectsJson,"reminders":$remindersJson,"sections":$sectionsJson,"labels":$labelsJson${if (membersJson != null) ",\"members\":$membersJson" else ""}}"""
 
     fun taskJson(
         id: String,

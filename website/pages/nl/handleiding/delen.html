@@ -1,6 +1,6 @@
 <!--
 title: Delen en samenwerken
-description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, het verschil tussen eigenaar en lid, taken toewijzen, een project verlaten en wat persoonlijk blijft.
+description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, de rollen eigenaar, kan bewerken en alleen lezen, taken toewijzen, een project verlaten en wat persoonlijk blijft.
 -->
 <h1>Delen en samenwerken</h1>
 <p class="intro">Samenwerken gaat per project. Je deelt een project met andere mensen op dezelfde server; daarna werkt iedereen in dezelfde taken en secties.</p>
@@ -11,35 +11,53 @@ description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, h
 <ol>
   <li>Open het project en kies <x-ui k="project.share"></x-ui>. Bij een project dat al gedeeld is, heet de knop <x-ui k="project.shared"></x-ui>.</li>
   <li>Typ de <strong>gebruikersnaam</strong> van de ander en kies <x-ui k="project.share"></x-ui>. Die persoon moet een account hebben op dezelfde Tickory-server. Hoofdletters maken niet uit.</li>
-  <li>De persoon staat meteen in de lijst als <strong>lid</strong>, en ziet het project met alles wat erin staat, ook wat er al stond. Er is geen uitnodiging die eerst geaccepteerd moet worden.</li>
+  <li>Kies de <a href="#rollen">rol</a>: <x-ui k="share.member"></x-ui> of <x-ui k="share.viewer"></x-ui>.</li>
+  <li>De persoon staat meteen in de lijst, met de rol erbij, en ziet het project met alles wat erin staat, ook wat er al stond. Er is geen uitnodiging die eerst geaccepteerd moet worden.</li>
 </ol>
 <p>Bestaat de gebruikersnaam niet, of is dat account geblokkeerd, dan krijg je de melding “Deze gebruiker bestaat niet”. Uitnodigen via een link of per e-mail kan niet; iemand zonder account heeft eerst een account nodig van een <a href="gebruikers-beheren.html">beheerder</a>.</p>
 <p>Een gedeeld project herken je in de zijbalk aan het teken met twee poppetjes. Boven de taken staat met wie je het deelt.</p>
 
-<h2>Eigenaar en lid</h2>
-<p>Wie het project heeft gemaakt, is de <strong>eigenaar</strong>. Iedereen die erbij is gehaald, is <strong>lid</strong>.</p>
+<h2 id="rollen">Rollen: eigenaar, kan bewerken, alleen lezen</h2>
+<p>Wie het project heeft gemaakt, is de <strong>eigenaar</strong>. Wie erbij komt, krijgt een rol: <strong>kan bewerken</strong> (zo gaat het standaard) of <strong>alleen lezen</strong>. Je kiest de rol in het venster Delen, naast het veld voor de gebruikersnaam, en kunt hem later wijzigen.</p>
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Wat</th><th>Eigenaar</th><th>Lid</th></tr>
+      <tr><th>Wat</th><th>Eigenaar</th><th>Kan bewerken</th><th>Alleen lezen</th></tr>
     </thead>
     <tbody>
-      <tr><td class="wrap-ok">Taken en secties toevoegen, wijzigen, afvinken en verwijderen</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok">Taken toewijzen</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok">De naam van het project wijzigen</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok">Zien wie er lid is</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok">Iemand toevoegen of uit het project halen</td><td>ja</td><td>nee</td></tr>
-      <tr><td class="wrap-ok">Het project verwijderen</td><td>ja</td><td>nee</td></tr>
-      <tr><td class="wrap-ok">Het project verlaten</td><td>nee</td><td>ja</td></tr>
+      <tr><td class="wrap-ok">Alles in het project zien: taken, secties, opmerkingen, bijlagen, wie er lid is, de <a href="activiteit.html">activiteit</a></td><td>ja</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok">Taken en secties toevoegen, wijzigen, afvinken, verplaatsen en verwijderen</td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok">Bijlagen toevoegen</td><td>ja</td><td>ja</td><td>nee (wel bekijken en opslaan)</td></tr>
+      <tr><td class="wrap-ok">Het project hernoemen, archiveren, de weergave kiezen</td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok">Opmerkingen plaatsen</td><td>ja</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok">Eigen herinneringen zetten</td><td>ja</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok">Een taak toegewezen krijgen</td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok">Iemand toevoegen, een rol wijzigen of iemand uit het project halen</td><td>ja</td><td>nee</td><td>nee</td></tr>
+      <tr><td class="wrap-ok">Het project verwijderen</td><td>ja</td><td>nee</td><td>nee</td></tr>
+      <tr><td class="wrap-ok">Het project verlaten</td><td>nee</td><td>ja</td><td>ja</td></tr>
     </tbody>
   </table>
 </div>
+<p>Alleen lezen is handig voor wie mee wil kijken zonder iets te veranderen: een opa die wil weten wat er voor het familieweekend geregeld is, of een kind dat de boodschappenlijst mag zien. Reageren met een opmerking kan wel, zodat een vraag niet buiten de app hoeft.</p>
 <p>Een eigenaar kan het project niet verlaten en het eigenaarschap niet overdragen: de enige manier om eraf te komen is het project verwijderen, en dan is het voor iedereen weg.</p>
+
+<h2 id="een-rol-wijzigen">Een rol wijzigen</h2>
+<p>Als eigenaar: open <x-ui k="project.shared"></x-ui> en kies achter de naam <x-ui k="share.member"></x-ui> of <x-ui k="share.viewer"></x-ui>. Het geldt meteen, ook in de subprojecten waar jij eigenaar van bent. Wordt iemand lezer, dan vervallen de taken die aan die persoon waren toegewezen.</p>
+
+<h2 id="alleen-lezen">Als je alleen kunt lezen</h2>
+<p>In de zijbalk staat bij het project een oog in plaats van de twee poppetjes, en boven de taken staat <x-ui k="readonly.banner"></x-ui></p>
+<ul>
+  <li>Er is geen rondje om af te vinken (het staat er grijs), geen <x-ui k="quick.addTask"></x-ui> en geen <x-ui k="section.add"></x-ui>. Slepen en meerdere taken kiezen gaat niet.</li>
+  <li>Een taak openen kan altijd: het taakvenster laat alles zien, met de melding dat je alleen kunt lezen. Opmerkingen plaatsen en je eigen <a href="herinneringen.html">herinneringen</a> zetten werkt gewoon.</li>
+  <li>Secties en subtaken staan altijd uitgeklapt: inklappen hoort bij het project en geldt voor iedereen, dus dat laat de app aan wie kan bewerken. Ook de weergave (lijst, bord, kalender) kies je niet zelf.</li>
+  <li>In <x-ui k="nav.today"></x-ui>, <x-ui k="nav.upcoming"></x-ui> en een filter staan de taken met een datum uit zo'n project er ook, zonder rondje.</li>
+  <li>In de <a href="widgets.html">widgets</a> van de Android-app staat bij zo'n taak geen rondje; een tik op die plek opent de taak.</li>
+</ul>
 
 <h2 id="taken-toewijzen">Taken toewijzen</h2>
 <p>Open een taak in een gedeeld project en kies bij <x-ui k="task.assignedTo"></x-ui> een van de leden, of <x-ui k="task.nobody"></x-ui>. In de lijst staat daarna “voor Bram” bij de taak; bij je eigen taken staat “voor jou”.</p>
 <ul>
-  <li>Het veld staat er alleen als het project minstens twee leden heeft.</li>
+  <li>Het veld staat er alleen als het project minstens twee leden heeft. Wie alleen kan lezen, staat er niet bij.</li>
   <li>Toewijzen verandert niets aan wie de taak mag zien of afvinken: dat kan iedereen in het project.</li>
   <li>Verlaat iemand het project of wordt die eruit gehaald, dan vervalt de toewijzing.</li>
   <li>Verplaats je een taak naar een project waar die persoon geen lid van is, dan vervalt de toewijzing ook.</li>
@@ -59,7 +77,7 @@ description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, h
 <p>Als eigenaar: open <x-ui k="project.shared"></x-ui> en kies <x-ui k="share.remove"></x-ui> achter de naam. Na bevestiging ziet die persoon het project niet meer. De taken blijven staan; alleen de toewijzingen aan die persoon vervallen.</p>
 
 <h2>Een project verlaten</h2>
-<p>Als lid: kies <x-ui k="project.menu"></x-ui> en dan <x-ui k="project.leave"></x-ui> (of open <x-ui k="project.shared"></x-ui> en kies daar <x-ui k="project.leave"></x-ui>). Het project verdwijnt uit je lijst; voor de anderen verandert er niets. Je komt er alleen weer bij als de eigenaar je opnieuw toevoegt.</p>
+<p>Als lid of lezer: kies <x-ui k="project.menu"></x-ui> en dan <x-ui k="project.leave"></x-ui> (of open <x-ui k="project.shared"></x-ui> en kies daar <x-ui k="project.leave"></x-ui>). Het project verdwijnt uit je lijst; voor de anderen verandert er niets. Je komt er alleen weer bij als de eigenaar je opnieuw toevoegt.</p>
 
 <h2 id="wat-persoonlijk-blijft">Wat persoonlijk blijft</h2>
 <ul>
@@ -74,7 +92,7 @@ description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, h
 <h2>Beperkingen</h2>
 <ul>
   <li>Je deelt een heel project, niet een losse taak of sectie.</li>
-  <li>Iedereen in een project kan alles in dat project wijzigen en verwijderen; er is geen “alleen lezen”.</li>
+  <li>Er zijn drie vaste rollen. Een lezer die wel mag afvinken, of rechten per sectie, bestaan niet.</li>
   <li>Eigenaarschap overdragen kan niet.</li>
   <li>Een opmerking kan alleen de schrijver zelf wijzigen of verwijderen; een eigenaar kan dat niet voor een ander doen.</li>
 </ul>

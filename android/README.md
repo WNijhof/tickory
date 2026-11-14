@@ -306,6 +306,13 @@ in in de app".
 gegevens zijn; een ander gebruikers-id vervangt alles en gooit de wachtrij weg, hetzelfde id laat de wachtrij staan. In gedeelde
 projecten staat alleen wat de server stuurt; is de gebruiker geen lid meer, dan verdwijnt het project bij de volgende verversing.
 
+**Alleen lezen.** De verversing vraagt ook `members` op en onthoudt per project of de gebruiker er **lezer** is (rol `viewer`,
+`WidgetProject.readOnly`). Bij een taak uit zo'n project staat geen cirkel (de plek blijft, zodat de regels netjes onder elkaar
+staan) en een tik op die plek opent de taak; `WidgetActions.complete` zet zo'n taak ook niet in de wachtrij (een tik uit een
+verouderde widget). Weigert de server een afvinkactie toch (`FORBIDDEN`, bijvoorbeeld omdat de eigenaar je net lezer maakte), dan
+haalt `WidgetSync` haar uit de wachtrij zoals elke weigering, en brengt de verversing de taak terug. Een server zonder `members`
+in het antwoord: geen enkel project telt als alleen lezen.
+
 **Afvinken** (`WidgetActions.complete`, `WidgetSync.flush`):
 
 1. De tik komt als intentie bij `WidgetActionActivity` (geen weergave, sluit meteen). Die zet `{taak, uuid, if_due, gebruiker, tijd}`
@@ -315,7 +322,7 @@ projecten staat alleen wat de server stuurt; is de gebruiker geen lid meer, dan 
    blijft weg tot de verversing na het versturen hem terugbrengt met die datum (de veilige weg, boven zelf doorrekenen).
    `ReminderEngine.onCompletedLocally` laat de herinneringen, het uitstel en de meldingen van de taak meteen vervallen.
 3. `SyncWorker` stuurt de wachtrij vóór het ophalen als `task_complete` (hooguit 50 per verzoek). De uitkomst per commando:
-   `ok` of welke weigering ook (taak weg, geen lid meer, ...) haalt de regel uit de wachtrij; een netwerkfout of 5xx laat hem
+   `ok` of welke weigering ook (taak weg, geen lid meer, alleen lezen, ...) haalt de regel uit de wachtrij; een netwerkfout of 5xx laat hem
    staan (opnieuw proberen met hetzelfde uuid, met oplopende pauzes; daarna het kwartierwerk); `401` laat hem staan en markeert de
    sessie als verlopen; wat ouder is dan drie dagen vervalt. Daarna volgt altijd een verversing, zodat de widget laat zien hoe het
    er echt voor staat.

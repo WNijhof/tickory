@@ -200,7 +200,7 @@ class SessionAndSyncTest {
             assertEquals("/api/v1/sync", request.path)
             assertEquals("Bearer $token", request.headers["authorization"])
             assertTrue(request.headers["user-agent"]!!.startsWith("Tickory-Android/"))
-            assertEquals(listOf("tasks", "reminders", "projects", "sections", "labels", "places", "notifications", "settings", "comments"), Json.parseObject(request.body)!!.list("resource_types"))
+            assertEquals(listOf("tasks", "reminders", "projects", "sections", "labels", "members", "places", "notifications", "settings", "comments"), Json.parseObject(request.body)!!.list("resource_types"))
 
             assertEquals(trigger, alarms.scheduledAlarms.single().triggerAtMs)
         }

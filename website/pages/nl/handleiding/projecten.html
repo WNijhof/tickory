@@ -19,22 +19,23 @@ description: Taken indelen in Tickory: projecten maken en bewerken met een kleur
 
 <h2 id="het-projectmenu">Het projectmenu</h2>
 <x-shot name="projectmenu" alt="Het menu van het project Huishouden met de keuzes Bewerken, Subproject toevoegen, Uit favorieten halen, Voltooide taken bekijken, Delen, Archiveren en Project verwijderen (in het rood).">Het projectmenu van de eigenaar. Een lid ziet een kortere lijst.</x-shot>
-<p>Open het met <x-ui k="project.menu"></x-ui> rechtsboven in het project. Wat je ziet, hangt af van of je eigenaar of lid bent (zie <a href="delen.html#eigenaar-en-lid">eigenaar en lid</a>):</p>
+<p>Open het met <x-ui k="project.menu"></x-ui> rechtsboven in het project. Wat je ziet, hangt af van je <a href="delen.html#rollen">rol</a> in het project:</p>
 <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Keuze</th><th>Eigenaar</th><th>Lid</th></tr>
+      <tr><th>Keuze</th><th>Eigenaar</th><th>Kan bewerken</th><th>Alleen lezen</th></tr>
     </thead>
     <tbody>
-      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: naam, kleur, favoriet</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="template.menu.insert"></x-ui> en <x-ui k="template.menu.save"></x-ui></td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> of <x-ui k="project.unfavorite"></x-ui></td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (zie <a href="voltooid.html">Voltooid</a>)</td><td>ja</td><td>ja</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (voor een lid: <x-ui k="project.members"></x-ui>)</td><td>ja</td><td>alleen bekijken</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>ja</td><td>nee</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>ja</td><td>nee</td></tr>
-      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>nee</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.editMenu"></x-ui>: naam, kleur, favoriet</td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.addSub"></x-ui></td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="template.menu.insert"></x-ui> en <x-ui k="template.menu.save"></x-ui></td><td>ja</td><td>ja</td><td>alleen bewaren</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.favoriteAdd"></x-ui> of <x-ui k="project.unfavorite"></x-ui></td><td>ja</td><td>ja</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.completedMenu"></x-ui> (zie <a href="voltooid.html">Voltooid</a>)</td><td>ja</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="activity.menu"></x-ui> (zie <a href="activiteit.html">Activiteit</a>)</td><td>ja</td><td>ja</td><td>ja</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.shareMenu"></x-ui> (anders: <x-ui k="project.members"></x-ui>)</td><td>ja</td><td>alleen bekijken</td><td>alleen bekijken</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.archive"></x-ui></td><td>ja</td><td>nee</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.delete"></x-ui></td><td>ja</td><td>nee</td><td>nee</td></tr>
+      <tr><td class="wrap-ok"><x-ui k="project.leave"></x-ui></td><td>nee</td><td>ja</td><td>ja</td></tr>
     </tbody>
   </table>
 </div>

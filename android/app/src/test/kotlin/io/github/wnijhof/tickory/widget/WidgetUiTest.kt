@@ -267,6 +267,10 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("leeg", complete.getStringExtra(Notifications.EXTRA_TASK_ID))
         assertEquals(WidgetIntents.KIND_OPEN, open.getStringExtra(WidgetIntents.EXTRA_KIND))
         assertEquals("leeg", open.getStringExtra(Notifications.EXTRA_TASK_ID))
+        // alleen lezen: de cirkel is weg en een tik op die plek opent de taak
+        val (readComplete, _) = f.clickIntents(row.copy(readOnly = true))
+        assertEquals(WidgetIntents.KIND_OPEN, readComplete.getStringExtra(WidgetIntents.EXTRA_KIND))
+        assertEquals(View.VISIBLE, rowView(f, 0).findViewById<View>(R.id.check).visibility)
     }
 
     @Test

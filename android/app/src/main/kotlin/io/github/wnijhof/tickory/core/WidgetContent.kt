@@ -14,6 +14,7 @@ sealed class WidgetRow {
      * @property overdue vóór vandaag (alleen op de dag zelf, niet op de tijd)
      * @property depth 0 = taak, 1 = subtaak, enzovoort (hooguit 3)
      * @property meta het project (in lijsten over meerdere projecten) en de labels, bijvoorbeeld "Werk · @bellen"
+     * @property readOnly de taak staat in een project waar de gebruiker alleen lezer is: geen cirkel om af te vinken
      */
     data class Item(
         val id: String,
@@ -23,6 +24,7 @@ sealed class WidgetRow {
         val overdue: Boolean,
         val depth: Int,
         val meta: String?,
+        val readOnly: Boolean = false,
     ) : WidgetRow()
 }
 
@@ -85,6 +87,7 @@ object WidgetContentBuilder {
     private class Ctx(val snapshot: WidgetSnapshot, val today: LocalDate, val nowMs: Long, val zone: ZoneId, val lang: Lang, val use24Hour: Boolean) {
         val projectNames = snapshot.projects.associate { it.id to it.name }
         val labelNames = snapshot.labels.associate { it.id to it.name }
+        val readOnly = snapshot.projects.filter { it.readOnly }.mapTo(HashSet()) { it.id }
     }
 
     /** De verborgen taken plus, bij een gewone taak, alles eronder. Een terugkerende taak blijft open, dus zijn subtaken ook. */
@@ -195,7 +198,7 @@ object WidgetContentBuilder {
             if (!sourceIsProject) ctx.projectNames[t.projectId]?.takeIf { it.isNotBlank() }?.let { add(it) }
             t.labelIds.mapNotNull { ctx.labelNames[it]?.takeIf { n -> n.isNotBlank() } }.take(2).forEach { add("@$it") }
         }.joinToString(" · ").ifEmpty { null }
-        return WidgetRow.Item(t.id, t.content, t.priority, due, overdue, depth, meta)
+        return WidgetRow.Item(t.id, t.content, t.priority, due, overdue, depth, meta, t.projectId in ctx.readOnly)
     }
 
     private fun capped(rows: List<WidgetRow>, max: Int): List<WidgetRow> {

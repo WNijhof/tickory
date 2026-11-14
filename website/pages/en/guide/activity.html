@@ -1,0 +1,49 @@
+<!--
+title: Activity
+description: Seeing per project who did what and when in Tickory: tasks added, changed, completed, moved and deleted, comments, attachments and members, per day, with a filter and without a connection.
+-->
+<h1>Activity</h1>
+<p class="intro">Who ticked off the groceries, and when was that new task added? Every project keeps track of who did what. You find it under <x-ui k="activity.menu"></x-ui> in the menu of the project.</p>
+
+<h2 id="opening">Opening</h2>
+<ol>
+  <li>Open the project and choose <x-ui k="project.menu"></x-ui>.</li>
+  <li>Choose <x-ui k="activity.menu"></x-ui>. With <x-ui k="activity.back"></x-ui> you return to the tasks.</li>
+</ol>
+<p>It works in every project, also one you share with nobody, and also when you can <a href="sharing.html#roles">only view</a> a shared project.</p>
+
+<h2 id="what-you-see">What you see</h2>
+<ul>
+  <li><strong>Per day,</strong> the newest on top, with the time.</li>
+  <li><strong>Who did what:</strong> a task added, changed (with what changed: the title, the date, the priority, an assignment), completed or reopened, moved (to another section or another project), deleted or restored; a section added, renamed or deleted; a comment written or deleted; an attachment added or deleted; someone added, a role changed, someone removed from the project or leaving it; the project created, renamed or archived.</li>
+  <li><strong>The task:</strong> below the line is its title. Click it to open the task. If the task is no longer in this project (deleted or moved), it says <x-ui k="activity.notHere"></x-ui>.</li>
+  <li><strong>More:</strong> 50 entries at a time; <x-ui k="activity.more"></x-ui> brings the next ones.</li>
+  <li><strong>Filtering:</strong> choose at the top what you want to see: <x-ui k="activity.filter.all"></x-ui>, <x-ui k="activity.filter.tasks"></x-ui>, <x-ui k="activity.filter.sections"></x-ui>, <x-ui k="activity.filter.comments"></x-ui>, <x-ui k="activity.filter.attachments"></x-ui>, <x-ui k="activity.filter.members"></x-ui> or <x-ui k="activity.filter.project"></x-ui>.</li>
+</ul>
+<p>If someone else does something while you are looking, it appears by itself after a few seconds. <x-ui k="activity.refresh"></x-ui> fetches it right away.</p>
+
+<h2 id="what-is-not-in-it">What is not in it</h2>
+<ul>
+  <li>The text of comments and descriptions: you see that someone commented or changed the description; the text itself is with the task.</li>
+  <li>What is personal: reminders, places, labels (only that the labels of a task changed), filters and templates.</li>
+  <li>Collapsing and the order of tasks.</li>
+  <li>The name of an attachment that was deleted.</li>
+</ul>
+
+<h2 id="who-sees-it">Who sees it</h2>
+<ul>
+  <li>Everyone who is in the project now, also those who can only view. Whoever joins later also sees what happened before.</li>
+  <li>Whoever leaves the project or is removed from it no longer sees it.</li>
+  <li>Names appear as everywhere in the app; someone who no longer shares a project with you is called <x-ui k="activity.formerMember"></x-ui>.</li>
+  <li>If you delete a project, its activity is gone too.</li>
+</ul>
+
+<h2 id="without-a-connection">Without a connection</h2>
+<p>The activity is stored on the server, not on your device. Without a connection you see what you had already loaded in this session, with the message <x-ui k="activity.offlineCached"></x-ui> If you had loaded nothing yet, it says <x-ui k="activity.offlineEmpty"></x-ui></p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>The server keeps the activity for 180 days, and per project the last 10,000 entries.</li>
+  <li>There is one list per project; searching the activity, or seeing all projects together, is not possible.</li>
+  <li>What happened before this version of Tickory is not in it.</li>
+</ul>
