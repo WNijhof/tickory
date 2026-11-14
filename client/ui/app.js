@@ -663,14 +663,16 @@ function openPendingShare() {
   if (document.querySelector('dialog[open]')) return; // het volgende moment (store.subscribe) opnieuw
   const draft = pendingShare;
   pendingShare = null;
+  // waar de taak komt, als de Android-app dat meegaf ("Openen in de app" uit het kleine venster); anders de Inbox
+  const where = { projectId: draft.projectId ?? null, sectionId: draft.sectionId ?? null, due: draft.due ?? null };
   if (!draft.files) {
-    handlers.quickAdd({ text: draft.title, description: draft.description });
+    handlers.quickAdd({ text: draft.title, description: draft.description, ...where });
     return;
   }
   // Gedeelde bestanden: eerst ophalen bij de Android-app, daarna het venster; wordt de taak gemaakt, dan worden het bijlagen.
   fetchSharedFiles(draft).then(async (files) => {
     if (files.length < draft.files.length) toast(t('quick.sharedFilesMissing'), { kind: 'error' });
-    const id = await handlers.quickAdd({ text: draft.title, description: draft.description, files: files.map((f) => f.name) });
+    const id = await handlers.quickAdd({ text: draft.title, description: draft.description, ...where, files: files.map((f) => f.name) });
     if (id && files.length > 0) {
       const { rejected } = await attachments.stage(id, files);
       for (const r of rejected) toast(rejectionText(r), { kind: 'error', timeout: 10_000 });

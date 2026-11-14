@@ -1176,6 +1176,21 @@ try {
   await clickText('Annuleren', `document.querySelector('.dialog-quick')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
   assert.equal(serverTask('Fietsroute Texel'), undefined, 'annuleren maakt geen taak');
+  // "Openen in de app" uit het kleine venster Taak toevoegen van de Android-app: dezelfde weg, met het project en de dag erbij
+  const thuisProject = (serverState().projects as any[]).find((p) => p.name === 'Thuis');
+  const nextDay = await evaluate(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`) as string;
+  const fromPopup = Buffer.from(JSON.stringify({ title: 'Fietsband plakken p2', text: '', project: thuisProject.id, due: nextDay }), 'utf8').toString('base64url');
+  await evaluate(`location.hash = ${js(`#share=${fromPopup}`)}`);
+  await waitFor(`document.querySelector('.dialog-quick[open] input[type=text]')?.value === 'Fietsband plakken p2'`, 'de getypte tekst uit het kleine venster');
+  assert.equal(await evaluate(`document.querySelector('.dialog-quick[open] select').selectedOptions[0].textContent.trim()`), 'Thuis', 'in het project dat in het kleine venster gekozen was');
+  assert.match(await evaluate(`document.querySelector('.dialog-quick[open] .quick-day').textContent`) as string, /^Voor /, 'met de dag van de knop Morgen');
+  await clickText('Toevoegen', `document.querySelector('.dialog-quick')`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'toegevoegd');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const plakken = serverTask('Fietsband plakken');
+  assert.equal(plakken?.project_id, thuisProject.id);
+  assert.equal(plakken?.due?.date, nextDay);
+  assert.equal(plakken?.priority, 2);
   // een kapot of vreemd #share=… doet niets
   await evaluate(`location.hash = '#share=@@@'`);
   await evaluate(`location.hash = '#share=e30'`);
@@ -1187,7 +1202,7 @@ try {
   await send('Page.reload');
   await waitFor(`document.body.classList.contains('ready')`, 'app opnieuw gestart zonder brug');
   await waitFor(SYNCED, 'gesynchroniseerd');
-  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst (een vreemde waarde niet)');
+  step('Android-brug: de app krijgt het sessietoken, de uitleg over meldingen, alarmen en batterij verschijnt met werkende knoppen, een wijziging aan herinneringen geeft één waarschuwing, en #task=… opent de taak, en #share=… opent Taak toevoegen met de gedeelde tekst, ook met project en dag uit het kleine venster van de app (een vreemde waarde niet)');
 
   // ---- 8d2. herinneringen op een locatie: plaatsen, de huidige positie (nagebootst), het taakvenster en de Android-brug ----
   await geoScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, nav, BASE });
