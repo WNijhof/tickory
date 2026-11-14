@@ -256,6 +256,17 @@ class GeoEngineTest {
     }
 
     @Test
+    fun `controleer nu vraagt ook een verse bepaling als er net nog een was, gewoon kijken niet`() {
+        source.known = listOf(fix(300.0, 0))
+        GeoEngine.tick(app)
+        assertEquals("de positie van Android is jong genoeg", 0, source.freshCalls)
+        source.fresh = fix(310.0, 5)
+        AppClock.now = { now + 5_000 }
+        GeoEngine.tick(app, forceActive = true)
+        assertEquals("de gebruiker vroeg erom", 1, source.freshCalls)
+    }
+
+    @Test
     fun `tick doet niets als er niets te bewaken valt`() {
         store(reminders = emptyList())
         GeoEngine.tick(app)

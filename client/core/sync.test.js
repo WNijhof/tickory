@@ -683,7 +683,7 @@ async function randomGeoAction(c, rnd) {
     if (!task) return 'skip';
     const id = `id${String(++counter).padStart(10, '0')}`;
     const bad = [{ task_id: task.id, type: 'location', trigger: 'enter' }, { task_id: task.id, type: 'location', place_id: place.id }, { task_id: task.id, type: 'location', place_id: 'bestaat-niet-1', trigger: 'enter' },
-      { task_id: task.id, type: 'relative', minute_offset: 5, place_id: place.id }][rnd(4)];
+      { task_id: task.id, type: 'relative', minute_offset: 5, place_id: place.id }, { task_id: task.id, type: 'location', place_id: place.id, trigger: 'enter', minute_offset: 5 }][rnd(5)];
     await c.store.enqueue([{ type: 'reminder_add', uuid: uuid(), args: { id, ...bad } }]);
     return 'invalidLocationReminder';
   }

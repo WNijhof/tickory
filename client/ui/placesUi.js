@@ -217,7 +217,7 @@ export function placesDialog({ store, actions, bridge = androidBridge() }) {
           h('label', { class: 'field-label' }, t('places.name'), nameInput),
           h('div', { class: 'reminder-add' }, here, hereNote),
           h('label', { class: 'field-label' }, t('places.paste'), paste, h('span', { class: 'hint' }, t('places.pasteHint'))),
-          h('div', { class: 'reminder-add' },
+          h('div', { class: 'places-coords' },
             h('label', { class: 'field-label' }, t('places.lat'), latInput),
             h('label', { class: 'field-label' }, t('places.lon'), lonInput)),
           h('label', { class: 'field-label' }, t('places.radius'), radiusSelect, h('span', { class: 'hint' }, t('places.radiusHint'))),

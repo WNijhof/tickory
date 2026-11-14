@@ -323,6 +323,8 @@ test('het live-signaal gaat alleen naar de eigenaar van een gewijzigde plaats', 
   const who = audienceSince(db, rev, anna.id);
   assert.ok(who.has(anna.id));
   assert.ok(!who.has(bram.id), 'bram hoort niet eens dat er iets gebeurde');
+  // ook als de wijziging van "iemand anders" komt (een ander commando in dezelfde ronde), hoort de eigenaar het
+  assert.ok(audienceSince(db, rev, bram.id).has(anna.id), 'de eigenaar van de plaats krijgt het signaal');
 });
 
 test('migratie: een database van vóór de locatieherinneringen krijgt de kolommen en de tabel, en oude herinneringen blijven werken', () => {

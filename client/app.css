@@ -531,6 +531,7 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .section-plain { display: flex; flex-direction: column; gap: 8px; }
 .reminder-add { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .reminder-add .field { flex: 1 1 150px; min-width: 0; }
+.places-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .dialog-buttons-start { justify-content: flex-start; }
 
 /* ---------- weergaven: keuze, bord en kalender (ui/viewSwitch.js, ui/board.js, ui/calendar.js) ---------- */

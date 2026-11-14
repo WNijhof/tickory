@@ -46,6 +46,10 @@ test('afstand: tegenpolen halen de wortel niet boven 1 (afrondingsfouten)', () =
   const half = distanceMeters(0, 0, 0, 180);
   near(half, 20_015_087, 100);
   assert.ok(Number.isFinite(distanceMeters(45, 10, -45, -170)));
+  // punten waarvoor de formule door afronding net boven 1 uitkomt (asin zou dan NaN geven)
+  for (const [la, lo, la2, lo2] of [[65.83308609468821, -125.70935538627661, -65.83308609468821, 54.29064461372339], [74.49786860864089, 97.25021525177806, -74.49786860864089, -82.74978474822194], [-50.599430700720696, 16.195317900573173, 50.599430700720696, -163.80468209942683]]) {
+    near(distanceMeters(la, lo, la2, lo2), 20_015_087, 100, 'bijna tegenpolen');
+  }
   assert.ok(Number.isFinite(distanceMeters(33.3, 44.4, -33.3, -135.6)));
 });
 
@@ -77,6 +81,7 @@ test('plakken: geo:-links', () => {
   assert.deepEqual(parseCoordinates('geo:0,0?q=52.0907%2C5.1214'), { lat: 52.0907, lon: 5.1214 });
   assert.deepEqual(parseCoordinates('geo:0,0'), { lat: 0, lon: 0 });
   assert.equal(parseCoordinates('geo:0,0?q=Hoofdstraat+1+Plaats'), null, 'een zoekopdracht naar een adres is geen positie');
+  assert.equal(parseCoordinates(`https://kaart.example/@52.0907,5.1214,${'a'.repeat(2000)}`), null, 'een veel te lange invoer wordt niet gelezen');
 });
 
 test('plakken: kaartlinks (zonder iets op te halen)', () => {

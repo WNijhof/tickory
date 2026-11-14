@@ -194,6 +194,11 @@ test('de vingerafdruk voor Android verandert bij een andere plaats of straal, ni
   assert.notEqual(radius, base);
   await c.settle(() => c.actions.updatePlace(home, { lat: 52.1 }));
   assert.notEqual(reminderFingerprint(c.store.view, c.store.userId), radius);
+  // van aankomst naar vertrek is ook een verandering voor de app
+  const rem = [...c.store.view.reminders.values()].find((r) => r.place_id === home);
+  const arrival = reminderFingerprint(c.store.view, c.store.userId);
+  await c.store.enqueue([{ type: 'reminder_update', uuid: `uuid-${String(++counter).padStart(10, '0')}`, args: { id: rem.id, trigger: 'leave' } }]);
+  assert.notEqual(reminderFingerprint(c.store.view, c.store.userId), arrival, 'de trigger telt mee');
   const before = reminderFingerprint(c.store.view, c.store.userId);
   await c.settle(() => c.actions.updateTask(task, { description: 'alleen een notitie' }));
   assert.equal(reminderFingerprint(c.store.view, c.store.userId), before);
