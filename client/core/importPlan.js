@@ -51,7 +51,7 @@ export function selectedProjects(projects, selected) {
  * }} options `under`: de naam van een nieuw bovenliggend project ("Uit Todoist"), of null om alles los bovenaan te zetten;
  *   `inboxName`: de naam voor een project "Inbox" dat bovenaan komt (naast de eigen Inbox); `resolveLabels`: labelCommands uit core/actions.js
  * @returns {{ batches: { key: string | null, name: string, commands: object[] }[], rootIds: string[], projectIds: Map<string, string>,
- *   counts: { projects: number, sections: number, tasks: number, comments: number, newLabels: number, perProject: { name: string, sections: number, tasks: number, comments: number }[] } }}
+ *   counts: { projects: number (met "Uit Todoist"), imported: number (zonder), sections: number, tasks: number, comments: number, newLabels: number, perProject: { name: string, sections: number, tasks: number, comments: number }[] } }}
  */
 export function planImport(view, projects, { selected, under, inboxName, makeId, resolveLabels }) {
   const list = selectedProjects(projects, selected);
@@ -163,7 +163,7 @@ export function planImport(view, projects, { selected, under, inboxName, makeId,
 
   return {
     batches, rootIds, projectIds,
-    counts: { projects: list.length + (under ? 1 : 0), sections: sectionsTotal, tasks: tasksTotal, comments: commentsTotal, newLabels: labels.commands.length, perProject },
+    counts: { projects: list.length + (under ? 1 : 0), imported: list.length, sections: sectionsTotal, tasks: tasksTotal, comments: commentsTotal, newLabels: labels.commands.length, perProject },
   };
 }
 

@@ -838,7 +838,7 @@ export default {
   'import.issue.skippedRows': { one: '{count} regel overgeslagen (leeg of onbekend)', other: '{count} regels overgeslagen (leeg of onbekend)' },
   'import.people.authors': 'Gemaakt door: {names}',
   'import.people.responsible': 'Toegewezen aan: {names}',
-  'import.people.note': '(alleen ter informatie: niet gekoppeld aan gebruikers van deze server)',
+  'import.people.note': 'Wie iets maakte of toegewezen kreeg, staat er alleen ter informatie: die namen worden niet gekoppeld aan gebruikers van deze server.',
   'import.note.date': 'Datum uit Todoist: {text}',
   'import.note.deadline': 'Deadline uit Todoist: {text}',
   'import.note.duration': 'Duur uit Todoist: {text}',

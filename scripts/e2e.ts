@@ -33,6 +33,7 @@ import { createAttachments } from '../server/attachments.ts';
 import { geoScenario } from './e2e-geo.ts';
 import { bulkScenario } from './e2e-bulk.ts';
 import { templatesScenario } from './e2e-templates.ts';
+import { importScenario } from './e2e-import.ts';
 import { notifyScenario } from './e2e-notify.ts';
 import { accountScenario } from './e2e-account.ts';
 import { rolesScenario } from './e2e-roles.ts';
@@ -427,6 +428,14 @@ try {
     await stopServer();
     process.exit(process.exitCode ?? 0);
   }
+  // importeren uit Todoist (scripts/e2e-import.ts); met E2E_IMPORT_ONLY=1 alleen dat onderdeel
+  const importCtx = { send, evaluate, waitFor, step, shot, sleep, SYNCED, serverState, clickText, click, nav, workDir };
+  if (process.env.E2E_IMPORT_ONLY) {
+    try { await importScenario(importCtx); console.log('ALLEEN IMPORTEREN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-importeren'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // meerdere taken selecteren, ongedaan maken en Voltooid (scripts/e2e-bulk.ts); met E2E_BULK_ONLY=1 alleen dat onderdeel
   const bulkCtx = { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer };
   if (process.env.E2E_BULK_ONLY) {
@@ -679,7 +688,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Plaatsen', 'Gegevens exporteren', 'Importeren uit Todoist', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -847,7 +856,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Productivity', 'Places', 'Export data', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Productivity', 'Places', 'Export data', 'Import from Todoist', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1184,6 +1193,9 @@ try {
 
   // ---- 8d3. sjablonen: een project of taken uit een sjabloon, bewaren, delen, importeren ----
   await templatesScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, submit, nav, workDir, BASE });
+
+  // ---- 8d4. importeren uit Todoist: een back-up kiezen, voorbeeld, importeren, ongedaan maken (scripts/e2e-import.ts) ----
+  await importScenario(importCtx);
 
   // ---- 8e. het uiterlijk: projectenboom met kleur, favoriet, subproject, in- en uitklappen en archief ----
   const projectOnServer = (name: string) => (serverState().projects as any[]).find((p) => p.name === name);

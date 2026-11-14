@@ -176,7 +176,7 @@ export function importDialog({ store, actions, files = null }) {
         h('label', { class: 'import-item-head' }, box, h('span', { class: 'import-name' }, pathOf(project, byKey))),
         h('p', { class: 'import-counts' }, countsText(project)),
         issues.length > 0 && h('ul', { class: 'import-issues' }, issues.map((text) => h('li', {}, text))),
-        people.length > 0 && h('p', { class: 'import-people hint' }, `${people.join(' · ')} ${t('import.people.note')}`));
+        people.length > 0 && h('p', { class: 'import-people hint' }, people.join(' · ')));
     };
 
     const show = ({ projects: found, problems, skipped }) => {
@@ -198,7 +198,8 @@ export function importDialog({ store, actions, files = null }) {
           h('div', { class: 'import-select' },
             h('button', { type: 'button', class: 'button button-small', onclick: () => selectAll(true) }, t('import.selectAll')),
             h('button', { type: 'button', class: 'button button-small', onclick: () => selectAll(false) }, t('import.selectNone'))),
-          h('ul', { class: 'import-list' }, projects.map((p) => projectItem(p, byKey)))));
+          h('ul', { class: 'import-list' }, projects.map((p) => projectItem(p, byKey))),
+          projects.some((p) => p.people.authors.length + p.people.responsible.length > 0) && h('p', { class: 'hint' }, t('import.people.note'))));
       refresh();
     };
 
@@ -264,7 +265,7 @@ export function importDialog({ store, actions, files = null }) {
 export function announceImport(made, navigate = () => {}) {
   if (!made) return;
   if (made.rootIds[0]) navigate({ type: 'project', id: made.rootIds[0] });
-  toast(t('import.done', { projects: t('import.count.projects', { count: made.counts.projects }), tasks: t('import.count.tasks', { count: made.counts.tasks }) }), {
+  toast(t('import.done', { projects: t('import.count.projects', { count: made.counts.imported }), tasks: t('import.count.tasks', { count: made.counts.tasks }) }), {
     action: { label: t('task.undo'), run: () => made.undo() }, timeout: 15_000,
   });
 }

@@ -841,7 +841,7 @@ export default {
   'import.issue.skippedRows': { one: '{count} row skipped (empty or unknown)', other: '{count} rows skipped (empty or unknown)' },
   'import.people.authors': 'Created by: {names}',
   'import.people.responsible': 'Assigned to: {names}',
-  'import.people.note': '(for information only: not linked to users of this server)',
+  'import.people.note': 'Who created or was assigned something is shown for information only: those names are not linked to users of this server.',
   'import.note.date': 'Date from Todoist: {text}',
   'import.note.deadline': 'Deadline from Todoist: {text}',
   'import.note.duration': 'Duration from Todoist: {text}',
