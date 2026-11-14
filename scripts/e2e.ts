@@ -2255,7 +2255,7 @@ try {
       first: [...s.querySelectorAll('button, input, a')].find(visible)?.className, focus: document.activeElement.className,
       items: [...s.querySelectorAll('.nav-item .nav-label, .nav-section-link, .nav-heading > span')].filter(visible).map((e) => e.textContent),
       views: ['nav-inbox', 'nav-today', 'nav-upcoming'].filter((fk) => { const e = s.querySelector('[data-fk="' + fk + '"]'); return e && visible(e); }),
-      state: history.state?.tickoryBrowse ?? null,
+      state: history.state?.tickoryBrowse ?? null, inert: document.querySelector('main.main').inert,
     };
   })()`);
   assert.deepEqual(sheet.box, [0, 0, 390, 0], `Bladeren vult het scherm boven de balk: ${sheet.box}`);
@@ -2263,6 +2263,7 @@ try {
   for (const name of ['Voltooid', 'Meldingen', 'Filters', 'Labels', 'Projecten', 'Thuis']) assert.ok(sheet.items.includes(name), `${name} staat in Bladeren: ${sheet.items}`);
   assert.deepEqual(sheet.views, [], 'Inbox, Vandaag en Aankomend staan niet nog eens in Bladeren');
   assert.equal(sheet.state, true, 'Bladeren is een stap in de geschiedenis (de terugknop sluit het)');
+  assert.equal(sheet.inert, true, 'wat Bladeren afdekt, is niet te bereiken met Tab of een schermlezer');
   barNow = await barState();
   assert.deepEqual([barNow.current, barNow.expanded, barNow.fab.shown], [['browse'], 'true', false]);
   await shot('telefoon-bladeren');
@@ -2286,6 +2287,7 @@ try {
   await evaluate(`history.back()`);
   await waitFor(`!document.body.classList.contains('nav-open')`, 'terug sluit Bladeren');
   assert.equal(await evaluate(`document.activeElement.dataset.tab`), 'browse', 'de focus staat daarna op de knop Bladeren');
+  assert.equal(await evaluate(`document.querySelector('main.main').inert`), false, 'de lijst is weer te bereiken');
   await click('[data-tab="browse"]');
   await waitFor(`document.body.classList.contains('nav-open')`, 'Bladeren open');
   await press('Escape');

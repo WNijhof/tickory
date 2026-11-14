@@ -172,6 +172,9 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
       else buttons[tab].removeAttribute('aria-current');
     }
     buttons.browse.setAttribute('aria-expanded', String(browseOpen));
+    // wat Bladeren afdekt, is zolang niet te bereiken met Tab of een schermlezer
+    const main = document.querySelector('main.main');
+    if (main && main.inert !== browseOpen) main.inert = browseOpen;
     const hide = !currentTarget();
     if (fab.hidden !== hide) fab.hidden = hide;
   }
