@@ -9,6 +9,7 @@ import { fileNameProblem, MAX_NAME_LENGTH } from './attachments.js';
 import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './places.js';
 import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
 import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notifications.js';
+import { ROLES } from './roles.js';
 
 /**
  * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification'} EntityName
@@ -235,13 +236,14 @@ export const ENTITIES = {
       owner(),
     ],
   },
-  // Wie bij een project hoort. Alleen te wijzigen met project_share, project_unshare en project_leave.
+  // Wie bij een project hoort, met welke rol (shared/roles.js). Alleen te wijzigen met project_share, member_update,
+  // project_unshare en project_leave.
   member: {
     name: 'member', table: 'project_members', resource: 'members', commands: false,
     cols: [
       { name: 'project_id', type: 'text', required: true, ref: 'project', immutable: true },
       { name: 'user_id', type: 'text', required: true, immutable: true, check: userIdCheck },
-      { name: 'role', type: 'text', required: true, oneOf: ['owner', 'member'] },
+      { name: 'role', type: 'text', required: true, oneOf: ROLES },
     ],
   },
 };

@@ -81,7 +81,8 @@ function viewImage({ attachment, blob }) {
  * @param {{ task: { id: string, project_id: string }, store: import('../core/store.js').Store, actions: object }} options
  * @returns {{ node: HTMLElement, dispose: () => void } | null}
  */
-export function attachmentsSection({ task, store, actions }) {
+export function attachmentsSection({ task, store, actions, readOnly = false }) {
+  // readOnly: een project dat je alleen leest (core/access.js): bekijken en opslaan wel, toevoegen en verwijderen niet
   if (!runtime) return null;
   const { manager, bridge } = runtime;
   const urls = new Map(); // id -> blob-URL van een voorbeeld
@@ -111,7 +112,7 @@ export function attachmentsSection({ task, store, actions }) {
   input.addEventListener('change', () => { pick(input.files); input.value = ''; });
   camera.addEventListener('change', () => { pick(camera.files); camera.value = ''; });
 
-  const mayDelete = (a) => Boolean(store.userId) && (a.creator_id === store.userId || roleIn(store.view, task.project_id, store.userId) === 'owner');
+  const mayDelete = (a) => !readOnly && Boolean(store.userId) && (a.creator_id === store.userId || roleIn(store.view, task.project_id, store.userId) === 'owner');
   const who = (a) => (a.creator_id === store.userId ? store.me?.name : store.userName(a.creator_id)) ?? t('common.unknownUser');
 
   async function loadPreview(a) {
@@ -217,18 +218,18 @@ export function attachmentsSection({ task, store, actions }) {
     title,
     list,
     note,
-    h('div', { class: 'attachment-actions' }, addButton, cameraButton, input, camera,
+    !readOnly && h('div', { class: 'attachment-actions' }, addButton, cameraButton, input, camera,
       h('label', { class: 'attachment-shrink' }, shrink, t('attachment.shrink'))));
 
   // Bestanden neerzetten op het onderdeel
   node.addEventListener('dragover', (e) => {
-    if (!e.dataTransfer?.types?.includes('Files')) return;
+    if (readOnly || !e.dataTransfer?.types?.includes('Files')) return;
     e.preventDefault();
     node.classList.add('attachments-drop');
   });
   node.addEventListener('dragleave', () => node.classList.remove('attachments-drop'));
   node.addEventListener('drop', (e) => {
-    if (!e.dataTransfer?.files?.length) return;
+    if (readOnly || !e.dataTransfer?.files?.length) return;
     e.preventDefault();
     node.classList.remove('attachments-drop');
     pick(e.dataTransfer.files);

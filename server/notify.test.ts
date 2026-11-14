@@ -395,7 +395,7 @@ test('migratie: een database van vóór de meldingen krijgt de tabel, de kolomme
   createSchema(db);
   createSchema(db);
   assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as Row).value, String(SCHEMA_VERSION));
-  assert.equal(SCHEMA_VERSION, 6);
+  assert.ok(SCHEMA_VERSION >= 6, 'de meldingen kwamen in versie 6');
   const res = run(db, anna, []);
   assert.deepEqual((res.comments as Row[]).map((x) => [x.content, x.mentions]), [['Van vroeger', []]]);
   assert.equal((res.settings as Row[])[0].notify_push, null);

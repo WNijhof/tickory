@@ -21,6 +21,7 @@ import { canReorderProject, currentProjectPlan, currentTaskPlan, planCardDrop, p
 import { dayLabel } from '../core/calendar.js';
 import { descendantIds } from '../core/reducer.js';
 import { projectDescendantIds } from '../core/selectors.js';
+import { canEditProject } from '../core/access.js';
 import { getLocale, t } from '../core/i18n.js';
 import { h, toast } from './dom.js';
 
@@ -92,7 +93,9 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (row && content.contains(row)) {
       if (target.closest('[data-act="check"], [data-act="fold"], [data-act="move"], .task-actions, .cal-check, a, input, textarea')) return;
       if (row.dataset.real === 'false') return; // een voorkomen van een herhaling in de kalender: er is niets om te verzetten
-      if (!getContext().view.tasks.has(taskIdOf(row))) return;
+      const { view, userId } = getContext();
+      const task = view.tasks.get(taskIdOf(row));
+      if (!task || !canEditProject(view, task.project_id, userId)) return; // een project dat je alleen leest: niets te slepen
       startPending(e, 'task', taskIdOf(row), row, Boolean(target.closest('.drag-handle')));
       return;
     }
@@ -293,6 +296,12 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
         }
       }
     }
+    // nooit in een project dat je alleen leest (core/access.js); de server zou het weigeren
+    if (plan && drag.kind === 'task' && plan.project_id && !canEditProject(view, plan.project_id, userId)) {
+      plan = null;
+      line = null;
+      for (const el of document.querySelectorAll('.dnd-target, .dnd-target-child')) el.classList.remove('dnd-target', 'dnd-target-child');
+    }
     drag.plan = plan;
     drag.label = label;
     drag.ghost.classList.toggle('dnd-nodrop', !plan);
@@ -432,6 +441,15 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     const target = e.target instanceof Element ? e.target : null;
     if (!target || target.closest('input, textarea, select, [contenteditable]')) return;
     const row = taskRowOf(target);
+    if (row && content.contains(row)) {
+      const { view, userId } = getContext();
+      const task = view.tasks.get(taskIdOf(row));
+      if (task && !canEditProject(view, task.project_id, userId)) {
+        e.preventDefault();
+        announce(t('readonly.cannotMove', { name: task.content }));
+        return;
+      }
+    }
     if (row && content.contains(row) && row.closest('.board-column')) {
       e.preventDefault();
       keyboardCard(row.dataset.id, command);

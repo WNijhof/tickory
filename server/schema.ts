@@ -39,7 +39,7 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 6; // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken (alle komen er met CREATE TABLE IF NOT EXISTS bij)
+export const SCHEMA_VERSION = 7; // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken, 7: rollen (lezer) en het activiteitenlogboek (alle komen er met CREATE TABLE IF NOT EXISTS bij)
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -172,6 +172,13 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS notifications_age ON notifications (is_deleted, created_at)');
   // Welke nieuwe meldingen nog als pushbericht naar de browsers van de ontvanger moeten (zie push.ts).
   db.exec('CREATE TABLE IF NOT EXISTS notification_outbox (notification_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL)');
+  // Het activiteitenlogboek per project (versie 7; zie activity.ts). Geen entiteit: het gaat niet mee in de sync. `seq` is de cursor.
+  db.exec(`CREATE TABLE IF NOT EXISTS activity (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, project_id TEXT NOT NULL, at TEXT NOT NULL, actor_id TEXT, kind TEXT NOT NULL,
+    task_id TEXT, section_id TEXT, comment_id TEXT, attachment_id TEXT, user_id TEXT, title TEXT, extra TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS activity_project ON activity (project_id, seq)');
+  db.exec('CREATE INDEX IF NOT EXISTS activity_at ON activity (at)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
 }
 

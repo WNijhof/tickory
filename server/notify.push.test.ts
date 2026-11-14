@@ -69,7 +69,8 @@ test('opmerking met vermelding: het begin van de tekst gaat mee (op één regel,
   const long = `@Bram kun je\nmorgen ${'heel '.repeat(80)}vroeg komen?`;
   w.run(w.anna, [cmd('comment_add', { id: 'comment-push-001', task_id: T, content: long, mentions: [w.bram.id] }), cmd('comment_add', { id: 'comment-push-002', project_id: P, content: 'Wie heeft de sleutel?' })]);
   await w.push.flushNotifications();
-  const got = phone.received().map((m) => m.body);
+  // de twee berichten gaan tegelijk de deur uit; in welke volgorde ze aankomen, ligt niet vast
+  const got = phone.received().map((m) => m.body).sort((a, b) => (a.kind === 'mention' ? -1 : b.kind === 'mention' ? 1 : 0));
   assert.deepEqual(got.map((b) => b.kind), ['mention', 'comment']);
   assert.ok(got[0].text.startsWith('@Bram kun je morgen heel'));
   assert.ok([...got[0].text].length <= 200 && got[0].text.endsWith('…'));

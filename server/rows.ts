@@ -11,6 +11,8 @@ export interface Ctx {
   db: DatabaseSync; rev: number; now: string; userId: string;
   /** Tellingen voor de limieten (limits.ts), gedeeld door de commando's van één verzoek zodat ze niet steeds opnieuw tellen. */
   counts?: Map<string, number>;
+  /** De projecten waarvan het activiteitenlogboek (activity.ts) in dit verzoek is gegroeid; na afloop wordt daar opgeruimd. */
+  activity?: Set<string>;
 }
 
 export class SyncError extends Error {

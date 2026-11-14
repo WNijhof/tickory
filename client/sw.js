@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v40';
+const CACHE = 'tickory-v50';
 const SHELL = [
   '/',
   '/app.css',
@@ -101,11 +101,13 @@ const SHELL = [
   '/i18n/en.js',
   '/i18n/nl.js',
   '/vendor/nlDatum.generated.js',
+  '/shared/activity.js',
   '/shared/attachments.js',
   '/shared/notifications.js',
   '/shared/orderKey.js',
   '/shared/password.js',
   '/shared/recurrence.js',
+  '/shared/roles.js',
   '/shared/reminders.js',
   '/shared/places.js',
   '/shared/schema.js',
@@ -250,7 +252,8 @@ function notificationFor(data) {
       tag: `tickory-${data.id}-${data.moment}`, // dezelfde herinnering twee keer ontvangen geeft één melding
       requireInteraction: true,
       data: { taskId: data.task_id, complete: data.complete, snooze: data.snooze, message: data },
-      actions: [{ action: 'complete', title: text.complete }, { action: 'snooze', title: text.snooze }],
+      // zonder token geen knop "Voltooien" (een lezer kan de taak niet afvinken; zie shared/roles.js)
+      actions: [data.complete && { action: 'complete', title: text.complete }, { action: 'snooze', title: text.snooze }].filter(Boolean),
     },
   };
 }

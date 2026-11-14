@@ -53,7 +53,7 @@ const within = (day, from, to) => day >= from && day <= to;
  *   showProject?: boolean, addTarget?: object, readOnly?: boolean,
  * }} options
  */
-export function calendarView({ calendarKey, tasks, view, today, handlers, showProject = false, addTarget = {}, readOnly = false }) {
+export function calendarView({ calendarKey, tasks, view, today, handlers, showProject = false, addTarget = {}, readOnly = false, canEdit = () => true }) {
   const state = stateOf(calendarKey);
   const locale = getLocale();
   const anchor = state.anchor ?? today;
@@ -95,11 +95,15 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     const overdue = withDate;
     const project = showProject ? view.projects.get(task.project_id) : null;
     const title = real ? task.content : t('calendar.repeatTitle', { name: task.content });
+    // een taak in een project dat je alleen leest (core/access.js): niet af te vinken en niet te slepen
+    const locked = readOnly || !canEdit(task);
     return h('li', {
-      class: `cal-item prio-${task.priority ?? 4}${real ? '' : ' cal-virtual'}${overdue ? ' cal-late' : ''}`,
-      dataset: { taskId: task.id, date, real: String(real) },
+      class: `cal-item prio-${task.priority ?? 4}${real ? '' : ' cal-virtual'}${overdue ? ' cal-late' : ''}${locked ? ' cal-readonly' : ''}`,
+      dataset: { taskId: task.id, date, real: String(real), ...(locked ? { readonly: 'true' } : {}) },
     },
-    real
+    real && locked
+      ? h('span', { class: 'cal-repeat cal-lock', title: t('readonly.cannotComplete'), role: 'img', 'aria-label': t('readonly.cannotComplete') }, icon('eye'))
+      : real
       ? h('button', {
         class: 'cal-check', type: 'button', 'aria-pressed': 'false', dataset: { fk: `calcheck:${task.id}` },
         'aria-label': t('task.completeLabel', { name: task.content }), title: t('task.completeLabel', { name: task.content }), onclick: () => handlers.toggle(task),

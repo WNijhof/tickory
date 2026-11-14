@@ -32,6 +32,7 @@ import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
 import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
 import { LIMITS } from './limits.ts';
+import { listActivity } from './activity.ts';
 import {
   countUsers, createSession, createUser, findSession, getUserById, getUserByName, hashPassword, listSessions, listUsers, LoginLimiter,
   publicMe, revokeSession, revokeSessions, setPasswordHash, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
@@ -415,7 +416,7 @@ export function createApp(opts: AppOptions): App {
 
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
-        || (push !== null && path.startsWith('/api/v1/push/'));
+        || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/');
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
@@ -481,6 +482,15 @@ export function createApp(opts: AppOptions): App {
         }
         const id = path.slice('/api/v1/attachments/'.length);
         return await attachments.download(req, res, caller.user.id, id, url.searchParams.get('inline') === '1', cors);
+      }
+
+      // Het activiteitenlogboek van een project (activity.ts): alleen voor wie het project nu ziet, anders 404 zoals voor een onbekend project.
+      if (path.startsWith('/api/v1/projects/')) {
+        const m = /^\/api\/v1\/projects\/([^/]+)\/activity$/.exec(path);
+        if (!m) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+        if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        const q = url.searchParams;
+        return send(res, 200, listActivity(db, caller.user.id, m[1], { before: q.get('before'), limit: q.get('limit'), kinds: q.get('kinds') }));
       }
 
       if (path === '/api/v1/events') {

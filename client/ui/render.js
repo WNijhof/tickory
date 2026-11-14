@@ -29,6 +29,7 @@ import { emptyArt, icon } from './icons.js';
 import { boardView } from './board.js';
 import { calendarView } from './calendar.js';
 import { upcomingStyle, viewSwitch } from './viewSwitch.js';
+import { canEditProject } from '../core/access.js';
 
 const sameRoute = (a, b) => a.type === b.type && (a.id ?? null) === (b.id ?? null);
 
@@ -49,7 +50,7 @@ export const dot = (color, extra = '') => h('span', { class: `dot ${colorClass(c
 export function sidebar({ view, today, route, handlers, me = null }) {
   const n = counts(view, today);
   const countOf = (count) => count > 0 && h('span', { class: 'nav-count' }, String(count));
-  const item = ({ target, label, lead, count = 0, shared = false, fk, list = null }) => {
+  const item = ({ target, label, lead, count = 0, shared = false, readOnly = false, fk, list = null }) => {
     const active = sameRoute(route, target);
     // `list` (inbox, favorite of tree) maakt van een project een plek om op te slepen en iets om te slepen (ui/dragdrop.js)
     return h('button', {
@@ -58,12 +59,14 @@ export function sidebar({ view, today, route, handlers, me = null }) {
     },
     lead,
     h('span', { class: 'nav-label' }, label),
-    shared && h('span', { class: 'nav-shared', title: t('nav.sharedProject'), role: 'img', 'aria-label': t('nav.sharedProjectLabel') }, icon('users')),
+    readOnly
+      ? h('span', { class: 'nav-shared nav-readonly', title: t('role.viewerBadge'), role: 'img', 'aria-label': t('role.viewerBadge') }, icon('eye'))
+      : shared && h('span', { class: 'nav-shared', title: t('nav.sharedProject'), role: 'img', 'aria-label': t('nav.sharedProjectLabel') }, icon('users')),
     countOf(count));
   };
   const projectItem = (project, extra = {}) => item({
     target: { type: 'project', id: project.id }, label: project.name, lead: dot(project.color), count: n.perProject.get(project.id) ?? 0,
-    shared: isShared(view, project.id), ...extra,
+    shared: isShared(view, project.id), readOnly: !canEditProject(view, project.id, me?.id), ...extra,
   });
   const inbox = view.projects.get(me?.inbox_project_id) ?? [...view.projects.values()].find((p) => isInboxId(p.id));
   const favorites = favoriteProjects(view);
@@ -88,7 +91,7 @@ export function sidebar({ view, today, route, handlers, me = null }) {
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus')),
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('template.menu.fromTemplate'), title: t('template.menu.fromTemplate'), dataset: { fk: 'nav-from-template' }, onclick: () => handlers.projectFromTemplate() }, icon('template')))),
       navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)), hasChildren: String(hasChildren && !collapsed) } },
-        hasChildren
+        hasChildren && canEditProject(view, project.id, me?.id) // inklappen hoort bij het project: een lezer wijzigt het niet
           ? h('button', {
             class: 'nav-toggle', type: 'button', 'aria-expanded': String(!collapsed), dataset: { fk: `toggle:${project.id}` },
             'aria-label': collapsed ? t('nav.expand', { name: project.name }) : t('nav.collapse', { name: project.name }),
@@ -142,11 +145,20 @@ function buildRow(m, variant = '') {
   li.dataset.id = m.id;
   li.dataset.depth = String(m.depth);
   if (card) li.dataset.taskId = m.id; // aanhaakpunt voor slepen: zie de lijst bovenaan ui/board.js
+  if (m.readOnly) {
+    li.classList.add('task-readonly'); // een project dat je alleen leest (core/access.js): niet afvinken, slepen of snel wijzigen
+    li.dataset.readonly = 'true';
+  }
 
   const check = rowButton('check', 'check');
   check.dataset.fk = `check:${m.id}`;
   check.setAttribute('aria-pressed', String(m.done));
   check.setAttribute('aria-label', m.done ? t('task.reopenLabel', { name: m.content }) : t('task.completeLabel', { name: m.content }));
+  if (m.readOnly) {
+    check.setAttribute('aria-disabled', 'true');
+    check.setAttribute('aria-label', t('readonly.checkLabel', { name: m.content }));
+    check.title = t('readonly.cannotComplete');
+  }
 
   const chips = [];
   const chip = (cls, ...kids) => mk('span', `chip ${cls}`, ...kids);
@@ -155,7 +167,7 @@ function buildRow(m, variant = '') {
   if (m.deadline) chips.push(chip(`chip-deadline${m.deadline.overdue ? ' due-overdue' : ''}`, m.deadline.text));
   if (m.subtasks) {
     const body = [icon('subtasks'), m.subtasks.text];
-    if (m.hasChildren || m.collapsed) {
+    if ((m.hasChildren || m.collapsed) && !m.readOnly) {
       const toggle = rowButton('chip chip-subtasks chip-toggle', 'fold', ...body, icon(m.collapsed ? 'chevronRight' : 'chevronDown'));
       toggle.dataset.fk = `fold:${m.id}`;
       toggle.setAttribute('aria-expanded', String(!m.collapsed));
@@ -202,9 +214,9 @@ function buildRow(m, variant = '') {
   const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
   body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
   li.append(check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
-  li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
+  if (!m.readOnly) li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
   if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
-  if (card) {
+  if (card && !m.readOnly) {
     // Op een telefoon verdwijnen de snelle knoppen (er is geen aanwijzer); dit menu blijft dus altijd zichtbaar.
     const move = rowButton('icon-button card-move', 'move', icon('move'));
     move.dataset.fk = `move:${m.id}`;
@@ -217,7 +229,7 @@ function buildRow(m, variant = '') {
 
 /** De snelle knoppen (bewerken, dag kiezen, verwijderen) van een regel; ze worden pas gemaakt als je de regel aanwijst of er met het toetsenbord in komt. */
 function ensureActions(li, model) {
-  if (li.querySelector('.task-actions')) return;
+  if (model.readOnly || li.querySelector('.task-actions')) return; // een lezer heeft niets om snel te wijzigen
   const make = (act, iconName, label, title) => {
     const b = rowButton('icon-button', act, icon(iconName));
     b.setAttribute('aria-label', label);
@@ -248,6 +260,11 @@ export function bindList(container, handlers) {
     const control = e.target.closest('[data-act]');
     const act = control?.dataset.act;
     const task = entry.task;
+    if (entry.model.readOnly && act && act !== 'open' && act !== 'label') {
+      // alleen lezen: afvinken en snel wijzigen kan niet; zeg dat, in plaats van niets te doen
+      if (act === 'check') handlers.readOnlyNotice?.(task);
+      return;
+    }
     if (act === 'check') {
       if (entry.model.done || li.classList.contains('task-completing')) {
         handlers.toggle(task);
@@ -281,7 +298,7 @@ export function bindList(container, handlers) {
 /** Zet getekende regels in een lijst en bewaart ze voor de volgende keer. `pool` verzamelt wat nu in gebruik is. */
 function rowsOf(list, pool, ctx) {
   return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
-    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id) });
+    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id), readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
     const json = ctx.variant ? `${ctx.variant}|${JSON.stringify(model)}` : JSON.stringify(model);
     if (pool.has(task.id)) return buildRow(model, ctx.variant); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
     let entry = rowCache.get(task.id);
@@ -330,7 +347,8 @@ function sharedWith(view, projectId, me, userName) {
   const others = membersOf(view, projectId).filter((m) => m.user_id !== me?.id).map((m) => userName(m.user_id) ?? t('common.someone'));
   if (others.length === 0) return null;
   const names = others.length === 1 ? others[0] : t('common.listAnd', { first: others.slice(0, -1).join(', '), last: others[others.length - 1] });
-  return h('p', { class: 'hint shared-with' }, t('share.sharedWith', { names }), roleIn(view, projectId, me?.id) === 'owner' ? '' : ` · ${t('share.youAreMember')}`);
+  const mine = roleIn(view, projectId, me?.id);
+  return h('p', { class: 'hint shared-with' }, t('share.sharedWith', { names }), mine === 'owner' ? '' : ` · ${mine === 'viewer' ? t('share.youAreViewer') : t('share.youAreMember')}`);
 }
 
 const addInline = (handlers, target, label = t('quick.addTask')) =>
@@ -377,7 +395,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     if (style === 'calendar') {
       return finish({
         title: t('nav.upcoming'), count: null, lead: icon('upcoming'), actions: [switcher],
-        nodes: [calendarView({ calendarKey: 'upcoming', tasks: [...view.tasks.values()], view, today, handlers, showProject: true, addTarget: {} })],
+        nodes: [calendarView({ calendarKey: 'upcoming', tasks: [...view.tasks.values()], view, today, handlers, showProject: true, addTarget: {}, canEdit: (task) => canEditProject(view, task.project_id, me?.id) })],
       });
     }
     const days = upcomingView(view, today);
@@ -402,15 +420,19 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost ${cls}`, type: 'button', onclick, ...extra },
     icon(iconName), h('span', { class: 'btn-label' }, label));
   const style = viewStyleOf(project);
+  // een project dat je alleen leest: niets toevoegen, slepen of indelen; de weergave kiest wie kan bewerken (ze geldt voor iedereen)
+  const readOnly = !canEditProject(view, project.id, me?.id);
   const actions = [
-    viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
+    !readOnly && viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
     headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
-    !inbox && headButton('btn-share', 'users', isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
+    !inbox && headButton('btn-share', readOnly ? 'eye' : 'users', readOnly ? t('project.members') : isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
     !inbox && headButton('btn-menu', 'more', t('project.menu'), () => handlers.projectMenu(project)),
   ];
-  const archived = isArchivedProject(view, project.id);
+  const archived = isArchivedProject(view, project.id) || readOnly; // vanaf hier: niets toevoegen of verplaatsen
   const addTarget = (section) => ({ projectId: project.id, sectionId: section?.id ?? null });
-  const banner = archived && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('project.archivedBanner')), h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.restoreProject(project) }, t('project.restore')));
+  const banner = readOnly
+    ? h('div', { class: 'banner banner-readonly', role: 'status', dataset: { fk: 'readonly-banner' } }, icon('eye'), h('span', {}, t('readonly.banner')))
+    : archived && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('project.archivedBanner')), h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.restoreProject(project) }, t('project.restore')));
   if (style === 'board') {
     const board = boardColumns(view, project.id, { showCompleted });
     return finish({
@@ -438,7 +460,8 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     });
   }
   const sectionGroups = pv.groups.map((g) => {
-    const folded = foldRows(g.tasks);
+    // een lezer klapt niets in of uit (dat hoort bij de taak, voor iedereen): hij ziet alles uitgeklapt
+    const folded = readOnly ? g.tasks.map((r, i) => ({ ...r, hasChildren: (g.tasks[i + 1]?.depth ?? 0) > r.depth, collapsed: false })) : foldRows(g.tasks);
     const items = rows(folded, false);
     if (!g.section) {
       return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)), drop: archived ? null : { projectId: project.id } });
@@ -446,8 +469,8 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     const section = g.section;
     return group({
       title: section.name, rows: items, total: g.tasks.length,
-      collapsible: { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
-      extra: h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
+      collapsible: readOnly ? null : { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
+      extra: !readOnly && h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
       footer: !archived && addInline(handlers, addTarget(section)),
       drop: archived ? null : { projectId: project.id, sectionId: section.id },
     });

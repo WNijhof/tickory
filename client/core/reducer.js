@@ -9,6 +9,7 @@
 import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
 import { isValidKey, keyAfter } from '../../shared/orderKey.js';
 import { nextDue, nextOccurrence } from '../../shared/recurrence.js';
+import { canEditRole, SHARE_ROLES } from '../../shared/roles.js';
 
 export const RESOURCES = ENTITY_LIST.map((e) => e.resource);
 
@@ -165,11 +166,67 @@ function deleteTaskTree(state, rootIds) {
   removeWhere(state, 'notifications', (n) => ids.has(n.task_id)); // zoals de server: een melding over een verdwenen taak gaat mee
 }
 
+/** De rol van een gebruiker in een project (`owner`, `member`, `viewer`), of null. */
+function roleOf(state, userId, projectId) {
+  for (const m of state.members.values()) if (m.project_id === projectId && m.user_id === userId) return m.role;
+  return null;
+}
+
 /** Is deze gebruiker eigenaar van het project? Zonder bekende gebruiker (tests, vóór de eerste sync) tellen we het als ja. */
 function isOwner(state, userId, projectId) {
   if (!userId) return true;
-  for (const m of state.members.values()) if (m.project_id === projectId && m.user_id === userId) return m.role === 'owner';
-  return false;
+  return roleOf(state, userId, projectId) === 'owner';
+}
+
+/**
+ * Mag deze gebruiker in het project wijzigen (taken, secties, bijlagen, het project zelf)? Een lezer niet (shared/roles.js), net als op de
+ * server. Zonder bekende gebruiker tellen we het als ja.
+ */
+function mayEdit(state, userId, projectId) {
+  if (!userId) return true;
+  const role = roleOf(state, userId, projectId);
+  if (role !== null) return canEditRole(role);
+  // Kent de app de leden van het project (nog) niet, dan beslist de server; een lezer heeft altijd zijn eigen ledenrij.
+  for (const m of state.members.values()) if (m.project_id === projectId) return false;
+  return true;
+}
+
+/** Het project waarvan de inhoud verandert bij een wijziging van deze rij; null voor wat ook een lezer mag (zoals de server). */
+function editedProject(state, entityName, row) {
+  switch (entityName) {
+    case 'project': return row.id;
+    case 'section': case 'task': return row.project_id;
+    case 'attachment': return state.tasks.get(row.task_id)?.project_id ?? null;
+    default: return null;
+  }
+}
+
+/** Toewijzen kan alleen aan wie in het project kan bewerken (een lezer niet), zoals de server (die geeft anders INVALID_ARG). */
+function mayAssign(state, userId, projectId, assigneeId) {
+  if (!userId || assigneeId === null || assigneeId === undefined) return true;
+  return canEditRole(roleOf(state, assigneeId, projectId));
+}
+
+/**
+ * De rol van een lid wijzigen (`member_update`), zoals de server: alleen de eigenaar, niet van jezelf of een eigenaar; ook in de
+ * subprojecten waar je eigenaar bent. Wie lezer wordt, verliest zijn toewijzingen daar.
+ */
+function updateMemberRole(state, args, now, userId) {
+  const { project_id: projectId, user_id: target, role } = args;
+  if (!state.projects.has(projectId) || !SHARE_ROLES.includes(role) || target === userId) return;
+  if (!isOwner(state, userId, projectId)) return;
+  const current = roleOf(state, target, projectId);
+  if (current === null || current === 'owner') return;
+  const tree = [projectId];
+  for (let i = 0; i < tree.length; i++) for (const p of state.projects.values()) if (p.parent_id === tree[i] && !tree.includes(p.id)) tree.push(p.id);
+  for (const p of tree) {
+    const before = roleOf(state, target, p);
+    if (!isOwner(state, userId, p) || before === null || before === 'owner' || before === role) continue;
+    for (const m of [...state.members.values()]) if (m.project_id === p && m.user_id === target) patch(state, 'members', m.id, { role }, now);
+    if (!canEditRole(role)) {
+      for (const t of [...state.tasks.values()]) if (t.project_id === p && t.assignee_id === target) patch(state, 'tasks', t.id, { assignee_id: null }, now);
+    }
+  }
 }
 
 /**
@@ -246,11 +303,13 @@ function remove(state, e, args, now, userId) {
 
 const TASK_MOVE_ARGS = ['id', 'project_id', 'section_id', 'parent_id', 'order_key'];
 
-function taskMove(state, args, now) {
-  // Net als de server: wat niet kan (onbekend argument, cirkel, sectie van een ander project, ongeldige sleutel) doet niets.
+function taskMove(state, args, now, userId) {
+  // Net als de server: wat niet kan (onbekend argument, cirkel, sectie van een ander project, ongeldige sleutel, een project dat je
+  // alleen leest) doet niets.
   if (Object.keys(args).some((k) => !TASK_MOVE_ARGS.includes(k))) return;
   const row = state.tasks.get(args.id);
-  if (!row) return;
+  if (!row || !mayEdit(state, userId, row.project_id)) return;
+  if (has(args, 'project_id') && !mayEdit(state, userId, args.project_id)) return;
   if (!has(args, 'project_id') && !has(args, 'section_id') && !has(args, 'parent_id')) return;
   const projectChanges = has(args, 'project_id') && args.project_id !== row.project_id;
   if (has(args, 'project_id') && !state.projects.has(args.project_id)) return;
@@ -277,8 +336,8 @@ function taskMove(state, args, now) {
   patch(state, 'tasks', row.id, { ...target, order_key: orderKey }, now);
   for (const kid of kids) patch(state, 'tasks', kid, { project_id: projectId, section_id: sectionId }, now);
   if (projectChanges) {
-    // een toegewezen persoon die geen lid is van het nieuwe project, blijft niet toegewezen
-    const members = new Set([...state.members.values()].filter((m) => m.project_id === projectId).map((m) => m.user_id));
+    // een toegewezen persoon die in het nieuwe project niet kan bewerken (geen lid, of lezer), blijft niet toegewezen
+    const members = new Set([...state.members.values()].filter((m) => m.project_id === projectId && canEditRole(m.role)).map((m) => m.user_id));
     for (const id of [row.id, ...kids]) {
       const moved = state.tasks.get(id);
       if (moved.assignee_id && !members.has(moved.assignee_id)) patch(state, 'tasks', id, { assignee_id: null }, now);
@@ -327,16 +386,34 @@ const CAN_WRITE_FOREIGN = new Set(['label', 'filter']); // alleen de eigenaar wi
 export function applyCommand(state, cmd, now, userId = null) {
   const args = cmd.args ?? {};
   switch (cmd.type) {
-    case 'task_move': return taskMove(state, args, now);
-    case 'task_complete': return taskComplete(state, args, now);
-    case 'task_uncomplete': return taskUncomplete(state, args, now);
+    case 'task_move': return taskMove(state, args, now, userId);
+    case 'task_complete': case 'task_uncomplete': {
+      // een taak in een project dat je alleen leest, vink je niet af (zoals de server)
+      const task = state.tasks.get(args.id);
+      if (task && !mayEdit(state, userId, task.project_id)) return undefined;
+      return cmd.type === 'task_complete' ? taskComplete(state, args, now) : taskUncomplete(state, args, now);
+    }
     case 'notification_read_all': return readAllNotifications(state, args, now, userId);
+    case 'member_update': return updateMemberRole(state, args, now, userId);
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;
       // welke algemene commando's een entiteit heeft, staat in de definitie (leden: geen; instellingen: alleen wijzigen)
       if (!e || e.commands === false || (Array.isArray(e.commands) && !e.commands.includes(m[2]))) return undefined;
-      if (m[2] === 'add') return add(state, e, args, now, userId);
+      if (m[2] === 'add') {
+        // in een project dat je alleen leest voeg je niets toe (een opmerking en een eigen herinnering wel), zoals de server
+        const edited = e.name === 'project' ? args.parent_id ?? null : editedProject(state, e.name, args);
+        if (edited !== null && !mayEdit(state, userId, edited)) return undefined;
+        if (e.name === 'task' && !mayAssign(state, userId, args.project_id, args.assignee_id)) return undefined;
+        return add(state, e, args, now, userId);
+      }
+      const existing = state[e.resource].get(args.id);
+      if (existing) {
+        const edited = editedProject(state, e.name, existing);
+        if (edited !== null && !mayEdit(state, userId, edited)) return undefined;
+        if (e.name === 'project' && m[2] === 'update' && has(args, 'parent_id') && args.parent_id && args.parent_id !== (existing.parent_id ?? null) && !mayEdit(state, userId, args.parent_id)) return undefined;
+        if (e.name === 'task' && m[2] === 'update' && has(args, 'assignee_id') && !mayAssign(state, userId, existing.project_id, args.assignee_id)) return undefined;
+      }
       // een label of filter van iemand anders lees je alleen
       if (CAN_WRITE_FOREIGN.has(e.name) && userId) {
         const row = state[e.resource].get(args.id);
