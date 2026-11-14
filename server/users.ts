@@ -279,10 +279,16 @@ export function sessionExpired(s: { created_at: string; last_used_at: string }, 
 }
 
 /** Het soort apparaat, voor in de lijst. Alleen vaste namen uit een korte lijst, nooit versienummers: geen vingerafdruk. */
-export interface DeviceKind { kind: 'browser' | 'app' | 'other'; browser: string | null; os: string | null }
+export interface DeviceKind { kind: 'browser' | 'app' | 'extension' | 'other'; browser: string | null; os: string | null }
 
-/** Leest het soort apparaat uit een User-Agent. De web-app in de Android-app (een WebView, "; wv)") telt als de app. */
-export function describeUserAgent(ua: string | undefined): DeviceKind {
+/** Een verzoek uit een browserextensie (de pagina's en de service worker van een extensie sturen hun eigen oorsprong mee). */
+const EXTENSION_ORIGIN = /^(?:chrome|moz|safari-web)-extension:\/\//;
+
+/**
+ * Leest het soort apparaat uit een User-Agent. De web-app in de Android-app (een WebView, "; wv)") telt als de app; een verzoek met
+ * de oorsprong van een browserextensie (`origin`, de kop Origin) als de extensie, met de browser uit de User-Agent.
+ */
+export function describeUserAgent(ua: string | undefined, origin?: string): DeviceKind {
   const s = (ua ?? '').slice(0, 500);
   const os = /Android/i.test(s) ? 'Android'
     : /iPhone|iPad|iPod/i.test(s) ? 'iOS'
@@ -300,13 +306,19 @@ export function describeUserAgent(ua: string | undefined): DeviceKind {
           : /Chrome\/|CriOS\//.test(s) ? 'Chrome'
             : /Safari\//.test(s) ? 'Safari'
               : null;
-  return { kind: 'browser', browser, os };
+  return { kind: typeof origin === 'string' && EXTENSION_ORIGIN.test(origin) ? 'extension' : 'browser', browser, os };
 }
+
+/** Het soort apparaat van een verzoek: de User-Agent, en de oorsprong voor een browserextensie. */
+export const describeDevice = (req: { headers: Record<string, string | string[] | undefined> }): DeviceKind => {
+  const origin = req.headers.origin;
+  return describeUserAgent(req.headers['user-agent'] as string | undefined, typeof origin === 'string' ? origin : undefined);
+};
 
 const encodeDevice = (d: DeviceKind): string => `${d.kind}/${d.browser ?? ''}/${d.os ?? ''}`;
 const decodeDevice = (raw: unknown): DeviceKind => {
   const [kind, browser, os] = typeof raw === 'string' ? raw.split('/') : [];
-  return { kind: kind === 'browser' || kind === 'app' ? kind : 'other', browser: browser || null, os: os || null };
+  return { kind: kind === 'browser' || kind === 'app' || kind === 'extension' ? kind : 'other', browser: browser || null, os: os || null };
 };
 
 export interface SessionInfo { id: string; name: string; created_at: string; last_used_at: string; device: DeviceKind }
