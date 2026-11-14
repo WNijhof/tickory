@@ -116,6 +116,8 @@ export async function productivityScenario(c: any) {
 
   // ---- zonder server: het laatste overzicht blijft staan ----
   await stopServer();
+  // een verversing die nog loopt (na de wijziging van de doelen) zet de knop even uit: wachten tot hij weer kan, dan pas klikken
+  await waitFor(`!document.querySelector('[data-fk="productivity-refresh"]').disabled`, 'de knop Vernieuwen kan weer', 10_000);
   await click('[data-fk="productivity-refresh"]');
   await waitFor(`document.querySelector('.stats-status').textContent.startsWith('Geen verbinding. Dit is het overzicht van')`, 'zonder verbinding: het laatste overzicht', 10_000);
   assert.equal(await evaluate(`document.querySelectorAll('.stat-tile').length`), 4, 'de tegels blijven staan');
