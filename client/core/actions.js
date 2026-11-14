@@ -7,6 +7,7 @@ import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
 import { settingsId } from '../../shared/schema.js';
 import { ENTITIES, validateValue } from '../../shared/schema.js';
+import { todayString } from './format.js';
 import { projectDescendantIds } from './selectors.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
 
@@ -144,7 +145,8 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       // Een terugkerende taak sturen we mee met de datum die we zagen (if_due): zo schuift hij niet twee keer door als de
       // widget van de Android-app of een ander apparaat hem tegelijk afvinkt.
       const due = store.view.tasks.get(id)?.due;
-      return send([{ type: 'task_complete', args: due?.recurrence ? { id, if_due: due.date } : { id } }]);
+      // bij "elke!" telt de volgende keer vanaf vandaag: de afzender geeft zijn eigen datum mee (zijn tijdzone)
+      return send([{ type: 'task_complete', args: due?.recurrence ? { id, if_due: due.date, ...(due.recurrence.fromCompletion ? { completed_on: todayString() } : {}) } : { id } }]);
     },
     uncompleteTask: (id) => send([{ type: 'task_uncomplete', args: { id } }]),
     deleteTask: (id) => send([{ type: 'task_delete', args: { id } }]),

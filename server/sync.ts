@@ -18,7 +18,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES, ENTITY_LIST, ID_RE, INBOX_ID, isInboxId, RESOURCE_NAMES, toApi, validateValue } from './schema.ts';
 import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
-import { isValidDate, nextOccurrence } from '../shared/recurrence.js';
+import { isValidDate, nextDue, nextOccurrence } from '../shared/recurrence.js';
+import { epochToFloating } from '../shared/reminders.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
 import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
@@ -469,15 +470,20 @@ function taskMove(ctx: Ctx, args: Args): void {
 function taskComplete(ctx: Ctx, args: Args): void {
   // `if_due` (optioneel): de datum die de afzender zag toen hij afvinkte. Is een terugkerende taak intussen al doorgeschoven
   // (op een ander apparaat, of vanuit de widget van de Android-app), dan is dit dezelfde afvinkactie en schuift hij niet nog eens door.
-  for (const k of Object.keys(args)) if (k !== 'id' && k !== 'if_due') fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
+  for (const k of Object.keys(args)) if (k !== 'id' && k !== 'if_due' && k !== 'completed_on') fail('UNKNOWN_ARG', `onbekend argument "${k}"`);
   if (args.if_due !== undefined && !isValidDate(args.if_due)) fail('INVALID_ARG', 'if_due moet een geldige datum zijn');
+  // `completed_on` (optioneel): de dag waarop de afzender afvinkte, voor "elke!" (volgende keer vanaf het afvinken). Alleen YYYY-MM-DD.
+  if (args.completed_on !== undefined && !(typeof args.completed_on === 'string' && args.completed_on.length === 10 && isValidDate(args.completed_on))) fail('INVALID_ARG', 'completed_on moet een datum zijn (JJJJ-MM-DD)');
   const id = args.id as string;
   const row = requireLive(ctx, 'task', id, 'task.id');
   if (row.checked === 1) return; // al afgevinkt: herhaling is een no-op
   const due = row.due ? (JSON.parse(row.due as string) as { date: string; recurrence?: Recurrence }) : null;
   if (due?.recurrence && args.if_due !== undefined && args.if_due !== due.date) return; // al doorgeschoven: dezelfde afvinkactie, niets doen
   const count = (row.completed_count as number) + 1;
-  const next = due?.recurrence ? nextOccurrence(due.date, due.recurrence) : null;
+  // "elke!" telt vanaf de afvinkdag: die geeft de afzender mee; ontbreekt hij (widget of melding van de Android-app), dan is het
+  // vandaag in de tijdzone van de gebruiker (anders UTC)
+  const completedOn = due?.recurrence?.fromCompletion ? (args.completed_on ?? todayFor(ctx)) : undefined;
+  const next = due?.recurrence ? nextDue(due.date, due.recurrence, completedOn) : null;
   if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
     updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
@@ -489,6 +495,16 @@ function taskComplete(ctx: Ctx, args: Args): void {
     ctx.db
       .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(part.length)})`)
       .run(ctx.now, ctx.rev, ctx.now, ...part);
+  }
+}
+
+/** Vandaag (JJJJ-MM-DD) in de tijdzone van de gebruiker van dit verzoek; zonder ingestelde tijdzone, of bij een onbekende, UTC. */
+function todayFor(ctx: Ctx): string {
+  const row = ctx.db.prepare('SELECT timezone FROM user_settings WHERE owner_id = ?').get(ctx.userId) as { timezone: string | null } | undefined;
+  try {
+    return epochToFloating(Date.now(), row?.timezone ?? 'UTC').slice(0, 10);
+  } catch {
+    return new Date().toISOString().slice(0, 10); // een tijdzone die Intl niet kent
   }
 }
 

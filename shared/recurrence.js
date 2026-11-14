@@ -11,6 +11,7 @@
  *   byweekday?: number[],   // weekly: ISO-weekdagen, 1 = maandag … 7 = zondag; monthly met nth: precies één weekdag
  *   bymonthday?: number,    // alleen monthly/yearly: vaste dag van de maand (1-31), ingekort op korte maanden
  *   nth?: number,           // alleen monthly, met één weekdag: 1-4 = "elke eerste … vierde dinsdag van de maand", -1 = de laatste
+ *   fromCompletion?: true,  // "elke! 3 dagen": de volgende keer telt vanaf de dag dat je afvinkt, niet vanaf de oude datum
  * }} Recurrence
  */
 
@@ -32,7 +33,8 @@ export function isValidDate(s) {
 
 export function isValidRecurrence(r) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return false;
-  for (const k of Object.keys(r)) if (!['freq', 'interval', 'byweekday', 'bymonthday', 'nth'].includes(k)) return false;
+  for (const k of Object.keys(r)) if (!['freq', 'interval', 'byweekday', 'bymonthday', 'nth', 'fromCompletion'].includes(k)) return false;
+  if (r.fromCompletion !== undefined && r.fromCompletion !== true) return false;
   if (!['daily', 'weekly', 'monthly', 'yearly'].includes(r.freq)) return false;
   if (r.interval !== undefined && !(Number.isInteger(r.interval) && r.interval >= 1 && r.interval <= 1000)) return false;
   if (r.byweekday !== undefined) {
@@ -79,6 +81,22 @@ const fmt = (d) => d.toISOString().slice(0, 10);
 export function nextOccurrence(date, rec) {
   const next = rawNextOccurrence(date, rec);
   return isValidDate(next) ? next : null;
+}
+
+/**
+ * De nieuwe datum van een terugkerende taak die wordt afgevinkt. Gewoon: de volgende keer volgens de regel, vanaf de oude datum.
+ * Met `fromCompletion` ("elke! 3 dagen"): vanaf de dag dat je afvinkt (`completedOn`, 'YYYY-MM-DD'), met het tijdstip van de taak.
+ * Is `completedOn` er niet of ongeldig, dan telt de oude datum (zo blijft het altijd een geldige datum).
+ * @param {string} date de huidige datum van de taak
+ * @param {Recurrence} rec
+ * @param {unknown} [completedOn]
+ * @returns {string | null}
+ */
+export function nextDue(date, rec, completedOn) {
+  if (rec.fromCompletion && typeof completedOn === 'string' && completedOn.length === 10 && isValidDate(completedOn)) {
+    return nextOccurrence(completedOn + (DATE_RE.exec(date)?.[4] ?? ''), rec);
+  }
+  return nextOccurrence(date, rec);
 }
 
 function rawNextOccurrence(date, rec) {

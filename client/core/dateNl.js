@@ -241,7 +241,13 @@ function removeSpan(text, start, end) {
   return s;
 }
 
-function parseRecurring(text, now) {
+// "elke! 3 dagen" · "elke! week": herhalen vanaf het afvinken. Het uitroepteken wordt voor het zoeken een spatie (zelfde lengte,
+// dus alle posities kloppen) en de regel krijgt `fromCompletion`.
+const FROM_COMPLETION = /(?<![\p{L}\p{N}])(elke|elk|iedere|ieder)!(?=\s)/iu;
+
+function parseRecurring(original, now) {
+  const fromCompletion = FROM_COMPLETION.test(original);
+  const text = fromCompletion ? original.replace(FROM_COMPLETION, (m) => `${m.slice(0, -1)} `) : original;
   let best = null;
   for (const p of PATTERNS) {
     const m = p.re.exec(text);
@@ -284,7 +290,7 @@ function parseRecurring(text, now) {
   const content = removeSpan(text, start, end);
   if (!content) return null; // de tekst bestond alleen uit de herhaling
   const date = anchor ? (when ? `${anchor}T${pad(when.hour)}:${pad(when.minute)}` : anchor) : firstOccurrence(rule, now, when);
-  return { content, due: { date, string: text.slice(start, end).trim(), lang: 'nl', recurrence: rule }, range: [start, end] };
+  return { content, due: { date, string: original.slice(start, end).trim(), lang: 'nl', recurrence: fromCompletion ? { ...rule, fromCompletion: true } : rule }, range: [start, end] };
 }
 
 // ---------- Nederlandse aanvullingen op de eenmalige herkenner ----------
