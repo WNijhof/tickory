@@ -91,6 +91,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 - **The Android app on a real phone.** The APK (with the **home screen widgets**) is attached to each version on the [releases page](https://github.com/WNijhof/tickory/releases) from 0.3.0 on, but it has only been tested on a computer and a simulated Android; the maker has not tried it on a real phone yet. Report what you run into on GitHub.
 - **Reminders at a place.** Built and tested without a phone (distance, the rules for entering and leaving with noise in the position, requests to a simulated Android, notifications, the settings screen and the task window in a real browser with a simulated location); how accurate and frugal it is on a real phone has not been tried. It is in the Android app from version 0.3.0 on.
+- **The browser extension in the stores.** The extension for Chrome, Edge and Firefox (see below) is attached as zips to each version on the releases page from 0.3.0 on, but it is not in the Chrome Web Store, Edge Add-ons or Firefox Add-ons yet; in Firefox you can only load it temporarily until Mozilla has signed it. Tested in Edge, not yet in Firefox and Chrome themselves.
 - **English date language.** The interface is English, but what you type as a date is only recognised in Dutch.
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
@@ -199,6 +200,16 @@ An app of its own (Kotlin, in [`android/`](android/README.md)) that shows the we
 - **Widgets.** Four home screen widgets: **Today** (overdue and due today), **Project or list** (you choose the Inbox, a project, Today or Upcoming when you place it; saved filters come later), **Upcoming** (the next two weeks, by day) and an **Add task** button. Tap the circle to complete a task, also without internet (it waits in a queue on the phone and is sent when there is a connection; a recurring task comes back with the new date from the server), tap the title to open the task, tap + to add one. Resizable, light and dark, Material You colours on Android 12 and newer, TalkBack descriptions, Dutch and English. They read the data on the device, not the web view; signing out or switching account clears everything. Not tried on a phone yet: how they look per launcher, resizing and battery saving. See [the guide](https://wnijhof.github.io/tickory/en/guide/widgets.html) and [android/README.md](android/README.md).
 
 More in the guide: [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html).
+
+### The browser extension
+
+"Tickory: save page as task" (in [`extension/`](extension/README.md)) for Chrome, Edge and Firefox: click the icon, press `Alt+Shift+K` or right-click a page, link or selection, and the page becomes a task. The page title is the task, the address goes into the description and selected text is added as a quote; the title understands quick add (`morgen p1 #Work @reading !30m`) with the same parser as the app, without reading the page title itself as a date. You choose the project (the Inbox by default, the last one is remembered).
+
+- **Download.** `tickory-extension-<version>.zip` (Chrome, Edge) and `tickory-extension-<version>-firefox.zip` are attached to each version on the [releases page](https://github.com/WNijhof/tickory/releases), or build them with `node scripts/build-extension.ts` (into `dist/`). Load it unpacked (Chrome/Edge: developer mode) or temporarily (Firefox: `about:debugging`); publishing in the stores needs an account of your own, see [extension/README.md](extension/README.md).
+- **Connecting.** Enter the address of your server (https; plain http only on your own network, the same rule as the Android app), allow access to that one address, and sign in with your password (and two-step code), or with a **pairing code** that you create in the app under Account, "Signed-in devices": that also works on a server where you only sign in with SSO. The extension gets its own session, shown as "Browser extension (Chrome)" in the device list; signing out revokes it.
+- **Privacy.** It only talks to your own server, only when you click Save, with the token in a header (no cookies, no CORS needed); permissions: active tab, scripting (to read the selection), context menu and storage. No access to all websites.
+
+More in the guide: [the browser extension](https://wnijhof.github.io/tickory/en/guide/browser-extension.html).
 
 ### HTTPS (needed for your phone)
 
@@ -326,6 +337,8 @@ Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_
 ```sh
 npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
 npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 81 steps
+npm run e2e:extension   # the browser extension in a real browser (loaded unpacked over the DevTools protocol), 12 steps
+node scripts/build-extension.ts    # the extension: dist/tickory-extension-<version>.zip and -firefox.zip
 node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
 node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
 ```
@@ -344,10 +357,11 @@ client/core/   reducer, store, idb, syncClient, inverse, undo, selection, bulk, 
 client/ui/     app, render, selection, bulkDialogs, completed, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
 client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
 android/       the Android app (Kotlin, WebView, local alarms)
+extension/     the browser extension (Manifest V3; popup, options, background, core/ with the tested logic, _locales nl and en)
 client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)
 website/       pages (nl, en), assets, layout.html, site.json, demo/   the website, the guide and the demo backend
 scripts/       e2e.ts (with e2e-templates.ts), docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
-               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts
+               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts, build-extension.ts, e2e-extension.ts
 ```
 
 ## The website

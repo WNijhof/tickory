@@ -888,8 +888,8 @@ try {
   await typeInto('dialog[open] input[aria-label="Repeat new password"]', 'een-nieuw-wachtwoord-1');
   await submit('dialog[open] details:nth-of-type(2) form');
   await waitFor(`document.querySelector('dialog[open] .section-form .error')?.textContent === 'The current password is incorrect.'`, 'fout huidig wachtwoord: eigen Engelse vertaling van de servermelding');
-  // één ander apparaat (de "Telefoon" van eerder) met een eigen knop, het formulier, en de knoppen van het venster
-  assert.deepEqual(await buttons(), ['Sign out', 'Sign out all other devices', 'Change password', 'Turn on two-step verification', 'Sign out', 'User management', 'Close']);
+  // één ander apparaat (de "Telefoon" van eerder) met een eigen knop, een koppelcode voor de browserextensie, het formulier, en de knoppen van het venster
+  assert.deepEqual(await buttons(), ['Sign out', 'Sign out all other devices', 'Create pairing code', 'Change password', 'Turn on two-step verification', 'Sign out', 'User management', 'Close']);
   await noDutch('account');
   await fits('account');
   await shot('engels-account');

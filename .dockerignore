@@ -2,6 +2,7 @@
 .git
 .github
 .e2e
+.e2e-ext
 .mut
 .env
 .env.*
@@ -20,3 +21,5 @@ android
 website
 _site
 .site-work
+extension
+dist

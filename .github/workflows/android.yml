@@ -1,9 +1,11 @@
-name: Android-app
+name: Android-app en browserextensie
 
-# Bouwt de Android-app (APK) zodra je een versie-tag zet, en hangt hem aan de GitHub Release van die tag:
+# Bouwt de Android-app (APK) en de browserextensie (zips voor Chrome/Edge en Firefox) zodra je een versie-tag zet, en hangt ze aan
+# de GitHub Release van die tag:
 #   git tag v0.2.0 && git push origin v0.2.0
-# De versie van de app komt uit package.json; de tag moet daarmee overeenkomen.
-# Handmatig starten (Actions > Android-app > Run workflow) bouwt alleen de APK en bewaart hem bij de run.
+# De versie van de app en de extensie komt uit package.json; de tag moet daarmee overeenkomen.
+# Handmatig starten (Actions > Android-app en browserextensie > Run workflow) bouwt alleen en bewaart het resultaat bij de run.
+# De extensie publiceren in de Chrome Web Store, Edge Add-ons of bij Mozilla doe je zelf (zie extension/README.md).
 #
 # Ondertekening:
 #   De APK van een release wordt altijd getekend met je eigen sleutel. Zijn de vier secrets hieronder niet (allemaal) ingesteld,
@@ -16,7 +18,7 @@ name: Android-app
 #   Bij handmatig starten zonder die secrets komt er een debug-APK bij de run (alleen om te proberen; nooit in een Release).
 #
 # Rechten: de bouw leest alleen (contents: read) en draait dus zonder schrijfrechten tot de repo, ook al haalt hij pakketten van
-# derden op. Alleen de aparte job "release" mag schrijven (contents: write), en die draait geen code uit de repo.
+# derden op. Alleen de aparte jobs "release" en "extension-release" mogen schrijven (contents: write), en die draaien geen code uit de repo.
 # Acties staan vast op een commit (met de versie als commentaar); Dependabot werkt ze bij (.github/dependabot.yml).
 
 on:
@@ -168,6 +170,47 @@ jobs:
           path: ${{ steps.version.outputs.apk }}
           if-no-files-found: error
 
+  # De browserextensie: tests, dan de twee zips (scripts/build-extension.ts, zonder pakketten van derden).
+  extension:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '26'
+
+      - name: Versie bepalen
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$IS_TAG" = "true" ] && [ "v$version" != "$TAG" ]; then
+            echo "::error::De tag ($TAG) en de versie in package.json ($version) zijn niet gelijk. Hoog package.json op en zet de tag opnieuw."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Tests van de extensie (en de koppelcodes op de server)
+        run: node --test extension/ server/pairing.http.test.ts
+
+      - name: Zips bouwen
+        run: node scripts/build-extension.ts
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tickory-extension-${{ steps.version.outputs.version }}
+          path: |
+            dist/tickory-extension-${{ steps.version.outputs.version }}.zip
+            dist/tickory-extension-${{ steps.version.outputs.version }}-firefox.zip
+          if-no-files-found: error
+
   # Alleen deze job mag schrijven. Hij haalt de gebouwde APK op en hangt hem aan de Release; er draait geen code uit de repo.
   release:
     name: APK aan de GitHub Release hangen
@@ -194,4 +237,34 @@ jobs:
             gh release upload "$TAG" "$apk" --clobber
           else
             gh release create "$TAG" "$apk" --title "$TAG" --generate-notes --verify-tag
+          fi
+
+  # Ook alleen schrijven: de zips van de extensie aan dezelfde Release. Na de job "release" (die de Release kan aanmaken), zodat
+  # ze elkaar niet in de weg zitten; ook als er geen getekende APK is (dan maakt deze job de Release aan). Geen code uit de repo.
+  extension-release:
+    name: Browserextensie aan de GitHub Release hangen
+    needs: [extension, release]
+    if: always() && startsWith(github.ref, 'refs/tags/v') && needs.extension.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tickory-extension-${{ needs.extension.outputs.version }}
+          path: extension
+
+      - name: Zips aan de GitHub Release hangen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.extension.outputs.version }}
+        run: |
+          chrome="extension/tickory-extension-$VERSION.zip"
+          firefox="extension/tickory-extension-$VERSION-firefox.zip"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$chrome" "$firefox" --clobber
+          else
+            gh release create "$TAG" "$chrome" "$firefox" --title "$TAG" --generate-notes --verify-tag
           fi

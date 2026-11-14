@@ -16,6 +16,8 @@
 //   POST /api/v1/auth/oidc/start          inloggen of koppelen via OIDC (zie sso.ts); GET /oidc/authorize, /oidc/callback (de browser)
 //   POST /api/v1/auth/login/handoff       {code, binding} -> {token, me}: de eenmalige code na de terugkeer van de provider
 //   GET  /api/v1/auth/oidc/link           -> {enabled, linked, …}   POST /api/v1/auth/oidc/unlink
+//   GET  /api/v1/auth/pair-code           -> {password, code}  wat nodig is voor een koppelcode   POST {password?, code?} -> {code}
+//   POST /api/v1/auth/pair                {code, device_name} -> {token, me}: een apparaat (de browserextensie) koppelen (zie pairing.ts)
 //   POST /api/v1/sync                     de sync (zie sync.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
@@ -44,7 +46,7 @@ import { LIMITS } from './limits.ts';
 import { listActivity } from './activity.ts';
 import { myStats } from './stats.ts';
 import {
-  consumeRecoveryCode, consumeStep, countUsers, createSession, createUser, DEFAULT_SESSION_POLICY, describeUserAgent, disableTwoFactor, enableTwoFactor,
+  consumeRecoveryCode, consumeStep, countUsers, createSession, createUser, DEFAULT_SESSION_POLICY, describeDevice, disableTwoFactor, enableTwoFactor,
   findSession, getTwoFactor, getUserById, getUserByName, hashPassword, hasTwoFactor, listSessions, listUsers, LoginLimiter, pruneSessions, publicMe,
   replaceRecoveryCodes, revokeSession, revokeSessions, sessionValid, setPasswordHash, setPendingSecret, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
 } from './users.ts';
@@ -55,6 +57,7 @@ import { createOidcClient, oidcConfigFrom } from './oidc.ts';
 import type { OidcClient } from './oidc.ts';
 import { createLoginCode, createSso, EMERGENCY_MS, hasPassword } from './sso.ts';
 import type { Sso } from './sso.ts';
+import { createPairing } from './pairing.ts';
 import { createPush } from './push.ts';
 import type { Push } from './push.ts';
 import { createAttachments } from './attachments.ts';
@@ -129,6 +132,8 @@ export interface AppOptions {
   oidc?: OidcClient | null;
   /** Voor tests: eigen beperking van pogingen via OIDC (begin, terugkeer en het inwisselen van de code, per adres). */
   ssoLimiter?: LoginLimiter;
+  /** Voor tests: eigen beperking van het inwisselen van koppelcodes (per adres). */
+  pairLimiter?: LoginLimiter;
 }
 
 /** Hoe lang de tweede inlogstap (de code) na het wachtwoord mag duren, en hoe vaak je daarin mag proberen. */
@@ -390,7 +395,7 @@ export function createApp(opts: AppOptions): App {
       return send(res, 401, { error_code: 'INVALID_CREDENTIALS', error: 'gebruikersnaam of wachtwoord klopt niet' });
     }
     limiter.succeed(attempt);
-    const kind = describeUserAgent(req.headers['user-agent']);
+    const kind = describeDevice(req);
     if (hasTwoFactor(db, user.id)) {
       // Het wachtwoord klopt; nu nog de code. Het tussentoken geeft alleen toegang tot die tweede stap, en alleen even.
       const challenge = `tkc_${randomBytes(32).toString('base64url')}`;
@@ -676,6 +681,12 @@ export function createApp(opts: AppOptions): App {
     send, readJson, authenticate, clientIp, confirmPassword, confirmCode: (req, res, user, given) => confirmCode(req, res, user, given),
   });
   sso = ssoRoutes;
+  // Koppelcodes (pairing.ts): een apparaat aanmelden vanuit een ingelogde sessie; inwisselen telt per adres (10 foute per kwartier).
+  const pairing = createPairing({
+    db, clock, log, policy,
+    limiter: opts.pairLimiter ?? new LoginLimiter({ pair: 10, ip: 10, user: 1_000_000 }, limiter.windowMs, limiter.now),
+    send, readJson, authenticate, clientIp, confirmPassword, confirmCode: (req, res, user, given) => confirmCode(req, res, user, given),
+  });
 
   // ---------- routering ----------
 
@@ -726,6 +737,7 @@ export function createApp(opts: AppOptions): App {
         return send(res, 200, ssoRoutes.methods());
       }
       if (await ssoRoutes.handle(req, res, path, url)) return undefined;
+      if (await pairing.handle(req, res, path)) return undefined;
       if ((path === '/api/v1/auth/login' || path === '/api/v1/auth/login/2fa') && ssoRoutes.passwordOff) {
         // OIDC_ONLY: alleen via de identiteitsprovider (en de noodcode van de opdrachtregel, `user signin-code`).
         return send(res, 403, { error_code: 'PASSWORD_LOGIN_OFF', error: 'inloggen met een wachtwoord staat op deze server uit; log in via de inlogdienst' });

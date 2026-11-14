@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="optionsTitle">Tickory: verbinden</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="options">
+  <main>
+    <h1 data-i18n="optionsHeading">Verbinden met je Tickory-server</h1>
+
+    <section id="server-view" class="card" hidden>
+      <form id="server-form" novalidate>
+        <label for="server" data-i18n="serverLabel">Adres van je server</label>
+        <input id="server" type="url" inputmode="url" autocomplete="url" spellcheck="false" autocapitalize="none" placeholder="https://" aria-describedby="server-hint">
+        <p id="server-hint" class="hint" data-i18n="serverHint"></p>
+        <p class="hint" data-i18n="permissionNote"></p>
+        <p id="server-error" class="error" role="alert"></p>
+        <p id="server-status" class="status" role="status"></p>
+        <div class="buttons"><button type="submit" id="connect" class="primary" data-i18n="buttonConnect">Verbinden</button></div>
+      </form>
+    </section>
+
+    <section id="login-view" class="card" hidden>
+      <h2 id="login-heading"></h2>
+      <form id="password-form" novalidate>
+        <label for="username" data-i18n="usernameLabel">Gebruikersnaam</label>
+        <input id="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <label for="password" data-i18n="passwordLabel">Wachtwoord</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <div class="buttons"><button type="submit" id="login" class="primary" data-i18n="buttonLogin">Inloggen</button></div>
+      </form>
+      <form id="code-form" novalidate hidden>
+        <p><strong data-i18n="codeHeading">Tweestapsverificatie</strong></p>
+        <p class="hint" data-i18n="codeHint"></p>
+        <label for="code" data-i18n="codeLabel">Code</label>
+        <input id="code" type="text" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" maxlength="24" required>
+        <div class="buttons">
+          <button type="button" id="code-back" data-i18n="buttonBack">Terug</button>
+          <button type="submit" id="verify" class="primary" data-i18n="buttonVerify">Bevestigen</button>
+        </div>
+      </form>
+      <p id="password-off" class="hint" hidden></p>
+      <p id="or" class="or" data-i18n="orSeparator">of</p>
+      <form id="pair-form" novalidate>
+        <p><strong data-i18n="pairHeading">Inloggen met een koppelcode</strong></p>
+        <p class="hint" data-i18n="pairHint"></p>
+        <label for="pair-code" data-i18n="pairLabel">Koppelcode</label>
+        <input id="pair-code" class="code-field" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="40" placeholder="ABCD-EFGH-JKMN-PQRS" required>
+        <div class="buttons"><button type="submit" id="pair" class="primary" data-i18n="buttonPair">Koppelen</button></div>
+      </form>
+      <p id="login-error" class="error" role="alert"></p>
+      <div class="buttons"><button type="button" id="other-server" class="link" data-i18n="otherServer">Ander adres</button></div>
+    </section>
+
+    <section id="connected-view" class="card" hidden>
+      <h2 data-i18n="connectedHeading">Verbonden</h2>
+      <p id="connected-as"></p>
+      <p data-i18n="connectedNext"></p>
+      <p id="shortcut" class="hint"></p>
+      <p class="hint" data-i18n="logoutNote"></p>
+      <div class="buttons"><button type="button" id="logout" data-i18n="buttonLogout">Uitloggen</button></div>
+    </section>
+
+    <section class="privacy">
+      <h2 data-i18n="privacyHeading">Privacy en rechten</h2>
+      <p data-i18n="privacyText"></p>
+      <p data-i18n="privacyPermissions"></p>
+    </section>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

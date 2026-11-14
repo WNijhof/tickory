@@ -1,0 +1,69 @@
+<!--
+title: Browserextensie
+description: Met de browserextensie voor Chrome, Edge en Firefox bewaar je de pagina die je leest, een link of geselecteerde tekst als taak in Tickory: installeren, verbinden met je server, gebruiken, en welke rechten de extensie heeft.
+-->
+<h1>Browserextensie</h1>
+<p class="intro">Lees je iets dat je later wilt doen of bekijken? Met de extensie “Tickory: pagina als taak opslaan” maak je er met één klik een taak van: de titel van de pagina wordt de taak, het adres komt in de beschrijving, en wat je hebt geselecteerd komt er als citaat bij. Voor Chrome, Edge en Firefox op de computer.</p>
+
+<h2 id="installeren">Installeren</h2>
+<p>De extensie staat (nog) niet in de Chrome Web Store of bij Firefox Add-ons. Je installeert haar uit de zip op de <a href="https://github.com/WNijhof/tickory/releases">releasepagina</a>: <code>tickory-extension-&lt;versie&gt;.zip</code> voor Chrome en Edge, <code>tickory-extension-&lt;versie&gt;-firefox.zip</code> voor Firefox.</p>
+<h3 id="chrome-edge">Chrome en Edge</h3>
+<ol>
+  <li>Pak de zip uit in een map die je laat staan (de browser laadt de extensie elke keer uit die map).</li>
+  <li>Open <code>chrome://extensions</code> (in Edge <code>edge://extensions</code>) en zet <em>Ontwikkelaarsmodus</em> aan.</li>
+  <li>Kies <em>Uitgepakte extensie laden</em> en kies de map. Het pictogram van Tickory staat nu bij de extensies in de werkbalk; met het punaise-icoon zet je het vast.</li>
+</ol>
+<p>Een nieuwe versie: pak de nieuwe zip over de oude map uit en kies bij de extensie <em>Opnieuw laden</em>. Je blijft verbonden.</p>
+<h3 id="firefox">Firefox</h3>
+<p>Firefox installeert een extensie alleen blijvend als Mozilla haar heeft ondertekend, ook als ze niet openbaar is. Tot dat zo is, laad je haar tijdelijk: open <code>about:debugging#/runtime/this-firefox</code>, kies <em>Tijdelijke add-on laden…</em> en kies de zip (of <code>manifest.json</code> in de uitgepakte map). Een tijdelijke add-on verdwijnt als je Firefox sluit; daarna doe je dit opnieuw en verbind je opnieuw. Firefox 140 of nieuwer.</p>
+
+<h2 id="verbinden">Verbinden met je server</h2>
+<p>Na het installeren opent de pagina <em>Verbinden met je Tickory-server</em> vanzelf (later vind je haar onder <em>Instellingen</em> in het venster van de extensie).</p>
+<ol>
+  <li>Vul het adres in waarop je Tickory in de browser opent, bijvoorbeeld <code>https://taken.voorbeeld.nl</code>, en kies <em>Verbinden</em>. Zonder https gaat het alleen op je eigen netwerk (<code>http://192.168.1.10:8787</code>, een naam als <code>http://nas:8787</code> of <code>http://tickory.local</code>), net als in de <a href="android-app.html">Android-app</a>: anders zouden je wachtwoord en je taken onversleuteld over internet gaan.</li>
+  <li>De browser vraagt of de extensie dat adres mag gebruiken. Kies <em>Toestaan</em>. De extensie krijgt alleen toegang tot jouw server, niet tot andere websites.</li>
+  <li>Log in met je gebruikersnaam en wachtwoord, en de code uit je authenticator-app als je <a href="account.html#tweestapsverificatie">tweestapsverificatie</a> hebt. Of gebruik een <a href="#koppelcode">koppelcode</a>.</li>
+</ol>
+<p>De extensie krijgt een eigen aanmelding. In Tickory staat ze in <x-ui k="settings.account"></x-ui> onder <x-ui k="account.devices"></x-ui> als “Browserextensie (Chrome)” (of Edge, of Firefox), met als soort <x-ui k="account.deviceKind.extension"></x-ui>. Daar meld je haar ook af.</p>
+<h3 id="koppelcode">Inloggen met een koppelcode</h3>
+<p>Log je alleen in via SSO (de knop “Inloggen met …”), of typ je liever geen wachtwoord in een extensie, gebruik dan een koppelcode:</p>
+<ol>
+  <li>Open Tickory in je browser, klik onderaan de zijbalk op je naam en kies <x-ui k="settings.account"></x-ui>.</li>
+  <li>Onder <x-ui k="account.devices"></x-ui> staat <x-ui k="account.pairTitle"></x-ui>. Kies <x-ui k="account.pairMake"></x-ui>. Heeft je account een wachtwoord, dan vul je dat eerst in (en bij tweestapsverificatie ook de code): met een koppelcode komt er een apparaat bij je account.</li>
+  <li>Je krijgt een code van zestien tekens, zoals <code>ABCD-EFGH-JKMN-PQRS</code>. Vul die in de extensie in bij <em>Inloggen met een koppelcode</em> en kies <em>Koppelen</em>. Hoofd- of kleine letters, spaties of streepjes maken niet uit.</li>
+</ol>
+<p>Een koppelcode werkt één keer en tien minuten lang. Een nieuwe code maakt de vorige ongeldig, en wie de code maakte en zich daarna afmeldt, maakt hem ook ongeldig.</p>
+
+<h2 id="gebruiken">Een pagina opslaan</h2>
+<p>Klik op het pictogram van Tickory in de werkbalk, gebruik de sneltoets <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd>, of klik met de rechtermuisknop op de pagina, een link of geselecteerde tekst en kies <em>Opslaan in Tickory</em>. Er opent een klein venster:</p>
+<ul>
+  <li><strong>Taak:</strong> de titel van de pagina (bij een link: de tekst of het adres van de link). Pas hem gerust aan.</li>
+  <li><strong>Beschrijving:</strong> het adres van de pagina, en wat je hebt geselecteerd als citaat (regels die met <code>&gt;</code> beginnen). Bij een link: het adres van de link, met de pagina waarop hij stond.</li>
+  <li><strong>Project:</strong> standaard de Inbox; de extensie onthoudt welk project je het laatst koos. Projecten die je <a href="delen.html">alleen leest</a>, staan er grijs in.</li>
+</ul>
+<p>Kies <em>Opslaan</em> (of druk op <kbd>Enter</kbd> in het veld Taak). Het venster zegt waar de taak staat en sluit vanzelf.</p>
+<h3 id="snelle-invoer">Snelle invoer in de titel</h3>
+<p>In het veld Taak werkt dezelfde <a href="taken-toevoegen.html">snelle invoer</a> als in de app: typ achter de titel bijvoorbeeld <code>morgen p1 #Werk @lezen !30m</code>. Onder het veld zie je meteen wat herkend is (datum, prioriteit, project, sectie, labels, herinneringen, duur). De titel van de pagina zelf telt niet mee: een artikel dat “Morgen gratis parkeren” heet, wordt geen taak voor morgen. Typ je een heel eigen titel, dan telt alles mee, net als in de app. Een <code>#project</code> in de titel gaat voor de keuzelijst; een nieuw <code>@label</code> wordt aangemaakt.</p>
+<h3 id="als-het-niet-lukt">Als het niet lukt</h3>
+<dl>
+  <dt>“Tickory is niet bereikbaar.”</dt>
+  <dd>Je server is niet bereikbaar vanaf deze computer (thuis wel, onderweg niet?). Wat je typte blijft staan; kies <em>Opslaan</em> nog eens als de verbinding er weer is. Er komt nooit twee keer dezelfde taak: de server herkent een herhaalde poging.</dd>
+  <dt>“De verbinding met Tickory is verlopen of ingetrokken. Verbind opnieuw.”</dt>
+  <dd>De extensie is in Tickory afgemeld (door jou, door de beheerder, of omdat ze lang niet is gebruikt). Kies <em>Verbinden</em> en log opnieuw in.</dd>
+  <dt>“Je kunt in dit project alleen lezen.”</dt>
+  <dd>Je bent in dat project lezer. Kies een ander project.</dd>
+</dl>
+
+<h2 id="privacy">Privacy en rechten</h2>
+<p>De extensie praat alleen met jouw server. Ze stuurt pas iets als jij op <em>Opslaan</em> klikt: de titel, het adres van de pagina en wat je selecteerde. Er gaat niets naar de makers van Tickory, naar Google, Microsoft of Mozilla of naar wie dan ook, en de extensie houdt niet bij welke pagina's je bezoekt.</p>
+<table>
+  <thead><tr><th>Recht</th><th>Waarvoor</th></tr></thead>
+  <tbody>
+    <tr><td>Actief tabblad</td><td>De titel, het adres en de selectie van de pagina waarop je de extensie zelf opent, en alleen dan. Geen toegang tot andere tabbladen of pagina's.</td></tr>
+    <tr><td>Scripts</td><td>Alleen om de geselecteerde tekst te lezen op de pagina waarop je de extensie opent.</td></tr>
+    <tr><td>Contextmenu</td><td>Het menu-item <em>Opslaan in Tickory</em> bij een rechtsklik.</td></tr>
+    <tr><td>Opslag</td><td>Het adres van je server, je naam en het token van de extensie, alleen op deze computer (niet gesynchroniseerd met je andere computers), en de lijst met projecten en labels voor de keuzelijst.</td></tr>
+    <tr><td>Toegang tot je server</td><td>Gevraagd bij het verbinden, alleen voor het adres van je server. Uitloggen trekt de aanmelding in Tickory in, wist alles uit de opslag van de extensie en haalt deze toegang weer weg.</td></tr>
+  </tbody>
+</table>
+<p>Firefox vraagt nieuwe extensies op te geven welke gegevens ze versturen. Daar staan het adres van pagina's, inhoud van pagina's (de selectie) en inloggegevens: dat is precies wat hierboven staat, en het gaat alleen naar jouw eigen server.</p>

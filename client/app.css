@@ -551,6 +551,10 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .two-factor-secret code, .recovery-codes { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.04em; overflow-wrap: anywhere; }
 .recovery-codes { resize: none; line-height: 1.5; }
 .login-code { font-size: 1.2rem; letter-spacing: 0.15em; }
+/* een koppelcode voor de browserextensie (ui/accountDialogs.js): groot, in een vaste breedte, op een smal scherm netjes afgebroken */
+.pairing { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pairing h3 { margin: 0 0 4px; font-size: 0.95rem; }
+.pair-code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 1.15rem; font-weight: 600; letter-spacing: 0.08em; overflow-wrap: anywhere; user-select: all; }
 /* inloggen via SSO: de knop over de hele breedte, en een scheiding met "of met je gebruikersnaam" (ui/accountDialogs.js) */
 .sso-row { justify-content: stretch; }
 .sso-row .sso-button { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; white-space: normal; }

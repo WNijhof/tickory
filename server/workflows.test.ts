@@ -34,7 +34,7 @@ test('de checkout laat het token niet in de werkmap staan', () => {
   }
 });
 
-test('schrijfrechten staan alleen bij de stap die ze nodig heeft: de release-job van de Android-workflow en het publiceren van de image en de site', () => {
+test('schrijfrechten staan alleen bij de stap die ze nodig heeft: de release-jobs van de Android-workflow en het publiceren van de image en de site', () => {
   for (const w of workflows) assert.match(w.text, /^permissions:\n\s+contents: read/m, `${w.name}: de standaardrechten zijn alleen lezen`);
   const android = get('android.yml');
   const release = android.slice(android.indexOf('\n  release:'));
@@ -43,6 +43,20 @@ test('schrijfrechten staan alleen bij de stap die ze nodig heeft: de release-job
   assert.doesNotMatch(release, /actions\/checkout/, 'de release-job draait geen code uit de repo');
   for (const name of ['ci.yml', 'pages.yml']) assert.doesNotMatch(get(name), /contents:\s*write/, name);
   assert.doesNotMatch(get('image.yml'), /contents:\s*write/);
+});
+
+test('de browserextensie: bouwen zonder schrijfrechten, de zips alleen in een aparte job aan de Release, zonder code uit de repo', () => {
+  const android = get('android.yml');
+  const build = android.slice(android.indexOf('\n  extension:'), android.indexOf('\n  release:'));
+  assert.ok(build.includes('node scripts/build-extension.ts') && build.includes('node --test extension/'), 'tests en bouwen');
+  assert.doesNotMatch(build, /write/, 'de bouwjob van de extensie schrijft niet');
+  const release = android.slice(android.indexOf('\n  extension-release:'));
+  assert.match(release, /permissions:\n\s+contents: write/);
+  assert.match(release, /needs: \[extension, release\]/, 'na de release van de APK: niet tegelijk een Release aanmaken');
+  assert.match(release, /if: always\(\) && startsWith\(github\.ref, 'refs\/tags\/v'\) && needs\.extension\.result == 'success'/);
+  assert.doesNotMatch(release, /actions\/checkout|setup-node|npm |node /, 'geen code uit de repo');
+  assert.match(release, /tickory-extension-\$VERSION\.zip/);
+  assert.match(release, /tickory-extension-\$VERSION-firefox\.zip/);
 });
 
 test('een release krijgt nooit een debug-APK: zonder sleutel mislukt de bouw bij een tag, en alleen een getekende bouw wordt gepubliceerd', () => {

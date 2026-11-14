@@ -14,7 +14,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { DatabaseSync } from 'node:sqlite';
 import {
-  createSession, createUser, describeUserAgent, getUserById, getUserByName, hasTwoFactor, LoginLimiter, publicMe, sessionValid, updateUser,
+  createSession, createUser, describeDevice, getUserById, getUserByName, hasTwoFactor, LoginLimiter, publicMe, sessionValid, updateUser,
 } from './users.ts';
 import type { LoginAttempt, SessionPolicy, UserRow } from './users.ts';
 import { displayNameFromClaims, groupsOf, inAnyGroup, OidcError, pkcePair, usernameFromClaims } from './oidc.ts';
@@ -48,7 +48,7 @@ export function linkIdentity(db: DatabaseSync, issuer: string, subject: string, 
 /** Haalt alle koppelingen van een account weg. Geeft het aantal. */
 export const unlinkIdentities = (db: DatabaseSync, userId: string): number => Number(db.prepare('DELETE FROM oidc_identities WHERE user_id = ?').run(userId).changes);
 
-export interface LoginCodeRow { user_id: string; kind: 'login' | 'linked' | 'emergency'; binding_hash: string | null; device: string; expires_at: string }
+export interface LoginCodeRow { user_id: string; kind: 'login' | 'linked' | 'emergency' | 'pair'; binding_hash: string | null; device: string; expires_at: string }
 
 /**
  * Een eenmalige inlogcode (alleen de hash wordt bewaard). `kind`: `login` (na de provider, wordt een sessie), `linked` (na het
@@ -62,10 +62,15 @@ export function createLoginCode(db: DatabaseSync, p: { userId: string; kind: Log
   return code;
 }
 
-/** Haalt een code op en verbruikt hem meteen (ook als hij daarna niet blijkt te kloppen). Null als hij onbekend of verlopen is. */
-export function takeLoginCode(db: DatabaseSync, code: unknown, nowMs: number): LoginCodeRow | null {
+/**
+ * Haalt een code op en verbruikt hem meteen (ook als hij daarna niet blijkt te kloppen). Null als hij onbekend of verlopen is, of
+ * van een andere soort dan `kinds`: een koppelcode (`pair`, zie pairing.ts) werkt alleen bij het eigen eindpunt, en de codes van
+ * SSO en de opdrachtregel werken daar niet.
+ */
+export function takeLoginCode(db: DatabaseSync, code: unknown, nowMs: number, kinds: LoginCodeRow['kind'][] = ['login', 'linked', 'emergency']): LoginCodeRow | null {
   if (typeof code !== 'string' || code.length < 20 || code.length > 200) return null;
-  const row = db.prepare('DELETE FROM login_codes WHERE code_hash = ? RETURNING user_id, kind, binding_hash, device, expires_at').get(sha256(code)) as LoginCodeRow | undefined;
+  const row = db.prepare('DELETE FROM login_codes WHERE code_hash = ? AND kind IN (SELECT value FROM json_each(?)) RETURNING user_id, kind, binding_hash, device, expires_at')
+    .get(sha256(code), JSON.stringify(kinds)) as LoginCodeRow | undefined;
   return row && Date.parse(row.expires_at) > nowMs ? row : null;
 }
 
@@ -343,7 +348,7 @@ export function createSso(deps: SsoDeps) {
     limiter.succeed(attempt);
     if (row.kind === 'linked') return send(res, 200, { linked: true, name: config?.buttonName ?? 'SSO' });
     if (row.kind === 'emergency') log(`[beveiliging] "${user.username}" is ingelogd met een noodcode van de opdrachtregel`);
-    const { token, id } = createSession(db, user.id, row.device || (row.kind === 'emergency' ? 'Noodcode' : 'SSO'), describeUserAgent(req.headers['user-agent']));
+    const { token, id } = createSession(db, user.id, row.device || (row.kind === 'emergency' ? 'Noodcode' : 'SSO'), describeDevice(req));
     return send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
 

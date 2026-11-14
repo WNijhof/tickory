@@ -70,3 +70,22 @@ test('de apparaatnaam vertelt welk toestel het is', () => {
   assert.equal(deviceName(ua.chromeAndroid, { app: true }), 'Android-app');
   assert.equal(deviceName(''), 'Browser op Onbekend');
 });
+
+test('koppelcodes voor de browserextensie: wat nodig is, en een nieuwe code met alleen de velden die er zijn', async () => {
+  const f = fake([
+    { status: 200, body: { password: true, code: false, expires_in: 600 } },
+    { status: 200, body: { code: 'ABCD-EFGH-JKMN-PQRS', expires_in: 600 } },
+    { status: 200, body: { code: 'WXYZ-0000-1111-2222', expires_in: 600 } },
+    { status: 403, body: { error_code: 'FORBIDDEN', error: 'het wachtwoord klopt niet' } },
+  ]);
+  const api = createApi({ fetch: f.fn, getToken: () => 'tky_mijn' });
+  assert.deepEqual(await api.pairing.info(), { password: true, code: false, expires_in: 600 });
+  assert.equal(f.calls[0].url, '/api/v1/auth/pair-code');
+  assert.equal(f.calls[0].init.method, 'GET');
+  assert.equal((await api.pairing.create('mijn-wachtwoord', '')).code, 'ABCD-EFGH-JKMN-PQRS');
+  assert.deepEqual(JSON.parse(f.calls[1].init.body), { password: 'mijn-wachtwoord' });
+  await api.pairing.create(undefined, undefined);
+  assert.deepEqual(JSON.parse(f.calls[2].init.body), {}, 'een account zonder wachtwoord stuurt niets mee');
+  assert.equal(f.calls[2].init.headers.Authorization, 'Bearer tky_mijn');
+  await assert.rejects(api.pairing.create('fout', ''), (e) => e.code === 'FORBIDDEN' && e.message === 'Het wachtwoord klopt niet');
+});

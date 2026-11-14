@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title data-i18n="popupTitle">Opslaan in Tickory</title>
+  <link rel="stylesheet" href="ui.css">
+</head>
+<body class="popup">
+  <main>
+    <form id="save-form" hidden novalidate>
+      <label for="title" data-i18n="labelTitle">Taak</label>
+      <textarea id="title" class="title-field" rows="2" maxlength="4000" autocomplete="off" spellcheck="true" data-i18n-placeholder="titlePlaceholder" aria-describedby="title-hint"></textarea>
+      <p id="title-hint" class="hint" data-i18n="titleHint"></p>
+      <ul id="chips" class="chips" aria-live="polite" data-i18n-aria-label="previewLabel"></ul>
+      <label for="description" data-i18n="labelDescription">Beschrijving</label>
+      <textarea id="description" rows="4" maxlength="16000"></textarea>
+      <label for="project" data-i18n="labelProject">Project</label>
+      <select id="project"></select>
+      <p id="error" class="error" role="alert"></p>
+      <div class="buttons">
+        <button type="submit" id="save" class="primary" data-i18n="buttonSave">Opslaan</button>
+      </div>
+    </form>
+    <p id="done" class="done" role="status" hidden></p>
+    <section id="connect" hidden>
+      <p id="connect-text"></p>
+      <div class="buttons"><button type="button" id="connect-button" class="primary" data-i18n="connectButton">Verbinden</button></div>
+    </section>
+    <footer>
+      <span id="account" class="account"></span>
+      <span class="links">
+        <button type="button" id="open-tickory" class="link" data-i18n="openTickory" hidden>Tickory openen</button>
+        <button type="button" id="settings" class="link" data-i18n="settingsLink">Instellingen</button>
+      </span>
+    </footer>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
