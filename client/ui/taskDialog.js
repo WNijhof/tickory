@@ -25,10 +25,11 @@ const INDENT = String.fromCharCode(160, 160);
  * @param {{
  *   task: object, store: import('../core/store.js').Store, actions: object, today: () => string,
  *   toggle?: (task: object) => Promise<void>,   // afvinken zoals in de lijst (met melding); zonder: de acties zelf
+ *   saveTemplate?: (task: object) => Promise<unknown>,   // "Als sjabloon bewaren"; zonder: geen knop
  * }} options
  * @returns {Promise<void>} klaar zodra het venster gesloten is
  */
-export function openTaskDialog({ task, store, actions, today, toggle = null }) {
+export function openTaskDialog({ task, store, actions, today, toggle = null, saveTemplate = null }) {
   return new Promise((resolve) => {
     const view = store.view;
     const current = () => store.view.tasks.get(task.id) ?? task;
@@ -326,6 +327,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null }) {
         error,
         h('div', { class: 'dialog-buttons' },
           h('button', { type: 'button', class: 'button button-danger button-left', onclick: remove }, t('common.delete')),
+          saveTemplate && h('button', { type: 'button', class: 'button button-small', onclick: () => saveTemplate(current()) }, icon('template'), t('template.save.button')),
           h('span', { class: 'save-tip' }, t('task.saveTip')),
           h('button', { type: 'button', class: 'button', onclick: close }, t('common.cancel')),
           h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),
