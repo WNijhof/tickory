@@ -106,3 +106,29 @@ test('de Inbox wordt niet gearchiveerd en krijgt geen subprojecten; een herinner
   run(s, 'reminder_add', { id: 'r1', task_id: 'bestaat-niet', type: 'relative', minute_offset: 5 });
   assert.equal(s.reminders.has('r1'), false);
 });
+
+test('toewijzing aan iemand die in het nieuwe project alleen leest, vervalt bij verhuizen en bij terugzetten', () => {
+  const s = world();
+  s.members.set('MINE-u-kees', { id: 'MINE-u-kees', project_id: 'MINE', user_id: 'u-kees', role: 'member' });
+  s.tasks.set('TK', { id: 'TK', project_id: 'MINE', section_id: null, parent_id: null, content: 'Kees', checked: false, labels: [], order_key: 'W', assignee_id: 'u-kees' });
+  run(s, 'task_move', { id: 'TK', project_id: 'Q' });
+  assert.equal(s.tasks.get('TK').project_id, 'Q');
+  assert.equal(s.tasks.get('TK').assignee_id, null, 'Kees is lezer in Q');
+  // terugzetten (als eigenaar van Q): een taak die aan een lezer was toegewezen, komt terug zonder toewijzing
+  const rows = { tasks: [{ id: 'gone', project_id: 'Q', section_id: null, parent_id: null, content: 'Terug', labels: [], order_key: 'X', assignee_id: 'u-kees' }] };
+  applyCommand(s, { type: 'task_restore', args: { id: 'gone' }, local: { rows } }, NOW, 'u-anna');
+  assert.equal(s.tasks.get('gone').assignee_id, null);
+});
+
+test('member_update laat een subproject van een ander met rust, en zonder bekende leden beslist de server', () => {
+  const s = world();
+  s.projects.set('BSUB', { id: 'BSUB', name: 'Garage', parent_id: 'P', order_key: 'W', is_archived: false });
+  s.members.set('BSUB-u-bram', { id: 'BSUB-u-bram', project_id: 'BSUB', user_id: 'u-bram', role: 'owner' });
+  s.members.set(`BSUB-${ME}`, { id: `BSUB-${ME}`, project_id: 'BSUB', user_id: ME, role: 'viewer' });
+  run(s, 'member_update', { project_id: 'P', user_id: ME, role: 'member' }, 'u-anna');
+  assert.deepEqual([s.members.get(`P-${ME}`).role, s.members.get(`BSUB-${ME}`).role], ['member', 'viewer'], 'Anna is geen eigenaar van het project van Bram');
+  // een project waarvan de app de leden (nog) niet kent: niet blokkeren, de server beslist
+  s.projects.set('ONBEKEND', { id: 'ONBEKEND', name: 'Nieuw gedeeld', parent_id: null, order_key: 'Z', is_archived: false });
+  run(s, 'task_add', { id: 'n9', project_id: 'ONBEKEND', content: 'Mag' });
+  assert.ok(s.tasks.has('n9'));
+});
