@@ -1444,6 +1444,9 @@ if (wants('browser')) {
           for (let i = 1; i <= 10; i++) await mouse('mouseMoved', Math.round(from.x + ((to.x - from.x) * i) / 10), Math.round(from.y + ((to.y - from.y) * i) / 10), 1);
           await sleep(80);
           await mouse('mouseReleased', to.x, to.y, 0);
+          // de app negeert de klik die op het loslaten volgt 60 ms lang (anders opent een sleep de taak); een klik van de test die er binnen
+          // die tijd op volgt, zou ook genegeerd worden. Op een snelle machine (de CI) lukt dat ruim binnen 60 ms, dus eerst even wachten.
+          await sleep(150);
         };
         const rectOf = async (expr: string) => {
           let last: any = null;
