@@ -7,6 +7,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 /** Per pictogram: de tekenopdrachten. `d` is een pad, `dot` een gevuld bolletje [x, y, straal], `rect` een rechthoek [x, y, b, h, r]. */
 const SHAPES = {
   plus: [{ d: 'M12 5v14M5 12h14' }],
+  chevronLeft: [{ d: 'M15 6l-6 6 6 6' }],
   chevronRight: [{ d: 'M9 6l6 6-6 6' }],
   chevronDown: [{ d: 'M6 9l6 6 6-6' }],
   check: [{ d: 'M5 12.5l4.5 4.5L19 7.5' }],
@@ -30,6 +31,9 @@ const SHAPES = {
   archive: [{ rect: [3, 4, 18, 4, 1] }, { d: 'M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M10 12h4' }],
   repeat: [{ d: 'M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4' }],
   keyboard: [{ rect: [2.5, 6, 19, 12, 2.5] }, { d: 'M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9' }],
+  list: [{ d: 'M10 6h10M10 12h10M10 18h10' }, { dot: [5, 6, 1.4] }, { dot: [5, 12, 1.4] }, { dot: [5, 18, 1.4] }],
+  board: [{ rect: [3, 4, 5, 16, 1.4] }, { rect: [9.5, 4, 5, 10, 1.4] }, { rect: [16, 4, 5, 13, 1.4] }],
+  move: [{ d: 'M5 12h13M13 6.5l5.5 5.5-5.5 5.5' }],
   settings: [{ d: 'M4 7h9M17 7h3M4 17h3M11 17h9' }, { dot: [15, 7, 2], stroke: true }, { dot: [9, 17, 2], stroke: true }],
 };
 

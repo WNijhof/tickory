@@ -2,7 +2,7 @@
 // en dat venster zelf.
 
 import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
-import { formatDate, formatDue, todayString } from '../core/format.js';
+import { formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { offsetText } from '../core/reminderText.js';
 import { parseQuickAdd } from '../core/quickadd.js';
@@ -40,7 +40,7 @@ export function previewChips(text, { view, context }) {
 
 /**
  * Het venster "Taak toevoegen": dezelfde invoer als de balk bovenaan, groter, met beschrijving en een keuze voor het project.
- * @param {{ store: import('../core/store.js').Store, actions: object, context: { projectId?: string | null, sectionId?: string | null, due?: 'today' | null, text?: string } }} options
+ * @param {{ store: import('../core/store.js').Store, actions: object, context: { projectId?: string | null, sectionId?: string | null, due?: 'today' | string | null, text?: string } }} options
  * @returns {Promise<string | null>} het id van de nieuwe taak, of null bij annuleren
  */
 export function openQuickAddDialog({ store, actions, context = {} }) {
@@ -56,7 +56,9 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
       projectList(view).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });
     const sectionFor = () => (project.value === startProject && context.sectionId ? context.sectionId : null);
-    const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : null);
+    // `due` is 'today' (Vandaag), of een dag 'YYYY-MM-DD' (een "+" in de kalender): dan staat de taak op die dag, ook zonder dat je die typt.
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(context.due ?? '') ? context.due : null;
+    const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : day ? { date: day } : null);
     const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor() });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
@@ -84,6 +86,7 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
       },
     },
     h('h2', {}, t('quick.addTask')),
+    day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: formatDayHeading(day, todayString()) })),
     input,
     description,
     preview,

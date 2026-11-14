@@ -1,0 +1,92 @@
+<!--
+title: Lijst, bord en kalender
+description: Een project als lijst, als bord met kolommen per sectie of als kalender per maand of week, en Binnenkort als kalender: kaarten en taken slepen, het toetsenbord, de telefoon, en wat nog niet kan.
+-->
+<h1>Lijst, bord en kalender</h1>
+<p class="intro">Een project kun je op drie manieren bekijken: als <strong>lijst</strong>, als <strong>bord</strong> met een kolom per sectie, of als <strong>kalender</strong> waarin elke taak op haar dag staat. De gegevens zijn dezelfde; alleen de weergave verschilt.</p>
+
+<h2 id="kiezen">Een weergave kiezen</h2>
+<p>Rechtsboven in een project staan drie knoppen: <x-ui k="viewStyle.list"></x-ui>, <x-ui k="viewStyle.board"></x-ui> en <x-ui k="viewStyle.calendar"></x-ui>. De ingedrukte knop is de weergave die je nu ziet. Op een telefoon staan ze als een balk onder de titel.</p>
+<ul>
+  <li>De keuze hoort bij het <strong>project</strong>, niet bij jou: ze geldt op al je apparaten en voor iedereen met wie je het project deelt. Zet iemand het project op een bord, dan zie jij een bord.</li>
+  <li><x-ui k="nav.upcoming"></x-ui> kent alleen <x-ui k="viewStyle.list"></x-ui> en <x-ui k="viewStyle.calendar"></x-ui> (taken uit al je projecten). Die keuze, en of de kalender een maand of een week toont, onthoudt alleen het apparaat waarop je ze maakt.</li>
+  <li>Een oudere versie van de app kent de keuze niet en toont altijd de lijst. De gegevens gaan daar niet door verloren.</li>
+</ul>
+
+<h2 id="het-bord">Het bord</h2>
+<x-shot name="bord" alt="Het project Huishouden als bord: een kolom Zonder sectie en de kolommen Boodschappen, Klusjes en Vaste prik, elk met kaarten met een rondje, de naam van de taak en de datum of het label eronder en onder elke kolom Taak toevoegen.">Een project als bord: een kolom per sectie, met de taken als kaarten.</x-shot>
+<p>De kolommen zijn de secties van het project, voorafgegaan door <x-ui k="board.noSection"></x-ui> voor taken die in geen sectie staan. Een kaart is een taak met dezelfde onderdelen als een regel in de lijst: het rondje, de naam, en daaronder de datum, het aantal subtaken, de labels, een belletje en voor wie het is. Subtaken staan als teller op de kaart van hun taak; open de taak om ze te zien.</p>
+<ul>
+  <li><strong>Afvinken:</strong> klik op het rondje, net als in de lijst. <strong>Openen:</strong> klik op de kaart.</li>
+  <li><strong>Een taak toevoegen:</strong> kies <x-ui k="quick.addTask"></x-ui> onder een kolom; de taak komt in de sectie van die kolom.</li>
+  <li><strong>Secties:</strong> kies <x-ui k="section.add"></x-ui> (de gestippelde kolom rechts) voor een nieuwe kolom. Met de <strong>⋯</strong> naast de naam van een kolom wijzig je haar naam of verwijder je haar (met alle taken erin).</li>
+  <li><strong>Voltooide taken</strong> staan niet op het bord. Onderaan staat <x-ui k="view.showCompleted" n="3"></x-ui> om ze te tonen.</li>
+  <li>Een sectie die je in de lijst hebt ingeklapt, staat op het bord gewoon open.</li>
+</ul>
+
+<h3 id="een-kaart-verplaatsen">Een kaart verplaatsen</h3>
+<ul>
+  <li><strong>Slepen met de muis:</strong> pak een kaart vast en sleep. Laat je hem los op de bovenrand of onderrand van een andere kaart, dan komt hij ervoor of erachter, ook in een andere kolom; laat je hem los op de kop of in de lege ruimte van een kolom, dan komt hij bovenaan of onderaan die kolom. Een streep of kader laat zien waar hij terechtkomt. Met <kbd>Esc</kbd> breek je af. Op een kaart laten vallen maakt van de taak geen subtaak: dat doe je in de lijst. Sleep je een kaart op een project in de zijbalk, dan verhuist de taak naar dat project.</li>
+  <li><strong>Met een vinger:</strong> houd een kaart even ingedrukt en sleep dan. Houd je vinger bij de linker- of rechterrand van het bord, dan schuift het bord vanzelf naar de volgende kolom.</li>
+  <li><strong>Met het toetsenbord:</strong> <kbd>Alt</kbd>+<kbd>↑</kbd> en <kbd>Alt</kbd>+<kbd>↓</kbd> zetten de kaart een plek hoger of lager in de kolom; <kbd>Alt</kbd>+<kbd>←</kbd> en <kbd>Alt</kbd>+<kbd>→</kbd> zetten haar in de kolom ernaast, op dezelfde hoogte (of onderaan als die kolom korter is). Een schermlezer leest voor waar de kaart nu staat.</li>
+  <li><strong>Zonder slepen:</strong> elke kaart heeft een knop met een pijltje, <x-ui k="board.move"></x-ui>. Die opent een lijstje met alle kolommen van het project; kies er een en de kaart verhuist, achteraan die kolom. Op een telefoon is die knop altijd te zien.</li>
+</ul>
+<p>Subtaken gaan altijd met hun taak mee. Het verplaatsen werkt ook zonder verbinding en wordt later verstuurd, zoals elke andere wijziging.</p>
+
+<h3 id="het-bord-op-een-telefoon">Het bord op een telefoon</h3>
+<x-shot name="telefoon-bord" alt="Het bord van Huishouden op een telefoon: de eerste kolom Zonder sectie vult bijna het hele scherm, met kaarten en een pijltje rechts op elke kaart; rechts van de kolom is een stukje van de volgende kolom te zien.">Op een telefoon is één kolom bijna zo breed als het scherm; veeg zijwaarts naar de volgende.</x-shot>
+<p>Een kolom is bijna zo breed als het scherm en een stukje van de volgende kolom steekt erachter uit. Veeg opzij en het bord springt precies naar de volgende kolom. Het bord schuift binnen zichzelf; de pagina scrolt niet zijwaarts.</p>
+
+<h2 id="de-kalender">De kalender</h2>
+<x-shot name="kalender" alt="Het project Huishouden als kalender voor november 2026: bovenaan de knoppen vorige, Vandaag en volgende, de maand en de keuze Maand of Week, daaronder een raster van weken met weeknummers en de dagen maandag tot en met zondag. Vandaag, dinsdag 17 november, heeft een gekleurd cijfer; de taken staan als balkjes op hun dag, herhalingen met een gestippelde rand.">Een project als kalender: een maand met de taken op hun dag.</x-shot>
+<p>De kalender toont een <strong>maand</strong> of een <strong>week</strong> (kies <x-ui k="calendar.month"></x-ui> of <x-ui k="calendar.week"></x-ui> rechtsboven; de app onthoudt wat je koos). De week begint op <strong>maandag</strong>. Links staat bij elke rij het <strong>weeknummer</strong> volgens de ISO-regel: week 1 is de week met de eerste donderdag van het jaar, dus 1 januari kan nog in week 52 of 53 van het vorige jaar vallen. De namen van de dagen en maanden volgen de taal van de app. Bladeren doe je met de pijltjes naast <x-ui k="calendar.today"></x-ui>; die knop brengt je terug naar vandaag.</p>
+<ul>
+  <li><strong>Taken staan op hun datum.</strong> Een taak met een tijd toont die tijd en staat bovenaan de dag op volgorde van tijd; taken zonder tijd staan eerst. Vandaag heeft een gekleurd dagnummer.</li>
+  <li><strong>Te laat staat apart.</strong> Taken waarvan de datum voorbij is, staan niet op hun oude dag maar in een blok <x-ui k="view.overdue"></x-ui> boven de kalender, met hun datum. Verzet of vink ze af en ze verdwijnen uit het blok.</li>
+  <li><strong>Terugkerende taken</strong> staan ook op hun komende voorkomens in het getoonde bereik, met een gestippelde rand en een herhaalpictogram. Dat is alleen een voorbeeld: er wordt niets bewaard, en een voorkomen dat nog niet aan de beurt is, kun je niet afvinken of slepen. Vink je de taak zelf af (op haar eerste datum), dan schuift ze door naar de volgende keer.</li>
+  <li><strong>Afvinken en openen:</strong> het rondje links in het balkje vinkt af, een klik op de naam opent het taakvenster.</li>
+  <li><strong>Een taak toevoegen op een dag:</strong> klik op de <strong>+</strong> rechts in een dag (hij verschijnt als je de dag aanwijst). Het venster <x-ui k="quick.addTask"></x-ui> opent met die datum al ingevuld; je typt alleen de naam. In een project komt de taak in dat project, bij Binnenkort in je Inbox.</li>
+  <li><strong>Veel taken op één dag:</strong> in de maandweergave staan er vier; de rest zit achter <strong>+N meer</strong>, dat de week van die dag opent.</li>
+  <li><strong>Voltooide taken</strong> staan niet in de kalender, en alleen de datum telt: een deadline zonder datum krijgt geen plek.</li>
+</ul>
+
+<h3 id="een-taak-naar-een-andere-dag">Een taak naar een andere dag verzetten</h3>
+<ul>
+  <li><strong>Slepen:</strong> pak een taak vast en laat hem los op een andere dag; de dag licht op. De datum verandert, <strong>het tijdstip blijft</strong> en een <strong>herhaling blijft</strong> zoals ze was: bij een terugkerende taak schuift alleen de huidige datum. Het afvinken blijft dus iets anders dan verzetten. Na het loslaten staat er een melding met <x-ui k="task.undo"></x-ui>. Ook taken uit het blok <x-ui k="view.overdue"></x-ui> kun je zo naar vandaag of een andere dag slepen. Op een telefoon houd je de taak eerst even ingedrukt.</li>
+  <li><strong>Met het toetsenbord:</strong> zet de focus op een taak en druk op <kbd>Alt</kbd>+<kbd>←</kbd> of <kbd>Alt</kbd>+<kbd>→</kbd> voor een dag eerder of later, en <kbd>Alt</kbd>+<kbd>↑</kbd> of <kbd>Alt</kbd>+<kbd>↓</kbd> voor een week. De focus blijft bij de taak.</li>
+  <li>Zonder slepen kan het ook: open de taak en kies een andere datum, of gebruik de kalenderknop bij de regel in de lijst.</li>
+</ul>
+
+<h3 id="de-kalender-met-het-toetsenbord">De kalender met het toetsenbord</h3>
+<p>Met <kbd>Tab</kbd> kom je op één dag van de kalender (de gekozen dag); de taken en knoppen daarin zijn gewone knoppen.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Toets</th><th>Wat er gebeurt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td class="wrap-ok">Een dag terug of vooruit.</td></tr>
+      <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td class="wrap-ok">Een week terug of vooruit.</td></tr>
+      <tr><td><kbd>Page Up</kbd> <kbd>Page Down</kbd></td><td class="wrap-ok">Een maand (of in de weekweergave een week) terug of vooruit.</td></tr>
+      <tr><td><kbd>Home</kbd></td><td class="wrap-ok">Naar vandaag.</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td class="wrap-ok">Een taak toevoegen op de gekozen dag.</td></tr>
+      <tr><td><kbd>Alt</kbd>+pijl op een taak</td><td class="wrap-ok">De taak een dag (links, rechts) of een week (omhoog, omlaag) verzetten.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="de-kalender-op-een-telefoon">De kalender op een telefoon</h3>
+<x-shot name="telefoon-kalender" alt="De kalender van Huishouden op een telefoon als lijst per dag: bovenaan de maand met de knoppen vorige, Vandaag en volgende en de keuze Maand of Week, daaronder een kop Week 47 en dan elke dag met zijn naam, zijn nummer, een plus-knop en de taken eronder als grote balkjes.">Op een telefoon wordt de maand een lijst per dag, met een plus bij elke dag.</x-shot>
+<p>Een tabel met zeven kolommen is te krap voor een telefoon. Daar toont de kalender een <strong>lijst per dag</strong>: per week een kopje, en daaronder elke dag met zijn naam, zijn nummer, een plus om een taak toe te voegen en zijn taken als grote balkjes. In de maandweergave blijven alleen de dagen vanaf vandaag over, en niet de dagen van een andere maand. Kies <x-ui k="calendar.week"></x-ui> om alle zeven dagen van een week te zien.</p>
+
+<h2 id="binnenkort-als-kalender">Binnenkort als kalender</h2>
+<p>Kies bij <x-ui k="nav.upcoming"></x-ui> rechtsboven <x-ui k="viewStyle.calendar"></x-ui>: je ziet de taken van al je projecten in de kalender, met de naam van het project erbij. Alles hierboven geldt ook daar; een taak die je toevoegt komt in je Inbox. <x-ui k="nav.today"></x-ui> heeft geen kalender: één dag heeft er niets aan.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li><strong>Een kolom (sectie) slepen.</strong> Secties staan in de volgorde waarin ze zijn gemaakt, op het bord en in de lijst.</li>
+  <li>Een kaart <strong>boven of onder een andere kaart laten vallen als subtaak</strong>: dat kan alleen in de lijst.</li>
+  <li><strong>Voltooide taken</strong> in de kalender, deadlines als eigen item, en een kalender van een filter.</li>
+  <li>Een taak op de kalender <strong>een tijdstip geven door te slepen</strong> (er is geen dagraster met uren).</li>
+  <li>Een terugkerende taak van meer dan ongeveer elf jaar (dagelijks) of 4000 keer geleden toont geen komende voorkomens meer.</li>
+</ul>

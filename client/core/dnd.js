@@ -14,6 +14,8 @@ import { keyBetween } from '../../shared/orderKey.js';
 import { isInboxId } from '../../shared/schema.js';
 import { descendantIds, scopeOf } from './reducer.js';
 import { byOrder, isArchivedProject, projectDescendantIds, roleIn } from './selectors.js';
+import { addDays } from './format.js';
+import { reschedule } from './quickDates.js';
 
 /** Welk deel van een regel de aanwijzer raakt: erboven, op de regel zelf (wordt subtaak) of eronder. */
 export const ZONES = ['before', 'child', 'after'];
@@ -340,4 +342,90 @@ export function planProjectKey(view, projectId, command, { userId = null, favori
     return done({ parent_id: target, beforeId: aunts[i + 1]?.id ?? null }, { kind: 'outdented', parent: parent.name });
   }
   return { blocked: 'unknown' };
+}
+
+// ---------- bord: kaarten tussen kolommen ----------
+
+/** Een kolom van het bord is een sectie (of "zonder sectie"); `columnScope` controleert dat sectie en project bij elkaar horen. */
+function columnScope(view, projectId, sectionId) {
+  if (!view.projects.has(projectId)) return null;
+  if (sectionId && view.sections.get(sectionId)?.project_id !== projectId) return null;
+  return { project_id: projectId, section_id: sectionId ?? null, parent_id: null };
+}
+
+/**
+ * Loslaten op een kaart in een kolom van het bord: erboven of eronder (`zone`), altijd op het hoogste niveau van die kolom. Een
+ * kaart kan geen subtaak van een andere kaart worden (daar is de lijst voor), anders dan bij `planTaskDrop`.
+ * @returns {{ project_id: string, section_id: string | null, parent_id: null, beforeId: string | null } | null}
+ */
+export function planCardDrop(view, { dragId, overId, zone, projectId, sectionId = null }) {
+  const drag = view.tasks.get(dragId);
+  const scope = columnScope(view, projectId, sectionId);
+  if (!drag || !scope || dragId === overId || !view.tasks.has(overId) || (zone !== 'before' && zone !== 'after')) return null;
+  const siblings = taskSiblings(view, scope, dragId);
+  const i = siblings.findIndex((t) => t.id === overId);
+  if (i < 0) return null;
+  return finishTask(view, drag, { ...scope, beforeId: zone === 'before' ? overId : siblings[i + 1]?.id ?? null });
+}
+
+/**
+ * Een kaart met het toetsenbord verplaatsen: 'up' en 'down' binnen de kolom (aan de rand gebeurt niets, anders dan in de lijst: een
+ * andere kolom kiest je met links en rechts), 'outdent' (pijl links) en 'indent' (pijl rechts) naar de kolom ernaast, op dezelfde
+ * hoogte als de kaart nu staat (of onderaan als die kolom korter is).
+ * Geeft `{ plan, kind: 'moved', container, position, count }`, of `{ blocked }`: 'first', 'last', 'noColumnBefore', 'noColumnAfter', 'gone'.
+ */
+export function planCardKey(view, taskId, command, { isVisible = (t) => !t.checked } = {}) {
+  const task = view.tasks.get(taskId);
+  if (!task || task.parent_id) return { blocked: 'gone' };
+  const groups = taskGroups(view, task.project_id);
+  const sectionId = view.sections.has(task.section_id) && !view.sections.get(task.section_id).is_archived ? task.section_id : null;
+  const g = groups.findIndex((x) => x.id === sectionId);
+  const scope = { project_id: task.project_id, section_id: sectionId, parent_id: null };
+  const all = taskSiblings(view, scope, taskId);
+  const shown = all.filter(isVisible);
+  const before = shown.filter((t) => byOrder(t, task) < 0);
+  const done = (plan, container) => ({ plan, kind: 'moved', container, ...positionIn(view, plan, taskId, isVisible) });
+
+  if (command === 'up') {
+    const prev = before.at(-1);
+    return prev ? done({ ...scope, beforeId: prev.id }, groups[g].name) : { blocked: 'first' };
+  }
+  if (command === 'down') {
+    const next = shown.find((t) => !before.includes(t));
+    if (!next) return { blocked: 'last' };
+    const after = all.filter((t) => byOrder(t, next) > 0)[0];
+    return done({ ...scope, beforeId: after?.id ?? null }, groups[g].name);
+  }
+  if (command === 'outdent' || command === 'indent') {
+    const to = groups[g + (command === 'indent' ? 1 : -1)];
+    if (!to) return { blocked: command === 'indent' ? 'noColumnAfter' : 'noColumnBefore' };
+    const target = { project_id: task.project_id, section_id: to.id, parent_id: null };
+    const there = taskSiblings(view, target, taskId).filter(isVisible);
+    return done({ ...target, beforeId: there[before.length]?.id ?? null }, to.name);
+  }
+  return { blocked: 'unknown' };
+}
+
+// ---------- kalender: een taak naar een andere dag ----------
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Loslaten van een taak op een dag van de kalender: de datum wordt die dag. Het tijdstip blijft, en bij een herhaling schuift alleen
+ * de huidige datum (de herhaling zelf blijft zoals ze was; zie `reschedule`). Geen datum, een afgevinkte taak, of dezelfde dag geven null.
+ * @returns {{ date: string, due: object } | null}
+ */
+export function planDayDrop(view, { dragId, date }) {
+  const task = view.tasks.get(dragId);
+  if (!task || task.checked || !task.due || !DAY_RE.test(date) || task.due.date.slice(0, 10) === date) return null;
+  return { date, due: reschedule(task.due, date) };
+}
+
+/** Een taak met het toetsenbord een dag of week verzetten: pijl links en rechts (een dag), omhoog en omlaag (een week). */
+export function planDayKey(view, taskId, command) {
+  const task = view.tasks.get(taskId);
+  const days = { outdent: -1, indent: 1, up: -7, down: 7 }[command];
+  if (!task || !task.due || task.checked || !days) return { blocked: 'gone' };
+  const date = addDays(task.due.date.slice(0, 10), days);
+  return { plan: { date, due: reschedule(task.due, date) }, kind: 'day', date };
 }

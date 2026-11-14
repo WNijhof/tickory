@@ -30,6 +30,7 @@ export function shortcutsDialog() {
       row(['Alt', '→ / ←'], t('shortcuts.moveInOut'), false)),
     h('p', { class: 'hint' }, t('shortcuts.note')),
     h('p', { class: 'hint' }, t('shortcuts.dragNote')),
+    h('p', { class: 'hint' }, t('shortcuts.viewsNote')),
     h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button button-primary', onclick: () => finish(null) }, t('common.close')))));
 }
 

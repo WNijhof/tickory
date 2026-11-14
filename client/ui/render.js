@@ -8,6 +8,11 @@
 // in zet, meldt zich één keer aan met `sidebarHooks.push(({ search, extra }) => { … })`. app.js roept elke aangemelde functie aan
 // direct nadat de zijbalk is getekend, met de twee plekken als argument. In de kop van de pagina is `#topbar-tools` (index.html)
 // de plek voor een zoekveld in het midden; die is vast en wordt niet opnieuw getekend.
+//
+// WEERGAVEN (bord en kalender): `mainView` kiest bij een project op `project.view_style` ('list' | 'board' | 'calendar', zie
+// core/projectViews.js) en bij Binnenkort op een voorkeur van dit apparaat. Het bord staat in ui/board.js en de kalender in
+// ui/calendar.js; beide krijgen hun gegevens en handelingen mee en hebben zelf geen toestand in de opslag. Een kaart op het bord is
+// dezelfde regel als in de lijst (`buildRow`, met de variant 'card'), zodat afvinken en openen via `bindList` hetzelfde werken.
 
 import { isInboxId } from '../../shared/schema.js';
 import {
@@ -18,8 +23,12 @@ import { formatDayHeading } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
 import { rowModel } from '../core/rowModel.js';
 import { t } from '../core/i18n.js';
+import { VIEW_STYLES, boardColumns, viewStyleOf } from '../core/projectViews.js';
 import { h } from './dom.js';
 import { emptyArt, icon } from './icons.js';
+import { boardView } from './board.js';
+import { calendarView } from './calendar.js';
+import { upcomingStyle, viewSwitch } from './viewSwitch.js';
 
 const sameRoute = (a, b) => a.type === b.type && (a.id ?? null) === (b.id ?? null);
 
@@ -125,10 +134,12 @@ function rowButton(cls, act, ...kids) {
 }
 
 /** Maakt de regel van één taak uit zijn gegevens (zie core/rowModel.js). */
-function buildRow(m) {
-  const li = mk('li', `task prio-${m.priority}${m.done ? ' task-done' : ''}${m.depth > 0 ? ' task-sub' : ''}`);
+function buildRow(m, variant = '') {
+  const card = variant === 'card';
+  const li = mk('li', `task prio-${m.priority}${m.done ? ' task-done' : ''}${m.depth > 0 ? ' task-sub' : ''}${card ? ' task-card' : ''}`);
   li.dataset.id = m.id;
   li.dataset.depth = String(m.depth);
+  if (card) li.dataset.taskId = m.id; // aanhaakpunt voor slepen: zie de lijst bovenaan ui/board.js
 
   const check = rowButton('check', 'check');
   check.dataset.fk = `check:${m.id}`;
@@ -185,6 +196,14 @@ function buildRow(m) {
   li.append(check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
   li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
   if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
+  if (card) {
+    // Op een telefoon verdwijnen de snelle knoppen (er is geen aanwijzer); dit menu blijft dus altijd zichtbaar.
+    const move = rowButton('icon-button card-move', 'move', icon('move'));
+    move.dataset.fk = `move:${m.id}`;
+    move.setAttribute('aria-label', t('board.moveLabel', { name: m.content }));
+    move.title = t('board.move');
+    li.append(move);
+  }
   return li;
 }
 
@@ -238,6 +257,7 @@ export function bindList(container, handlers) {
     }
     if (act === 'label') handlers.openLabel?.(control.dataset.label);
     else if (act === 'fold') handlers.toggleTask(task);
+    else if (act === 'move') handlers.moveCard(task);
     else if (act === 'date') handlers.reschedule(task);
     else if (act === 'delete') handlers.removeTask(task);
     else if (act || !e.target.closest('button, a')) handlers.open(task); // "open", "edit", of een klik op de regel zelf
@@ -254,13 +274,13 @@ export function bindList(container, handlers) {
 function rowsOf(list, pool, ctx) {
   return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
     const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id) });
-    const json = JSON.stringify(model);
-    if (pool.has(task.id)) return buildRow(model); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
+    const json = ctx.variant ? `${ctx.variant}|${JSON.stringify(model)}` : JSON.stringify(model);
+    if (pool.has(task.id)) return buildRow(model, ctx.variant); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
     let entry = rowCache.get(task.id);
     if (entry && entry.json === json) {
       entry.task = task;
     } else {
-      entry = { json, task, model, node: buildRow(model) };
+      entry = { json, task, model, node: buildRow(model, ctx.variant) };
     }
     pool.set(task.id, entry);
     return entry.node;
@@ -314,7 +334,7 @@ const addInline = (handlers, target, label = t('quick.addTask')) =>
 export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null }) {
   const pool = new Map();
   const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), reminders: tasksWithReminder(view, me?.id) };
-  const rows = (list, showProject) => rowsOf(list, pool, { ...ctx, showProject });
+  const rows = (list, showProject, variant = '') => rowsOf(list, pool, { ...ctx, showProject, variant });
   const finish = (result) => {
     rowCache = pool; // alleen wat nu in beeld is, blijft bewaard
     return result;
@@ -344,12 +364,20 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   }
 
   if (route.type === 'upcoming') {
+    const style = upcomingStyle();
+    const switcher = viewSwitch({ styles: ['list', 'calendar'], current: style, onChange: (next) => handlers.setUpcomingStyle(next) });
+    if (style === 'calendar') {
+      return finish({
+        title: t('nav.upcoming'), count: null, lead: icon('upcoming'), actions: [switcher],
+        nodes: [calendarView({ calendarKey: 'upcoming', tasks: [...view.tasks.values()], view, today, handlers, showProject: true, addTarget: {} })],
+      });
+    }
     const days = upcomingView(view, today);
     return finish({
       title: t('nav.upcoming'),
       count: days.reduce((sum, d) => sum + d.tasks.length, 0),
       lead: icon('upcoming'),
-      actions: [],
+      actions: [switcher],
       nodes: days.length > 0
         ? days.map((d) => group({ title: formatDayHeading(d.date, today), rows: rows(d.tasks.map((task) => ({ task })), true), total: d.tasks.length }))
         : [emptyState({ title: t('view.upcomingEmptyTitle'), text: t('view.upcomingEmpty') })],
@@ -365,13 +393,42 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   const comments = projectCommentCount(view, project.id);
   const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost ${cls}`, type: 'button', onclick, ...extra },
     icon(iconName), h('span', { class: 'btn-label' }, label));
+  const style = viewStyleOf(project);
   const actions = [
+    viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
     headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
     !inbox && headButton('btn-share', 'users', isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
     !inbox && headButton('btn-menu', 'more', t('project.menu'), () => handlers.projectMenu(project)),
   ];
   const archived = isArchivedProject(view, project.id);
   const addTarget = (section) => ({ projectId: project.id, sectionId: section?.id ?? null });
+  const banner = archived && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('project.archivedBanner')), h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.restoreProject(project) }, t('project.restore')));
+  if (style === 'board') {
+    const board = boardColumns(view, project.id, { showCompleted });
+    return finish({
+      title: project.name, count: open, lead: inbox ? icon('inbox') : dot(project.color, 'dot-large'), actions,
+      nodes: [
+        banner,
+        sharedWith(view, project.id, me, userName),
+        boardView({ project, columns: board.columns, readOnly: archived, handlers, cards: (tasks) => rows(tasks.map((task) => ({ task })), false, 'card') }),
+        pv.completedCount > 0 && h('button', { class: 'link-button', type: 'button', onclick: () => handlers.toggleCompleted(project.id) },
+          showCompleted ? t('view.hideCompleted') : t('view.showCompleted', { count: pv.completedCount })),
+      ],
+    });
+  }
+  if (style === 'calendar') {
+    return finish({
+      title: project.name, count: open, lead: inbox ? icon('inbox') : dot(project.color, 'dot-large'), actions,
+      nodes: [
+        banner,
+        sharedWith(view, project.id, me, userName),
+        calendarView({
+          calendarKey: `project:${project.id}`, tasks: [...view.tasks.values()].filter((x) => x.project_id === project.id), view, today, handlers,
+          showProject: false, addTarget: { projectId: project.id }, readOnly: archived,
+        }),
+      ],
+    });
+  }
   const sectionGroups = pv.groups.map((g) => {
     const folded = foldRows(g.tasks);
     const items = rows(folded, false);
@@ -393,7 +450,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     lead: inbox ? icon('inbox') : dot(project.color, 'dot-large'),
     actions,
     nodes: [
-      archived && h('div', { class: 'banner', role: 'status' }, h('span', {}, t('project.archivedBanner')), h('button', { class: 'button button-small', type: 'button', onclick: () => handlers.restoreProject(project) }, t('project.restore'))),
+      banner,
       sharedWith(view, project.id, me, userName),
       ...sectionGroups,
       total === 0 && pv.groups.length === 1 && emptyState({

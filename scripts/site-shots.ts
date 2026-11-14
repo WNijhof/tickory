@@ -44,6 +44,8 @@ const DESKTOP = { width: 1120, height: 720, scale: 2, mobile: false };
 const TALL = { width: 1120, height: 1000, scale: 2, mobile: false };
 /** Voor het taakvenster: zo hoog dat het grote venster met al zijn onderdelen in beeld past. */
 const HIGH = { width: 1120, height: 1500, scale: 2, mobile: false };
+/** Voor het bord: breed genoeg dat alle vier de kolommen van Huishouden naast elkaar staan. */
+const BOARD = { width: 1560, height: 760, scale: 1.25, mobile: false };
 const PHONE = { width: 390, height: 780, scale: 2, mobile: true };
 type View = typeof DESKTOP;
 
@@ -131,6 +133,22 @@ async function shootAll() {
   await nav(projectName);
   await title(projectName);
   await capture('project', DESKTOP);
+
+  // het bord en de kalender van hetzelfde project (de keuze Lijst, Bord of Kalender rechtsboven)
+  await browser.viewport(BOARD.width, BOARD.height, { scale: BOARD.scale, mobile: false });
+  await evaluate(`document.querySelector('.view-switch [data-view-style="board"]').click()`);
+  await waitFor(`document.querySelector('.board')`, 'bord');
+  await settle();
+  await capture('bord', BOARD);
+  await browser.viewport(TALL.width, TALL.height, { scale: TALL.scale, mobile: false });
+  await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+  await waitFor(`document.querySelector('.cal')`, 'kalender');
+  await settle();
+  await capture('kalender', TALL);
+  await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
+  await waitFor(`document.querySelector('.group-title')`, 'lijst terug');
+  await browser.viewport(DESKTOP.width, DESKTOP.height, { scale: DESKTOP.scale, mobile: false });
+  await settle();
 
   // snel toevoegen: de regel is getypt, het voorbeeld eronder laat zien wat er herkend is (ook de herinnering)
   await typeInto('#quick-input', 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u');
@@ -270,6 +288,16 @@ async function shootAll() {
   await nav(projectName);
   await title(projectName);
   await capture('telefoon-project', PHONE);
+  await evaluate(`document.querySelector('.view-switch [data-view-style="board"]').click()`);
+  await waitFor(`document.querySelector('.board')`, 'bord op een telefoon');
+  await settle();
+  await capture('telefoon-bord', PHONE);
+  await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+  await waitFor(`document.querySelector('.cal')`, 'kalender op een telefoon');
+  await settle();
+  await capture('telefoon-kalender', PHONE);
+  await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
+  await waitFor(`document.querySelector('.group-title')`, 'lijst terug op een telefoon');
   await evaluate(`document.getElementById('menu-button').click()`);
   await sleep(350); // het menu schuift in beeld
   await capture('telefoon-menu', PHONE);

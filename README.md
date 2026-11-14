@@ -69,6 +69,7 @@ The image is published with the first release. If pulling it asks for a sign-in,
 - **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app.
 - The interface in English and Dutch.
 - A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
+- **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Cards can be dragged to another column and tasks to another day in the calendar (the time and repeat stay; for a repeating task only the current date moves), also with `Alt` + arrow keys.
 - Ticking off with undo; showing or hiding completed tasks.
 - **Dragging**: change the order of tasks, move them to another section, make a task a subtask of another (and back), or drop it on a project in the sidebar; in the sidebar, change the order of projects and make or undo sub-projects (owner only; favourites can be reordered among each other). With the mouse or a pen, with a finger (press and hold, or use the handle), or from the keyboard with `Alt` + arrow keys, announced to screen readers. It works offline like every other change. Today and Upcoming are sorted by date and priority, so tasks there can only be dragged to a project.
 - Working offline with sync, on several devices at once, with changes from others arriving within seconds.
@@ -86,7 +87,7 @@ Version 0.2: multiple users, shared projects, reminders with notifications, and 
 
 **Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
 
-- The **duration** of a task, and a board or calendar view.
+- The **duration** of a task.
 
 **Missing entirely:**
 

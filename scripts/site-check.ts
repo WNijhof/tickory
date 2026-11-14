@@ -25,6 +25,8 @@ import type { Browser } from './site-browser.ts';
 import { CORNER, icon, rasterize } from './make-icons.js';
 import { parseDateText, parseDue } from '../client/core/dateNl.js';
 import { parseQuickAdd } from '../client/core/quickadd.js';
+import { periodTitle } from '../client/core/calendar.js';
+import { todayString } from '../client/core/format.js';
 import { describeCommandError } from '../client/core/messages.js';
 import { handleSync } from '../server/sync.ts';
 import { addUser, freshDb } from '../server/testutil.ts';
@@ -1429,6 +1431,117 @@ if (wants('browser')) {
           await viewTitle('@bellen');
           assertClean(`zoeken, filters en labels (${lang})`);
         }
+      });
+
+      await check('demo: bord en kalender (Nederlands en Engels): weergave kiezen, kaart naar een andere kolom slepen, taak naar een andere dag slepen, op een telefoon', async () => {
+        b.reset();
+        const mouse = (type: string, x: number, y: number, buttons: number) =>
+          b.send('Input.dispatchMouseEvent', { type, x, y, button: buttons || type === 'mouseReleased' ? 'left' : 'none', buttons, clickCount: type === 'mouseMoved' ? 0 : 1, pointerType: 'mouse' });
+        /** Een echt muisgebaar via het DevTools-protocol, in stappen naar het doel. */
+        const drag = async (from: { x: number; y: number }, to: { x: number; y: number }) => {
+          await mouse('mouseMoved', from.x, from.y, 0);
+          await mouse('mousePressed', from.x, from.y, 1);
+          for (let i = 1; i <= 10; i++) await mouse('mouseMoved', Math.round(from.x + ((to.x - from.x) * i) / 10), Math.round(from.y + ((to.y - from.y) * i) / 10), 1);
+          await sleep(80);
+          await mouse('mouseReleased', to.x, to.y, 0);
+        };
+        const rectOf = async (expr: string) => {
+          let last: any = null;
+          for (let i = 0; i < 20; i++) {
+            const now = await evaluate<any>(`(() => { const e = ${expr}; if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
+            if (now && last && now.x === last.x && now.y === last.y && now.w === last.w && now.h === last.h) return now;
+            last = now;
+            await sleep(70);
+          }
+          throw new Error(`niet te vinden of niet stil: ${expr}`);
+        };
+        const grab = (r: any) => ({ x: Math.round(r.x + Math.min(120, r.w / 2)), y: Math.round(r.y + r.h / 2) });
+        const middle = (r: any) => ({ x: Math.round(r.x + r.w / 2), y: Math.round(r.y + r.h / 2) });
+        const today = todayString();
+        for (const lang of ['en', 'nl'] as const) { // eindigt in het Nederlands, zoals de controles hierna verwachten
+          const nl = lang === 'nl';
+          const locale = nl ? 'nl-NL' : 'en-GB';
+          await b.viewport(1280, 860);
+          await openDemo(`?lang=${lang}`);
+          await nav('Huishouden');
+          await viewTitle('Huishouden');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.view-actions .view-switch button')].map((x) => x.textContent)`), nl ? ['Lijst', 'Bord', 'Kalender'] : ['List', 'Board', 'Calendar']);
+          assert.equal(await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').getAttribute('aria-pressed')`), 'true', 'een project begint als lijst');
+          // het bord
+          await evaluate(`document.querySelector('.view-switch [data-view-style="board"]').click()`);
+          await waitFor(`document.querySelector('.board')`, 'bord in de demo');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.board-column:not(.board-column-new) .board-column-title')].map((e) => e.textContent)`), [nl ? 'Zonder sectie' : 'No section', 'Boodschappen', 'Klusjes', 'Vaste prik']);
+          assert.ok(await evaluate(`document.querySelectorAll('li.task-card').length >= 6`), 'kaarten met de taken van het project');
+          const columnOf = (title: string) => `[...document.querySelectorAll('.board-column')].find((c) => c.querySelector('.board-column-title')?.textContent === ${js(title)})`;
+          const cardTitles = (column: string) => evaluate<string[]>(`[...${columnOf(column)}.querySelectorAll('.task-title')].map((e) => e.textContent)`);
+          // een kaart met de muis naar een andere kolom slepen
+          const moving = (await cardTitles('Boodschappen'))[0];
+          const from = await rectOf(`${columnOf('Boodschappen')}.querySelector('li.task-card')`);
+          const to = await rectOf(`${columnOf('Klusjes')}.querySelector('.add-inline')`);
+          await drag(grab(from), middle(to));
+          await waitFor(`[...${columnOf('Klusjes')}.querySelectorAll('.task-title')].some((e) => e.textContent === ${js(moving)})`, `de kaart "${moving}" staat in Klusjes`);
+          assert.ok(!(await cardTitles('Boodschappen')).includes(moving), 'en niet meer in Boodschappen');
+          assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'loslaten opent het taakvenster niet');
+          // het menu "Verplaats naar…" doet hetzelfde zonder slepen
+          await evaluate(`${columnOf('Klusjes')}.querySelector('.card-move').click()`);
+          await waitFor(`document.querySelector('dialog[open] .menu')`, 'menu Verplaats naar');
+          await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].find((x) => x.textContent.startsWith('Vaste prik')).click()`);
+          await waitFor(`!document.querySelector('dialog[open]')`, 'menu gesloten');
+          assertClean(`bord (${lang})`);
+          // de kalender
+          await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+          await waitFor(`document.querySelector('.cal')`, 'kalender in de demo');
+          assert.equal(await evaluate(`document.querySelector('.cal-title').textContent`), periodTitle('month', today, locale), 'de maand in de taal van de demo');
+          assert.deepEqual(await evaluate(`[...document.querySelectorAll('.cal-table thead abbr')].slice(1).map((e) => e.textContent)`), nl ? ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'] : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+          assert.equal(await evaluate(`document.querySelector('.cal-today').dataset.date`), today, 'vandaag is gemarkeerd');
+          assert.ok(await evaluate(`document.querySelectorAll('li.cal-item').length >= 3`), 'taken op hun dag');
+          assert.ok(await evaluate(`document.querySelectorAll('li.cal-item[data-real="false"]').length >= 1`), 'een herhaling staat ook op de komende voorkomens');
+          await evaluate(`document.querySelector('[data-fk="cal-mode:week"]').click()`);
+          await waitFor(`document.querySelector('.cal').dataset.mode === 'week'`, 'weekweergave');
+          assert.equal(await evaluate(`document.querySelectorAll('td.cal-day').length`), 7);
+          await evaluate(`document.querySelector('[data-fk="cal-mode:month"]').click()`);
+          await waitFor(`document.querySelector('.cal').dataset.mode === 'month'`, 'maandweergave');
+          // een taak naar een andere dag slepen: de plus bij een dag voegt toe, slepen verzet
+          const candidate = await evaluate<{ id: string; date: string } | null>(`(() => { const e = [...document.querySelectorAll('li.cal-item[data-real="true"]')].find((i) => !i.closest('.cal-overdue') && i.dataset.date >= ${js(today)} && i.getBoundingClientRect().height > 0); return e ? { id: e.dataset.taskId, date: e.dataset.date } : null; })()`);
+          assert.ok(candidate, 'een taak om te verzetten');
+          const target = await evaluate<string>(`[...document.querySelectorAll('td.cal-day')].filter((d) => d.dataset.date !== ${js(candidate!.date)} && d.getBoundingClientRect().height > 0 && d.dataset.date >= ${js(today)})[1].dataset.date`);
+          const taskFrom = await rectOf(`document.querySelector('li.cal-item[data-task-id="${candidate!.id}"][data-real="true"] .cal-open')`);
+          const dayTo = await rectOf(`document.querySelector('td.cal-day[data-date="${target}"]')`);
+          await drag(grab(taskFrom), middle(dayTo));
+          await waitFor(`document.querySelector('td.cal-day[data-date="${target}"] li.cal-item[data-task-id="${candidate!.id}"][data-real="true"]')`, `de taak staat op ${target}`);
+          assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'loslaten opent het taakvenster niet');
+          await evaluate(`[...document.querySelectorAll('.toast')].at(-1).querySelector('.toast-action').click()`);
+          await waitFor(`document.querySelector('td.cal-day[data-date="${candidate!.date}"] li.cal-item[data-task-id="${candidate!.id}"][data-real="true"]')`, 'ongedaan maken zet de taak terug');
+          // een taak toevoegen met de plus bij een dag
+          await evaluate(`document.querySelector('td.cal-day[data-date="${target}"] .cal-add').click()`);
+          await waitFor(`document.querySelector('.dialog-quick[open] .quick-day')`, 'venster Taak toevoegen voor die dag');
+          await typeInto('.dialog-quick[open] input[type=text]', nl ? 'Tuinafval buiten zetten' : 'Put out the garden waste');
+          await evaluate(`document.querySelector('.dialog-quick[open] form').requestSubmit()`);
+          await waitFor(`[...document.querySelectorAll('td.cal-day[data-date="${target}"] .cal-title-text')].some((e) => e.textContent === ${js(nl ? 'Tuinafval buiten zetten' : 'Put out the garden waste')})`, 'de nieuwe taak staat op die dag');
+          assertClean(`kalender (${lang})`);
+          // Binnenkort als kalender
+          await nav(nl ? 'Binnenkort' : 'Upcoming');
+          await viewTitle(nl ? 'Binnenkort' : 'Upcoming');
+          await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+          await waitFor(`document.querySelector('.cal[data-calendar="upcoming"]')`, 'Binnenkort als kalender');
+          assert.ok(await evaluate(`new Set([...document.querySelectorAll('.cal-item .cal-project-name')].map((e) => e.textContent)).size >= 2`), 'taken van meer projecten');
+          assertClean(`Binnenkort als kalender (${lang})`);
+        }
+        // op een telefoon: het bord schuift binnen zichzelf, de kalender is een lijst per dag, niets valt buiten beeld
+        await b.viewport(390, 844, { mobile: true });
+        await openDemo('?lang=nl');
+        await nav('Huishouden');
+        await viewTitle('Huishouden');
+        await evaluate(`document.querySelector('.view-switch [data-view-style="board"]').click()`);
+        await waitFor(`document.querySelector('.board')`, 'bord op een telefoon');
+        assert.match(await evaluate(`getComputedStyle(document.querySelector('.board')).scrollSnapType`), /x mandatory/);
+        assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, 'het bord veroorzaakt geen zijwaarts scrollen van de pagina');
+        await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+        await waitFor(`document.querySelector('.cal')`, 'kalender op een telefoon');
+        assert.equal(await evaluate(`getComputedStyle(document.querySelector('.cal-table')).display`), 'block', 'op een telefoon een lijst per dag');
+        assert.equal(await evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`), true, 'de kalender veroorzaakt geen zijwaarts scrollen van de pagina');
+        assertClean('bord en kalender op een telefoon');
+        await b.viewport(1280, 860);
       });
 
       await check('demo: bewaart niets: na herladen zijn de voorbeeldgegevens terug; geen service worker, geen opslag, geen aanmelding', async () => {

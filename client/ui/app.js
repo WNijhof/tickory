@@ -9,6 +9,7 @@ import { deviceName } from '../core/auth.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
 import { isArchivedProject, roleIn } from '../core/selectors.js';
+import { moveTargets } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDue, nowString, todayString } from '../core/format.js';
@@ -25,6 +26,8 @@ import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from '
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
+import { setUpcomingStyle } from './viewSwitch.js';
+import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 
 const ROUTE_KEY = 'tickory.route';
@@ -173,6 +176,9 @@ function navigate(route) {
 const handlers = {
   navigate,
 
+  /** Tekent het scherm opnieuw (voor onderdelen met eigen schermtoestand, zoals de gekozen maand van de kalender). */
+  refresh: () => render(),
+
   async toggle(task) {
     if (task.checked) return actions.uncompleteTask(task.id);
     await actions.completeTask(task.id);
@@ -203,6 +209,30 @@ const handlers = {
     const picked = await pickDay({ today: todayString(), hasDue: Boolean(task.due) });
     if (picked) await actions.updateTask(task.id, { due: reschedule(task.due, picked.date) });
   },
+
+  /** Lijst, bord of kalender voor een project; bewaard in het project zelf (`view_style`), dus ook op andere apparaten en voor de leden. */
+  setViewStyle: (project, style) => actions.updateProject(project.id, { view_style: style }),
+  /** Lijst of kalender bij Binnenkort: alleen een voorkeur van dit apparaat. */
+  setUpcomingStyle(style) {
+    setUpcomingStyle(style);
+    render();
+  },
+
+  /** Het menu "Verplaats naar…" van een kaart op het bord: naar een andere kolom (sectie) van hetzelfde project. */
+  async moveCard(task) {
+    const targets = moveTargets(store.view, task);
+    const choice = await menuDialog({
+      title: t('board.moveTitle', { name: task.content }),
+      items: targets.map((x) => ({ value: x.id, label: `${x.name ?? t('board.noSection')}${x.current ? ' ✓' : ''}` })),
+    });
+    const target = targets.find((x) => x.id === choice);
+    if (!target || target.current) return;
+    await actions.moveTask(task.id, { project_id: task.project_id, section_id: target.sectionId });
+    toast(t('board.moved', { name: task.content, column: target.name ?? t('board.noSection') }));
+  },
+
+  /** Een taak toevoegen op een dag van de kalender; `target` zegt in welk project (leeg: de Inbox). */
+  addToDay: (day, target = {}) => handlers.quickAdd({ ...target, due: day }),
 
   toggleProject: (project) => actions.updateProject(project.id, { is_collapsed: !project.is_collapsed }),
   toggleSection: (section) => actions.updateSection(section.id, { is_collapsed: !section.is_collapsed }),
@@ -495,6 +525,7 @@ async function boot() {
     adapter = new MemoryAdapter();
     toast(t('boot.noStorage'), { kind: 'error', timeout: 0 });
   }
+  viewPrefs.persist = !backend.demo; // de demo bewaart niets, ook geen voorkeuren
   store = new Store(adapter);
   await store.init();
 

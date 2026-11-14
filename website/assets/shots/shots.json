@@ -11,9 +11,17 @@
     "width": 2240,
     "height": 1440
   },
+  "bord": {
+    "width": 1950,
+    "height": 950
+  },
+  "kalender": {
+    "width": 2240,
+    "height": 2000
+  },
   "snel-toevoegen": {
     "width": 1680,
-    "height": 640
+    "height": 728
   },
   "taak-bewerken": {
     "width": 2056,
@@ -33,7 +41,7 @@
   },
   "sneltoetsen": {
     "width": 976,
-    "height": 1736
+    "height": 1878
   },
   "zoeken": {
     "width": 1456,
@@ -87,6 +95,14 @@
     "width": 780,
     "height": 1560
   },
+  "telefoon-bord": {
+    "width": 780,
+    "height": 1560
+  },
+  "telefoon-kalender": {
+    "width": 780,
+    "height": 1560
+  },
   "telefoon-menu": {
     "width": 780,
     "height": 1560
@@ -107,9 +123,17 @@
     "width": 2240,
     "height": 1440
   },
+  "en/bord": {
+    "width": 1950,
+    "height": 950
+  },
+  "en/kalender": {
+    "width": 2240,
+    "height": 2000
+  },
   "en/snel-toevoegen": {
     "width": 1680,
-    "height": 640
+    "height": 728
   },
   "en/taak-bewerken": {
     "width": 2056,
@@ -129,7 +153,7 @@
   },
   "en/sneltoetsen": {
     "width": 976,
-    "height": 1708
+    "height": 1850
   },
   "en/zoeken": {
     "width": 1456,
@@ -180,6 +204,14 @@
     "height": 1560
   },
   "en/telefoon-project": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/telefoon-bord": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/telefoon-kalender": {
     "width": 780,
     "height": 1560
   },

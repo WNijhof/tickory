@@ -12,11 +12,16 @@
 //
 // Aanhaken (zie render.js): `.group[data-drop-project]` (+ `data-drop-section`) is een lijst waar taken in kunnen; `li.task` zijn de
 // taken; in de zijbalk zijn `[data-project-id][data-list=inbox|favorite|tree]` de projecten en `[data-drop-top]` de kop "Projecten".
+// Het bord (ui/board.js): `.board-column[data-project-id][data-section-id]` is een kolom, `li.task-card` een kaart; slepen werkt als in de
+// lijst, maar alleen boven of onder een kaart (geen subtaak maken). De kalender (ui/calendar.js): `td.cal-day[data-date]` is een dag waar
+// je een taak op laat vallen en `li.cal-item[data-task-id][data-real=true]` een taak die je kunt slepen (een voorkomen van een herhaling
+// dat nog niet aan de beurt is, niet: `data-real=false`); loslaten verzet de datum, het tijdstip en de herhaling blijven.
 
-import { canReorderProject, currentProjectPlan, currentTaskPlan, planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey, zoneAt } from '../core/dnd.js';
+import { canReorderProject, currentProjectPlan, currentTaskPlan, planCardDrop, planCardKey, planDayDrop, planDayKey, planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey, zoneAt } from '../core/dnd.js';
+import { dayLabel } from '../core/calendar.js';
 import { descendantIds } from '../core/reducer.js';
 import { projectDescendantIds } from '../core/selectors.js';
-import { t } from '../core/i18n.js';
+import { getLocale, t } from '../core/i18n.js';
 import { h, toast } from './dom.js';
 
 const MOUSE_SLOP = 5; // px bewegen voor een muis of pen sleept
@@ -31,7 +36,7 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 /**
  * @param {{
  *   content: HTMLElement, sidebar: HTMLElement,
- *   actions: { moveTask: Function, moveProject: Function },
+ *   actions: { moveTask: Function, moveProject: Function, updateTask: Function },
  *   getContext: () => { view: any, userId: string | null, showCompleted: (projectId: string) => boolean },
  * }} options
  */
@@ -55,7 +60,10 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
   let openedDrawer = false;
   let scrollRaf = 0;
 
-  const taskRowOf = (el) => el?.closest?.('li.task') ?? null;
+  /** Een taak in de lijst (`li.task`, ook een kaart op het bord) of in de kalender (`li.cal-item`). */
+  const taskRowOf = (el) => el?.closest?.('li.task, li.cal-item') ?? null;
+  const taskIdOf = (row) => row.dataset.id ?? row.dataset.taskId;
+  const taskSelector = (id) => `li.task[data-id="${CSS.escape(id)}"], li.cal-item[data-task-id="${CSS.escape(id)}"][data-real="true"]`;
   const projectRowOf = (el) => {
     const item = el?.closest?.('#sidebar [data-project-id]');
     return item && item.dataset.list !== 'inbox' ? item : null;
@@ -82,9 +90,10 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (!(target instanceof Element) || target.closest('dialog')) return;
     const row = taskRowOf(target);
     if (row && content.contains(row)) {
-      if (target.closest('[data-act="check"], [data-act="fold"], .task-actions, a, input, textarea')) return;
-      if (!getContext().view.tasks.has(row.dataset.id)) return;
-      startPending(e, 'task', row.dataset.id, row, Boolean(target.closest('.drag-handle')));
+      if (target.closest('[data-act="check"], [data-act="fold"], [data-act="move"], .task-actions, .cal-check, a, input, textarea')) return;
+      if (row.dataset.real === 'false') return; // een voorkomen van een herhaling in de kalender: er is niets om te verzetten
+      if (!getContext().view.tasks.has(taskIdOf(row))) return;
+      startPending(e, 'task', taskIdOf(row), row, Boolean(target.closest('.drag-handle')));
       return;
     }
     const item = projectRowOf(target);
@@ -141,7 +150,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     const entity = from.kind === 'task' ? view.tasks.get(from.id) : view.projects.get(from.id);
     if (!entity) return;
     // het scherm kan tussen indrukken en slepen opnieuw getekend zijn (een sync): dan staat de regel er als nieuw element
-    if (!from.el.isConnected) from.el = (from.kind === 'task' ? content.querySelector(`li.task[data-id="${CSS.escape(from.id)}"]`) : sidebar.querySelector(`[data-project-id="${CSS.escape(from.id)}"]`)) ?? from.el;
+    if (!from.el.isConnected) from.el = (from.kind === 'task' ? content.querySelector(taskSelector(from.id)) : sidebar.querySelector(`[data-project-id="${CSS.escape(from.id)}"]`)) ?? from.el;
     const rect = from.el.getBoundingClientRect();
     const ids = from.kind === 'task' ? [from.id, ...descendantIds(view, [from.id])] : [from.id, ...projectDescendantIds(view, from.id)];
     const ghost = from.el.cloneNode(true);
@@ -150,7 +159,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     ghost.removeAttribute('id');
     ghost.setAttribute('aria-hidden', 'true');
     for (const n of ghost.querySelectorAll('[data-fk]')) n.removeAttribute('data-fk');
-    for (const n of ghost.querySelectorAll('.task-actions, .drag-handle')) n.remove();
+    for (const n of ghost.querySelectorAll('.task-actions, .drag-handle, .card-move')) n.remove();
     ghost.style.width = `${Math.min(rect.width, 520)}px`;
     if (from.kind === 'project') ghost.classList.add('dnd-ghost-project');
     document.body.append(ghost);
@@ -173,7 +182,7 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
 
   const markSource = () => {
     for (const id of drag.ids) {
-      const els = drag.kind === 'task' ? content.querySelectorAll(`li.task[data-id="${CSS.escape(id)}"]`) : [...sidebar.querySelectorAll(`[data-project-id="${CSS.escape(id)}"]`)].map((x) => x.closest('.nav-row') ?? x);
+      const els = drag.kind === 'task' ? content.querySelectorAll(taskSelector(id)) : [...sidebar.querySelectorAll(`[data-project-id="${CSS.escape(id)}"]`)].map((x) => x.closest('.nav-row') ?? x);
       for (const el of els) el.classList.add('dnd-source');
     }
   };
@@ -209,6 +218,29 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
             (item.closest('.nav-row') ?? item).classList.add('dnd-target');
             label = { project: view.projects.get(item.dataset.projectId)?.name ?? '' };
           }
+        }
+      } else if (hit?.closest?.('.board-column[data-project-id]')) {
+        // het bord: boven of onder een kaart (geen subtaak), op de kop van een kolom, of in de ruimte van de kolom
+        const column = hit.closest('.board-column[data-project-id]');
+        const card = hit.closest('li.task-card');
+        const target = { projectId: column.dataset.projectId, sectionId: column.dataset.sectionId || null };
+        if (card && column.contains(card)) {
+          const r = card.getBoundingClientRect();
+          const zone = zoneAt((drag.y - r.top) / r.height, false);
+          plan = planCardDrop(view, { dragId: drag.id, overId: card.dataset.id, zone, ...target });
+          if (plan) line = { x: r.left, y: zone === 'before' ? r.top : r.bottom, width: r.width };
+        } else {
+          plan = planTaskDropOnGroup(view, { dragId: drag.id, ...target, edge: hit.closest('.board-column-head') ? 'start' : 'end' });
+          if (plan) column.classList.add('dnd-target');
+        }
+        if (plan) label = { container: plan.section_id ? containerName(view, plan) : t('board.noSection') };
+      } else if (hit?.closest?.('td.cal-day[data-date]')) {
+        // de kalender: een dag, de taak krijgt die datum
+        const cell = hit.closest('td.cal-day[data-date]');
+        plan = planDayDrop(view, { dragId: drag.id, date: cell.dataset.date });
+        if (plan) {
+          cell.classList.add('dnd-target');
+          label = { day: dayLabel(getLocale(), plan.date, 'long') };
         }
       } else {
         // ook net naast de lijst (in de marge) telt als boven de lijst
@@ -314,6 +346,20 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
         else window.scrollBy(0, dy);
         update();
       }
+      // een bord dat breder is dan het scherm: bij de linker- of rechterrand schuift het zijwaarts
+      const board = overSidebar ? null : document.querySelector('.board');
+      if (board && drag.kind === 'task') {
+        const b = board.getBoundingClientRect();
+        let dx = 0;
+        if (drag.y >= b.top && drag.y <= b.bottom && board.scrollWidth > board.clientWidth) {
+          if (drag.x < b.left + EDGE) dx = -Math.ceil(((b.left + EDGE - drag.x) / EDGE) * 22);
+          else if (drag.x > b.right - EDGE) dx = Math.ceil(((drag.x - (b.right - EDGE)) / EDGE) * 22);
+        }
+        if (dx !== 0) {
+          board.scrollLeft += dx;
+          update();
+        }
+      }
       scrollRaf = requestAnimationFrame(tick);
     };
     scrollRaf = requestAnimationFrame(tick);
@@ -352,7 +398,14 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
   /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en bij een ander project een melding met "Ongedaan maken". */
   async function commit(d) {
     const { view } = getContext();
-    if (d.kind === 'task') {
+    if (d.kind === 'task' && d.plan.date) {
+      const task = view.tasks.get(d.id);
+      const previous = task.due;
+      await actions.updateTask(d.id, { due: d.plan.due });
+      const text = t('dnd.dayMoved', { name: d.name, date: d.label?.day ?? d.plan.date });
+      toast(text, { action: { label: t('task.undo'), run: () => actions.updateTask(d.id, { due: previous }) } });
+      announce(text);
+    } else if (d.kind === 'task') {
       const before = currentTaskPlan(view, d.id);
       const moved = d.plan.project_id !== before.project_id;
       await actions.moveTask(d.id, d.plan);
@@ -379,6 +432,16 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     const target = e.target instanceof Element ? e.target : null;
     if (!target || target.closest('input, textarea, select, [contenteditable]')) return;
     const row = taskRowOf(target);
+    if (row && content.contains(row) && row.closest('.board-column')) {
+      e.preventDefault();
+      keyboardCard(row.dataset.id, command);
+      return;
+    }
+    if (row && content.contains(row) && row.matches('li.cal-item')) {
+      e.preventDefault();
+      if (row.dataset.real !== 'false') keyboardDay(row.dataset.taskId, command);
+      return;
+    }
     if (row && content.contains(row) && row.closest('.group[data-drop-project]')) {
       e.preventDefault();
       keyboardTask(row.dataset.id, command);
@@ -416,6 +479,36 @@ export function createDragDrop({ content, sidebar, actions, getContext }) {
     if (r.kind === 'indented') announce(t('dnd.droppedSub', { name, parent: r.parent }));
     else if (r.kind === 'outdented') announce(t('dnd.outdented', { name, parent: r.parent }));
     else announce(t('dnd.keyMoved', { name, position: r.position, count: r.count, container: r.container }));
+  }
+
+  /** Op het bord: omhoog en omlaag in de kolom, links en rechts naar de kolom ernaast. */
+  function keyboardCard(id, command) {
+    const { view, showCompleted } = getContext();
+    const task = view.tasks.get(id);
+    if (!task) return;
+    const showAll = showCompleted(task.project_id);
+    const r = planCardKey(view, id, command, { isVisible: showAll ? () => true : (x) => !x.checked });
+    const name = task.content;
+    if (r.blocked) {
+      if (r.blocked === 'first') announce(t('dnd.alreadyFirst', { name }));
+      else if (r.blocked === 'last') announce(t('dnd.alreadyLast', { name }));
+      else if (r.blocked === 'noColumnBefore') announce(t('dnd.noColumnBefore', { name }));
+      else if (r.blocked === 'noColumnAfter') announce(t('dnd.noColumnAfter', { name }));
+      return;
+    }
+    actions.moveTask(id, r.plan);
+    announce(t('dnd.keyMoved', { name, position: r.position, count: r.count, container: r.plan.section_id ? r.container : t('board.noSection') }));
+  }
+
+  /** In de kalender: links en rechts een dag, omhoog en omlaag een week. */
+  function keyboardDay(id, command) {
+    const { view } = getContext();
+    const task = view.tasks.get(id);
+    if (!task) return;
+    const r = planDayKey(view, id, command);
+    if (r.blocked) return;
+    actions.updateTask(id, { due: r.plan.due });
+    announce(t('dnd.dayMoved', { name: task.content, date: dayLabel(getLocale(), r.date, 'long') }));
   }
 
   function keyboardProject(id, command, favoritesOnly) {
