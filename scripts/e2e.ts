@@ -2700,6 +2700,31 @@ try {
   // ---- 9d. meerdere taken selecteren en bewerken, ongedaan maken, Voltooid ----
   await bulkScenario(bulkCtx);
 
+  // ---- 9e. snel toevoegen via de server (het kleine venster van de Android-app): de web-app ziet de taak meteen ----
+  const quickToken = createSession(db, alice.id, 'Telefoon (klein venster)').token;
+  const quickHeaders = { Authorization: `Bearer ${quickToken}`, 'Content-Type': 'application/json' };
+  const quick = async (body: object) => (await fetch(`${BASE}/api/v1/quick-add`, { method: 'POST', headers: quickHeaders, body: JSON.stringify(body) })).json();
+  const typedAt = new Date().toISOString();
+  const quickBody = { text: 'Melk halen morgen p1', typed_at: typedAt, tz: 'Europe/Amsterdam' };
+  const quickPreview = await quick({ ...quickBody, dry_run: true });
+  assert.equal(quickPreview.preview.content, 'Melk halen');
+  assert.equal(quickPreview.preview.priority, 1);
+  assert.equal(serverTask('Melk halen'), undefined, 'de voorvertoning maakt niets');
+  await nav('Inbox');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const quickAdded = await quick({ ...quickBody, uuid: 'tickory-q-e2e-000000000001' });
+  assert.equal(quickAdded.task.content, 'Melk halen');
+  assert.equal(quickAdded.task.priority, 1);
+  await waitFor(`[...document.querySelectorAll('.task .task-title')].some((e) => e.textContent === 'Melk halen')`, 'de taak uit het kleine venster staat meteen in de web-app (live, via de server)', 10_000);
+  const quickAgain = await quick({ ...quickBody, uuid: 'tickory-q-e2e-000000000001' });
+  assert.equal(quickAgain.repeated, true);
+  assert.equal(quickAgain.task.id, quickAdded.task.id);
+  assert.equal((serverState().tasks as any[]).filter((t) => t.content === 'Melk halen' && !t.checked).length, 1, 'hetzelfde uuid nog eens maakt geen tweede');
+  await fetch(`${BASE}/api/v1/sync`, { method: 'POST', headers: quickHeaders, body: JSON.stringify({ commands: [{ type: 'task_delete', uuid: 'e2e-klein-venster-opruimen', args: { id: quickAdded.task.id } }] }) });
+  await waitFor(`![...document.querySelectorAll('.task .task-title')].some((e) => e.textContent === 'Melk halen')`, 'weer opgeruimd', 10_000);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  step('snel toevoegen via de server (het kleine venster van de Android-app): de voorvertoning maakt niets, de taak staat meteen in de web-app, hetzelfde uuid nog eens maakt geen tweede');
+
   // ---- 10. installeerbaar als app ----
   try {
     const manifest = await send('Page.getAppManifest');
