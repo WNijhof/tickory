@@ -2334,7 +2334,7 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_delete', uuid: 'e2e-opruimen-0003', args: { id: serverTask('Balkproef').id } }]);
   await waitFor(`!(${row('Balkproef')})`, 'Balkproef opgeruimd');
-  await send('Emulation.setFocusEmulationEnabled', { enabled: false });
+  // de focusnabootsing blijft aan: uitzetten laat de pagina zonder focus achter, en dan doet de eerste Tab hieronder niets
   step('menubalk onderaan op een telefoon: Inbox, Vandaag (met het aantal), Aankomend en Bladeren, de actieve in de accentkleur met aria-current, tikvlakken van 48 px; de "+" voegt toe in het project of voor vandaag; de laatste taak valt niet onder balk of "+"; een melding staat boven de balk en de "+" schuift erboven; typen en selecteren verbergen de balk; Bladeren met zoeken bovenaan, projecten, filters, labels en Voltooid, terug en Escape sluiten het; licht, donker, accentkleur en minder beweging');
 
   // ---- 9b. toetsenbord: zichtbare focusring, en de taak openen met Enter ----
