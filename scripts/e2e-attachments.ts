@@ -133,7 +133,7 @@ export async function attachmentScenario(c: any): Promise<void> {
   assert.equal((await get(aliceToken, 'bestaat-niet-12345')).status, 404);
 
   // ---- de teller in de lijst ----
-  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger)`);
+  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
   await waitFor(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Afwasmachine uitruimen').querySelector('.chip-attachments')?.textContent === '4'`, 'teller van bijlagen in de lijst');
   step('bijlagen: bestanden kiezen (echte bestandskeuze), ze komen in het datavolume onder willekeurige namen, voorbeeld en groot bekijken van een afbeelding, opslaan, een svg wordt nooit getoond, te groot en leeg worden gemeld, een vreemde krijgt niets, teller in de lijst');
@@ -146,7 +146,7 @@ export async function attachmentScenario(c: any): Promise<void> {
   await waitFor(`document.querySelector('${dlg} .attachment-pending .attachment-meta').textContent.includes('Wacht op verbinding')`, 'status wacht op verbinding', 20_000);
   assert.equal(await evaluate(`document.querySelectorAll('${dlg} .attachment-pending .attachment-tools button').length`), 1, 'weghalen kan');
   await shot('bijlage-wachtend');
-  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger)`);
+  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
   await send('Page.reload');
   await waitFor(`document.body.classList.contains('ready')`, 'app gestart (offline)');
@@ -175,6 +175,6 @@ export async function attachmentScenario(c: any): Promise<void> {
   assert.equal(remaining.length, 4, 'ook het bestand zelf is van schijf');
   step('bijlagen offline: kiezen zonder server (status "Wacht op verbinding"), herladen (lokaal bewaard), uploaden zodra de server terug is; verwijderen met bevestiging haalt ook het bestand van schijf');
 
-  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger)`);
+  await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
 }

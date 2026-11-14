@@ -32,7 +32,9 @@ import { openShareDialog } from './shareDialog.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
+import { exportDialog } from './exportDialog.js';
 import { placesDialog } from './placesUi.js';
+import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
@@ -72,6 +74,9 @@ let attachments;
 /** De stappen die "Ongedaan maken" kan terugdraaien (core/undo.js), en de selectie van meerdere taken (ui/selection.js). */
 const undo = createUndo();
 let selection;
+/** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
+let templatesUiInstance = null;
+const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, actions, navigate }));
 
 // ---------- taal ----------
 
@@ -221,14 +226,21 @@ const handlers = {
   },
 
   open(task) {
-    return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, onUndoable: undoToast });
+    return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, onUndoable: undoToast, saveTemplate: (x) => templatesUi().saveTask(x) });
   },
 
   /** Het venster "Taak toevoegen"; `target` zegt waar de taak standaard komt (project, sectie, of vandaag), anders het huidige scherm. */
   quickAdd(target = null) {
     const context = target ?? (ui.route.type === 'project' ? { projectId: ui.route.id } : ui.route.type === 'today' ? { due: 'today' } : {});
-    return openQuickAddDialog({ store, actions, context });
+    return openQuickAddDialog({ store, actions, context, onTemplate: (where) => handlers.tasksFromTemplate(where) });
   },
+
+  /** Sjablonen: een project uit een sjabloon, taken uit een sjabloon in een project, en een project of taak als sjabloon bewaren. */
+  projectFromTemplate() {
+    document.body.classList.remove('nav-open');
+    return templatesUi().projectFromTemplate();
+  },
+  tasksFromTemplate: (where) => templatesUi().tasksFromTemplate(where),
 
   async removeTask(task) {
     const ok = await confirmDialog({ title: t('task.deleteTitle'), text: t('task.deleteText', { name: task.content }) });
@@ -317,6 +329,8 @@ const handlers = {
       items: [
         { value: 'edit', label: t('project.editMenu') },
         { value: 'sub', label: t('project.addSub') },
+        !isArchivedProject(store.view, project.id) && { value: 'taskTemplate', label: t('template.menu.insert') },
+        { value: 'saveTemplate', label: t('template.menu.save') },
         { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
         { value: 'completed', label: t('project.completedMenu') },
         { value: 'share', label: mine === 'member' ? t('project.members') : t('project.shareMenu') },
@@ -330,6 +344,10 @@ const handlers = {
       await handlers.editProject(project);
     } else if (choice === 'sub') {
       await handlers.addProject(project.id);
+    } else if (choice === 'taskTemplate') {
+      await handlers.tasksFromTemplate({ projectId: project.id });
+    } else if (choice === 'saveTemplate') {
+      await templatesUi().saveProject(project);
     } else if (choice === 'favorite') {
       await actions.updateProject(project.id, { is_favorite: !project.is_favorite });
     } else if (choice === 'completed') {
@@ -393,6 +411,8 @@ const handlers = {
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
         { value: 'places', label: t('settings.places') },
+        { value: 'export', label: t('settings.export') },
+        { value: 'templates', label: t('settings.templates') },
         { value: 'sync', label: t('settings.syncNow') },
         { value: 'language', label: t('settings.language') },
         { value: 'logout', label: t('settings.signOut'), danger: true },
@@ -402,6 +422,8 @@ const handlers = {
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
+    else if (choice === 'export') await exportDialog({ store, bridge });
+    else if (choice === 'templates') await templatesUi().manage();
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
@@ -519,7 +541,7 @@ function openTaskById(id) {
   }
   pendingTaskId = null;
   if (document.querySelector('#task-dialog')) return; // er is al een taak open
-  openTaskDialog({ task, store, actions, today: todayString });
+  openTaskDialog({ task, store, actions, today: todayString, saveTemplate: (x) => templatesUi().saveTask(x) });
 }
 
 function openPendingTask() {

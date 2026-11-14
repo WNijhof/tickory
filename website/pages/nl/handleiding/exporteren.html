@@ -1,0 +1,36 @@
+<!--
+title: Exporteren
+description: Een kopie van je taken: alles als JSON om te bewaren, of taken als CSV (in het sjabloonformaat van Todoist) om elders te gebruiken. Het gebeurt op je eigen apparaat.
+-->
+<h1>Exporteren</h1>
+<p class="intro">Je gegevens zijn van jou. Via <em>Instellingen</em> en <x-ui k="settings.export"></x-ui> maak je een kopie van je taken, om te bewaren of in een ander programma te gebruiken. Het gebeurt op je eigen apparaat uit de gegevens die de app al heeft: er gaat niets naar een server, en het werkt ook zonder internet.</p>
+
+<h2>Wat je kunt kiezen</h2>
+<ul>
+  <li><strong><x-ui k="export.json"></x-ui></strong>: al je projecten, secties, taken, labels, opmerkingen, herinneringen, filters en plaatsen, met alle velden, in één JSON-bestand. Bedoeld om te bewaren (een eigen back-up van je lijsten) of om met een script te bewerken.</li>
+  <li><strong><x-ui k="export.csvAll"></x-ui></strong>: één CSV-bestand met een kolom <code>PROJECT</code> en daarachter de kolommen van het sjabloonformaat van Todoist: <code>TYPE</code>, <code>CONTENT</code>, <code>DESCRIPTION</code>, <code>PRIORITY</code>, <code>INDENT</code>, <code>AUTHOR</code>, <code>RESPONSIBLE</code>, <code>DATE</code>, <code>DATE_LANG</code>, <code>TIMEZONE</code>.</li>
+  <li><strong><x-ui k="export.csvProject"></x-ui></strong>: dezelfde kolommen voor één project, zonder de kolom <code>PROJECT</code>.</li>
+</ul>
+
+<h2>Hoe de CSV is opgebouwd</h2>
+<ul>
+  <li>Eerst de taken zonder sectie, daarna per sectie een regel met <code>section</code> en zijn taken, in de volgorde van de app.</li>
+  <li>Een subtaak staat onder zijn taak, met <code>INDENT</code> 2, 3 of 4 (dieper dan vier niveaus wordt 4).</li>
+  <li>Een opmerking staat als regel <code>note</code> onder zijn taak. Opmerkingen bij een heel project en bijlagen (de bestanden zelf) zitten er niet in; de JSON heeft de lijst van bijlagen wel.</li>
+  <li>Labels staan achter de titel als <code>@label</code>; spaties in een labelnaam worden <code>_</code>.</li>
+  <li><code>DATE</code> is de tekst zoals je hem typte (<code>vrijdag</code>, <code>elke maandag</code>), of de datum als je er geen tekst bij had; <code>DATE_LANG</code> is <code>nl</code> of <code>en</code>.</li>
+  <li>Het bestand is UTF-8, met een merkteken voor Excel, zodat letters als é en ï goed blijven.</li>
+</ul>
+<div class="note">
+  <span class="note-label">Formules in een spreadsheet</span>
+  <p>Begint een tekst met <code>=</code>, <code>+</code>, <code>-</code> of <code>@</code>, dan zou een spreadsheet er een formule van kunnen maken. Daarom zet de export een <code>'</code> voor zo'n tekst. De JSON bevat altijd de tekst zoals hij is.</p>
+</div>
+
+<h2>In de Android-app</h2>
+<p>De app opent het scherm van Android waarmee je kiest waar het bestand wordt opgeslagen. In een browser is het een gewone download.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Importeren van zo'n bestand in Tickory zelf, behalve als sjabloon: een CSV in het formaat van Todoist kun je als project-sjabloon importeren (taken, secties, subtaken en prioriteit; geen datums). Zie <a href="sjablonen.html#delen">Sjablonen</a>. Losse taken importeren kan niet.</li>
+  <li>Een bestand per project in één keer, of een export van de bijlagen zelf.</li>
+</ul>

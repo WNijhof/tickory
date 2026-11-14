@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -39,7 +39,7 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 4; // 3: plaatsen, 4: bijlagen (beide komen er met CREATE TABLE IF NOT EXISTS bij)
+export const SCHEMA_VERSION = 5; // 3: plaatsen, 4: bijlagen, 5: sjablonen (alle komen er met CREATE TABLE IF NOT EXISTS bij)
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 

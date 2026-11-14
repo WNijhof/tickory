@@ -5,12 +5,13 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v30';
+const CACHE = 'tickory-v31';
 const SHELL = [
   '/',
   '/app.css',
   '/search.css',
   '/dnd.css',
+  '/templates.css',
   '/attachments.css',
   '/bulk.css',
   '/manifest.webmanifest',
@@ -18,6 +19,7 @@ const SHELL = [
   '/icon-192.png',
   '/icon-512.png',
   '/ui/app.js',
+  '/ui/exportDialog.js',
   '/ui/accountDialogs.js',
   '/ui/attachments.js',
   '/ui/board.js',
@@ -43,6 +45,7 @@ const SHELL = [
   '/ui/selection.js',
   '/ui/shareDialog.js',
   '/ui/taskDialog.js',
+  '/ui/templateUi.js',
   '/ui/viewPrefs.js',
   '/ui/viewSwitch.js',
   '/core/actions.js',
@@ -81,6 +84,7 @@ const SHELL = [
   '/core/rowModel.js',
   '/core/search.js',
   '/core/duration.js',
+  '/core/export.js',
   '/core/share.js',
   '/core/voice.js',
   '/core/searchKeys.js',
@@ -89,6 +93,12 @@ const SHELL = [
   '/core/shortcuts.js',
   '/core/store.js',
   '/core/syncClient.js',
+  '/core/templateFile.js',
+  '/core/templates.js',
+  '/core/starters/build.js',
+  '/core/starters/en.js',
+  '/core/starters/index.js',
+  '/core/starters/nl.js',
   '/core/timeAgo.js',
   '/core/undo.js',
   '/i18n/en.js',
@@ -101,6 +111,7 @@ const SHELL = [
   '/shared/reminders.js',
   '/shared/places.js',
   '/shared/schema.js',
+  '/shared/template.js',
   '/shared/text.js',
 ];
 

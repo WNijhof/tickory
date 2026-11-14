@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { createSchema } from './schema.ts';
+import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { handleSync } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { LIMITS } from './limits.ts';
@@ -341,7 +341,7 @@ test('migratie: een database van vóór de locatieherinneringen krijgt de kolomm
   const names = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as Row[]).map((r) => r.name);
   assert.ok(names('reminders').includes('place_id') && names('reminders').includes('trigger'));
   assert.deepEqual(names('places').sort(), ['created_at', 'id', 'is_deleted', 'lat', 'lon', 'name', 'owner_id', 'radius', 'rev', 'updated_at']);
-  assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as Row).value, '4');
+  assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as Row).value, String(SCHEMA_VERSION));
   const r = run(db, anna, []);
   assert.deepEqual(live(r, 'reminders'), ['remind-oud-0001']);
   assert.deepEqual([rows(r, 'reminders')[0].place_id, rows(r, 'reminders')[0].trigger], [null, null], 'oude rijen krijgen null, niet een fout');

@@ -84,7 +84,9 @@ export function sidebar({ view, today, route, handlers, me = null }) {
       ],
       h('div', { class: 'nav-heading', dataset: { dropTop: '1' } },
         h('span', {}, t('nav.projects')),
-        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus'))),
+        h('div', { class: 'nav-heading-buttons' },
+          h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus')),
+          h('button', { class: 'icon-button', type: 'button', 'aria-label': t('template.menu.fromTemplate'), title: t('template.menu.fromTemplate'), dataset: { fk: 'nav-from-template' }, onclick: () => handlers.projectFromTemplate() }, icon('template')))),
       navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)), hasChildren: String(hasChildren && !collapsed) } },
         hasChildren
           ? h('button', {

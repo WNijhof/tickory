@@ -56,7 +56,7 @@ function voiceErrorText(code) {
   }
 }
 
-export function openQuickAddDialog({ store, actions, context = {} }) {
+export function openQuickAddDialog({ store, actions, context = {}, onTemplate = null }) {
   const view = store.view;
   const inbox = store.me?.inbox_project_id ?? null;
   const startProject = context.projectId && view.projects.has(context.projectId) ? context.projectId : inbox;
@@ -146,7 +146,10 @@ export function openQuickAddDialog({ store, actions, context = {} }) {
     description,
     shared,
     preview,
-    h('div', { class: 'quick-options' }, h('label', { class: 'field-label' }, t('task.project'), project)),
+    h('div', { class: 'quick-options' },
+      h('label', { class: 'field-label' }, t('task.project'), project),
+      // "Taak uit sjabloon…": sluit dit venster en opent de sjablonen voor het gekozen project (en de sectie, als die bij dit project hoort)
+      onTemplate && h('button', { type: 'button', class: 'button button-small button-ghost quick-template', onclick: () => { const where = { projectId: project.value, sectionId: sectionFor() }; finish(null); onTemplate(where); } }, icon('template'), t('template.menu.insert'))),
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-primary' }, t('common.add'))));

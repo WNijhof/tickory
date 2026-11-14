@@ -42,8 +42,21 @@ export function keyBetween(a, b) {
   return midpoint(a ?? '', b);
 }
 
-/** @param {string | null} a */
-export const keyAfter = (a) => keyBetween(a, null);
+/**
+ * Een sleutel achter `a` (null = de eerste sleutel van een lege lijst). Voor "achteraan toevoegen": telt in kleine stapjes op
+ * vanaf de derde positie, zodat een lijst tienduizenden keren achteraan kan groeien met sleutels van drie tekens. (Steeds het
+ * midden tot het einde nemen, zoals keyBetween(a, null), maakt de sleutel na een paar honderd keer langer dan 64 tekens.)
+ * @param {string | null} a
+ */
+export function keyAfter(a) {
+  if (!a) return keyBetween(null, null);
+  const digits = a.padEnd(Math.max(a.length, 3), '0').split('').map(idx);
+  let i = digits.length - 1;
+  while (i >= 0 && digits[i] === BASE - 1) i--;
+  if (i < 0) return keyBetween(a, null); // alleen z's: dan toch een teken langer
+  digits[i] += 1;
+  return digits.slice(0, i + 1).map((d) => DIGITS[d]).join(''); // wat na i komt zou 0 zijn: weg (canoniek)
+}
 /** @param {string | null} b */
 export const keyBefore = (b) => keyBetween(null, b);
 
@@ -59,8 +72,44 @@ export function keysEvenly(n) {
   const out = [];
   let prev = null;
   for (let i = 0; i < n; i++) {
-    prev = keyAfter(prev);
+    prev = keyBetween(prev, null);
     out.push(prev);
+  }
+  return out;
+}
+
+/**
+ * `n` oplopende sleutels, allemaal achter `after` (null = vanaf het begin), zo kort mogelijk. Voor een hele reeks tegelijk, zoals
+ * de taken van een sjabloon: `keyAfter` steeds op de vorige toepassen geeft na ruim driehonderd sleutels meer dan 64 tekens
+ * (de bovengrens voor een sleutel die een client meestuurt), dit blijft bij duizend sleutels op een paar tekens.
+ * @param {string | null} after
+ * @param {number} n
+ * @returns {string[]}
+ */
+export function keysAfter(after, n) {
+  if (n <= 0) return [];
+  const len = after ? after.length : 0;
+  const base = BigInt(BASE);
+  const need = BigInt(4 * (n + 1)); // ruimte genoeg dat de sleutels uit elkaar liggen, ook als `after` bijna tegen het einde zit
+  let width = Math.max(len, 1);
+  let start = 0n;
+  let room = 0n;
+  for (; ; width++) {
+    start = 0n;
+    if (after) for (const c of after) start = start * base + BigInt(idx(c));
+    start *= base ** BigInt(width - len);
+    room = base ** BigInt(width) - start;
+    if (room > need) break;
+  }
+  const out = [];
+  for (let i = 1; i <= n; i++) {
+    let v = start + (room * BigInt(i)) / BigInt(n + 1);
+    let digits = '';
+    for (let d = 0; d < width; d++) {
+      digits = DIGITS[Number(v % base)] + digits;
+      v /= base;
+    }
+    out.push(digits.replace(/0+$/, ''));
   }
   return out;
 }

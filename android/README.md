@@ -233,6 +233,8 @@ Na een toestemmingsvraag of terugkeer uit de instellingen stuurt de app het voor
 widget openen de web-app op `<server>/#task=<id>`; de knop "+" van een widget op `<server>/#add` (`#add=today` met vandaag als
 datum, `#add=<project-id>` in dat project). Alleen veilige tekens komen in zo'n adres (`core/DeepLink.kt`).
 
+**Exporteren:** de web-app geeft tekst (JSON of CSV) via `TickoryAndroid.saveText(naam, type, tekst)` aan de app, die hem in de cache zet (`AttachmentFiles.prepareText`, eigen willekeurige map, hooguit 50 miljoen tekens) en het opslaan-scherm van Android opent; een blob-download werkt in een WebView niet.
+
 **Spraakinvoer:** de microfoonknop in het venster Taak toevoegen roept `TickoryAndroid.startVoiceInput(taal)` aan; de app opent het spraakscherm van Android (`RecognizerIntent`, taal `nl-NL` of `en-US`) en geeft de tekst als gebeurtenis `tickory-voice` terug (`core/VoiceScript.kt`). Tickory vraagt zelf geen microfoontoestemming; de herkenner van het toestel doet dat. `voiceAvailable()` zegt of er een herkenner is (`<queries>` in het manifest); zo niet, dan is er geen knop.
 
 **Tegel "Taak toevoegen"** in de snelle instellingen (`AddTaskTileService`): een tik opent de app op `#add` (ook vanaf het vergrendelscherm, na ontgrendelen); vanaf Android 14 via een `PendingIntent`, daarvoor via de oude `Intent`-variant.

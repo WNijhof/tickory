@@ -32,6 +32,7 @@ import { attachmentScenario } from './e2e-attachments.ts';
 import { createAttachments } from '../server/attachments.ts';
 import { geoScenario } from './e2e-geo.ts';
 import { bulkScenario } from './e2e-bulk.ts';
+import { templatesScenario } from './e2e-templates.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -583,9 +584,32 @@ try {
   assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null);
   await typeInto('#quick-input', '');
 
+  // exporteren: de bestanden worden op het apparaat gemaakt (een blob-download); hier onderscheppen we ze
+  await evaluate(`window.__downloads = []; const orig = URL.createObjectURL.bind(URL); URL.createObjectURL = (blob) => { blob.arrayBuffer().then((buf) => window.__downloads.push({ type: blob.type, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(buf) })); return orig(blob); }; HTMLAnchorElement.prototype.click = function () { window.__downloads.names = [...(window.__downloads.names || []), this.download]; };`);
+  await openMenu('Alice');
+  await clickText('Gegevens exporteren');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Gegevens exporteren'`, 'exportscherm');
+  await click('dialog[open] [data-role="export-json"]');
+  await click('dialog[open] [data-role="export-csv-all"]');
+  await waitFor(`window.__downloads.length === 2`, 'twee bestanden gemaakt');
+  const exported = await evaluate<{ type: string; text: string }[]>(`window.__downloads.map((d) => ({ type: d.type, text: d.text }))`);
+  const names = await evaluate<string[]>(`window.__downloads.names`);
+  assert.match(names[0], /^tickory-export-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(names[1], /^tickory-taken-\d{4}-\d{2}-\d{2}\.csv$/);
+  const parsed = JSON.parse(exported[0].text);
+  assert.equal(parsed.format, 'tickory-export');
+  assert.equal(parsed.user.username, 'alice');
+  assert.ok(parsed.tasks.length > 0 && parsed.projects.length > 0, 'taken en projecten staan erin');
+  assert.ok(exported[1].text.startsWith('﻿PROJECT,TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE\r\n'), 'CSV met BOM en kopregel');
+  const someTask = parsed.tasks.find((t: any) => !t.is_deleted && t.content);
+  assert.ok(someTask && exported[1].text.includes(someTask.content), 'een taak uit de JSON staat ook in de CSV');
+  await clickText('Sluiten');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'exportscherm gesloten');
+  await evaluate(`delete HTMLAnchorElement.prototype.click`);
+
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Plaatsen', 'Gegevens exporteren', 'Sjablonen', 'Nu bijwerken', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -657,7 +681,7 @@ try {
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Duration', 'Deadline']);
-  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Cancel', 'Save']);
+  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Save as template', 'Cancel', 'Save']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask', 'Write a comment…']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['Inbox', 'Thuis', '(no section)']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prio-option')].map((l) => [l.title, l.querySelector('input').checked])`), [['P1 – highest', true], ['P2', false], ['P3', false], ['P4 – none', false]], 'vier prioriteitsknoppen; de taak "Call the dentist" is P1');
@@ -743,7 +767,7 @@ try {
   // het projectmenu
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Delete project');
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Delete project?')`, 'bevestiging project verwijderen');
   assert.ok(await evaluate(`document.querySelector('dialog[open] p').textContent === '"Thuis" will be deleted, along with all its sections, tasks and subprojects — also for the people you share it with.'`));
@@ -753,7 +777,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Places', 'Export data', 'Templates', 'Sync now', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1084,6 +1108,9 @@ try {
   // ---- 8d2. herinneringen op een locatie: plaatsen, de huidige positie (nagebootst), het taakvenster en de Android-brug ----
   await geoScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, nav, BASE });
 
+  // ---- 8d3. sjablonen: een project of taken uit een sjabloon, bewaren, delen, importeren ----
+  await templatesScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, alice, serverState, typeInto, clickText, click, submit, nav, workDir, BASE });
+
   // ---- 8e. het uiterlijk: projectenboom met kleur, favoriet, subproject, in- en uitklappen en archief ----
   const projectOnServer = (name: string) => (serverState().projects as any[]).find((p) => p.name === name);
   const labelsOfNav = () => texts('.nav-item .nav-label');
@@ -1138,7 +1165,7 @@ try {
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen', 'Sluiten']);
   await clickText('Bewerken…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Project bewerken'`, 'projectvenster (bewerken)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] input[name="project-color"]:checked').value`), 'green');
@@ -1554,7 +1581,7 @@ try {
   await noDialog();
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu (Engels)');
-  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
+  assert.deepEqual(await buttons(), ['Edit…', 'Add subproject', 'Add tasks from template…', 'Save as template…', 'Add to favorites', 'View completed tasks', 'Share…', 'Archive', 'Delete project', 'Close']);
   await clickText('Edit…');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Edit project'`, 'projectvenster (Engels)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] input[name="project-color"]')].map((e) => e.getAttribute('aria-label'))`),
@@ -2607,7 +2634,7 @@ try {
   // Bob is lid, geen eigenaar: hij kan het project niet archiveren of verwijderen, en ziet de opmerkingen van Alice (niet te wijzigen)
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van Bob');
-  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
+  assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);

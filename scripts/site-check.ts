@@ -475,8 +475,9 @@ if (wants('demo')) {
       real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
       demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
     };
-    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
+    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', TP1 = 'check-tpl-0001', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
     const weekly = { date: '2030-01-07', string: 'elke maandag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [1] } };
+    const TPL = { v: 1, tasks: [{ content: 'Eerst dit', day: 0 }], sections: [{ name: 'Keuken', tasks: [{ content: 'Offerte', priority: 1, day: 3, time: '09:30', labels: ['klus'], duration: 30, subtasks: [{ content: 'Meten' }] }, { content: 'Overleg', day: 0, recurrence: { freq: 'weekly', byweekday: [5] }, repeat_text: 'elke vrijdag' }] }] };
     /** De commando's, met de id's van de ene of de andere kant ingevuld. Bij elk commando de verwachte uitkomst. */
     const script = (x: typeof sides.real): [string, object, string][] => [
       ['project_add', { id: P, name: 'Verbouwing' }, 'ok'],
@@ -571,6 +572,25 @@ if (wants('demo')) {
       ['reminder_add', { id: 'check-remi-0016', task_id: T3, type: 'relative', minute_offset: 5, place_id: PL1 }, 'INVALID_ARG'],
       ['place_delete', { id: PL1 }, 'ok'],
       ['place_delete', { id: PL1 }, 'NOT_FOUND'],
+      // sjablonen: dezelfde controle op de inhoud (shared/template.js), privé per gebruiker en onveranderlijke soort
+      ['template_add', { id: TP1, name: 'Verbouwing', kind: 'project', color: 'brown', content: TPL }, 'ok'],
+      ['template_add', { id: TP1, name: 'Dubbel', kind: 'task', content: TPL }, 'ID_EXISTS'],
+      ['template_add', { id: 'check-tpl-0003', name: 'Café-sjabloon', kind: 'task', content: { v: 1, tasks: [{ content: 'Café bezoeken', labels: ['Café'] }], sections: [] } }, 'ok'],
+      ['template_add', { id: 'check-tpl-0004', name: 'Zonder soort', content: TPL }, 'MISSING_ARG'],
+      ['template_add', { id: 'check-tpl-0005', name: 'Verkeerde soort', kind: 'filter', content: TPL }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0006', name: '', kind: 'task', content: TPL }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0007', name: 'Leeg', kind: 'task', content: { v: 1, tasks: [], sections: [] } }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0008', name: 'Onbekend veld', kind: 'task', content: { v: 1, tasks: [{ content: 'x', assignee_id: 'user-anna' }], sections: [] } }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0009', name: 'Te diep', kind: 'task', content: { v: 1, tasks: [{ content: '1', subtasks: [{ content: '2', subtasks: [{ content: '3', subtasks: [{ content: '4', subtasks: [{ content: '5' }] }] }] }] }], sections: [] } }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0010', name: 'Dubbele sectie', kind: 'project', content: { v: 1, tasks: [], sections: [{ name: 'Klus', tasks: [{ content: 'a' }] }, { name: 'KLUS', tasks: [{ content: 'b' }] }] } }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0011', name: 'Herhaling zonder dag', kind: 'task', content: { v: 1, tasks: [{ content: 'x', recurrence: { freq: 'daily' } }], sections: [] } }, 'INVALID_ARG'],
+      ['template_add', { id: 'check-tpl-0012', name: 'Van Bram', kind: 'task', content: TPL, owner_id: x.bram }, 'READONLY'],
+      ['template_update', { id: TP1, name: 'Nieuwe naam', description: 'Klus aan huis' }, 'ok'],
+      ['template_update', { id: TP1, kind: 'task' }, 'IMMUTABLE'],
+      ['template_update', { id: TP1, content: { v: 3, tasks: [], sections: [] } }, 'INVALID_ARG'],
+      ['template_update', { id: 'check-tpl-geen', name: 'x' }, 'NOT_FOUND'],
+      ['template_delete', { id: 'check-tpl-0003' }, 'ok'],
+      ['template_delete', { id: 'check-tpl-0003' }, 'NOT_FOUND'],
       // opmerkingen: bij een taak of bij een project; de schrijver vult de server in, en alleen de schrijver wijzigt of verwijdert
       ['comment_add', { id: C1, task_id: T3, content: 'Eerste opmerking' }, 'ok'],
       ['comment_add', { id: C2, project_id: P, content: 'Over het hele project' }, 'ok'],
@@ -639,7 +659,7 @@ if (wants('demo')) {
     const demoStatus = outcome(sides.demo);
     assert.deepEqual(demoStatus, realStatus, 'de demo geeft per commando dezelfde status en dezelfde foutmelding als de echte server');
 
-    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, PL1, PL2]);
+    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, PL1, PL2, TP1, 'check-tpl-0003']);
     const state = (x: typeof sides.real) => {
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
       const projects = new Set([P, x.feest]);
@@ -651,6 +671,7 @@ if (wants('demo')) {
         members: normalize(x, full.members as any[], (r) => r.project_id === P, 'members'),
         reminders: normalize(x, full.reminders as any[], (r) => own.has(r.id), 'reminders'),
         places: normalize(x, full.places as any[], (r) => own.has(r.id), 'places'),
+        templates: normalize(x, full.templates as any[], (r) => own.has(r.id), 'templates'),
         comments: normalize(x, full.comments as any[], (r) => own.has(r.id), 'comments'),
         settings: normalize(x, full.settings as any[], () => true, 'settings'),
       };
@@ -660,6 +681,7 @@ if (wants('demo')) {
     const loose = (s: typeof a) => ({ ...s, tasks: s.tasks.map((t: any) => ({ ...t, order_key: t.project_id === 'INBOX' ? '?' : t.order_key })), labels: s.labels.map((l: any) => ({ ...l, order_key: '?' })), projects: s.projects.map((p: any) => ({ ...p, order_key: '?' })) });
     assert.deepEqual(loose(b), loose(a), 'na dezelfde commando\'s staan in de demo dezelfde rijen als op de echte server');
     assert.equal(a.tasks.length, 4);
+    assert.deepEqual(a.templates.map((x: any) => [x.id, x.name, x.kind, x.description, x.color]), [[TP1, 'Nieuwe naam', 'project', 'Klus aan huis', 'brown']], 'het sjabloon is gewijzigd, het andere is verwijderd');
     assert.deepEqual(a.places.map((p: any) => [p.id, p.name, p.radius]), [[PL2, 'Werk', 500]], 'de verwijderde plaats is weg, de andere staat er nog');
     assert.deepEqual(a.reminders.filter((r: any) => r.type === 'location').map((r: any) => [r.id, r.place_id, r.trigger]), [[R4, PL2, 'leave']], 'de herinnering op de verwijderde plaats is mee verdwenen');
     const t1 = b.tasks.find((t: any) => t.id === T1) as any;
@@ -1162,7 +1184,7 @@ if (wants('browser')) {
         assert.deepEqual(await chips('Vergunning aanvragen bij de gemeente'), [await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === 'Vergunning aanvragen bij de gemeente').querySelector('.chip').textContent`), '@buurt', 'voor Joost']);
         await clickText('Project…');
         await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].map((e) => e.textContent)`), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Leden bekijken', 'Project verlaten']);
         await clickText('Project verlaten', `document.querySelector('dialog[open]')`);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Project verlaten?')`, 'bevestiging');
         await clickText('Verlaten', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
@@ -1397,6 +1419,90 @@ if (wants('browser')) {
         assertClean('plaatsen');
       });
 
+      await check('demo: sjablonen: een project uit een meegeleverd sjabloon (voorbeeld, startdatum, ongedaan maken), een project als sjabloon bewaren en er weer een project van maken, importeren van geplakte tekst; ook in het Engels', async () => {
+        b.reset();
+        await nav('Inbox');
+        await viewTitle('Inbox');
+        const items = () => evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .tpl-item .tpl-item-name')].map((e) => e.textContent)`);
+        const choose = async (name: string) => {
+          await evaluate(`[...document.querySelectorAll('dialog[open] .tpl-item')].find((l) => l.querySelector('.tpl-item-name').textContent === ${js(name)}).click()`);
+          await waitFor(`document.querySelector('dialog[open] .tpl-title')?.textContent === ${js(name)}`, `sjabloon ${name}`);
+        };
+        const openPicker = async () => {
+          await evaluate(`document.querySelector('[data-fk="nav-from-template"]').click()`);
+          await waitFor(`document.querySelector('dialog[open] .tpl-layout')`, 'sjablonenvenster');
+        };
+        const sidebarProjects = () => evaluate<string[]>(`[...document.querySelectorAll('.nav-row .nav-label')].map((e) => e.textContent)`);
+        await openPicker();
+        assert.deepEqual(await items(), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing']);
+        await choose('Kinderverjaardag organiseren');
+        const preview = await evaluate<string>(`document.querySelector('dialog[open] .tpl-detail').innerText`);
+        assert.match(preview, /15 taken, verdeeld over 5 secties/);
+        assert.match(preview, /Datum, tijd en plek bepalen/);
+        await typeInto('dialog[open] [data-fk="tpl-name"]', 'Feestje van Sem');
+        await evaluate(`(() => { const i = document.querySelector('dialog[open] .tpl-date'); i.value = '2026-12-05'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+        await waitFor(`document.querySelector('dialog[open] .tpl-preview-task .tpl-when')?.textContent === 'za 5 dec (dag 0)'`, 'de echte datum in het voorbeeld');
+        await clickText('Project maken', `document.querySelector('dialog[open]')`);
+        await viewTitle('Feestje van Sem');
+        await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+        const made = await titles();
+        assert.ok(made.includes('Datum, tijd en plek bepalen') && made.includes('Uitnodigingen maken en versturen'), 'de taken staan in beeld');
+        assert.ok(((await chips('Datum, tijd en plek bepalen')) ?? []).some((c) => /5 dec/.test(c)), 'de eerste taak staat op de startdatum');
+        assert.equal(await evaluate(`document.querySelectorAll('.group-title').length`), 5, 'vijf secties');
+        await toastSeen('Project "Feestje van Sem" gemaakt met 15 taken.');
+        // de melding van dit project (er kunnen nog meldingen met Ongedaan maken van eerdere stappen staan)
+        await evaluate(`[...document.querySelectorAll('.toast')].find((x) => x.textContent.includes('Feestje van Sem')).querySelector('.toast-action').click()`);
+        await waitFor(`![...document.querySelectorAll('.nav-row .nav-label')].some((e) => e.textContent === 'Feestje van Sem')`, 'ongedaan maken verwijdert het project');
+
+        // een project uit de voorbeeldgegevens als sjabloon bewaren, en er een nieuw project van maken
+        await nav('Huishouden');
+        await viewTitle('Huishouden');
+        await evaluate(`document.querySelector('.btn-menu').click()`);
+        await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
+        await clickText('Opslaan als sjabloon…', `document.querySelector('dialog[open]')`);
+        await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Project "Huishouden" als sjabloon bewaren'`, 'venster Opslaan als sjabloon');
+        await submit('dialog[open] form');
+        await waitFor(`!document.querySelector('dialog[open]')`, 'bewaard');
+        await toastSeen('Sjabloon "Huishouden" bewaard.');
+        await openPicker();
+        assert.ok((await items()).includes('Huishouden'), 'het eigen sjabloon staat in de lijst');
+        assert.match(await evaluate<string>(`document.querySelector('dialog[open] .tpl-list').innerText`), /MIJN SJABLONEN/);
+        await choose('Huishouden');
+        await evaluate(`document.querySelector('dialog[open] input[name="template-start"][value="none"]').click()`);
+        await typeInto('dialog[open] [data-fk="tpl-name"]', 'Huishouden kopie');
+        await clickText('Project maken', `document.querySelector('dialog[open]')`);
+        await viewTitle('Huishouden kopie');
+        assert.ok((await sidebarProjects()).includes('Huishouden kopie'));
+        assert.ok((await titles()).length > 3, 'de kopie heeft de taken van het voorbeeldproject');
+
+        // importeren van geplakte tekst, en een ongeldig bestand
+        await openPicker();
+        await clickText('Importeren…', `document.querySelector('dialog[open] .dialog-buttons')`);
+        await waitFor(`document.querySelector('dialog[open] input[type="file"]')`, 'importvenster');
+        const importRoot = `[...document.querySelectorAll('dialog[open]')].at(-1)`;
+        const paste = (value: string) => evaluate(`(() => { const t = ${importRoot}.querySelector('textarea'); t.value = ${js(value)}; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+        await paste('{"format":"tickory-template","version":1,"name":"x","kind":"project","content":{"v":1,"tasks":[{"content":"a","html":"<b>"}],"sections":[]}}');
+        assert.match(await evaluate<string>(`${importRoot}.querySelector('.tpl-import-result').textContent`), /geen sjabloon dat Tickory kan lezen/);
+        assert.equal(await evaluate(`${importRoot}.querySelector('button[type="submit"]').disabled`), true);
+        await paste('TYPE,CONTENT,INDENT\ntask,Bakker,1\ntask,Brood,2\nsection,Zaterdag,\ntask,Markt,1');
+        await waitFor(`${importRoot}.querySelector('.tpl-import-result')?.textContent.includes('Projectsjabloon met 3 taken, verdeeld over 1 sectie')`, 'CSV gelezen');
+        await evaluate(`${importRoot}.querySelector('input[type="text"]').value = 'Boodschappen'`);
+        await evaluate(`${importRoot}.querySelector('form').requestSubmit()`);
+        await waitFor(`!document.querySelector('dialog[open] input[type="file"]')`, 'importvenster gesloten');
+        assert.ok((await items()).includes('Boodschappen'), 'het geïmporteerde sjabloon staat in de lijst');
+        await evaluate(`document.querySelector('dialog[open]').close()`);
+        assertClean('sjablonen');
+
+        // Engels: de meegeleverde sjablonen zijn Engels geschreven
+        await openDemo('?lang=en');
+        await openPicker();
+        assert.deepEqual((await items()).slice(0, 2), ['Moving house', 'Going on holiday (packing list)']);
+        assert.match(await evaluate<string>(`document.querySelector('dialog[open] .tpl-detail').innerText`), /16 tasks across 5 sections/);
+        await evaluate(`document.querySelector('dialog[open]').close()`);
+        assertClean('sjablonen in het Engels');
+        await openDemo(); // en weer Nederlands voor de volgende controle
+      });
+
       await check('demo: opmerkingen, favoriet, subproject, kleur, archiveren en terugzetten; venster Taak toevoegen en sneltoetsen', async () => {
         b.reset();
         const text = (selector: string) => evaluate<string>(`document.querySelector(${js(selector)}).innerText`);
@@ -1456,7 +1562,7 @@ if (wants('browser')) {
 
         // favoriet: uit de lijst halen en weer in
         await openProjectMenu();
-        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen']);
+        assert.deepEqual(await menuItems(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Delen…', 'Archiveren', 'Project verwijderen']);
         await clickText('Uit favorieten halen', `document.querySelector('dialog[open]')`);
         await waitFor(`![...document.querySelectorAll('.nav-heading span')].some((e) => e.textContent === 'Favorieten')`, 'Favorieten verdwenen');
         await openProjectMenu();

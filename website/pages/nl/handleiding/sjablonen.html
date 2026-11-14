@@ -1,0 +1,67 @@
+<!--
+title: Sjablonen
+description: Sjablonen in Tickory: een project of taken in één keer aanmaken uit een meegeleverd of eigen sjabloon, met datums vanaf een startdatum die je kiest, een project of taak als sjabloon bewaren, en sjablonen delen via een bestand of importeren uit Todoist.
+-->
+<h1>Sjablonen</h1>
+<p class="intro">Een sjabloon is een project of een rijtje taken dat je vaker nodig hebt: verhuizen, een vakantie, een nieuwe collega. Je kiest het sjabloon, bekijkt wat je krijgt en maakt het in één keer aan, met de datums vanaf de dag die jij kiest.</p>
+
+<h2 id="project-uit-sjabloon">Een project maken uit een sjabloon</h2>
+<ol>
+  <li>Klik in de zijbalk, naast het <strong>+</strong> bij <x-ui k="nav.projects"></x-ui>, op het knopje <x-ui k="template.menu.fromTemplate"></x-ui>.</li>
+  <li>Kies links een sjabloon. Rechts zie je wat je krijgt: het aantal taken en secties, welke labels nieuw zijn, en de eerste regels, met secties en subtaken ingesprongen.</li>
+  <li>Geef het project een naam en kies <strong>Beginnen op deze dag</strong> met een startdatum (snel: vandaag, morgen of volgende week), of kies <strong>Geen datums</strong>. In het voorbeeld verschijnen meteen de echte datums.</li>
+  <li>Klik op <x-ui k="template.use.project"></x-ui>. Het project, met alle secties, taken en subtaken, staat er meteen, ook zonder verbinding; de app opent het project.</li>
+</ol>
+<p>Past het niet zoals je wilde, klik dan in de melding onderin op <strong>Ongedaan maken</strong>: het project verdwijnt weer. Labels die het sjabloon voor je aanmaakte, blijven staan.</p>
+
+<h2 id="taken-uit-sjabloon">Taken uit een sjabloon in een bestaand project</h2>
+<p>Kies in het menu van een project <x-ui k="template.menu.insert"></x-ui>, of klik in het venster <x-ui k="quick.addTask"></x-ui> op dezelfde knop. Je kiest een sjabloon, het project en eventueel de sectie voor taken die in het sjabloon geen sectie hebben. De taken komen achter wat er al staat. Heeft het sjabloon een sectie met dezelfde naam als een sectie in het project (hoofdletters maken niet uit), dan komen de taken daarin; andere secties worden nieuw aangemaakt. Ook hier kun je het weer ongedaan maken.</p>
+
+<h2 id="meegeleverd">De meegeleverde sjablonen</h2>
+<p>Ze zitten in de app, dus ook zonder internet en in de demo, in het Nederlands en het Engels. Je kunt ze niet kwijtraken of per ongeluk wijzigen; wat je ervan maakt, is helemaal van jou.</p>
+<table>
+  <thead><tr><th>Sjabloon</th><th>Wat je krijgt</th></tr></thead>
+  <tbody>
+    <tr><td>Verhuizen</td><td>16 taken in 5 secties, van zes weken voor de verhuizing tot na het uitpakken. Dag 0 is zes weken voor de verhuisdag.</td></tr>
+    <tr><td>Op vakantie gaan (inpaklijst)</td><td>Regelen, inpakken en het huis achterlaten. Dag 0 is drie weken voor vertrek.</td></tr>
+    <tr><td>Weekmenu en boodschappen</td><td>Elke week opnieuw: plannen, boodschappenlijst, boodschappen doen en een menu per avond. Alles herhaalt zich wekelijks.</td></tr>
+    <tr><td>Kinderverjaardag organiseren</td><td>Van de gastenlijst tot de bedankkaartjes. Dag 0 is vier weken voor het feest.</td></tr>
+    <tr><td>Nieuwe medewerker inwerken</td><td>Voorbereiding, eerste werkdag (met tijden), eerste week en eerste maand. Dag 0 is de eerste werkdag.</td></tr>
+    <tr><td>Verbouwing</td><td>Van wensen en offertes tot oplevering, met een wekelijks overleg met de aannemer.</td></tr>
+    <tr><td>Cadeau regelen (taak)</td><td>Een taak met vier subtaken, van idee tot overhandigen.</td></tr>
+    <tr><td>Vergadering voorbereiden (taak)</td><td>Een taak met vijf subtaken, rond de dag van de vergadering.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="relatieve-datums">Datums in een sjabloon</h2>
+<p>Een sjabloon bevat geen vaste datums maar <strong>relatieve dagen</strong> vanaf de startdatum: <em>dag 0</em> is de startdatum zelf, <em>+3 dagen</em> is drie dagen later, <em>+1 week</em> een week later. Een tijd (bijvoorbeeld 09:00) blijft bij de taak. Kies je <strong>Geen datums</strong>, dan krijgen de taken geen datum. Alleen een herhalende taak ("elke vrijdag") houdt haar herhaling en krijgt een datum vanaf vandaag, op de eerste dag die bij de herhaling past; de app zegt dat erbij.</p>
+<p>Heeft een taak een tijd, dan krijgt ze de automatische herinnering uit <x-ui k="settings.title"></x-ui> › <x-ui k="settings.notifications"></x-ui>, net als een taak die je zelf met een tijd toevoegt.</p>
+
+<h2 id="zelf-maken">Zelf een sjabloon maken</h2>
+<ul>
+  <li><strong>Van een project:</strong> kies in het menu van het project <x-ui k="template.menu.save"></x-ui>. Geef een naam en eventueel een omschrijving. Met het vinkje bij de datums worden de datums relatieve dagen (de vroegste datum wordt dag 0); haal het weg om alleen de taken te bewaren.</li>
+  <li><strong>Van een taak:</strong> open de taak en klik op <x-ui k="template.save.button"></x-ui>. De taak gaat mee met haar subtaken, en als je wilt met de naam van de sectie waar ze in staat.</li>
+</ul>
+<p>Mee gaan: secties, open taken en subtaken, met beschrijving, prioriteit, labels (op naam), duur en herhaling. <strong>Niet mee</strong>: afgevinkte taken, deadlines, herinneringen, opmerkingen en toewijzingen. Een sjabloon bevat dus ook geen namen van mensen.</p>
+<p>Een sjabloon heeft hooguit 1.000 taken en je kunt er 100 bewaren. Is een project te groot, dan zegt de app dat voordat er iets gebeurt.</p>
+
+<h2 id="delen">Sjablonen delen</h2>
+<p>Je sjablonen zijn <strong>privé</strong>: ook in een gedeeld project ziet niemand ze. Wil je er een geven, dan deel je het als bestand.</p>
+<ul>
+  <li><strong>Exporteren:</strong> kies een sjabloon en klik op <x-ui k="template.share.open"></x-ui>. <x-ui k="template.share.saveFile"></x-ui> geeft een bestand met de naam <code>tickory-template-….json</code>; <x-ui k="template.share.copy"></x-ui> zet de tekst op het klembord. Er staan alleen secties en taken in.</li>
+  <li><strong>Importeren:</strong> kies <x-ui k="template.import.open"></x-ui> onderin het sjablonenvenster, of onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui>. Kies een bestand, of plak de tekst. Je ziet eerst wat erin zit en kunt de naam aanpassen.</li>
+  <li><strong>Uit Todoist of Tickory:</strong> een CSV-sjabloon van Todoist (met de kolommen <code>TYPE</code>, <code>CONTENT</code>, <code>INDENT</code>, …) kun je ook importeren. Taken, secties, subtaken en prioriteit komen mee. Datums en opmerkingen niet: een datum is daar vrije tekst in een taal die Tickory niet raadt. De app zegt hoeveel er niet is overgenomen.</li>
+</ul>
+<p>Een bestand van iemand anders is onbetrouwbare invoer. Tickory leest het alleen en controleert het streng (grootte, opbouw, lengtes, aantallen); er wordt niets uitgevoerd of van internet gehaald, en tekst wordt nooit als opmaak getoond. Een bestand dat niet klopt, wordt geweigerd met een melding.</p>
+<p>In de Android-app kies je het bestand met de bestandskiezer van Android en bewaar je het via het opslaan-scherm van Android. Kopiëren en plakken van de tekst werkt overal.</p>
+
+<h2 id="beheren">Sjablonen beheren</h2>
+<p>Onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> staan alle sjablonen, met de soort erbij. Je kunt er een bekijken, delen, de naam wijzigen of verwijderen (met bevestiging), en importeren. Een verwijderd sjabloon is niet terug te halen; projecten die je ervan maakte, blijven staan.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Een sjabloon delen met een andere gebruiker van je server zonder bestand.</li>
+  <li>De inhoud van een sjabloon in de app bewerken. Pas het aan door er een project van te maken en dat opnieuw als sjabloon te bewaren.</li>
+  <li>Deadlines, herinneringen, opmerkingen en toewijzingen in een sjabloon.</li>
+  <li>Datums uit een Todoist-CSV overnemen.</li>
+</ul>

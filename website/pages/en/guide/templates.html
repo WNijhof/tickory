@@ -1,0 +1,67 @@
+<!--
+title: Templates
+description: Templates in Tickory: create a project or tasks in one go from a built-in or your own template, with dates counted from a start date you pick, save a project or task as a template, and share templates as a file or import them from Todoist.
+-->
+<h1>Templates</h1>
+<p class="intro">A template is a project or a list of tasks you need more than once: moving house, a holiday, a new colleague. You pick the template, see what you get and create it in one go, with the dates counted from the day you choose.</p>
+
+<h2 id="project-from-template">Create a project from a template</h2>
+<ol>
+  <li>In the sidebar, next to the <strong>+</strong> under <x-ui k="nav.projects"></x-ui>, click the button <x-ui k="template.menu.fromTemplate"></x-ui>.</li>
+  <li>Pick a template on the left. On the right you see what you get: the number of tasks and sections, which labels are new, and the first lines, with sections and subtasks indented.</li>
+  <li>Give the project a name and choose <strong>Start on this day</strong> with a start date (quick choices: today, tomorrow or next week), or choose <strong>No dates</strong>. The preview shows the real dates straight away.</li>
+  <li>Click <x-ui k="template.use.project"></x-ui>. The project, with all its sections, tasks and subtasks, is there at once, even without a connection; the app opens the project.</li>
+</ol>
+<p>If it is not what you wanted, click <strong>Undo</strong> in the message at the bottom: the project is removed again. Labels the template created for you stay.</p>
+
+<h2 id="tasks-from-template">Tasks from a template in an existing project</h2>
+<p>Choose <x-ui k="template.menu.insert"></x-ui> in a project's menu, or click the same button in the <x-ui k="quick.addTask"></x-ui> window. You pick a template, the project and, if you like, the section for tasks that have no section in the template. The tasks go after what is already there. If the template has a section with the same name as one in the project (capitals do not matter), its tasks go in that section; other sections are created. Here too you can undo it.</p>
+
+<h2 id="built-in">The built-in templates</h2>
+<p>They are part of the app, so they work offline and in the demo, in Dutch and English. You cannot lose them or change them by accident; whatever you make of them is entirely yours.</p>
+<table>
+  <thead><tr><th>Template</th><th>What you get</th></tr></thead>
+  <tbody>
+    <tr><td>Moving house</td><td>16 tasks in 5 sections, from six weeks before the move to after unpacking. Day 0 is six weeks before moving day.</td></tr>
+    <tr><td>Going on holiday (packing list)</td><td>Getting ready, packing and leaving the house in order. Day 0 is three weeks before you leave.</td></tr>
+    <tr><td>Weekly menu and groceries</td><td>Every week again: plan, shopping list, shopping and a dinner for each evening. Everything repeats weekly.</td></tr>
+    <tr><td>Organising a children's birthday party</td><td>From the guest list to the thank-you notes. Day 0 is four weeks before the party.</td></tr>
+    <tr><td>Onboarding a new employee</td><td>Preparation, the first day (with times), the first week and the first month. Day 0 is the first working day.</td></tr>
+    <tr><td>Home renovation</td><td>From wishes and quotes to handover, with a weekly meeting with the builder.</td></tr>
+    <tr><td>Sort out a gift (task)</td><td>One task with four subtasks, from idea to handing it over.</td></tr>
+    <tr><td>Prepare a meeting (task)</td><td>One task with five subtasks, around the day of the meeting.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="relative-dates">Dates in a template</h2>
+<p>A template contains no fixed dates but <strong>relative days</strong> from the start date: <em>day 0</em> is the start date itself, <em>+3 days</em> is three days later, <em>+1 week</em> a week later. A time (for example 09:00) stays with the task. If you choose <strong>No dates</strong>, the tasks get no date. Only a recurring task ("every Friday") keeps its recurrence and gets a date from today, on the first day that fits the recurrence; the app tells you so.</p>
+<p>A task with a time gets the automatic reminder from <x-ui k="settings.title"></x-ui> › <x-ui k="settings.notifications"></x-ui>, just like a task you add yourself with a time.</p>
+
+<h2 id="make-your-own">Make your own template</h2>
+<ul>
+  <li><strong>From a project:</strong> in the project's menu choose <x-ui k="template.menu.save"></x-ui>. Give it a name and, if you like, a description. With the tick for dates, the dates become relative days (the earliest date becomes day 0); untick it to keep just the tasks.</li>
+  <li><strong>From a task:</strong> open the task and click <x-ui k="template.save.button"></x-ui>. The task goes with its subtasks and, if you want, the name of the section it is in.</li>
+</ul>
+<p>Included: sections, open tasks and subtasks, with description, priority, labels (by name), duration and recurrence. <strong>Not included</strong>: completed tasks, deadlines, reminders, comments and assignments. So a template contains no names of people either.</p>
+<p>A template holds at most 1,000 tasks and you can keep 100 templates. If a project is too large, the app says so before anything happens.</p>
+
+<h2 id="sharing">Sharing templates</h2>
+<p>Your templates are <strong>private</strong>: nobody sees them, not even in a shared project. To give someone one, share it as a file.</p>
+<ul>
+  <li><strong>Export:</strong> pick a template and click <x-ui k="template.share.open"></x-ui>. <x-ui k="template.share.saveFile"></x-ui> gives a file named <code>tickory-template-….json</code>; <x-ui k="template.share.copy"></x-ui> puts the text on the clipboard. It only contains sections and tasks.</li>
+  <li><strong>Import:</strong> choose <x-ui k="template.import.open"></x-ui> at the bottom of the templates window, or under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui>. Choose a file or paste the text. You first see what is in it and can change the name.</li>
+  <li><strong>From Todoist or Tickory:</strong> you can also import a Todoist CSV template (with the columns <code>TYPE</code>, <code>CONTENT</code>, <code>INDENT</code>, …). Tasks, sections, subtasks and priority come along. Dates and comments do not: a date there is free text in a language Tickory does not guess. The app tells you how many were left out.</li>
+</ul>
+<p>A file from someone else is untrusted input. Tickory only reads it and checks it strictly (size, structure, lengths, counts); nothing is run or fetched from the internet, and text is never shown as markup. A file that is not right is refused with a message.</p>
+<p>In the Android app you choose the file with Android's own file picker and save it with Android's save screen. Copying and pasting the text works everywhere.</p>
+
+<h2 id="managing">Managing templates</h2>
+<p>Under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> you find all templates, with the kind next to each. You can look at one, share it, rename it or delete it (with confirmation), and import. A deleted template cannot be brought back; projects you made from it stay.</p>
+
+<h2>What is not possible yet</h2>
+<ul>
+  <li>Sharing a template with another user of your server without a file.</li>
+  <li>Editing the content of a template in the app. To change one, make a project from it and save that as a template again.</li>
+  <li>Deadlines, reminders, comments and assignments in a template.</li>
+  <li>Taking over dates from a Todoist CSV.</li>
+</ul>
