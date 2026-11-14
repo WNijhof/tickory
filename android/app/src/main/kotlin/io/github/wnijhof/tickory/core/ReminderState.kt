@@ -58,6 +58,9 @@ data class PlanOutcome(
 object ReminderLogic {
     const val SNOOZE_MS: Long = 10L * 60 * 1000
 
+    /** De tweede uitstelknop: "Over 1 uur". */
+    const val SNOOZE_LONG_MS: Long = 60L * 60 * 1000
+
     /** Zo lang onthouden we wat getoond is. Ruim langer dan het venster van een uur, zodat ook een verzette klok niets herhaalt. */
     const val SHOWN_RETENTION_MS: Long = 7L * 24 * 60 * 60 * 1000
 
@@ -104,9 +107,9 @@ object ReminderLogic {
         return state.copy(snapshot = fresh.trimmed(), snoozed = state.snoozed - dropped) to dropped
     }
 
-    /** "Over 10 minuten": dezelfde melding komt terug op [nowMs] + 10 minuten. */
-    fun snooze(state: ReminderState, reminder: PlannedReminder, nowMs: Long): Pair<ReminderState, SnoozedReminder> {
-        val snoozed = SnoozedReminder(reminder.reminderId, reminder.taskId, reminder.title, reminder.taskDue, reminder.triggerAtMs, nowMs + SNOOZE_MS)
+    /** "Over 10 minuten" (of "Over 1 uur", met [delayMs]): dezelfde melding komt terug op [nowMs] + die tijd. */
+    fun snooze(state: ReminderState, reminder: PlannedReminder, nowMs: Long, delayMs: Long = SNOOZE_MS): Pair<ReminderState, SnoozedReminder> {
+        val snoozed = SnoozedReminder(reminder.reminderId, reminder.taskId, reminder.title, reminder.taskDue, reminder.triggerAtMs, nowMs + delayMs)
         return state.copy(snoozed = state.snoozed + (reminder.reminderId to snoozed)) to snoozed
     }
 

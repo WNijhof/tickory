@@ -42,11 +42,11 @@ object ReminderEngine {
         }
     }
 
-    /** "Over 10 minuten": de melding verdwijnt en komt over tien minuten terug. */
-    fun snooze(context: Context, reminder: PlannedReminder) {
+    /** "Over 10 minuten" of "Over 1 uur": de melding verdwijnt en komt over [delayMs] terug. */
+    fun snooze(context: Context, reminder: PlannedReminder, delayMs: Long = ReminderLogic.SNOOZE_MS) {
         val app = context.applicationContext
         synchronized(lock) {
-            val (state, snoozed) = ReminderLogic.snooze(ReminderStore.load(app), reminder, AppClock.now())
+            val (state, snoozed) = ReminderLogic.snooze(ReminderStore.load(app), reminder, AppClock.now(), delayMs)
             ReminderStore.save(app, state)
             AlarmScheduler.set(app, AlarmScheduler.Kind.SNOOZE, snoozed.reminderId, snoozed.fireAtMs)
             Notifications.cancel(app, reminder.reminderId)

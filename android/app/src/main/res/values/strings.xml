@@ -65,6 +65,7 @@
     <string name="task_untitled">Taak zonder titel</string>
     <string name="action_complete">Voltooien</string>
     <string name="action_snooze">Over 10 minuten</string>
+    <string name="action_snooze_hour">Over 1 uur</string>
     <string name="complete_working">Bezig met voltooien…</string>
     <string name="complete_queued">Geen verbinding. De taak wordt voltooid zodra er weer verbinding is.</string>
     <string name="complete_rejected_gone">Voltooien is niet gelukt: de taak bestaat niet meer of je hebt er geen toegang meer toe.</string>

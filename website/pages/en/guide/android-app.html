@@ -72,7 +72,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
 <h2>Reminders in the app</h2>
 <p>You set the reminders as in the browser; see <a href="reminders.html">Reminders</a>. The app refreshes your data right after signing in, right after a change to a task or reminder, then every quarter of an hour (with a connection) and every time you open it.</p>
 <ul>
-  <li>The notification has the buttons <x-ui k="sw.complete"></x-ui> and <x-ui k="sw.snooze"></x-ui>. <x-ui k="sw.snooze"></x-ui> brings the same notification back ten minutes later. If the phone has no connection, the app remembers <x-ui k="sw.complete"></x-ui> and ticks the task off as soon as it can (for three days; after that it gives up and says so).</li>
+  <li>The notification has the buttons <x-ui k="sw.complete"></x-ui>, <x-ui k="sw.snooze"></x-ui> and <strong>In 1 hour</strong>. <x-ui k="sw.snooze"></x-ui> brings the same notification back ten minutes later, <strong>In 1 hour</strong> an hour later. If the phone has no connection, the app remembers <x-ui k="sw.complete"></x-ui> and ticks the task off as soon as it can (for three days; after that it gives up and says so).</li>
   <li>If you tap the notification, the app opens at that task.</li>
   <li>What is at most an hour late (the phone was off) is still shown; anything older is not. The app schedules at most 200 reminders, up to 30 days ahead; that window moves along with every refresh.</li>
 </ul>

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import io.github.wnijhof.tickory.R
+import io.github.wnijhof.tickory.core.ReminderLogic
 import io.github.wnijhof.tickory.sync.Completer
 import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
@@ -33,13 +34,14 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 }
 
-/** De knoppen van een melding: "Voltooien" en "Over 10 minuten". */
+/** De knoppen van een melding: "Voltooien", "Over 10 minuten" en "Over 1 uur". */
 class ActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val reminder = Notifications.reminderFrom(intent) ?: return
         val app = context.applicationContext
         when (intent.action) {
             Notifications.ACTION_SNOOZE -> ReminderEngine.snooze(app, reminder)
+            Notifications.ACTION_SNOOZE_HOUR -> ReminderEngine.snooze(app, reminder, ReminderLogic.SNOOZE_LONG_MS)
             Notifications.ACTION_COMPLETE -> {
                 // Meteen laten zien dat de tik is aangekomen, en de knop weghalen zodat er niet twee keer getikt wordt.
                 Completer.note(app, reminder, R.string.complete_working, Notifications.Actions.NONE)

@@ -28,6 +28,7 @@ object Notifications {
 
     const val ACTION_COMPLETE = "io.github.wnijhof.tickory.action.COMPLETE"
     const val ACTION_SNOOZE = "io.github.wnijhof.tickory.action.SNOOZE"
+    const val ACTION_SNOOZE_HOUR = "io.github.wnijhof.tickory.action.SNOOZE_HOUR"
     const val ACTION_OPEN_TASK = "io.github.wnijhof.tickory.action.OPEN_TASK"
 
     const val EXTRA_TASK_ID = "io.github.wnijhof.tickory.extra.TASK_ID"
@@ -99,6 +100,7 @@ object Notifications {
         }
         if (actions != Actions.NONE) {
             builder.addAction(0, context.getString(R.string.action_snooze), actionIntent(context, ACTION_SNOOZE, reminder))
+            builder.addAction(0, context.getString(R.string.action_snooze_hour), actionIntent(context, ACTION_SNOOZE_HOUR, reminder))
         }
 
         try {

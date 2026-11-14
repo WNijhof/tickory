@@ -60,6 +60,7 @@
     <string name="task_untitled">Untitled task</string>
     <string name="action_complete">Complete</string>
     <string name="action_snooze">In 10 minutes</string>
+    <string name="action_snooze_hour">In 1 hour</string>
     <string name="complete_working">Completing…</string>
     <string name="complete_queued">No connection. The task will be completed as soon as there is a connection again.</string>
     <string name="complete_rejected_gone">Completing failed: the task no longer exists or you no longer have access to it.</string>

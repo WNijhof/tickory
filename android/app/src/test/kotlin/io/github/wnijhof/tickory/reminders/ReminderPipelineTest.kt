@@ -109,7 +109,7 @@ class ReminderPipelineTest {
         assertEquals(Notifications.CHANNEL_ID, notification.channelId)
         assertEquals(Notification.CATEGORY_REMINDER, notification.category)
         assertEquals(trigger, notification.`when`)
-        assertEquals(listOf("Voltooien", "Over 10 minuten"), notification.actions.map { it.title.toString() })
+        assertEquals(listOf("Voltooien", "Over 10 minuten", "Over 1 uur"), notification.actions.map { it.title.toString() })
         assertEquals("task-0001", notification.extras.getString(Notifications.EXTRA_TASK_ID))
         assertTrue("het verbruikte alarm staat er niet meer", alarms.scheduledAlarms.isEmpty())
 
@@ -163,7 +163,7 @@ class ReminderPipelineTest {
         val again = notifications.getNotification("rem-00001", 1)
         assertNotNull(again)
         assertEquals("Tandarts bellen", again.extras.getString(Notification.EXTRA_TITLE))
-        assertEquals(2, again.actions.size)
+        assertEquals(3, again.actions.size)
         assertTrue(alarms.scheduledAlarms.isEmpty())
     }
 
@@ -289,7 +289,7 @@ class ReminderPipelineTest {
         val notification = notifications.getNotification("rem-00001", 1)
         // Engels volgt de klokinstelling van het toestel; het nagebootste toestel staat op de twaalfuursklok
         assertEquals("Reminder · today 2:00 PM", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
-        assertEquals(listOf("Complete", "In 10 minutes"), notification.actions.map { it.title.toString() })
+        assertEquals(listOf("Complete", "In 10 minutes", "In 1 hour"), notification.actions.map { it.title.toString() })
         val channel = app.getSystemService(NotificationManager::class.java).getNotificationChannel(Notifications.CHANNEL_ID)
         assertEquals("Reminders", channel.name.toString())
     }
@@ -302,7 +302,7 @@ class ReminderPipelineTest {
         fireAlarms()
         val notification = notifications.getNotification("rem-00001", 1)
         assertEquals("Herinnering · vandaag 14:00", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
-        assertEquals(listOf("Voltooien", "Over 10 minuten"), notification.actions.map { it.title.toString() })
+        assertEquals(listOf("Voltooien", "Over 10 minuten", "Over 1 uur"), notification.actions.map { it.title.toString() })
     }
 
     @Test
@@ -311,5 +311,25 @@ class ReminderPipelineTest {
             val found = app.packageManager.queryBroadcastReceivers(Intent(action).setPackage(app.packageName), 0)
             assertTrue(action, found.any { it.activityInfo.name == SystemEventsReceiver::class.java.name })
         }
+    }
+    @Test
+    fun `de knop Over 1 uur stelt een uur uit, en alleen die ene herinnering`() {
+        ReminderEngine.onSynced(app, snapshot())
+        AppClock.now = { trigger }
+        fireAlarms()
+
+        val hour = shadowOf(notifications.getNotification("rem-00001", 1).actions[2].actionIntent)
+        assertEquals(Notifications.ACTION_SNOOZE_HOUR, hour.savedIntent.action)
+        AppClock.now = { trigger + 2 * minute }
+        ActionReceiver().onReceive(app, hour.savedIntent)
+
+        assertNull("de melding is weg", notifications.getNotification("rem-00001", 1))
+        assertEquals(trigger + 62 * minute, alarms.scheduledAlarms.single().triggerAtMs)
+        AppClock.now = { trigger + 61 * minute }
+        ReminderEngine.replan(app)
+        assertNull("na een uur nog niet", notifications.getNotification("rem-00001", 1))
+        AppClock.now = { trigger + 62 * minute }
+        ReminderEngine.replan(app)
+        assertNotNull("na een uur en twee minuten wel", notifications.getNotification("rem-00001", 1))
     }
 }

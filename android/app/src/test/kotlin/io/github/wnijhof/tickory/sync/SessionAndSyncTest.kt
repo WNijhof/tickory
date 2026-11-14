@@ -321,7 +321,7 @@ class SessionAndSyncTest {
             val waiting = notifications.getNotification("rem-00001", 1)
             assertNotNull("de melding blijft staan", waiting)
             assertEquals("Geen verbinding. De taak wordt voltooid zodra er weer verbinding is.", text(waiting))
-            assertEquals("alleen uitstellen kan nog", listOf("Over 10 minuten"), waiting.actions.map { it.title.toString() })
+            assertEquals("alleen uitstellen kan nog", listOf("Over 10 minuten", "Over 1 uur"), waiting.actions.map { it.title.toString() })
             assertEquals(setOf("rem-00001"), ReminderStore.load(app).pendingCompletes.keys)
 
             // nog steeds geen verbinding: blijft wachten, de melding blijft staan
@@ -357,7 +357,7 @@ class SessionAndSyncTest {
             val rejected = notifications.getNotification("rem-00001", 1)
             assertNotNull(rejected)
             assertEquals("Voltooien is niet gelukt: de taak bestaat niet meer of je hebt er geen toegang meer toe.", text(rejected))
-            assertEquals(listOf("Over 10 minuten"), rejected.actions.map { it.title.toString() })
+            assertEquals(listOf("Over 10 minuten", "Over 1 uur"), rejected.actions.map { it.title.toString() })
             assertTrue("een weigering proberen we niet opnieuw", ReminderStore.load(app).pendingCompletes.isEmpty())
         }
     }
