@@ -40,8 +40,9 @@ export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
 // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken, 7: rollen (lezer) en het activiteitenlogboek,
-// 8: tweestapsverificatie en het soort apparaat per sessie (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
-export const SCHEMA_VERSION = 8;
+// 8: tweestapsverificatie en het soort apparaat per sessie, 9: inloggen via OIDC (gekoppelde identiteiten en eenmalige inlogcodes)
+// (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
+export const SCHEMA_VERSION = 9;
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -94,6 +95,30 @@ export function createSchema(db: DatabaseSync): void {
     created_at TEXT NOT NULL,
     used_at TEXT,
     PRIMARY KEY (user_id, code_hash)
+  )`);
+
+  // Versie 9. Inloggen via OIDC (zie sso.ts): welke identiteit bij de provider (`issuer` + `subject`) bij welk account hoort.
+  // Eén identiteit per account per provider, en een identiteit hoort bij hooguit één account.
+  db.exec(`CREATE TABLE IF NOT EXISTS oidc_identities (
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    created_at TEXT NOT NULL,
+    last_login_at TEXT,
+    PRIMARY KEY (issuer, subject)
+  )`);
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS oidc_identities_user ON oidc_identities (user_id, issuer)');
+  // Eenmalige inlogcodes: na een gelukte terugkeer van de provider (de app wisselt hem in voor een sessie) en de noodcode van de
+  // beheerder (`user signin-code`). Alleen de hash staat erin; `binding_hash` is de hash van het geheim dat alleen de app kent die
+  // de poging begon (een onderschepte code is zonder dat geheim niets waard). Na een paar minuten verlopen; de server ruimt op.
+  db.exec(`CREATE TABLE IF NOT EXISTS login_codes (
+    code_hash TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id),
+    kind TEXT NOT NULL,
+    binding_hash TEXT,
+    device TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL
   )`);
 
   // Idempotentie: elk commando-uuid wordt per gebruiker precies één keer uitgevoerd; een herhaling krijgt dezelfde uitkomst.

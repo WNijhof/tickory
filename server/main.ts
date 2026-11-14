@@ -12,6 +12,10 @@
 //   POST /api/v1/auth/password            {current_password, new_password}
 //   GET  /api/v1/auth/sessions            -> {sessions, policy}   POST /api/v1/auth/sessions/revoke {id}, /sessions/revoke-others
 //   GET  /api/v1/auth/2fa                 -> {enabled, …}    POST /api/v1/auth/2fa/setup, /enable, /disable, /recovery-codes
+//   GET  /api/v1/auth/methods             -> {password, sso}  hoe je kunt inloggen (zonder aanmelding)
+//   POST /api/v1/auth/oidc/start          inloggen of koppelen via OIDC (zie sso.ts); GET /oidc/authorize, /oidc/callback (de browser)
+//   POST /api/v1/auth/login/handoff       {code, binding} -> {token, me}: de eenmalige code na de terugkeer van de provider
+//   GET  /api/v1/auth/oidc/link           -> {enabled, linked, …}   POST /api/v1/auth/oidc/unlink
 //   POST /api/v1/sync                     de sync (zie sync.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
@@ -47,6 +51,10 @@ import {
 import type { DeviceKind, SessionPolicy, UserRow } from './users.ts';
 import { cleanCode, cleanRecoveryCode, createSecretBox, matchStep, newRecoveryCodes, newSecret, otpauthUri, base32Encode } from './totp.ts';
 import { createBackupArchive, removeStaleTemp } from './backupArchive.ts';
+import { createOidcClient, oidcConfigFrom } from './oidc.ts';
+import type { OidcClient } from './oidc.ts';
+import { createLoginCode, createSso, EMERGENCY_MS, hasPassword } from './sso.ts';
+import type { Sso } from './sso.ts';
 import { createPush } from './push.ts';
 import type { Push } from './push.ts';
 import { createAttachments } from './attachments.ts';
@@ -117,6 +125,10 @@ export interface AppOptions {
   clock?: () => number;
   /** Waar logregels van beheer en beveiliging heen gaan (standaard de console). Er komen nooit geheimen, codes of tokens in. */
   log?: (line: string) => void;
+  /** Inloggen via OpenID Connect (zie oidc.ts en sso.ts); zonder staat het uit. */
+  oidc?: OidcClient | null;
+  /** Voor tests: eigen beperking van pogingen via OIDC (begin, terugkeer en het inwisselen van de code, per adres). */
+  ssoLimiter?: LoginLimiter;
 }
 
 /** Hoe lang de tweede inlogstap (de code) na het wachtwoord mag duren, en hoe vaak je daarin mag proberen. */
@@ -237,9 +249,12 @@ export function createApp(opts: AppOptions): App {
     for (const [k, v] of map) if (v.expires <= clock()) map.delete(k);
     while (map.size > max) map.delete(map.keys().next().value!); // de oudste eerst
   };
+  /** Inloggen via OIDC (sso.ts); wordt verderop gemaakt, als de controles van wachtwoord en code bestaan. */
+  let sso: Sso | null = null;
   const sweepSessions = (): void => {
     try {
       pruneSessions(db, policy, clock());
+      sso?.sweep();
     } catch (err) {
       console.error('sessies opruimen mislukt', err);
     }
@@ -364,7 +379,8 @@ export function createApp(opts: AppOptions): App {
     let valid = false;
     try {
       user = username ? getUserByName(db, username) : undefined;
-      valid = user ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
+      // Een account zonder wachtwoord (gemaakt via SSO) kost evenveel rekentijd als een onbekende naam: de tijd verraadt niets.
+      valid = user && hasPassword(user.password_hash) ? await verifyPassword(password, user.password_hash) : (await verifyAgainstDummy(password), false);
     } catch (err) {
       limiter.cancel(attempt); // de server was druk (BUSY) of er ging iets mis: dat is niet de schuld van de bezoeker
       throw err;
@@ -544,7 +560,7 @@ export function createApp(opts: AppOptions): App {
   // ---------- beheer ----------
 
   const adminUsers = async (req: IncomingMessage, res: ServerResponse, path: string, caller: Caller): Promise<void> => {
-    const view = (u: UserRow) => ({ ...publicMe(u), is_disabled: u.is_disabled, created_at: u.created_at, two_factor: hasTwoFactor(db, u.id) });
+    const view = (u: UserRow) => ({ ...publicMe(u), is_disabled: u.is_disabled, created_at: u.created_at, two_factor: hasTwoFactor(db, u.id), sso: ssoRoutes.isLinked(u.id) });
     if (path === '/api/v1/admin/users' && req.method === 'GET') return send(res, 200, { users: listUsers(db).map(view) });
     if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
     const body = await readJson(req);
@@ -570,6 +586,13 @@ export function createApp(opts: AppOptions): App {
       setPasswordHash(db, id, await hashPassword(validatePassword(body.new_password, target.username)));
       closeStreams(id);
       return send(res, 200, { ok: true });
+    }
+    if (path === '/api/v1/admin/users/sso-unlink') {
+      // Bijvoorbeeld voor een identiteit die (met OIDC_AUTO_CREATE) een nieuw account kreeg terwijl de persoon al een account had.
+      const target = getUserById(db, id)!;
+      const n = ssoRoutes.unlinkUser(id);
+      log(`[beheer] koppeling met de identiteitsprovider van "${target.username}" verwijderd door beheerder "${caller.user.username}"${n ? '' : ' (was niet gekoppeld)'}`);
+      return send(res, 200, { user: view(getUserById(db, id)!) });
     }
     if (path === '/api/v1/admin/users/2fa-reset') {
       // Voor wie zijn telefoon én herstelcodes kwijt is. De gebruiker blijft aangemeld waar hij al was en kan het daarna zelf weer aanzetten.
@@ -646,6 +669,14 @@ export function createApp(opts: AppOptions): App {
     }
   };
 
+  // Inloggen via OIDC: eigen tellers per adres (begin, terugkeer en het inwisselen van de code tellen elk; een gelukte poging geeft ze terug).
+  const ssoRoutes = createSso({
+    db, client: opts.oidc ?? null, clock, log, policy,
+    limiter: opts.ssoLimiter ?? new LoginLimiter({ pair: 30, ip: 30, user: 1_000_000 }, limiter.windowMs, limiter.now),
+    send, readJson, authenticate, clientIp, confirmPassword, confirmCode: (req, res, user, given) => confirmCode(req, res, user, given),
+  });
+  sso = ssoRoutes;
+
   // ---------- routering ----------
 
   const server = createServer(async (req, res) => {
@@ -689,6 +720,16 @@ export function createApp(opts: AppOptions): App {
         return outcome.ok ? send(res, 200, { ok: true }) : send(res, 400, { error_code: 'INVALID_REQUEST', error: outcome.error ?? 'niet gelukt' });
       }
 
+      // Hoe je kunt inloggen (wachtwoord, SSO): voor het inlogscherm, dus zonder aanmelding.
+      if (path === '/api/v1/auth/methods') {
+        if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        return send(res, 200, ssoRoutes.methods());
+      }
+      if (await ssoRoutes.handle(req, res, path, url)) return undefined;
+      if ((path === '/api/v1/auth/login' || path === '/api/v1/auth/login/2fa') && ssoRoutes.passwordOff) {
+        // OIDC_ONLY: alleen via de identiteitsprovider (en de noodcode van de opdrachtregel, `user signin-code`).
+        return send(res, 403, { error_code: 'PASSWORD_LOGIN_OFF', error: 'inloggen met een wachtwoord staat op deze server uit; log in via de inlogdienst' });
+      }
       if (path === '/api/v1/auth/login') {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
         return await login(req, res);
@@ -1070,8 +1111,17 @@ async function userCommand(args: string[]): Promise<void> {
       console.log(was ? `Tweestapsverificatie van "${u.username}" is uitgezet; inloggen kan weer met alleen het wachtwoord.` : `Tweestapsverificatie van "${u.username}" stond al uit.`);
       break;
     }
+    case 'signin-code': {
+      // De noodroute, ook met OIDC_ONLY of als de identiteitsprovider niet werkt: een eenmalige code die een kwartier geldt.
+      const u = target();
+      if (u.is_disabled) throw new Error(`account "${u.username}" is geblokkeerd`);
+      const code = createLoginCode(db, { userId: u.id, kind: 'emergency', bindingHash: null, device: 'Noodcode', ttlMs: EMERGENCY_MS, nowMs: Date.now() });
+      const base = (process.env.PUBLIC_URL ?? '').trim().replace(/[/]+$/, '');
+      console.log(`Eenmalige inlogcode voor "${u.username}", een kwartier geldig. Open in de browser:\n  ${base || '<adres van Tickory>'}/#signin=${code}\nDeel deze link met niemand; hij werkt één keer.`);
+      break;
+    }
     default:
-      throw new Error('gebruik: user list | add <naam> [--name "…"] [--admin] | passwd <naam> | disable <naam> | enable <naam> | logout-all <naam> | reset-2fa <naam>');
+      throw new Error('gebruik: user list | add <naam> [--name "…"] [--admin] | passwd <naam> | disable <naam> | enable <naam> | logout-all <naam> | reset-2fa <naam> | signin-code <naam>');
   }
   db.close();
 }
@@ -1127,9 +1177,24 @@ if (import.meta.main) {
       console.error(`Fout: ${(err as Error).message}`);
       process.exit(1);
     }
+    let oidc: OidcClient | null = null;
+    try {
+      // Inloggen via OpenID Connect (OIDC_ISSUER en verder; zie .env.example). Een onvolledige of onveilige instelling stopt de start.
+      const oidcConfig = oidcConfigFrom(process.env);
+      if (oidcConfig) {
+        oidc = createOidcClient(oidcConfig);
+        Reflect.deleteProperty(process.env, 'OIDC_CLIENT_SECRET'); // het hoeft niet in de omgeving van dit proces te blijven
+        console.log(`Inloggen via OIDC staat aan (${oidcConfig.issuer}; knop "${oidcConfig.buttonName}"${oidcConfig.autoCreate ? ', nieuwe accounts automatisch' : ''}${oidcConfig.only ? ', inloggen met een wachtwoord staat uit' : ''}).`);
+        // Alvast de discovery ophalen: een fout staat dan meteen in het log (de server start toch, en probeert het bij inloggen opnieuw).
+        oidc.discovery().catch((err) => console.warn(`OIDC: de identiteitsprovider is nog niet bereikbaar: ${(err as Error).message}`));
+      }
+    } catch (err) {
+      console.error(`Fout in de instellingen voor OIDC: ${(err as Error).message}`);
+      process.exit(1);
+    }
     const app = createApp({
       db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1',
-      sessionPolicy: sessionPolicyFrom(process.env), secretKey,
+      sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc,
       // de tijdelijke kopie voor een back-up staat naast de database: in Docker is /tmp een (kleine) geheugenschijf
       backup: { tmpDir: dataDir, attachmentsDir: attachments.dir },
     });

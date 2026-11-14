@@ -228,7 +228,7 @@ test('migratie: een database van vóór versie 8 krijgt het soort apparaat, de k
   createSchema(db);
   createSchema(db); // twee keer: niets dubbel
   assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, String(SCHEMA_VERSION));
-  assert.equal(SCHEMA_VERSION, 8);
+  assert.ok(SCHEMA_VERSION >= 8, 'het soort apparaat en 2FA kwamen in versie 8');
   const cols = (t: string) => (db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).map((c) => c.name);
   assert.ok(cols('sessions').includes('device'));
   for (const c of ['totp_secret', 'totp_enabled_at', 'totp_last_step', 'totp_pending', 'totp_pending_at']) assert.ok(cols('users').includes(c), c);
@@ -255,7 +255,7 @@ test('migratie naar 8: een database op versie 7 (activiteitenlogboek, zonder 2FA
   own.exec('DROP TABLE activity');
   for (const db of [v7, own]) {
     createSchema(db);
-    assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, '8');
+    assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, String(SCHEMA_VERSION));
     assert.ok(tables(db).includes('activity') && tables(db).includes('recovery_codes'));
     assert.ok(cols(db, 'sessions').includes('device') && cols(db, 'users').includes('totp_secret'));
   }

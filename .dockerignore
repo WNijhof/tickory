@@ -15,6 +15,7 @@ Dockerfile
 docker-compose*.yml
 start.cmd
 server/testutil.ts
+server/fakeIdp.ts
 android
 website
 _site
