@@ -127,7 +127,7 @@ test('sessies: het token werkt, wordt als hash bewaard, en stopt bij intrekken, 
   assert.ok(findSession(db, s4.token));
 });
 
-test('last_used_at wordt hooguit eens per tien minuten bijgewerkt', () => {
+test('last_used_at wordt hooguit eens per uur bijgewerkt', () => {
   const db = freshDb();
   const a = mk(db, 'alice');
   const s = createSession(db, a.id, 'x');
@@ -135,8 +135,10 @@ test('last_used_at wordt hooguit eens per tien minuten bijgewerkt', () => {
   const created = at();
   findSession(db, s.token, Date.parse(created) + 60_000);
   assert.equal(at(), created);
-  findSession(db, s.token, Date.parse(created) + 11 * 60_000);
-  assert.notEqual(at(), created);
+  findSession(db, s.token, Date.parse(created) + 59 * 60_000);
+  assert.equal(at(), created, 'binnen het uur: geen schrijfactie');
+  findSession(db, s.token, Date.parse(created) + 60 * 60_000);
+  assert.equal(at(), new Date(Date.parse(created) + 60 * 60_000).toISOString(), 'na een uur wel');
 });
 
 /** Een poging die meteen als mislukt telt (zoals bij een fout wachtwoord): `begin` telt hem, `succeed` komt niet. */

@@ -39,7 +39,9 @@ export const validateValue = sharedValidate as (col: Col, v: unknown) => string 
 export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
-export const SCHEMA_VERSION = 6; // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken (alle komen er met CREATE TABLE IF NOT EXISTS bij)
+// 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken, 8: tweestapsverificatie en het soort apparaat per sessie
+// (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
+export const SCHEMA_VERSION = 8;
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -78,6 +80,21 @@ export function createSchema(db: DatabaseSync): void {
     revoked_at TEXT
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)');
+  // Versie 8. Het soort apparaat ("browser/Firefox/Windows", zonder versienummers; zie describeUserAgent in users.ts).
+  addColumnIfMissing(db, 'sessions', 'device', 'TEXT');
+  // Tweestapsverificatie (zie totp.ts). Het geheim staat versleuteld; `totp_last_step` is het laatst gebruikte tijdvak (een code
+  // geldt maar één keer); `totp_pending` is een nieuw geheim dat nog met een code moet worden bevestigd.
+  for (const [col, type] of [['totp_secret', 'TEXT'], ['totp_enabled_at', 'TEXT'], ['totp_last_step', 'INTEGER'], ['totp_pending', 'TEXT'], ['totp_pending_at', 'TEXT']]) {
+    addColumnIfMissing(db, 'users', col, type);
+  }
+  // Herstelcodes: alleen de HMAC staat erin; een gebruikte code houdt `used_at`.
+  db.exec(`CREATE TABLE IF NOT EXISTS recovery_codes (
+    user_id TEXT NOT NULL REFERENCES users(id),
+    code_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    used_at TEXT,
+    PRIMARY KEY (user_id, code_hash)
+  )`);
 
   // Idempotentie: elk commando-uuid wordt per gebruiker precies één keer uitgevoerd; een herhaling krijgt dezelfde uitkomst.
   // Per gebruiker, zodat het uuid van de één nooit het commando van een ander kan overslaan.
@@ -173,6 +190,12 @@ export function createSchema(db: DatabaseSync): void {
   // Welke nieuwe meldingen nog als pushbericht naar de browsers van de ontvanger moeten (zie push.ts).
   db.exec('CREATE TABLE IF NOT EXISTS notification_outbox (notification_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL)');
   db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(SCHEMA_VERSION));
+}
+
+/** Voegt een (optionele) kolom toe aan een vaste tabel als die er nog niet is: een database uit een eerdere versie. */
+function addColumnIfMissing(db: DatabaseSync, table: string, col: string, type: string): void {
+  if ((db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === col)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
 }
 
 /** Een database uit een eerdere versie mist kolommen die later bij een entiteit zijn gekomen: die voegen we toe. */

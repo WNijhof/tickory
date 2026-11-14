@@ -5,14 +5,17 @@
 // Accounts:   node server/main.ts user add|passwd|list|enable|disable …              (zie README)
 //
 // Eindpunten (alles behalve /health en login vraagt "Authorization: Bearer <sessietoken>"):
-//   POST /api/v1/auth/login               {username, password, device_name} -> {token, me}
+//   POST /api/v1/auth/login               {username, password, device_name} -> {token, me}, of met tweestapsverificatie
+//                                         -> {two_factor_required: true, challenge}; dan POST /api/v1/auth/login/2fa {challenge, code}
 //   POST /api/v1/auth/logout              trekt de sessie van dit apparaat in
 //   GET  /api/v1/auth/me                  -> {me}
 //   POST /api/v1/auth/password            {current_password, new_password}
-//   GET  /api/v1/auth/sessions            -> {sessions}      POST /api/v1/auth/sessions/revoke {id}
+//   GET  /api/v1/auth/sessions            -> {sessions, policy}   POST /api/v1/auth/sessions/revoke {id}, /sessions/revoke-others
+//   GET  /api/v1/auth/2fa                 -> {enabled, …}    POST /api/v1/auth/2fa/setup, /enable, /disable, /recovery-codes
 //   POST /api/v1/sync                     de sync (zie sync.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
-//   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password
+//   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
+//   POST /api/v1/admin/backup             (beheerder) {password, code?} -> {ticket}; GET /api/v1/admin/backup/download?ticket=… het archief
 //   GET  /api/v1/push/key                 de publieke sleutel om meldingen in de browser aan te zetten
 //   POST /api/v1/push/subscribe           {endpoint, keys, lang}   POST /api/v1/push/unsubscribe {endpoint}
 //   GET  /api/v1/push/subscriptions       eigen apparaten met meldingen   POST /api/v1/push/test   proefmelding
@@ -23,20 +26,25 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
-import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
-import { createSchema } from './schema.ts';
+import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
 import { LIMITS } from './limits.ts';
 import {
-  countUsers, createSession, createUser, findSession, getUserById, getUserByName, hashPassword, listSessions, listUsers, LoginLimiter,
-  publicMe, revokeSession, revokeSessions, setPasswordHash, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
+  consumeRecoveryCode, consumeStep, countUsers, createSession, createUser, DEFAULT_SESSION_POLICY, describeUserAgent, disableTwoFactor, enableTwoFactor,
+  findSession, getTwoFactor, getUserById, getUserByName, hashPassword, hasTwoFactor, listSessions, listUsers, LoginLimiter, pruneSessions, publicMe,
+  replaceRecoveryCodes, revokeSession, revokeSessions, sessionValid, setPasswordHash, setPendingSecret, updateUser, validatePassword, verifyAgainstDummy, verifyPassword,
 } from './users.ts';
-import type { UserRow } from './users.ts';
+import type { DeviceKind, SessionPolicy, UserRow } from './users.ts';
+import { cleanCode, cleanRecoveryCode, createSecretBox, matchStep, newRecoveryCodes, newSecret, otpauthUri, base32Encode } from './totp.ts';
+import { createBackupArchive, removeStaleTemp } from './backupArchive.ts';
 import { createPush } from './push.ts';
 import type { Push } from './push.ts';
 import { createAttachments } from './attachments.ts';
@@ -90,7 +98,33 @@ export interface AppOptions {
   attachments?: Attachments | null;
   /** Hoe vaak de server oude uploads en bestanden van verwijderde bijlagen opruimt; 0 = niet vanzelf (tests roepen `attachments.sweep()` aan). */
   attachmentSweepMs?: number;
+  /** Wanneer sessies verlopen (SESSION_IDLE_DAYS, SESSION_MAX_DAYS); standaard 90 dagen zonder gebruik en hooguit 365 dagen. */
+  sessionPolicy?: SessionPolicy;
+  /** Hoe vaak verlopen sessies worden opgeruimd; 0 = niet vanzelf. Standaard elk uur. */
+  sessionSweepMs?: number;
+  /**
+   * De sleutel (32 bytes) waarmee de geheimen van tweestapsverificatie versleuteld worden en de herstelcodes gehasht. De server
+   * leest hem uit een bestand buiten de database (zie loadSecretKey). Zonder: een willekeurige sleutel die met het proces verdwijnt (tests).
+   */
+  secretKey?: Uint8Array;
+  /** Voor tests: eigen beperking van pogingen een code van tweestapsverificatie te raden. */
+  codeLimiter?: LoginLimiter;
+  /** Back-ups downloaden: de map voor de tijdelijke kopie van de database en de map met bijlagen. `null` zet het uit. */
+  backup?: { tmpDir: string; attachmentsDir?: string | null } | null;
+  /** Voor tests: de klok (milliseconden) voor sessies, codes en downloadbewijzen. */
+  clock?: () => number;
+  /** Waar logregels van beheer en beveiliging heen gaan (standaard de console). Er komen nooit geheimen, codes of tokens in. */
+  log?: (line: string) => void;
 }
+
+/** Hoe lang de tweede inlogstap (de code) na het wachtwoord mag duren, en hoe vaak je daarin mag proberen. */
+const CHALLENGE_MS = 5 * 60_000;
+const CHALLENGE_ATTEMPTS = 5;
+/** Hoe lang een nieuw, nog niet bevestigd geheim geldt. */
+const PENDING_MS = 15 * 60_000;
+/** Een downloadbewijs voor een back-up: eenmalig en een minuut geldig. Hooguit 5 back-ups per beheerder per uur, één tegelijk. */
+const TICKET_MS = 60_000;
+const BACKUPS_PER_HOUR = 5;
 
 export interface App {
   server: Server;
@@ -155,6 +189,7 @@ export async function staticResponse(
 
 const STATUS_FOR: Record<string, number> = {
   UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TIMEOUT: 408, LENGTH_REQUIRED: 411, TOO_LARGE: 413, LIMIT_REACHED: 409, ABORTED: 400, STORAGE_FULL: 507, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
 };
 
 interface Caller { user: UserRow; sessionId: string }
@@ -181,11 +216,43 @@ export function createApp(opts: AppOptions): App {
     ? setInterval(() => { try { attachments.sweep(); } catch (err) { console.error('bijlagen opruimen mislukt', err); } }, sweepMs)
     : null;
   sweepTimer?.unref();
+  const clock = opts.clock ?? Date.now;
+  const log = opts.log ?? ((line: string) => console.log(line));
+  const policy = opts.sessionPolicy ?? DEFAULT_SESSION_POLICY;
+  const box = createSecretBox(opts.secretKey ?? randomBytes(32));
+  // eigen tellers voor codes van tweestapsverificatie: per naam en adres 5, per adres 20, per naam 10, per kwartier
+  const codeLimiter = opts.codeLimiter ?? new LoginLimiter({ pair: 5, ip: 20, user: 10 }, limiter.windowMs, limiter.now);
+  const backup = opts.backup === null ? null : { tmpDir: opts.backup?.tmpDir ?? tmpdir(), attachmentsDir: opts.backup?.attachmentsDir ?? attachments?.dir ?? null };
+  if (backup) removeStaleTemp(backup.tmpDir);
+  /** De tweede inlogstap, per (gehasht) tussentoken. Alleen in het geheugen: een herstart betekent opnieuw het wachtwoord intypen. */
+  const challenges = new Map<string, { userId: string; device: string; kind: DeviceKind; expires: number; attempts: number }>();
+  /** Downloadbewijzen voor een back-up, per (gehasht) bewijs. */
+  const tickets = new Map<string, { userId: string; sessionId: string; expires: number }>();
+  const backupsByUser = new Map<string, number[]>();
+  let backupRunning = false;
+  const hashToken = (s: string): string => createHash('sha256').update(s).digest('hex');
+  const forget = (map: Map<string, { expires: number }>, max: number): void => {
+    for (const [k, v] of map) if (v.expires <= clock()) map.delete(k);
+    while (map.size > max) map.delete(map.keys().next().value!); // de oudste eerst
+  };
+  const sweepSessions = (): void => {
+    try {
+      pruneSessions(db, policy, clock());
+    } catch (err) {
+      console.error('sessies opruimen mislukt', err);
+    }
+    forget(challenges, 10_000);
+    forget(tickets, 1_000);
+  };
+  sweepSessions();
+  const sessionSweepMs = opts.sessionSweepMs ?? 60 * 60_000;
+  const sessionTimer = sessionSweepMs > 0 ? setInterval(sweepSessions, sessionSweepMs) : null;
+  sessionTimer?.unref();
 
   const authenticate = (req: IncomingMessage): Caller | null => {
     const header = req.headers.authorization;
     const given = header?.startsWith('Bearer ') ? header.slice(7) : '';
-    const found = given ? findSession(db, given) : null;
+    const found = given ? findSession(db, given, clock(), policy) : null;
     return found && { user: found.user, sessionId: found.sessionId };
   };
 
@@ -305,27 +372,167 @@ export function createApp(opts: AppOptions): App {
       return send(res, 401, { error_code: 'INVALID_CREDENTIALS', error: 'gebruikersnaam of wachtwoord klopt niet' });
     }
     limiter.succeed(attempt);
-    const { token, id } = createSession(db, user.id, device);
+    const kind = describeUserAgent(req.headers['user-agent']);
+    if (hasTwoFactor(db, user.id)) {
+      // Het wachtwoord klopt; nu nog de code. Het tussentoken geeft alleen toegang tot die tweede stap, en alleen even.
+      const challenge = `tkc_${randomBytes(32).toString('base64url')}`;
+      challenges.set(hashToken(challenge), { userId: user.id, device, kind, expires: clock() + CHALLENGE_MS, attempts: 0 });
+      forget(challenges, 10_000);
+      return send(res, 200, { two_factor_required: true, challenge, expires_in: CHALLENGE_MS / 1000 });
+    }
+    const { token, id } = createSession(db, user.id, device, kind);
     send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
 
-  const changePassword = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
-    const body = await readJson(req);
-    // Het huidige wachtwoord raden kan met een gestolen sessietoken ook zonder in te loggen: dezelfde beperking als bij het inloggen.
+  const tooMany = (res: ServerResponse, wait: number): void =>
+    send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
+
+  /**
+   * Controleert het wachtwoord van de aangemelde gebruiker opnieuw (voor iets gevoeligs: wachtwoord wijzigen, tweestapsverificatie,
+   * een back-up). Het raden ervan kan met een gestolen sessietoken ook zonder in te loggen: een eigen, strengere beperking.
+   * Stuurt zelf het foutantwoord en geeft dan false.
+   */
+  const confirmPassword = async (req: IncomingMessage, res: ServerResponse, caller: Caller, given: unknown, wrongText = 'het wachtwoord klopt niet'): Promise<boolean> => {
     const { wait, attempt } = passwordLimiter.begin(caller.user.username, clientIp(req));
     if (!attempt) {
-      return send(res, 429, { error_code: 'TOO_MANY_ATTEMPTS', error: `te veel mislukte pogingen; probeer het over ${Math.ceil(wait / 60)} minuut of langer opnieuw` }, { 'Retry-After': String(wait) });
+      tooMany(res, wait);
+      return false;
     }
     let correct = false;
     try {
       const current = getUserByName(db, caller.user.username);
-      correct = Boolean(current) && typeof body.current_password === 'string' && (await verifyPassword(body.current_password, current!.password_hash));
+      correct = Boolean(current) && typeof given === 'string' && (await verifyPassword(given.slice(0, 1000), current!.password_hash));
     } catch (err) {
       passwordLimiter.cancel(attempt);
       throw err;
     }
-    if (!correct) return send(res, 403, { error_code: 'FORBIDDEN', error: 'het huidige wachtwoord klopt niet' });
+    if (!correct) {
+      send(res, 403, { error_code: 'FORBIDDEN', error: wrongText });
+      return false;
+    }
     passwordLimiter.succeed(attempt);
+    return true;
+  };
+
+  /**
+   * Klopt de code (6 cijfers uit de app, of een herstelcode) voor deze gebruiker? Een gebruikte code (of herstelcode) is daarna
+   * verbruikt. Geeft 'totp', 'recovery' of null.
+   */
+  const verifySecondFactor = (userId: string, input: unknown): 'totp' | 'recovery' | null => {
+    const tf = getTwoFactor(db, userId);
+    if (!tf.secret) return null;
+    const six = cleanCode(input);
+    if (six) {
+      const key = box.open(tf.secret, userId);
+      if (!key) {
+        log(`[beveiliging] het geheim voor tweestapsverificatie van gebruiker ${userId} is niet te ontsleutelen (een ander sleutelbestand?); een beheerder kan tweestapsverificatie voor dit account uitzetten`);
+        return null;
+      }
+      const step = matchStep(key, six, clock(), tf.lastStep);
+      return step !== null && consumeStep(db, userId, step) ? 'totp' : null;
+    }
+    const recovery = cleanRecoveryCode(input);
+    if (recovery) return consumeRecoveryCode(db, userId, box.codeHash(recovery, userId), new Date(clock()).toISOString()) ? 'recovery' : null;
+    return null;
+  };
+
+  /** Controleert een code met de eigen beperking voor codes. Stuurt zelf het foutantwoord (met `status`) en geeft dan null. */
+  const confirmCode = (req: IncomingMessage, res: ServerResponse, user: { id: string; username: string }, given: unknown, status = 403): 'totp' | 'recovery' | null => {
+    const { wait, attempt } = codeLimiter.begin(user.username, clientIp(req));
+    if (!attempt) {
+      tooMany(res, wait);
+      return null;
+    }
+    const how = verifySecondFactor(user.id, given);
+    if (!how) {
+      send(res, status, { error_code: 'INVALID_CODE', error: 'de code klopt niet (of is al gebruikt)' });
+      return null;
+    }
+    codeLimiter.succeed(attempt);
+    return how;
+  };
+
+  /** De tweede inlogstap: het tussentoken uit de eerste stap plus een code. */
+  const loginSecondStep = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+    const body = await readJson(req);
+    const given = typeof body.challenge === 'string' ? body.challenge.slice(0, 200) : '';
+    const key = hashToken(given);
+    const ch = challenges.get(key);
+    const user = ch && ch.expires > clock() ? getUserById(db, ch.userId) : undefined;
+    if (!ch || !user || user.is_disabled) {
+      challenges.delete(key);
+      return send(res, 401, { error_code: 'CHALLENGE_EXPIRED', error: 'deze inlogpoging is verlopen; log opnieuw in met je wachtwoord' });
+    }
+    const how = confirmCode(req, res, user, body.code, 401);
+    if (!how) {
+      ch.attempts++;
+      if (ch.attempts >= CHALLENGE_ATTEMPTS) challenges.delete(key); // daarna eerst opnieuw het wachtwoord
+      return;
+    }
+    challenges.delete(key);
+    const { token, id } = createSession(db, user.id, ch.device, ch.kind);
+    const extra = how === 'recovery' ? { recovery_code_used: true, recovery_codes_left: getTwoFactor(db, user.id).recoveryLeft } : {};
+    send(res, 200, { token, session_id: id, me: publicMe(user), ...extra });
+  };
+
+  /** Tweestapsverificatie van het eigen account: bekijken, aanzetten (geheim, dan bevestigen), uitzetten, nieuwe herstelcodes. */
+  const twoFactor = async (req: IncomingMessage, res: ServerResponse, path: string, caller: Caller): Promise<void> => {
+    const me = caller.user;
+    const status = () => {
+      const tf = getTwoFactor(db, me.id);
+      return { enabled: Boolean(tf.secret), enabled_at: tf.enabledAt, recovery_codes_left: tf.secret ? tf.recoveryLeft : 0 };
+    };
+    if (path === '/api/v1/auth/2fa') {
+      if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+      return send(res, 200, status());
+    }
+    if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+    const body = await readJson(req);
+    const nowIso = new Date(clock()).toISOString();
+    const hashes = (codes: string[]): string[] => codes.map((c) => box.codeHash(cleanRecoveryCode(c)!, me.id));
+    if (path === '/api/v1/auth/2fa/setup') {
+      if (hasTwoFactor(db, me.id)) return send(res, 409, { error_code: 'CONFLICT', error: 'tweestapsverificatie staat al aan' });
+      if (!(await confirmPassword(req, res, caller, body.password))) return undefined;
+      const secret = newSecret();
+      setPendingSecret(db, me.id, box.seal(secret, me.id), nowIso);
+      return send(res, 200, { secret: base32Encode(secret), uri: otpauthUri(secret, me.username), expires_in: PENDING_MS / 1000 });
+    }
+    if (path === '/api/v1/auth/2fa/enable') {
+      if (hasTwoFactor(db, me.id)) return send(res, 409, { error_code: 'CONFLICT', error: 'tweestapsverificatie staat al aan' });
+      const tf = getTwoFactor(db, me.id);
+      const pending = tf.pending && tf.pendingAt && clock() - Date.parse(tf.pendingAt) <= PENDING_MS ? box.open(tf.pending, me.id) : null;
+      if (!pending) return send(res, 409, { error_code: 'CONFLICT', error: 'begin opnieuw: er is geen nieuw geheim (meer) om te bevestigen' });
+      const { wait, attempt } = codeLimiter.begin(me.username, clientIp(req));
+      if (!attempt) return tooMany(res, wait);
+      const six = cleanCode(body.code);
+      const step = six ? matchStep(pending, six, clock(), null) : null;
+      if (step === null) return send(res, 403, { error_code: 'INVALID_CODE', error: 'de code klopt niet; controleer of de tijd op je telefoon goed staat' });
+      codeLimiter.succeed(attempt);
+      const codes = newRecoveryCodes();
+      enableTwoFactor(db, me.id, box.seal(pending, me.id), step, hashes(codes), nowIso);
+      log(`[beveiliging] tweestapsverificatie aangezet door "${me.username}"`);
+      return send(res, 200, { ...status(), recovery_codes: codes });
+    }
+    if (path === '/api/v1/auth/2fa/disable' || path === '/api/v1/auth/2fa/recovery-codes') {
+      if (!hasTwoFactor(db, me.id)) return send(res, 409, { error_code: 'CONFLICT', error: 'tweestapsverificatie staat niet aan' });
+      if (!(await confirmPassword(req, res, caller, body.password))) return undefined;
+      if (!confirmCode(req, res, me, body.code)) return undefined;
+      if (path === '/api/v1/auth/2fa/disable') {
+        disableTwoFactor(db, me.id);
+        log(`[beveiliging] tweestapsverificatie uitgezet door "${me.username}"`);
+        return send(res, 200, status());
+      }
+      const codes = newRecoveryCodes();
+      replaceRecoveryCodes(db, me.id, hashes(codes), nowIso);
+      log(`[beveiliging] nieuwe herstelcodes gemaakt door "${me.username}"`);
+      return send(res, 200, { ...status(), recovery_codes: codes });
+    }
+    return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+  };
+
+  const changePassword = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
+    const body = await readJson(req);
+    if (!(await confirmPassword(req, res, caller, body.current_password, 'het huidige wachtwoord klopt niet'))) return;
     const next = validatePassword(body.new_password, caller.user.username);
     setPasswordHash(db, caller.user.id, await hashPassword(next), caller.sessionId); // andere apparaten moeten opnieuw inloggen
     closeStreams(caller.user.id); // live-verbindingen van andere apparaten; dit apparaat verbindt vanzelf opnieuw
@@ -335,7 +542,7 @@ export function createApp(opts: AppOptions): App {
   // ---------- beheer ----------
 
   const adminUsers = async (req: IncomingMessage, res: ServerResponse, path: string, caller: Caller): Promise<void> => {
-    const view = (u: UserRow) => ({ ...publicMe(u), is_disabled: u.is_disabled, created_at: u.created_at });
+    const view = (u: UserRow) => ({ ...publicMe(u), is_disabled: u.is_disabled, created_at: u.created_at, two_factor: hasTwoFactor(db, u.id) });
     if (path === '/api/v1/admin/users' && req.method === 'GET') return send(res, 200, { users: listUsers(db).map(view) });
     if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
     const body = await readJson(req);
@@ -362,7 +569,79 @@ export function createApp(opts: AppOptions): App {
       closeStreams(id);
       return send(res, 200, { ok: true });
     }
+    if (path === '/api/v1/admin/users/2fa-reset') {
+      // Voor wie zijn telefoon én herstelcodes kwijt is. De gebruiker blijft aangemeld waar hij al was en kan het daarna zelf weer aanzetten.
+      const target = getUserById(db, id)!;
+      const was = disableTwoFactor(db, id);
+      log(`[beheer] tweestapsverificatie van "${target.username}" uitgezet door beheerder "${caller.user.username}"${was ? '' : ' (stond al uit)'}`);
+      return send(res, 200, { user: view(getUserById(db, id)!) });
+    }
     return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+  };
+
+  /**
+   * Een back-up downloaden in twee stappen. Eerst (aangemeld, met wachtwoord en zo nodig een code) een downloadbewijs: eenmalig,
+   * een minuut geldig, gebonden aan deze sessie. Dan de download zelf met dat bewijs in het adres, zodat de browser het bestand
+   * zelf (gestreamd, naar schijf) kan opslaan. Het sessietoken komt zo nooit in een adres.
+   */
+  const adminBackupTicket = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
+    if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+    if (!backup) return send(res, 404, { error_code: 'NOT_FOUND', error: 'back-ups downloaden staat op deze server uit' });
+    const body = await readJson(req);
+    const recent = (backupsByUser.get(caller.user.id) ?? []).filter((t) => t > clock() - 3_600_000);
+    if (recent.length >= BACKUPS_PER_HOUR) {
+      const wait = Math.ceil((recent[0] + 3_600_000 - clock()) / 1000);
+      return send(res, 429, { error_code: 'TOO_MANY_REQUESTS', error: `hooguit ${BACKUPS_PER_HOUR} back-ups per uur; probeer het over ${Math.ceil(wait / 60)} minuten opnieuw` }, { 'Retry-After': String(wait) });
+    }
+    if (!(await confirmPassword(req, res, caller, body.password))) return undefined;
+    if (hasTwoFactor(db, caller.user.id) && !confirmCode(req, res, caller.user, body.code)) return undefined;
+    backupsByUser.set(caller.user.id, [...recent, clock()]);
+    const ticket = `tkb_${randomBytes(32).toString('base64url')}`;
+    tickets.set(hashToken(ticket), { userId: caller.user.id, sessionId: caller.sessionId, expires: clock() + TICKET_MS });
+    forget(tickets, 1_000);
+    return send(res, 200, { ticket, expires_in: TICKET_MS / 1000, path: `/api/v1/admin/backup/download?ticket=${ticket}` });
+  };
+
+  const adminBackupDownload = async (req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> => {
+    if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+    const key = hashToken((url.searchParams.get('ticket') ?? '').slice(0, 200));
+    const t = tickets.get(key);
+    tickets.delete(key); // eenmalig, ook als er hierna iets misgaat
+    const user = t && t.expires > clock() ? getUserById(db, t.userId) : undefined;
+    if (!backup || !t || !user || !user.is_admin || !sessionValid(db, t.userId, t.sessionId, clock(), policy)) {
+      return send(res, 403, { error_code: 'FORBIDDEN', error: 'dit downloadbewijs is ongeldig of verlopen; vraag de back-up opnieuw aan' });
+    }
+    if (backupRunning) return send(res, 503, { error_code: 'BUSY', error: 'er wordt al een back-up gemaakt; probeer het zo opnieuw' }, { 'Retry-After': '30' });
+    backupRunning = true;
+    const started = clock();
+    let archive: ReturnType<typeof createBackupArchive>;
+    try {
+      archive = createBackupArchive(db, { tmpDir: backup.tmpDir, attachmentsDir: backup.attachmentsDir, schemaVersion: SCHEMA_VERSION, now: new Date(started) });
+    } catch (err) {
+      backupRunning = false;
+      log(`[beheer] back-up door "${user.username}" mislukt: ${(err as Error).message}`);
+      return send(res, 500, { error_code: 'INTERNAL', error: 'de back-up kon niet worden gemaakt' });
+    }
+    const name = `tickory-backup-${new Date(started).toISOString().slice(0, 10)}.tar`;
+    res.writeHead(200, {
+      'Content-Type': 'application/x-tar',
+      'Content-Disposition': `attachment; filename="${name}"`,
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      ...cors,
+    });
+    try {
+      await pipeline(Readable.from(archive.chunks), res);
+      const s = archive.summary;
+      log(`[beheer] back-up gedownload door "${user.username}": ${(s.bytes / 1_000_000).toFixed(1)} MB, ${s.attachments} bijlage(n)${s.missing ? `, ${s.missing} ontbrekend` : ''}`);
+    } catch (err) {
+      log(`[beheer] back-up door "${user.username}" afgebroken: ${(err as Error).message}`);
+      if (!res.destroyed) res.destroy();
+    } finally {
+      archive.cleanup();
+      backupRunning = false;
+    }
   };
 
   // ---------- routering ----------
@@ -412,16 +691,24 @@ export function createApp(opts: AppOptions): App {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
         return await login(req, res);
       }
+      // De tweede inlogstap: het tussentoken uit de eerste stap is hier het bewijs, er is nog geen sessie.
+      if (path === '/api/v1/auth/login/2fa') {
+        if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        return await loginSecondStep(req, res);
+      }
+      // De download van een back-up: een navigatie van de browser, zonder header; het eenmalige downloadbewijs is het bewijs.
+      if (path === '/api/v1/admin/backup/download') return await adminBackupDownload(req, res, url);
 
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
-        || (push !== null && path.startsWith('/api/v1/push/'));
+        || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/'));
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
 
       if (path.startsWith('/api/v1/admin/')) {
         if (!caller.user.is_admin) return send(res, 403, { error_code: 'FORBIDDEN', error: 'alleen voor beheerders' });
+        if (path === '/api/v1/admin/backup') return await adminBackupTicket(req, res, caller);
         return await adminUsers(req, res, path, caller);
       }
 
@@ -441,8 +728,20 @@ export function createApp(opts: AppOptions): App {
       }
       if (path === '/api/v1/auth/sessions') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
-        return send(res, 200, { sessions: listSessions(db, caller.user.id).map((s) => ({ ...s, current: s.id === caller.sessionId })) });
+        return send(res, 200, {
+          sessions: listSessions(db, caller.user.id, clock(), policy).map((s) => ({ ...s, current: s.id === caller.sessionId })),
+          policy: { idle_days: policy.idleDays, max_days: policy.maxDays },
+        });
       }
+      if (path === '/api/v1/auth/sessions/revoke-others') {
+        if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+        const count = revokeSessions(db, caller.user.id, caller.sessionId);
+        for (const s of [...streams]) {
+          if (s.userId === caller.user.id && s.sessionId !== caller.sessionId) { s.res.end(); streams.delete(s); }
+        }
+        return send(res, 200, { ok: true, revoked: count });
+      }
+      if (path === '/api/v1/auth/2fa' || path.startsWith('/api/v1/auth/2fa/')) return await twoFactor(req, res, path, caller);
       if (path === '/api/v1/auth/sessions/revoke') {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
         const body = await readJson(req);
@@ -502,7 +801,7 @@ export function createApp(opts: AppOptions): App {
         streams.add(stream);
         const ping = setInterval(() => {
           // een ingetrokken sessie of geblokkeerd account houdt de verbinding niet open
-          if (!findSession(db, req.headers.authorization?.slice(7) ?? '')) {
+          if (!findSession(db, req.headers.authorization?.slice(7) ?? '', clock(), policy)) {
             res.end();
             return;
           }
@@ -560,6 +859,7 @@ export function createApp(opts: AppOptions): App {
       new Promise((resolveClose) => {
         if (pushTimer) clearInterval(pushTimer);
         if (sweepTimer) clearInterval(sweepTimer);
+        if (sessionTimer) clearInterval(sessionTimer);
         for (const s of streams) s.res.end();
         streams.clear();
         server.close(() => resolveClose());
@@ -624,6 +924,39 @@ export function megabytesFrom(env: Record<string, string | undefined>, name: str
     return fallback;
   }
   return n;
+}
+
+/** Een aantal dagen uit de omgeving (0 = uit); ongeldig of niet ingesteld geeft de standaardwaarde (met een waarschuwing bij een ongeldige waarde). */
+export function daysFrom(env: Record<string, string | undefined>, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0 || n > 100_000) {
+    console.warn(`${name} is geen geldig aantal dagen (${raw}); de standaardwaarde ${fallback} wordt gebruikt.`);
+    return fallback;
+  }
+  return n;
+}
+
+/** Wanneer sessies verlopen, uit SESSION_IDLE_DAYS (standaard 90) en SESSION_MAX_DAYS (standaard 365); 0 zet een grens uit. */
+export const sessionPolicyFrom = (env: Record<string, string | undefined>): SessionPolicy => ({
+  idleDays: daysFrom(env, 'SESSION_IDLE_DAYS', DEFAULT_SESSION_POLICY.idleDays),
+  maxDays: daysFrom(env, 'SESSION_MAX_DAYS', DEFAULT_SESSION_POLICY.maxDays),
+});
+
+/**
+ * De sleutel voor tweestapsverificatie (zie totp.ts): uit het bestand `path`, of, als dat er nog niet is, een nieuwe die in dat
+ * bestand wordt gezet (alleen leesbaar voor de eigenaar). Het bestand staat naast de database maar er bewust buiten: wie alleen
+ * een back-up van de database heeft, kan de geheimen niet lezen. Gooit bij een onleesbaar of ongeldig bestand.
+ */
+export function loadSecretKey(path: string): Buffer {
+  if (!existsSync(path)) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, `${randomBytes(32).toString('base64url')}\n`, { mode: 0o600, flag: 'wx' });
+  }
+  const key = Buffer.from(readFileSync(path, 'utf8').trim(), 'base64url');
+  if (key.length !== 32) throw new Error(`het sleutelbestand ${path} bevat geen geldige sleutel (32 bytes, base64url)`);
+  return key;
 }
 
 /**
@@ -714,8 +1047,14 @@ async function userCommand(args: string[]): Promise<void> {
       console.log(`Alle apparaten van "${u.username}" zijn afgemeld.`);
       break;
     }
+    case 'reset-2fa': {
+      const u = target();
+      const was = disableTwoFactor(db, u.id);
+      console.log(was ? `Tweestapsverificatie van "${u.username}" is uitgezet; inloggen kan weer met alleen het wachtwoord.` : `Tweestapsverificatie van "${u.username}" stond al uit.`);
+      break;
+    }
     default:
-      throw new Error('gebruik: user list | add <naam> [--name "…"] [--admin] | passwd <naam> | disable <naam> | enable <naam> | logout-all <naam>');
+      throw new Error('gebruik: user list | add <naam> [--name "…"] [--admin] | passwd <naam> | disable <naam> | enable <naam> | logout-all <naam> | reset-2fa <naam>');
   }
   db.close();
 }
@@ -761,7 +1100,22 @@ if (import.meta.main) {
       process.exit(1);
     }
     const attachments = openAttachments(db);
-    const app = createApp({ db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1' });
+    const dbPath = process.env.DB_PATH ?? './data/todo.db';
+    const dataDir = dbPath === ':memory:' ? tmpdir() : dirname(resolve(dbPath));
+    let secretKey: Buffer;
+    try {
+      // Het sleutelbestand voor tweestapsverificatie: SECRET_KEY_FILE, anders secret.key naast de database (in Docker: in het volume).
+      secretKey = dbPath === ':memory:' && !process.env.SECRET_KEY_FILE ? randomBytes(32) : loadSecretKey(resolve(process.env.SECRET_KEY_FILE || join(dataDir, 'secret.key')));
+    } catch (err) {
+      console.error(`Fout: ${(err as Error).message}`);
+      process.exit(1);
+    }
+    const app = createApp({
+      db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1',
+      sessionPolicy: sessionPolicyFrom(process.env), secretKey,
+      // de tijdelijke kopie voor een back-up staat naast de database: in Docker is /tmp een (kleine) geheugenschijf
+      backup: { tmpDir: dataDir, attachmentsDir: attachments.dir },
+    });
     app.server.listen(port, host, () => console.log(`Tickory luistert op http://${host}:${port} (database: ${process.env.DB_PATH ?? './data/todo.db'})`));
     const stop = () => app.close().then(() => { db.close(); process.exit(0); });
     process.on('SIGINT', stop);

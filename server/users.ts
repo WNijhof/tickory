@@ -260,16 +260,63 @@ export function setPasswordHash(db: DatabaseSync, userId: string, passwordHash: 
 // ---------- sessies ----------
 
 const sha256 = (s: string): string => createHash('sha256').update(s).digest('hex');
-const TOUCH_AFTER_MS = 10 * 60_000;
+/** "Laatst gebruikt" wordt hooguit eens per uur bijgewerkt: niet bij elk verzoek een schrijfactie. */
+export const TOUCH_AFTER_MS = 60 * 60_000;
+const DAY_MS = 86_400_000;
 
-export interface SessionInfo { id: string; name: string; created_at: string; last_used_at: string }
+/**
+ * Wanneer een sessie verloopt: na `idleDays` dagen zonder gebruik, en hoe dan ook `maxDays` dagen na het inloggen.
+ * 0 zet de grens uit. "Gebruik" is gemeten met `last_used_at`, dat hooguit een uur achterloopt.
+ */
+export interface SessionPolicy { idleDays: number; maxDays: number }
+export const DEFAULT_SESSION_POLICY: SessionPolicy = { idleDays: 90, maxDays: 365 };
 
-export function createSession(db: DatabaseSync, userId: string, deviceName: string): { token: string; id: string } {
+/** Is deze sessie op `nowMs` verlopen volgens `policy`? */
+export function sessionExpired(s: { created_at: string; last_used_at: string }, policy: SessionPolicy, nowMs: number): boolean {
+  if (policy.idleDays > 0 && nowMs - Date.parse(s.last_used_at) > policy.idleDays * DAY_MS) return true;
+  if (policy.maxDays > 0 && nowMs - Date.parse(s.created_at) > policy.maxDays * DAY_MS) return true;
+  return false;
+}
+
+/** Het soort apparaat, voor in de lijst. Alleen vaste namen uit een korte lijst, nooit versienummers: geen vingerafdruk. */
+export interface DeviceKind { kind: 'browser' | 'app' | 'other'; browser: string | null; os: string | null }
+
+/** Leest het soort apparaat uit een User-Agent. De web-app in de Android-app (een WebView, "; wv)") telt als de app. */
+export function describeUserAgent(ua: string | undefined): DeviceKind {
+  const s = (ua ?? '').slice(0, 500);
+  const os = /Android/i.test(s) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(s) ? 'iOS'
+      : /CrOS/.test(s) ? 'ChromeOS'
+        : /Windows/i.test(s) ? 'Windows'
+          : /Mac OS X|Macintosh/i.test(s) ? 'macOS'
+            : /Linux|X11/i.test(s) ? 'Linux'
+              : null;
+  if (/; wv\)|Tickory-Android\//.test(s)) return { kind: 'app', browser: null, os: os ?? 'Android' };
+  if (!/^Mozilla\//.test(s)) return { kind: 'other', browser: null, os };
+  const browser = /Edg(A|iOS)?\//.test(s) ? 'Edge'
+    : /OPR\/|Opera/.test(s) ? 'Opera'
+      : /SamsungBrowser\//.test(s) ? 'Samsung Internet'
+        : /Firefox\/|FxiOS\//.test(s) ? 'Firefox'
+          : /Chrome\/|CriOS\//.test(s) ? 'Chrome'
+            : /Safari\//.test(s) ? 'Safari'
+              : null;
+  return { kind: 'browser', browser, os };
+}
+
+const encodeDevice = (d: DeviceKind): string => `${d.kind}/${d.browser ?? ''}/${d.os ?? ''}`;
+const decodeDevice = (raw: unknown): DeviceKind => {
+  const [kind, browser, os] = typeof raw === 'string' ? raw.split('/') : [];
+  return { kind: kind === 'browser' || kind === 'app' ? kind : 'other', browser: browser || null, os: os || null };
+};
+
+export interface SessionInfo { id: string; name: string; created_at: string; last_used_at: string; device: DeviceKind }
+
+export function createSession(db: DatabaseSync, userId: string, deviceName: string, device: DeviceKind = { kind: 'other', browser: null, os: null }): { token: string; id: string } {
   const token = `tky_${randomBytes(32).toString('base64url')}`;
   const id = newId();
   const now = new Date().toISOString();
   const name = deviceName.normalize('NFC').replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, 100) || 'Onbekend apparaat';
-  db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)').run(id, userId, sha256(token), name, now, now);
+  db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at, device) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, userId, sha256(token), name, now, now, encodeDevice(device));
   // Het aantal aangemelde apparaten is begrensd (zie limits.ts): bij het volgende inloggen wordt het langst ongebruikte afgemeld.
   const surplus = db
     .prepare('SELECT id FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND id <> ? ORDER BY last_used_at DESC, created_at DESC, rowid DESC LIMIT -1 OFFSET ?')
@@ -280,24 +327,59 @@ export function createSession(db: DatabaseSync, userId: string, deviceName: stri
   return { token, id };
 }
 
-/** De gebruiker en sessie bij een token, of null als het token onbekend, ingetrokken of van een geblokkeerd account is. */
-export function findSession(db: DatabaseSync, token: string, nowMs: number = Date.now()): { user: UserRow; sessionId: string } | null {
+/**
+ * De gebruiker en sessie bij een token, of null als het token onbekend, ingetrokken, verlopen of van een geblokkeerd account
+ * is. Een verlopen sessie wordt meteen ingetrokken (dan ruimt ook de rest op wat bij die sessie hoort, zoals meldingen).
+ */
+export function findSession(
+  db: DatabaseSync, token: string, nowMs: number = Date.now(), policy: SessionPolicy = DEFAULT_SESSION_POLICY,
+): { user: UserRow; sessionId: string } | null {
   if (token.length < 20 || token.length > 200) return null;
   const r = db
     .prepare(
-      `SELECT s.id AS session_id, s.last_used_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT s.id AS session_id, s.last_used_at AS session_last_used_at, s.created_at AS session_created_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.is_disabled = 0`,
     )
     .get(sha256(token)) as Row | undefined;
   if (!r) return null;
-  if (nowMs - Date.parse(r.last_used_at as string) > TOUCH_AFTER_MS) {
+  const lastUsed = r.session_last_used_at as string;
+  if (sessionExpired({ created_at: r.session_created_at as string, last_used_at: lastUsed }, policy, nowMs)) {
+    db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(new Date(nowMs).toISOString(), r.session_id as string);
+    return null;
+  }
+  if (nowMs - Date.parse(lastUsed) >= TOUCH_AFTER_MS) {
     db.prepare('UPDATE sessions SET last_used_at = ? WHERE id = ?').run(new Date(nowMs).toISOString(), r.session_id as string);
   }
   return { user: toUser(r), sessionId: r.session_id as string };
 }
 
-export function listSessions(db: DatabaseSync, userId: string): SessionInfo[] {
-  return db.prepare('SELECT id, name, created_at, last_used_at FROM sessions WHERE user_id = ? AND revoked_at IS NULL ORDER BY last_used_at DESC').all(userId) as unknown as SessionInfo[];
+/** Is de sessie met dit id nog geldig, voor deze gebruiker (zonder het token: voor een downloadbewijs dat aan een sessie hangt)? */
+export function sessionValid(db: DatabaseSync, userId: string, sessionId: string, nowMs: number = Date.now(), policy: SessionPolicy = DEFAULT_SESSION_POLICY): boolean {
+  const s = db.prepare(
+    'SELECT s.created_at, s.last_used_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND u.is_disabled = 0',
+  ).get(sessionId, userId) as { created_at: string; last_used_at: string } | undefined;
+  return Boolean(s) && !sessionExpired(s!, policy, nowMs);
+}
+
+/** De aangemelde apparaten van een gebruiker: alleen geldige sessies, laatst gebruikt eerst. */
+export function listSessions(db: DatabaseSync, userId: string, nowMs: number = Date.now(), policy: SessionPolicy = DEFAULT_SESSION_POLICY): SessionInfo[] {
+  const rows = db.prepare('SELECT id, name, created_at, last_used_at, device FROM sessions WHERE user_id = ? AND revoked_at IS NULL ORDER BY last_used_at DESC, created_at DESC').all(userId) as Row[];
+  return rows
+    .filter((r) => !sessionExpired(r as { created_at: string; last_used_at: string }, policy, nowMs))
+    .map((r) => ({ id: r.id as string, name: r.name as string, created_at: r.created_at as string, last_used_at: r.last_used_at as string, device: decodeDevice(r.device) }));
+}
+
+/**
+ * Ruimt sessies op: verlopen sessies worden ingetrokken, en wat al 30 dagen ingetrokken is, verdwijnt uit de database.
+ * Geeft het aantal zojuist ingetrokken sessies terug. De server doet dit elk uur (en een verlopen sessie geldt al eerder niet meer).
+ */
+export function pruneSessions(db: DatabaseSync, policy: SessionPolicy = DEFAULT_SESSION_POLICY, nowMs: number = Date.now()): number {
+  const now = new Date(nowMs).toISOString();
+  const idleCutoff = policy.idleDays > 0 ? new Date(nowMs - policy.idleDays * DAY_MS).toISOString() : '';
+  const maxCutoff = policy.maxDays > 0 ? new Date(nowMs - policy.maxDays * DAY_MS).toISOString() : '';
+  const expired = db.prepare('UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL AND (last_used_at < ? OR created_at < ?)').run(now, idleCutoff, maxCutoff).changes;
+  db.prepare('DELETE FROM sessions WHERE revoked_at IS NOT NULL AND revoked_at < ?').run(new Date(nowMs - 30 * DAY_MS).toISOString());
+  return Number(expired);
 }
 
 /** Trekt één sessie in; alleen die van de gebruiker zelf. Geeft terug of er een sessie was. */
@@ -305,8 +387,92 @@ export function revokeSession(db: DatabaseSync, userId: string, sessionId: strin
   return db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL').run(new Date().toISOString(), sessionId, userId).changes > 0;
 }
 
-export function revokeSessions(db: DatabaseSync, userId: string, exceptSessionId?: string): void {
-  db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND id <> ?').run(new Date().toISOString(), userId, exceptSessionId ?? '');
+/** Trekt alle sessies van een gebruiker in, behalve `exceptSessionId`. Geeft het aantal ingetrokken sessies terug. */
+export function revokeSessions(db: DatabaseSync, userId: string, exceptSessionId?: string): number {
+  return Number(db.prepare('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL AND id <> ?').run(new Date().toISOString(), userId, exceptSessionId ?? '').changes);
+}
+
+// ---------- tweestapsverificatie (de opslag; de codes zelf staan in totp.ts) ----------
+
+export interface TwoFactorRow {
+  /** Versleuteld geheim (zie totp.ts), of null als tweestapsverificatie uit staat. */
+  secret: string | null;
+  enabledAt: string | null;
+  lastStep: number | null;
+  pending: string | null;
+  pendingAt: string | null;
+  recoveryLeft: number;
+}
+
+export function getTwoFactor(db: DatabaseSync, userId: string): TwoFactorRow {
+  const r = db.prepare('SELECT totp_secret, totp_enabled_at, totp_last_step, totp_pending, totp_pending_at FROM users WHERE id = ?').get(userId) as Row | undefined;
+  const left = (db.prepare('SELECT COUNT(*) AS n FROM recovery_codes WHERE user_id = ? AND used_at IS NULL').get(userId) as { n: number }).n;
+  return {
+    secret: (r?.totp_secret as string | null) ?? null, enabledAt: (r?.totp_enabled_at as string | null) ?? null,
+    lastStep: (r?.totp_last_step as number | null) ?? null, pending: (r?.totp_pending as string | null) ?? null,
+    pendingAt: (r?.totp_pending_at as string | null) ?? null, recoveryLeft: left,
+  };
+}
+
+/** Heeft deze gebruiker tweestapsverificatie aan? */
+export const hasTwoFactor = (db: DatabaseSync, userId: string): boolean =>
+  Boolean((db.prepare('SELECT totp_secret FROM users WHERE id = ?').get(userId) as Row | undefined)?.totp_secret);
+
+/** Een nieuw geheim dat nog bevestigd moet worden (een vorig, onbevestigd geheim vervalt). */
+export function setPendingSecret(db: DatabaseSync, userId: string, sealed: string, nowIso: string): void {
+  db.prepare('UPDATE users SET totp_pending = ?, totp_pending_at = ? WHERE id = ?').run(sealed, nowIso, userId);
+}
+
+/** Zet tweestapsverificatie aan met het bevestigde geheim; `step` is het tijdvak van de code waarmee bevestigd is. */
+export function enableTwoFactor(db: DatabaseSync, userId: string, sealed: string, step: number, codeHashes: string[], nowIso: string): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare('UPDATE users SET totp_secret = ?, totp_enabled_at = ?, totp_last_step = ?, totp_pending = NULL, totp_pending_at = NULL WHERE id = ?').run(sealed, nowIso, step, userId);
+    replaceRecoveryCodesInTransaction(db, userId, codeHashes, nowIso);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+/**
+ * Legt vast dat het tijdvak `step` gebruikt is, alleen als het later is dan het laatst gebruikte. Geeft false als een ander
+ * verzoek dit tijdvak (of een later) al gebruikte: zo kan dezelfde code ook niet in twee gelijktijdige verzoeken gelden.
+ */
+export function consumeStep(db: DatabaseSync, userId: string, step: number): boolean {
+  return db.prepare('UPDATE users SET totp_last_step = ? WHERE id = ? AND totp_secret IS NOT NULL AND (totp_last_step IS NULL OR totp_last_step < ?)').run(step, userId, step).changes === 1;
+}
+
+/** Gebruikt een herstelcode (de HMAC ervan). Geeft false als die niet bestaat of al gebruikt is. */
+export function consumeRecoveryCode(db: DatabaseSync, userId: string, codeHash: string, nowIso: string): boolean {
+  return db.prepare('UPDATE recovery_codes SET used_at = ? WHERE user_id = ? AND code_hash = ? AND used_at IS NULL').run(nowIso, userId, codeHash).changes === 1;
+}
+
+function replaceRecoveryCodesInTransaction(db: DatabaseSync, userId: string, codeHashes: string[], nowIso: string): void {
+  db.prepare('DELETE FROM recovery_codes WHERE user_id = ?').run(userId);
+  const insert = db.prepare('INSERT INTO recovery_codes (user_id, code_hash, created_at) VALUES (?, ?, ?)');
+  for (const h of codeHashes) insert.run(userId, h, nowIso);
+}
+
+/** Nieuwe herstelcodes; de oude vervallen allemaal. */
+export function replaceRecoveryCodes(db: DatabaseSync, userId: string, codeHashes: string[], nowIso: string): void {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    replaceRecoveryCodesInTransaction(db, userId, codeHashes, nowIso);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
+/** Zet tweestapsverificatie uit: geheim, onbevestigd geheim en herstelcodes weg. Geeft true als hij aan stond. */
+export function disableTwoFactor(db: DatabaseSync, userId: string): boolean {
+  const was = hasTwoFactor(db, userId);
+  db.prepare('UPDATE users SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL, totp_pending = NULL, totp_pending_at = NULL WHERE id = ?').run(userId);
+  db.prepare('DELETE FROM recovery_codes WHERE user_id = ?').run(userId);
+  return was;
 }
 
 // ---------- inlogpogingen beperken ----------
