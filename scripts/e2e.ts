@@ -34,6 +34,7 @@ import { geoScenario } from './e2e-geo.ts';
 import { bulkScenario } from './e2e-bulk.ts';
 import { templatesScenario } from './e2e-templates.ts';
 import { notifyScenario } from './e2e-notify.ts';
+import { accountScenario } from './e2e-account.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -74,9 +75,12 @@ const bob = createUser(db, { username: 'bob', name: 'Bob', passwordHash: await h
 // Bijlagen: de bestanden staan in een map naast de testgegevens; een bestand mag hier hooguit 5 MB zijn
 const attachments = createAttachments(db, { dir: `${workDir}attachments`, maxUploadBytes: 5_000_000, quotaBytes: 50_000_000 });
 let app: App | null = null;
+// De klok van de server kan vooruit (scripts/e2e-account.ts): een code van tweestapsverificatie geldt maar één keer per 30 seconden.
+let clockShift = 0;
+const serverNow = () => Date.now() + clockShift;
 async function startServer() {
   // met meldingen in de browser, zoals de echte server; de klok staat uit (niets wordt verstuurd, er is ook geen apparaat aangemeld)
-  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0, attachments, attachmentSweepMs: 0 });
+  app = createApp({ db, push: createPush({ db }), pushIntervalMs: 0, attachments, attachmentSweepMs: 0, clock: serverNow, log: () => {} });
   await new Promise<void>((r) => app!.server.listen(APP_PORT, '127.0.0.1', r));
 }
 async function stopServer() {
@@ -541,6 +545,18 @@ try {
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'alles gesloten');
   step('account: apparatenlijst met "dit apparaat"; beheer: een account aanmaken via het scherm (te kort wachtwoord wordt geweigerd)');
+
+  // ---- 8c2. apparaten, een verlopen sessie, tweestapsverificatie en een back-up (scripts/e2e-account.ts); E2E_ACCOUNT_ONLY=1: alleen dit ----
+  await accountScenario({
+    send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, typeInto, clickText, nav, PASSWORD_ALICE, PASSWORD_BOB, workDir, BASE,
+    shiftClock: (ms: number) => { clockShift += ms; }, serverNow,
+  });
+  if (process.env.E2E_ACCOUNT_ONLY) {
+    console.log('ALLEEN ACCOUNT: GESLAAGD');
+    browser.kill();
+    await stopServer();
+    process.exit(0);
+  }
 
   // ---- 8d. Engels: in de app wisselen, de schermen nalopen, en terug naar Nederlands ----
   /** Wat de app in het Engels zou tonen, uitgerekend met dezelfde code als de app (hier in Node). */
