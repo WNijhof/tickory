@@ -5,6 +5,7 @@ import io.github.wnijhof.tickory.BuildConfig
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.geo.GeoEngine
+import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.reminders.ReminderEngine
 import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.widget.WidgetUpdater
@@ -62,6 +63,7 @@ object Session {
         ReminderEngine.clear(app, keepShown = false)
         GeoEngine.clear(app)
         WidgetStore.clearAll(app) // taken, projecten en de wachtrij van deze gebruiker: weg
+        InboxNotifier.clear(app) // en wat er van de meldingen bij samenwerken bekend is
         WidgetUpdater.updateAll(app)
     }
 

@@ -132,4 +132,16 @@
     <string name="geo_approximate">Tickory kreeg alleen een benaderde locatie. Dat is te grof voor een plaats. Kies bij de toestemming ‘Nauwkeurig’.</string>
     <string name="geo_background_missing">Zonder ‘Altijd toestaan’ werken herinneringen op een plek alleen terwijl Tickory open is.</string>
     <string name="geo_services_off">Locatie staat uit op dit toestel. Zet locatie aan om herinneringen op een plek te krijgen.</string>
+    <!-- Meldingen bij samenwerken (inbox/InboxNotifier.kt); %1$s is de naam van wie het deed -->
+    <string name="channel_activity">Samenwerken</string>
+    <string name="channel_activity_description">Als iemand je een taak toewijst, reageert, je noemt, je taak afvinkt of je aan een project toevoegt</string>
+    <string name="inbox_assigned">%1$s heeft je een taak toegewezen</string>
+    <string name="inbox_comment">%1$s reageerde op een taak</string>
+    <string name="inbox_comment_project">%1$s schreef een opmerking bij het project</string>
+    <string name="inbox_mention">%1$s noemde je in een opmerking</string>
+    <string name="inbox_completed">%1$s heeft je taak afgevinkt</string>
+    <string name="inbox_shared">%1$s heeft je toegevoegd aan een project</string>
+    <string name="inbox_other">%1$s deed iets in een gedeeld project</string>
+    <string name="inbox_someone">Iemand</string>
+    <string name="inbox_open">Openen</string>
 </resources>

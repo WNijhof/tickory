@@ -30,8 +30,11 @@ sealed class HealthResult {
 }
 
 sealed class FetchResult {
-    /** @property widget wat de widgets nodig hebben uit hetzelfde antwoord; null als dat niet te lezen was */
-    data class Ok(val snapshot: SyncSnapshot, val widget: WidgetSnapshot? = null) : FetchResult()
+    /**
+     * @property widget wat de widgets nodig hebben uit hetzelfde antwoord; null als dat niet te lezen was
+     * @property inbox de meldingen bij samenwerken; null bij een server die ze niet kent
+     */
+    data class Ok(val snapshot: SyncSnapshot, val widget: WidgetSnapshot? = null, val inbox: InboxSnapshot? = null) : FetchResult()
 
     /** 401: de sessie is verlopen of ingetrokken. */
     object Unauthorized : FetchResult()
@@ -110,27 +113,27 @@ class ApiClient(
         return if (ok) HealthResult.Ok else HealthResult.NotTickory(response.status)
     }
 
-    /** Haalt alle taken en de herinneringen van de ingelogde gebruiker op. */
+    /** Haalt alle taken en de herinneringen van de ingelogde gebruiker op, en de meldingen bij samenwerken. */
     fun fetchSnapshot(token: String): FetchResult {
         val types = listOf("tasks", "reminders", "projects", "sections", "labels")
-        var response = try {
-            // "places": de plaatsen voor herinneringen op een locatie (van de gebruiker zelf, privé)
-            request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to types + "places")))
-        } catch (e: Exception) {
-            return FetchResult.Failed(classify(e), 0)
-        }
-        if (response.status == 400) {
-            // Een oudere server kent "places" niet en weigert het verzoek: dan zonder, en zonder herinneringen op een plek.
+        // "places": de plaatsen voor herinneringen op een locatie (van de gebruiker zelf, privé); "notifications" met "settings"
+        // (welke soorten als melding) en "comments" (het begin van een opmerking in de melding): de meldingen bij samenwerken.
+        // Een oudere server kent een van die bronnen niet en weigert het verzoek (400): dan steeds met minder.
+        val attempts = listOf(types + listOf("places", "notifications", "settings", "comments"), types + "places", types)
+        var response: Response? = null
+        for (attempt in attempts) {
             response = try {
-                request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to types)))
+                request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to attempt)))
             } catch (e: Exception) {
                 return FetchResult.Failed(classify(e), 0)
             }
+            if (response.status != 400) break
         }
+        if (response == null) return FetchResult.Failed(null, 0)
         if (response.status == 401) return FetchResult.Unauthorized
         if (response.status != 200) return FetchResult.Failed(null, response.status)
         val snapshot = SyncParser.parseSnapshot(response.body) ?: return FetchResult.Failed(null, response.status)
-        return FetchResult.Ok(snapshot, WidgetParser.parse(response.body))
+        return FetchResult.Ok(snapshot, WidgetParser.parse(response.body), InboxParser.parse(response.body))
     }
 
     /**

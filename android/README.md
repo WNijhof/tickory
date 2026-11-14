@@ -100,6 +100,28 @@ Zonder emulator is dit alleen op een toestel te controleren. Zet de app op een t
 - **Niet storen** of een stil profiel houdt het geluid tegen; de melding staat er dan wel.
 - **Net ingelogd of een herinnering net gemaakt?** De app ververst direct, daarna elk kwartier en telkens als je hem opent.
 
+## Meldingen bij samenwerken
+
+Wijst iemand je een taak toe, reageert iemand, noemt iemand je met `@`, vinkt iemand je taak af of voegt iemand je toe aan een
+project, dan maakt de server een melding (zie hoofdstuk 5d van SPEC.md). In de browser komt die als pushmelding; de app heeft
+geen pushdienst (geen Google-diensten) en haalt de meldingen daarom zelf op bij elke verversing (`ApiClient.fetchSnapshot` vraagt
+ook `notifications`, `settings` en `comments`; een oudere server die dat weigert, krijgt het verzoek opnieuw zonder).
+
+- *Beslissen* (`core/Inbox.kt`, zonder Android): de eerste keer voor een account worden alle bestaande meldingen als bekend
+  vastgelegd zonder iets te tonen (geen stapel oude meldingen na het inloggen). Daarna komt een nieuwe ongelezen melding één
+  keer in beeld, als de soort aan staat (`settings.notify_push`, standaard alles behalve "afgevinkt"), de melding hooguit drie
+  dagen oud is en de app niet open staat (dan zie je hem in de app zelf); hooguit tien tegelijk. Een melding die in de app of op
+  een ander apparaat gelezen is, of verdwenen (taak weg, uit het project gehaald), haalt de app bij de volgende verversing weg.
+- *Tonen* (`inbox/InboxNotifier.kt`): een eigen kanaal *Samenwerken* (gewone prioriteit), de zin in de taal van het toestel
+  ("Bram heeft je een taak toegewezen"), de taak met het project en het begin van de opmerking, en de knop *Openen*. Een tik
+  opent de web-app op `#notification=<id>` (`core/DeepLink.kt`); die zet de melding op gelezen en opent de taak of het project.
+- *Bijhouden* (`store/InboxStore.kt`): alleen id's (welke bekend zijn, welke in beeld staan) in `inbox-state.json` in de
+  privé-opslag. Afmelden wist het bestand en haalt de meldingen weg; een ander account begint opnieuw.
+- *Wanneer:* bij de verversingen die er al zijn (inloggen, openen, elk kwartier met verbinding). De web-app in de app roept
+  `remindersChanged()` aan zodra er meldingen bij komen of gelezen worden, zodat het gelezen zijn meteen doorwerkt.
+- *Alleen op een toestel te controleren:* of het kanaal en de knop er goed uitzien, of een melding in de slaapstand op tijd
+  komt (WorkManager kan een kwartier uitstellen), en hoe merken met strenge batterijbesparing het verversen beperken.
+
 ## Wat de app wel en niet deelt
 
 - De app praat alleen met de server die jij invult. Er zit geen dienst van Google of een ander bedrijf tussen.
@@ -205,7 +227,8 @@ Het pictogram van de app komt uit dat van de web-app. Na een nieuw logo:
 - `reminders/`: alarmen (`AlarmManager`), meldingen en de ontvangers voor alarm, knoppen en opstarten.
 - `geo/`: de locatiecontrole voor herinneringen op een plek: aanvragen bij `LocationManager` (`GeoRegistrar`) en de ontvanger, het zekerheidsnet (`GeoScheduler`), de beslissingen en meldingen (`GeoEngine`), de toestemmingen (`GeoPermissionFlow`) en de status voor de pagina. De regels zelf staan als zuivere Kotlin in `core/` (`Geo`, `Geofence`, `GeoPolicy`, `GeoReminders`).
 - `sync/`: de aanmelding en het verversen met WorkManager (elk kwartier, alleen met verbinding).
-- `store/`: wat de app op het toestel bewaart: het serveradres, het versleutelde token, het plan van de herinneringen en (`WidgetStore`) de gegevens en de wachtrij van de widgets.
+- `store/`: wat de app op het toestel bewaart: het serveradres, het versleutelde token, het plan van de herinneringen, (`WidgetStore`) de gegevens en de wachtrij van de widgets en (`InboxStore`) welke meldingen bij samenwerken bekend zijn.
+- `inbox/`: de meldingen bij samenwerken op het toestel (`InboxNotifier`); de regels staan zonder Android in `core/Inbox.kt`.
 - `widget/`: de widgets: de ontvangers (`Providers.kt`), het tekenen (`ListWidgets`), de regels van de lijst (`WidgetListService`), het scherm om te kiezen wat een widget toont (`WidgetConfigActivity`) en wat een tik doet (`WidgetActions`, `WidgetActionActivity`). De regels van wat er te zien is, staan zonder Android in `core/Widget*.kt`.
 - `MainActivity` (de WebView), `SetupActivity` (het serveradres) en `WebBridge`.
 
@@ -215,7 +238,7 @@ ingestelde server komt.
 | Aanroep | Betekenis |
 |---|---|
 | `setSession(token)` | Het sessietoken na inloggen; `""` bij afmelden (wist token, alarmen en meldingen). |
-| `remindersChanged()` | Taken of herinneringen zijn gewijzigd: meteen verversen, en een halve minuut later nog eens. |
+| `remindersChanged()` | Taken, herinneringen of meldingen bij samenwerken zijn gewijzigd: meteen verversen, en een halve minuut later nog eens. |
 | `widgetsChanged()` | Iets dat in de widgets staat (titel, datum, prioriteit, plek, volgorde, projectnaam) is gewijzigd: hetzelfde verversen; daarna tekenen de widgets zich opnieuw. |
 | `notificationStatus()` | JSON-tekst: `{"notifications":bool,"exactAlarms":bool,"batteryOptimized":bool,"appVersion":"…"}`. |
 | `requestNotificationPermission()` | Vraagt de toestemming voor meldingen; opent zo nodig de instellingen. |
@@ -230,7 +253,7 @@ ingestelde server komt.
 
 Na een toestemmingsvraag of terugkeer uit de instellingen stuurt de app het voorval `tickory-android-status` op
 `window`; de web-app kan dan `notificationStatus()` opnieuw opvragen. Een melding en een tik op een taak in een
-widget openen de web-app op `<server>/#task=<id>`; de knop "+" van een widget op `<server>/#add` (`#add=today` met vandaag als
+widget openen de web-app op `<server>/#task=<id>`, een melding bij samenwerken op `<server>/#notification=<id>`; de knop "+" van een widget op `<server>/#add` (`#add=today` met vandaag als
 datum, `#add=<project-id>` in dat project). Alleen veilige tekens komen in zo'n adres (`core/DeepLink.kt`).
 
 **Exporteren:** de web-app geeft tekst (JSON of CSV) via `TickoryAndroid.saveText(naam, type, tekst)` aan de app, die hem in de cache zet (`AttachmentFiles.prepareText`, eigen willekeurige map, hooguit 50 miljoen tekens) en het opslaan-scherm van Android opent; een blob-download werkt in een WebView niet.
@@ -348,4 +371,5 @@ emulator kon op de ontwikkelmachine niet starten en er is niets op een telefoon 
 - **Een inlogpagina vóór de server** (Authelia, Cloudflare Access en dergelijke) werkt niet: de app opent alleen het
   ingestelde adres en kan `/health` en `/api/` dan niet bereiken.
 - **Herinneringen van meer dan een uur geleden** (toestel stond uit) worden niet alsnog getoond.
+- **Meldingen bij samenwerken komen tot een kwartier later**: zonder pushdienst haalt de app ze op bij het verversen.
 - De app plant hooguit 200 herinneringen, tot 30 dagen vooruit; bij elke verversing schuift dat venster mee.

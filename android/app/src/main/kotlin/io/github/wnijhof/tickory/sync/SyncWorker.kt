@@ -12,6 +12,7 @@ import io.github.wnijhof.tickory.core.FetchResult
 import io.github.wnijhof.tickory.core.LocalNetwork
 import io.github.wnijhof.tickory.core.ServerAddress
 import io.github.wnijhof.tickory.geo.GeoEngine
+import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.store.WidgetStore
@@ -78,6 +79,7 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
         }
         result.widget?.let { WidgetStore.accept(app, it) }
         WidgetUpdater.updateAll(app)
+        InboxNotifier.apply(app, result.inbox) // meldingen bij samenwerken: nieuwe tonen, gelezen weghalen
     }
 
     /**
