@@ -882,6 +882,15 @@ if (wants('demo')) {
     await backend.api.revokeSession(sessions.find((s: any) => !s.current).id);
     assert.equal((await backend.api.sessions()).sessions.length, sessions.length - 1);
     await assert.rejects(backend.api.changePassword('a', 'b'), (err: any) => err.name === 'ApiError' && /kan niet in de demo/.test(err.message));
+    // tweestapsverificatie en een back-up: uit, met een nette melding; "alle andere afmelden" werkt wel
+    assert.deepEqual(await backend.api.twoFactor.status(), { enabled: false, enabled_at: null, recovery_codes_left: 0 });
+    for (const call of [() => backend.api.twoFactor.setup('x'), () => backend.api.twoFactor.disable('x', '1'), () => backend.api.loginCode('c', '1'), () => backend.api.admin.backupTicket('x'), () => backend.api.admin.resetTwoFactor('user-kees')]) {
+      await assert.rejects(call(), (err: any) => err.name === 'ApiError' && /kan niet in de demo/.test(err.message));
+    }
+    assert.ok((await backend.api.sessions()).sessions.every((s: any) => s.device && typeof s.device.kind === 'string'));
+    assert.deepEqual((await backend.api.sessions()).policy, { idle_days: 90, max_days: 365 });
+    assert.equal((await backend.api.revokeOtherSessions()).revoked, sessions.length - 2);
+    assert.equal((await backend.api.sessions()).sessions.length, 1);
     const { users } = await backend.api.admin.users();
     assert.ok(users.length >= 6 && users.every((u: any) => typeof u.is_disabled === 'boolean'));
     await backend.api.admin.createUser({ username: 'oma', name: 'Oma Truus', password: 'lang-genoeg-wachtwoord', is_admin: false });

@@ -124,9 +124,9 @@ export class DemoServer {
     const nowMs = now().getTime();
     const ago = (minutes) => new Date(nowMs - minutes * 60_000).toISOString();
     this.sessions = [
-      { id: 'demo-session-1', name: deviceName(), created_at: ago(0), last_used_at: ago(0), current: true },
-      { id: 'demo-session-2', name: t('device.browserOn', { browser: 'Chrome', os: 'Android' }), created_at: ago(60 * 24 * 41), last_used_at: ago(95), current: false },
-      { id: 'demo-session-3', name: t('device.browserOn', { browser: 'Firefox', os: 'Windows' }), created_at: ago(60 * 24 * 120), last_used_at: ago(60 * 24 * 6), current: false },
+      { id: 'demo-session-1', name: deviceName(), created_at: ago(0), last_used_at: ago(0), current: true, device: { kind: 'browser', browser: null, os: null } },
+      { id: 'demo-session-2', name: t('device.browserOn', { browser: 'Chrome', os: 'Android' }), created_at: ago(60 * 24 * 41), last_used_at: ago(95), current: false, device: { kind: 'browser', browser: 'Chrome', os: 'Android' } },
+      { id: 'demo-session-3', name: t('device.browserOn', { browser: 'Firefox', os: 'Windows' }), created_at: ago(60 * 24 * 120), last_used_at: ago(60 * 24 * 6), current: false, device: { kind: 'browser', browser: 'Firefox', os: 'Windows' } },
     ];
   }
 
@@ -559,7 +559,8 @@ export class DemoServer {
   // ---------- account, apparaten en beheer (wat de app buiten de sync om vraagt) ----------
 
   api() {
-    const view = (u) => ({ id: u.id, username: u.username, name: u.name, is_admin: u.is_admin, inbox_project_id: u.inbox_project_id, is_disabled: u.is_disabled, created_at: u.created_at });
+    const view = (u) => ({ id: u.id, username: u.username, name: u.name, is_admin: u.is_admin, inbox_project_id: u.inbox_project_id, is_disabled: u.is_disabled, created_at: u.created_at, two_factor: false });
+    const demoOnly = async () => { throw apiError(403, 'DEMO', notInDemo()); };
     const account = (id) => {
       const u = this.accounts.find((a) => a.id === id);
       if (!u) throw apiError(404, 'NOT_FOUND', 'gebruiker bestaat niet');
@@ -568,10 +569,24 @@ export class DemoServer {
     const otherAdmins = (id) => this.accounts.filter((a) => a.is_admin && !a.is_disabled && a.id !== id).length;
     return {
       login: async () => { throw apiError(403, 'DEMO', notInDemo()); },
+      loginCode: demoOnly,
       logout: async () => ({ ok: true }),
       me: async () => ({ me: { ...this.me } }),
       changePassword: async () => { throw apiError(403, 'DEMO', notInDemo()); },
-      sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s })) }),
+      sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s, device: { ...s.device } })), policy: { idle_days: 90, max_days: 365 } }),
+      revokeOtherSessions: async () => {
+        const before = this.sessions.length;
+        this.sessions = this.sessions.filter((s) => s.current);
+        return { ok: true, revoked: before - this.sessions.length };
+      },
+      // Tweestapsverificatie en back-ups vragen een echt wachtwoord en een echte server: in de demo staat het uit en zegt de app dat.
+      twoFactor: {
+        status: async () => ({ enabled: false, enabled_at: null, recovery_codes_left: 0 }),
+        setup: demoOnly,
+        enable: demoOnly,
+        disable: demoOnly,
+        newRecoveryCodes: demoOnly,
+      },
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);
         if (i < 0) throw apiError(404, 'NOT_FOUND', 'deze sessie bestaat niet');
@@ -610,6 +625,12 @@ export class DemoServer {
           account(id);
           throw apiError(403, 'DEMO', notInDemo());
         },
+        resetTwoFactor: async (id) => {
+          account(id);
+          throw apiError(403, 'DEMO', notInDemo());
+        },
+        backupTicket: demoOnly,
+        backupUrl: () => '#',
       },
     };
   }
