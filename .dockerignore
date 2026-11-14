@@ -2,6 +2,7 @@
 .git
 .github
 .e2e
+.e2e-ext
 .mut
 .env
 .env.*
