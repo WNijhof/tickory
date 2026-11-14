@@ -7,6 +7,8 @@ import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.reminders.ReminderEngine
+import io.github.wnijhof.tickory.quickadd.QuickAddNotifier
+import io.github.wnijhof.tickory.store.QuickAddStore
 import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.widget.WidgetUpdater
 
@@ -53,7 +55,7 @@ object Session {
         WidgetUpdater.updateAll(app)
     }
 
-    /** Afmelden: token weg, achtergrondwerk gestopt, alle alarmen en meldingen weg. */
+    /** Afmelden: token weg, achtergrondwerk gestopt, alle alarmen en meldingen weg, en de wachtrijen van de widgets en het kleine venster. */
     @Synchronized
     fun signOut(context: Context) {
         val app = context.applicationContext
@@ -63,6 +65,8 @@ object Session {
         ReminderEngine.clear(app, keepShown = false)
         GeoEngine.clear(app)
         WidgetStore.clearAll(app) // taken, projecten en de wachtrij van deze gebruiker: weg
+        // de taken uit het kleine venster die nog niet verstuurd waren: weg, maar met een melding met de tekst (niets stil verloren)
+        for (item in QuickAddStore.clearAll(app)) QuickAddNotifier.notDelivered(app, item, QuickAddNotifier.Reason.SIGNED_OUT)
         InboxNotifier.clear(app) // en wat er van de meldingen bij samenwerken bekend is
         WidgetUpdater.updateAll(app)
     }

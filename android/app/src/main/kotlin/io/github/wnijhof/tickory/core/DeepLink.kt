@@ -8,6 +8,14 @@ package io.github.wnijhof.tickory.core
 object DeepLink {
     const val EXTRA_ADD = "io.github.wnijhof.tickory.extra.ADD"
 
+    /**
+     * Een taak die in het kleine venster "Taak toevoegen" is ingetypt en in de app verder moet ("Openen in de app", of een tik
+     * op de melding "Niet toegevoegd"): de tekst, en zo nodig het project en de dag. Gaat als `share=` naar de web-app (ShareLink.draftFragment).
+     */
+    const val EXTRA_DRAFT_TEXT = "io.github.wnijhof.tickory.extra.DRAFT_TEXT"
+    const val EXTRA_DRAFT_PROJECT = "io.github.wnijhof.tickory.extra.DRAFT_PROJECT"
+    const val EXTRA_DRAFT_DUE = "io.github.wnijhof.tickory.extra.DRAFT_DUE"
+
     private val SAFE = Regex("^[A-Za-z0-9_=-]{1,100000}$")
 
     /** Mag dit fragment in een webadres en in een stukje JavaScript? Alleen letters, cijfers, "-", "_" en "=" (base64url past daarin). */

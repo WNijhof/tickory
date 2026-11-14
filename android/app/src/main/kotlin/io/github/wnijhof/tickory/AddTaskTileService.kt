@@ -8,11 +8,12 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.quickadd.QuickAddActivity
 
 /**
- * De tegel "Taak toevoegen" in de snelle instellingen (het scherm dat je naar beneden trekt): één tik opent Tickory
- * op het venster Taak toevoegen, ook vanaf het vergrendelscherm (na ontgrendelen). De tegel zelf kent geen gegevens
- * en vraagt geen toestemmingen; hij start alleen de app, die een taak pas aanmaakt als de gebruiker bevestigt.
+ * De tegel "Taak toevoegen" in de snelle instellingen (het scherm dat je naar beneden trekt): één tik opent het kleine venster
+ * Taak toevoegen (QuickAddActivity) over wat er op het scherm staat, ook vanaf het vergrendelscherm (na ontgrendelen). De tegel
+ * zelf kent geen gegevens en vraagt geen toestemmingen; een taak komt er pas als de gebruiker Toevoegen kiest.
  */
 class AddTaskTileService : TileService() {
     override fun onStartListening() {
@@ -41,9 +42,9 @@ class AddTaskTileService : TileService() {
     }
 
     companion object {
-        /** De intentie van de tegel: de app op "Taak toevoegen" (waar je nu bent), expliciet en nieuw gestart of naar voren gehaald. */
+        /** De intentie van de tegel: het kleine venster "Taak toevoegen" (in het laatst gekozen project), expliciet, als eigen taak. */
         fun launchIntent(context: Context): Intent =
-            Intent(context, MainActivity::class.java)
+            Intent(context, QuickAddActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra(DeepLink.EXTRA_ADD, "")
     }

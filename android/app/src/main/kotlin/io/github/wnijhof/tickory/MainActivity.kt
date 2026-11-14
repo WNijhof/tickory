@@ -332,8 +332,8 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Wat deze intentie de web-app laat openen: een taak (melding of widget), het venster Taak toevoegen (de "+" van een
-     * widget) of "Delen naar Tickory" met tekst uit een andere app. Een intentie die van buiten komt kan alleen tekst
+     * Wat deze intentie de web-app laat openen: een taak (melding of widget), het venster Taak toevoegen (zonder aanmelding de "+"
+     * van een widget, of met de tekst uit het kleine venster) of "Delen naar Tickory" met tekst uit een andere app. Een intentie die van buiten komt kan alleen tekst
      * meegeven; die gaat als base64url door ShareLink. Alles wat hier uitkomt, is door DeepLink.isSafe gekeurd.
      */
     private fun fragmentFrom(intent: Intent?): String? {
@@ -341,6 +341,11 @@ class MainActivity : ComponentActivity() {
         // tickory://oidc?code=… of ?error=…: terug van de inlogdienst (zie SignInLink)
         if (intent.action == Intent.ACTION_VIEW) return SignInLink.fragmentFor(intent.dataString)?.takeIf(DeepLink::isSafe)
         DeepLink.notification(intent.getStringExtra(InboxNotifier.EXTRA_NOTIFICATION_ID))?.let { return it }
+        // uit het kleine venster Taak toevoegen ("Openen in de app") of de melding "Niet toegevoegd": de getypte tekst, gekeurd door ShareLink
+        if (intent.hasExtra(DeepLink.EXTRA_DRAFT_TEXT)) {
+            ShareLink.draftFragment(intent.getStringExtra(DeepLink.EXTRA_DRAFT_TEXT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_PROJECT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_DUE))
+                ?.takeIf(DeepLink::isSafe)?.let { return it }
+        }
         DeepLink.fromExtras(intent.getStringExtra(Notifications.EXTRA_TASK_ID), intent.hasExtra(DeepLink.EXTRA_ADD), intent.getStringExtra(DeepLink.EXTRA_ADD))?.let { return it }
         if (intent.action != Intent.ACTION_SEND || intent.type?.startsWith("text/") != true) return null
         return ShareLink.fragmentFor(

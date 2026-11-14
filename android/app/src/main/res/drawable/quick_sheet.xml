@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Het vlak van het kleine venster "Taak toevoegen": bovenaan afgerond, onderaan tegen de rand van het scherm. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/quick_surface" />
+    <corners
+        android:topLeftRadius="24dp"
+        android:topRightRadius="24dp" />
+</shape>

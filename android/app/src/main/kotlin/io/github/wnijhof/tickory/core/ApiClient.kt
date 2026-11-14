@@ -85,6 +85,24 @@ sealed class DownloadResult {
     data class Failed(val problem: NetProblem?, val status: Int) : DownloadResult()
 }
 
+/** De uitkomst van `POST /api/v1/quick-add` (snel toevoegen, zie QuickAdd.kt). */
+sealed class QuickAddResult {
+    /** Gelukt (of het was met dit uuid al gelukt): de nieuwe taak, of bij een voorvertoning wat het wordt. */
+    data class Ok(val taskId: String?, val preview: QuickAddPreview?) : QuickAddResult()
+
+    /** De server weigert (geen rechten, project weg, een limiet, geen naam): opnieuw proberen heeft geen zin. */
+    data class Rejected(val code: String, val message: String) : QuickAddResult()
+
+    /** 401: de sessie is verlopen of ingetrokken. */
+    object Unauthorized : QuickAddResult()
+
+    /** De server kent snel toevoegen nog niet (een oudere versie). */
+    object Unsupported : QuickAddResult()
+
+    /** Geen verbinding, een tijdelijke fout of te veel verzoeken: later opnieuw, met hetzelfde uuid. */
+    data class Failed(val problem: NetProblem?, val status: Int) : QuickAddResult()
+}
+
 /** Een commando voor `POST /api/v1/sync`. */
 data class SyncCommand(val type: String, val uuid: String, val args: Map<String, Any?>)
 
@@ -190,6 +208,30 @@ class ApiClient(
     }
 
     /**
+     * Snel toevoegen: één regel tekst wordt een taak, met dezelfde herkenning als de web-app ([body]: zie QuickAddQueue). Met
+     * hetzelfde uuid opnieuw sturen is veilig: de server geeft dan dezelfde taak terug.
+     */
+    fun quickAdd(token: String, body: String): QuickAddResult {
+        val response = try {
+            request("POST", QUICK_ADD_PATH, token, body)
+        } catch (e: Exception) {
+            return QuickAddResult.Failed(classify(e), 0)
+        }
+        val marked = QuickAddParser.isQuickAdd(response.body)
+        return when {
+            response.status == 401 -> QuickAddResult.Unauthorized
+            response.status == 200 && marked -> QuickAddResult.Ok(QuickAddParser.taskId(response.body), QuickAddParser.preview(response.body))
+            // een server zonder dit eindpunt antwoordt 404 (of 405) zonder `quick_add`
+            !marked && (response.status == 404 || response.status == 405) -> QuickAddResult.Unsupported
+            marked && response.status in 400..499 && response.status != 408 && response.status != 429 -> {
+                val error = Json.parseObject(response.body)
+                QuickAddResult.Rejected(error?.text("error_code") ?: "HTTP_${response.status}", error?.text("error") ?: "")
+            }
+            else -> QuickAddResult.Failed(null, response.status)
+        }
+    }
+
+    /**
      * Haalt een bestand op (een bijlage) en schrijft het naar [target]. Het token gaat in de Authorization-header, nooit in het
      * adres. Een mislukte of afgebroken download laat geen half bestand achter.
      */
@@ -291,6 +333,7 @@ class ApiClient(
 
     companion object {
         const val SYNC_PATH = "/api/v1/sync"
+        const val QUICK_ADD_PATH = "/api/v1/quick-add"
         const val MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 
         fun classify(e: Throwable): NetProblem = when (e) {

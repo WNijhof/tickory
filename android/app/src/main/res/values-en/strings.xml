@@ -139,4 +139,54 @@
     <string name="inbox_other">%1$s did something in a shared project</string>
     <string name="inbox_someone">Someone</string>
     <string name="inbox_open">Open</string>
+
+    <!-- The small "Add task" window (over the home screen, from a widget or the tile) -->
+    <string name="quick_title">Add task</string>
+    <string name="quick_hint">E.g. Water the plants #Home p1</string>
+    <string name="quick_add">Add</string>
+    <string name="quick_today">Today</string>
+    <string name="quick_tomorrow">Tomorrow</string>
+    <string name="quick_priority">Priority</string>
+    <string name="quick_priority_short">P%1$d</string>
+    <string name="quick_priority_1">Priority 1 (highest)</string>
+    <string name="quick_priority_2">Priority 2</string>
+    <string name="quick_priority_3">Priority 3</string>
+    <string name="quick_priority_4">No priority</string>
+    <string name="quick_priority_description">Priority: %1$s. Tap to change.</string>
+    <string name="quick_inbox">Inbox</string>
+    <string name="quick_project_description">Project: %1$s. Tap to change.</string>
+    <string name="quick_choose_project">Choose a project</string>
+    <string name="quick_keep_open">Add another</string>
+    <string name="quick_open_app">Open in the app</string>
+    <string name="quick_added">Added</string>
+    <string name="quick_added_offline">Added; it will be sent as soon as there is a connection</string>
+    <string name="quick_draft_saved">Not added: your text will still be here next time</string>
+    <string name="quick_draft_restored">Your text from last time is still here</string>
+    <string name="quick_queue_full">Too many tasks are already waiting for a connection. Open the app.</string>
+    <string name="quick_preview_description">Will be: %1$s</string>
+    <string name="quick_preview_no_name">(no name)</string>
+    <string name="quick_preview_new_label">@%1$s (new)</string>
+    <string name="quick_preview_deadline">Deadline %1$s</string>
+    <string name="quick_preview_reminder">Reminder %1$s</string>
+    <string name="quick_reminder_at_time">at the time</string>
+    <string name="quick_reminder_minutes">%1$d min before</string>
+    <string name="quick_reminder_hours">%1$d h before</string>
+    <plurals name="quick_reminder_days">
+        <item quantity="one">%1$d day before</item>
+        <item quantity="other">%1$d days before</item>
+    </plurals>
+    <string name="quick_recurring">repeats: %1$s</string>
+    <string name="channel_quickadd">Adding tasks</string>
+    <string name="channel_quickadd_description">When a task from the small Add task window could not be added</string>
+    <string name="quick_failed_title">Not added: %1$s</string>
+    <string name="quick_failed_forbidden">You can only read this project.</string>
+    <string name="quick_failed_not_found">The project no longer exists, or you are no longer a member.</string>
+    <string name="quick_failed_limit">A limit was reached (for example the number of tasks or labels).</string>
+    <string name="quick_failed_invalid">This text could not become a task (for example, only a date or a label).</string>
+    <string name="quick_failed_unsupported">Your server does not support quick add yet. Update Tickory on the server, or add the task in the app.</string>
+    <string name="quick_failed_expired">There was no connection to the server for two weeks.</string>
+    <string name="quick_failed_signed_out">You signed out before the task was sent.</string>
+    <string name="quick_failed_other_account">Another account has signed in since.</string>
+    <string name="quick_failed_other">The server refused the task (%1$s).</string>
+    <string name="quick_failed_action">Add in the app</string>
 </resources>

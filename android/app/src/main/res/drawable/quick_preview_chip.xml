@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Een label in de voorvertoning onder het invoerveld (titel, datum, project, labels): alleen ter informatie, niet aan te tikken. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="12dp" />
+    <solid android:color="@color/quick_chip" />
+</shape>

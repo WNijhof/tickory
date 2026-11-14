@@ -9,6 +9,12 @@
     <color name="danger">#B42318</color>
     <color name="warn">#B54708</color>
 
+    <!-- Het kleine venster "Taak toevoegen": het vlak, de randen en de vulling van de knoppen en labels. -->
+    <color name="quick_surface">#FFFFFF</color>
+    <color name="quick_stroke">#C4CCD4</color>
+    <color name="quick_chip">#EEF2F5</color>
+    <color name="quick_chip_on">#D5EEEA</color>
+
     <!-- Accentkleur van het pictogram in een melding; in licht en donker gelijk. -->
     <color name="notification_accent">#0F766E</color>
 </resources>
