@@ -122,16 +122,31 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     run(DEMO_ME, 'reminder_add', { id: id('reminder'), task_id: taskId, ...(when ? { type: 'absolute', due: { date: when } } : { type: 'relative', minute_offset: minutes }) });
   };
 
-  /** Een opmerking bij een taak (`{ task }`) of een project (`{ project }`), `minutesAgo` minuten geleden geschreven door `by`. */
-  const comment = (by, target, content, minutesAgo) => {
+  /**
+   * Een opmerking bij een taak (`{ task }`) of een project (`{ project }`), `minutesAgo` minuten geleden geschreven door `by`;
+   * `mentions` zijn de gebruikers-id's van wie er met @Naam in genoemd wordt.
+   */
+  const comment = (by, target, content, minutesAgo, mentions = []) => {
     const cid = id('comment');
-    run(by, 'comment_add', { id: cid, content, ...(target.task ? { task_id: target.task } : { project_id: target.project }) });
+    run(by, 'comment_add', { id: cid, content, mentions, ...(target.task ? { task_id: target.task } : { project_id: target.project }) });
     const row = state.comments.get(cid);
     if (row) {
       const when = new Date(now.getTime() - minutesAgo * 60_000).toISOString();
       row.created_at = when;
       row.updated_at = when;
     }
+    return cid;
+  };
+  /**
+   * Een melding voor jou (wat de server maakt als een ander iets doet, zie server/notify.ts): `kind`, door `by`, over een taak
+   * (`{ task }`) of een project (`{ project }`), eventueel bij een opmerking, `minutesAgo` minuten geleden.
+   */
+  const notification = (by, kind, target, minutesAgo, { comment: commentId = null, read = false } = {}) => {
+    const nid = id('notification');
+    const when = new Date(now.getTime() - minutesAgo * 60_000).toISOString();
+    state.notifications.set(nid, makeRow('notification', nid, {
+      kind, actor_id: by, task_id: target.task ?? null, project_id: target.task ? null : target.project, comment_id: commentId, is_read: read, owner_id: DEMO_ME,
+    }, when));
   };
 
   const [anna, bram, sanne, joost, mila] = DEMO_USERS.map((u) => u.id);
@@ -179,10 +194,11 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   task(anna, { content: 'Planten water geven', project: huis, section: sVast, due: due('elke zondag'), assignee: sanne });
   task(bram, { content: 'Stofzuigen', project: huis, section: sVast, due: due('elke zaterdag'), assignee: anna });
   const lamp = [...state.tasks.values()].find((x) => x.content === 'Lamp in de gang vervangen').id;
-  comment(bram, { task: boodschap }, 'Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.', 150);
+  const koffie = comment(bram, { task: boodschap }, 'Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.', 150);
   comment(anna, { task: boodschap }, 'Top, dank je! Vergeet de hagelslag niet: https://www.voorbeeld.nl/boodschappen', 95);
   comment(bram, { task: lamp }, 'Welke fitting is het, E27 of E14?', 1500);
-  comment(sanne, { project: huis }, 'Wie zet deze week het vuilnis buiten?', 300);
+  const vuilnis = comment(sanne, { project: huis }, 'Wie zet deze week het vuilnis buiten?', 300);
+  const stofzuigen = [...state.tasks.values()].find((x) => x.content === 'Stofzuigen').id;
 
   // ---- Vakantie Texel: van jou alleen ----
   const texel = project(anna, 'Vakantie Texel', [], { color: 'sky' });
@@ -207,9 +223,18 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   const feest = project(joost, 'Buurtfeest', [anna, mila], { color: 'orange' });
   const buurt = label(joost, 'buurt'); // een label van iemand anders: je ziet het, maar kunt het niet wijzigen
   task(joost, { content: 'Vergunning aanvragen bij de gemeente', project: feest, deadline: 14, priority: 1, assignee: joost, labels: [buurt] });
-  task(joost, { content: 'Partytent regelen', project: feest, due: due('aanstaande vrijdag'), assignee: anna });
+  const tent = task(joost, { content: 'Partytent regelen', project: feest, due: due('aanstaande vrijdag'), assignee: anna });
   task(mila, { content: 'Flyers rondbrengen', project: feest, due: due('volgende week'), assignee: mila, labels: [buurt] });
   task(joost, { content: 'Playlist maken', project: feest });
+  const lenen = comment(mila, { task: tent }, '@Anna, kun jij de partytent van je zus lenen? Dan regel ik de tafels.', 40, [anna]);
+
+  // ---- Meldingen: wat anderen deden in de gedeelde projecten (de lijst Meldingen, met het belletje) ----
+  notification(joost, 'shared', { project: feest }, 3 * 24 * 60, { read: true });
+  notification(joost, 'assigned', { task: tent }, 2 * 24 * 60, { read: true });
+  notification(sanne, 'comment', { project: huis }, 300, { comment: vuilnis, read: true });
+  notification(bram, 'comment', { task: boodschap }, 150, { comment: koffie });
+  notification(bram, 'assigned', { task: stofzuigen }, 26 * 60);
+  notification(mila, 'mention', { task: tent }, 40, { comment: lenen });
 
   const meRow = DEMO_USERS.find((u) => u.id === DEMO_ME);
   return {

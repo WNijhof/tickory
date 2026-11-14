@@ -12,7 +12,7 @@ import { createPushClient } from '../core/push.js';
 import { isArchivedProject, roleIn } from '../core/selectors.js';
 import { moveTargets } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
-import { describeCommandError } from '../core/messages.js';
+import { describeCommandError, quietCommandError } from '../core/messages.js';
 import { formatDue, nowString, todayString } from '../core/format.js';
 import { reschedule } from '../core/quickDates.js';
 import { createShortcuts } from '../core/shortcuts.js';
@@ -35,6 +35,7 @@ import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
+import { installInbox } from './inbox.js';
 
 const ROUTE_KEY = 'tickory.route';
 
@@ -610,7 +611,7 @@ async function boot() {
       if (s === 'unauthorized') askLogin();
     },
     onCommandErrors: (errors) => {
-      for (const e of errors) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
+      for (const e of errors) if (!quietCommandError(e)) toast(describeCommandError(e), { kind: 'error', timeout: 10_000 });
     },
   });
 
@@ -651,6 +652,7 @@ async function boot() {
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
+  installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
     content: $('content'), sidebar: $('sidebar'), actions,

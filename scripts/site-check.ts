@@ -470,12 +470,16 @@ if (wants('demo')) {
     ] }, real.joost.id).sync_status), ['ok', 'ok']);
 
     const demo = new DemoServer({ strict: true });
-    const demoFeest = demo.sync({ sync_token: '*' }).projects.find((p: any) => p.name === 'Buurtfeest').id;
+    const demoFirst = demo.sync({ sync_token: '*' });
+    const demoFeest = demoFirst.projects.find((p: any) => p.name === 'Buurtfeest').id;
+    // een melding van Anna aan beide kanten: op de echte server die van het delen van Buurtfeest, in de demo een uit de voorbeeldgegevens
+    const realNotif = (handleSync(db, { sync_token: '*' }, real.anna.id).notifications as any[])[0].id;
+    const demoNotif = demoFirst.notifications[0].id;
     const sides = {
-      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
-      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
+      real: { inbox: real.anna.inbox_project_id, bram: real.bram.id, kees: real.kees.id, joost: real.joost.id, feest: realFeest, notif: realNotif, settings: `settings-${real.anna.id}`, run: (commands: object[]) => handleSync(db, { commands }, real.anna.id) },
+      demo: { inbox: 'inbox-user-anna', bram: 'user-bram', kees: 'user-kees', joost: 'user-joost', feest: demoFeest, notif: demoNotif, settings: 'settings-user-anna', run: (commands: object[]) => demo.sync({ commands }) },
     };
-    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', TP1 = 'check-tpl-0001', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
+    const C1 = 'check-comm-0001', C2 = 'check-comm-0002', C3 = 'check-comm-0007', P = 'check-proj-0001', S = 'check-sect-0001', L = 'check-labl-0001', R1 = 'check-remi-0001', R2 = 'check-remi-0002', R3 = 'check-remi-0009', R4 = 'check-remi-0010', PL1 = 'check-plac-0001', PL2 = 'check-plac-0002', TP1 = 'check-tpl-0001', T1 = 'check-task-1001', T2 = 'check-task-1002', T3 = 'check-task-1003', T4 = 'check-task-1004';
     const weekly = { date: '2030-01-07', string: 'elke maandag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [1] } };
     const TPL = { v: 1, tasks: [{ content: 'Eerst dit', day: 0 }], sections: [{ name: 'Keuken', tasks: [{ content: 'Offerte', priority: 1, day: 3, time: '09:30', labels: ['klus'], duration: 30, subtasks: [{ content: 'Meten' }] }, { content: 'Overleg', day: 0, recurrence: { freq: 'weekly', byweekday: [5] }, repeat_text: 'elke vrijdag' }] }] };
     /** De commando's, met de id's van de ene of de andere kant ingevuld. Bij elk commando de verwachte uitkomst. */
@@ -584,6 +588,24 @@ if (wants('demo')) {
       ['comment_update', { id: C1, task_id: T1 }, 'IMMUTABLE'],
       ['comment_delete', { id: C2 }, 'ok'],
       ['comment_delete', { id: C2 }, 'NOT_FOUND'],
+      // @-vermeldingen: alleen leden van het project blijven staan (Kees is geen lid), hooguit 20
+      ['comment_add', { id: C3, task_id: T3, content: '@Bram en @Opa Kees', mentions: [x.bram, x.kees] }, 'ok'],
+      ['comment_add', { id: 'check-comm-0008', task_id: T3, content: 'te veel', mentions: Array.from({ length: 21 }, (_, i) => `check-user-${String(i).padStart(4, '0')}`) }, 'INVALID_ARG'],
+      ['comment_add', { id: 'check-comm-0009', task_id: T3, content: 'dubbel', mentions: [x.bram, x.bram] }, 'INVALID_ARG'],
+      ['comment_update', { id: C3, content: '@Opa Kees', mentions: [x.kees, x.bram] }, 'ok'],
+      // meldingen: alleen gelezen zetten, door de ontvanger; aanmaken en verwijderen bestaat niet
+      ['notification_update', { id: x.notif, is_read: true }, 'ok'],
+      ['notification_update', { id: x.notif, kind: 'mention' }, 'READONLY'],
+      ['notification_update', { id: x.notif, kleur: 'rood' }, 'UNKNOWN_ARG'],
+      ['notification_update', { id: 'check-notif-geen', is_read: true }, 'NOT_FOUND'],
+      ['notification_add', { id: 'check-notif-0001', kind: 'assigned' }, 'UNKNOWN_COMMAND'],
+      ['notification_delete', { id: x.notif }, 'UNKNOWN_COMMAND'],
+      ['notification_read_all', {}, 'ok'],
+      ['notification_read_all', { up_to: '2030-01-01T00:00:00.000Z' }, 'ok'],
+      ['notification_read_all', { up_to: 'gisteren' }, 'INVALID_ARG'],
+      ['notification_read_all', { iets: 1 }, 'UNKNOWN_ARG'],
+      ['settings_update', { id: x.settings, notify_push: { completed: true, comment: false } }, 'ok'],
+      ['settings_update', { id: x.settings, notify_push: { onbekend: true } }, 'INVALID_ARG'],
       // projecten: kleur, favoriet en archiveren
       ['project_update', { id: P, color: 'teal', is_favorite: true }, 'ok'],
       ['project_update', { id: P, is_archived: true }, 'ok'],
@@ -619,7 +641,7 @@ if (wants('demo')) {
           if (k === 'completed_at') out[k] = v === null ? null : 'TIJD';
           else if (k === 'id' && resource === 'members') continue;
           else if (k === 'id' && resource === 'settings') out[k] = 'SETTINGS';
-          else out[k] = swap(v);
+          else out[k] = Array.isArray(v) ? v.map(swap) : swap(v); // ook in een lijst (vermelde personen)
         }
         return out;
       }).sort((a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1));
@@ -641,7 +663,7 @@ if (wants('demo')) {
     const demoStatus = outcome(sides.demo);
     assert.deepEqual(demoStatus, realStatus, 'de demo geeft per commando dezelfde status en dezelfde foutmelding als de echte server');
 
-    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, PL1, PL2, TP1, 'check-tpl-0003']);
+    const own = new Set([P, S, L, T1, T2, T3, T4, R1, R2, R3, R4, C1, C2, C3, PL1, PL2, TP1, 'check-tpl-0003']);
     const state = (x: typeof sides.real) => {
       const full = x === sides.real ? handleSync(db, { sync_token: '*' }, real.anna.id) : demo.sync({ sync_token: '*' });
       const projects = new Set([P, x.feest]);
@@ -663,6 +685,8 @@ if (wants('demo')) {
     const loose = (s: typeof a) => ({ ...s, tasks: s.tasks.map((t: any) => ({ ...t, order_key: t.project_id === 'INBOX' ? '?' : t.order_key })), labels: s.labels.map((l: any) => ({ ...l, order_key: '?' })), projects: s.projects.map((p: any) => ({ ...p, order_key: '?' })) });
     assert.deepEqual(loose(b), loose(a), 'na dezelfde commando\'s staan in de demo dezelfde rijen als op de echte server');
     assert.equal(a.tasks.length, 4);
+    assert.deepEqual((a.comments.find((c: any) => c.id === C3) as any).mentions, ['BRAM'], 'Kees is geen lid en valt weg, aan beide kanten');
+    assert.deepEqual((a.settings[0] as any).notify_push, { completed: true, comment: false });
     assert.deepEqual(a.templates.map((x: any) => [x.id, x.name, x.kind, x.description, x.color]), [[TP1, 'Nieuwe naam', 'project', 'Klus aan huis', 'brown']], 'het sjabloon is gewijzigd, het andere is verwijderd');
     assert.deepEqual(a.places.map((p: any) => [p.id, p.name, p.radius]), [[PL2, 'Werk', 500]], 'de verwijderde plaats is weg, de andere staat er nog');
     assert.deepEqual(a.reminders.filter((r: any) => r.type === 'location').map((r: any) => [r.id, r.place_id, r.trigger]), [[R4, PL2, 'leave']], 'de herinnering op de verwijderde plaats is mee verdwenen');

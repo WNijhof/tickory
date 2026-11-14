@@ -235,3 +235,37 @@ test('service worker: tikken op de melding haalt de app naar voren bij de taak, 
   await closed.dispatch('notificationclick', { action: '', notification: { data: null, close() {} } });
   assert.deepEqual(closed.calls, ['open /#task=task-aaaa11111', 'open /']);
 });
+
+// ---------- meldingen bij samenwerken ----------
+
+const ACTIVITY = { v: 1, type: 'activity', id: 'notif-aaaa11111', kind: 'assigned', actor: 'Bram', title: 'Tegels kiezen', project: 'Verbouwing', text: null, task_id: 'task-aaaa11111', project_id: null, lang: 'nl' };
+
+test('service worker: een melding bij samenwerken in de taal van het apparaat, met de taak, het project en de knop Openen', async () => {
+  const sw = serviceWorker();
+  await sw.dispatch('push', pushEvent(ACTIVITY));
+  await sw.dispatch('push', pushEvent({ ...ACTIVITY, id: 'notif-bbbb22222', kind: 'mention', text: '@Anna kun jij dit doen?', lang: 'en' }));
+  await sw.dispatch('push', pushEvent({ ...ACTIVITY, id: 'notif-cccc33333', kind: 'comment', task_id: null, project_id: 'proj-aaaa11111', title: 'Verbouwing', project: null, text: 'Wie heeft de sleutel?' }));
+  await sw.dispatch('push', pushEvent({ ...ACTIVITY, id: 'notif-dddd44444', kind: 'iets-nieuws', actor: '' }));
+  await sw.dispatch('push', pushEvent({ ...ACTIVITY, id: '<img src=x>', kind: 'shared', task_id: '../x' }));
+  assert.deepEqual(sw.shown.map((n) => n.title), [
+    'Bram heeft je een taak toegewezen', 'Bram mentioned you in a comment', 'Bram schreef een opmerking bij het project', 'Iemand deed iets in een gedeeld project', 'Bram heeft je toegevoegd aan een project',
+  ]);
+  assert.deepEqual(sw.shown.map((n) => n.options.body), ['Tegels kiezen · Verbouwing', 'Tegels kiezen · Verbouwing\n@Anna kun jij dit doen?', 'Verbouwing\nWie heeft de sleutel?', 'Tegels kiezen · Verbouwing', 'Tegels kiezen · Verbouwing']);
+  assert.deepEqual(JSON.parse(JSON.stringify(sw.shown[0].options.actions)), [{ action: 'open', title: 'Openen' }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(sw.shown[1].options.actions)), [{ action: 'open', title: 'Open' }]);
+  assert.equal(sw.shown[0].options.tag, 'tickory-n-notif-aaaa11111', 'dezelfde melding twee keer is één melding');
+  assert.deepEqual(JSON.parse(JSON.stringify(sw.shown[4].options.data)), { notificationId: null, taskId: null }, 'een vreemd id gaat nergens heen');
+});
+
+test('service worker: tikken op een melding bij samenwerken (of op Openen) opent hem in de app, die hem dan op gelezen zet', async () => {
+  const messages = [];
+  const win = { url: 'https://taken.example.nl/', focus: async () => {}, postMessage: (m) => messages.push(m) };
+  const sw = serviceWorker({ windows: [win] });
+  await sw.dispatch('push', pushEvent(ACTIVITY));
+  for (const action of ['', 'open']) await sw.dispatch('notificationclick', { action, notification: { data: sw.shown[0].options.data, close() {} } });
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: 'open-notification', id: 'notif-aaaa11111' }, { type: 'open-notification', id: 'notif-aaaa11111' }]);
+  assert.deepEqual(sw.calls, [], 'geen verzoek naar de server: de app doet het zelf');
+  const closed = serviceWorker({ windows: [] });
+  await closed.dispatch('notificationclick', { action: 'open', notification: { data: sw.shown[0].options.data, close() {} } });
+  assert.deepEqual(closed.calls, ['open /#notification=notif-aaaa11111']);
+});

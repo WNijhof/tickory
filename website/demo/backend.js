@@ -216,6 +216,11 @@ export class DemoServer {
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
       case 'project_leave': return this.projectLeave(state, args, at);
+      case 'notification_read_all':
+        // zoals de server: alle eigen meldingen gelezen, met `up_to` alleen wat de afzender al zag
+        exactArgs(args, ['up_to']);
+        if (args.up_to !== undefined && (typeof args.up_to !== 'string' || args.up_to.length > 40 || !Number.isFinite(Date.parse(args.up_to)))) fail('INVALID_ARG', 'up_to moet een tijdstip zijn');
+        return apply();
       default: break;
     }
     const m = GENERIC.exec(type);
@@ -449,6 +454,7 @@ export class DemoServer {
     drop('comments', (c) => left.has(c.project_id) || tasks.has(c.task_id));
     drop('attachments', (a) => tasks.has(a.task_id));
     drop('reminders', (r) => tasks.has(r.task_id));
+    drop('notifications', (n) => left.has(n.project_id) || tasks.has(n.task_id)); // en de meldingen erover (zie server/notify.ts)
     drop('projects', (p) => left.has(p.id));
   }
 

@@ -32,6 +32,7 @@ import { attachmentScenario } from './e2e-attachments.ts';
 import { createAttachments } from '../server/attachments.ts';
 import { geoScenario } from './e2e-geo.ts';
 import { templatesScenario } from './e2e-templates.ts';
+import { notifyScenario } from './e2e-notify.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
 const BROWSERS = [
@@ -404,6 +405,14 @@ try {
   const otherToken = createSession(db, alice.id, 'Telefoon').token;
   // slepen en verplaatsen (scripts/e2e-dnd.ts); met E2E_DND_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
+  // meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts); met E2E_NOTIFY_ONLY=1 alleen dat onderdeel
+  const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
+  if (process.env.E2E_NOTIFY_ONLY) {
+    try { await notifyScenario(notifyCtx()); console.log('ALLEEN MELDINGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-meldingen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   if (process.env.E2E_DND_ONLY) {
     try { await dndScenario(); console.log('ALLEEN SLEPEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-slepen'); process.exitCode = 1; }
     browser.kill();
@@ -1370,6 +1379,9 @@ try {
   await noDialog();
   assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   step('opmerkingen: toevoegen (ook met Ctrl+Enter), regeleinden en webadressen als gewone link, HTML blijft tekst, bewerken en verwijderen alleen van jezelf, een opmerking van Bob verschijnt vanzelf, teller in de lijst, opmerkingen bij een project');
+
+  // ---- 8g1. meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts) ----
+  await notifyScenario(notifyCtx());
 
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
