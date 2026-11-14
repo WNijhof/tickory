@@ -221,6 +221,7 @@ const handlers = {
 
   /** Een voltooide taak terugzetten (overzicht Voltooid); een terugkerende taak zegt welke datum hij heeft. */
   async restoreTask(task) {
+    if (!canEditProject(store.view, task.project_id, store.userId)) return handlers.readOnlyNotice(task);
     const { entry } = await actions.track(t('completed.restored', { name: task.content }), () => actions.uncompleteTask(task.id));
     const now = store.view.tasks.get(task.id);
     undoToast(now?.due?.recurrence ? t('completed.restoredRecurring', { name: task.content, date: formatDue({ date: now.due.date }, todayString()) }) : t('completed.restored', { name: task.content }), entry);

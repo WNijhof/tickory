@@ -102,6 +102,7 @@ function add(state, e, args, now, userId) {
     if (count >= MAX_ATTACHMENTS_PER_TASK) return;
   }
   if (e.name === 'reminder') {
+    if (!state.tasks.has(row.task_id)) return; // bij een taak die bestaat (zoals de server)
     // een locatieherinnering heeft een eigen plaats nodig en een trigger, de andere soorten niet (zoals op de server)
     if (row.type === 'location') {
       if (!row.place_id || !state.places.has(row.place_id) || !row.trigger || row.due || row.minute_offset !== null) return;
@@ -237,7 +238,7 @@ function mayUpdateProject(state, args, userId) {
   const row = state.projects.get(args.id);
   if (!row) return true; // niet te vinden: update() doet zelf niets
   const parentId = has(args, 'parent_id') ? args.parent_id ?? null : row.parent_id ?? null;
-  if (isInboxId(args.id) && parentId !== null) return false;
+  if (isInboxId(args.id) && (parentId !== null || args.is_archived === true)) return false; // de Inbox wordt niet verplaatst of gearchiveerd, zoals op de server
   if (!has(args, 'parent_id') || parentId === (row.parent_id ?? null)) return true;
   if (userId && !isOwner(state, userId, args.id)) return false;
   if (parentId === null) return true;
@@ -459,6 +460,7 @@ export function applyCommand(state, cmd, now, userId = null) {
         const edited = e.name === 'project' ? args.parent_id ?? null : editedProject(state, e.name, args);
         if (edited !== null && !mayEdit(state, userId, edited)) return undefined;
         if (e.name === 'task' && !mayAssign(state, userId, args.project_id, args.assignee_id)) return undefined;
+        if (e.name === 'project' && args.parent_id && isInboxId(args.parent_id)) return undefined; // de Inbox heeft geen subprojecten (zoals de server)
         return add(state, e, args, now, userId);
       }
       const existing = state[e.resource].get(args.id);

@@ -221,7 +221,7 @@ function buildRow(m, variant = '') {
 
   const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
   body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
-  li.append(selBox, check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null));
+  li.append(...(m.readOnly ? [] : [selBox]), check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null)); // een taak die je alleen leest, kies je niet
   if (!m.readOnly) li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
   if (m.project) li.append(mk('span', 'chip chip-project', dot(m.project.color), mk('span', 'chip-project-name', m.project.name)));
   if (variant === 'completed' && !m.readOnly) {

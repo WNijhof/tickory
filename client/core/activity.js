@@ -122,41 +122,41 @@ export function describeEntry(entry, { view, projectId, userName }) {
   const sectionName = (id) => (id ? view.sections.get(id)?.name ?? t('activity.goneSection') : t('activity.noSection'));
   let sentence;
   switch (entry.kind) {
-    case 'task_added': sentence = t('activity.task_added', { actor }); break;
+    case 'task_added': sentence = t('activity.taskAdded', { actor }); break;
     case 'task_updated': {
       const fields = (Array.isArray(x.fields) ? x.fields : []).filter((f) => Object.hasOwn(FIELD, f));
       const parts = fields.filter((f) => f !== 'assignee_id').map((f) => FIELD[f]());
       if (fields.includes('assignee_id')) parts.push(x.assignee_id ? t('activity.assignedTo', { name: name(x.assignee_id) }) : t('activity.unassigned'));
-      sentence = parts.length > 0 ? t('activity.task_updated', { actor, fields: listOf(parts) }) : t('activity.task_updatedPlain', { actor });
+      sentence = parts.length > 0 ? t('activity.taskUpdated', { actor, fields: listOf(parts) }) : t('activity.taskUpdatedPlain', { actor });
       break;
     }
-    case 'task_completed': sentence = x.recurring ? t('activity.task_completedRecurring', { actor }) : t('activity.task_completed', { actor }); break;
-    case 'task_uncompleted': sentence = t('activity.task_uncompleted', { actor }); break;
+    case 'task_completed': sentence = x.recurring ? t('activity.taskCompletedRecurring', { actor }) : t('activity.taskCompleted', { actor }); break;
+    case 'task_uncompleted': sentence = t('activity.taskUncompleted', { actor }); break;
     case 'task_moved':
       if (x.from_project || x.to_project) {
         sentence = x.to_project === projectId
-          ? t('activity.task_movedHere', { actor, project: projectName(x.from_project) ?? t('activity.otherProject') })
-          : t('activity.task_movedAway', { actor, project: projectName(x.to_project) ?? t('activity.otherProject') });
-      } else sentence = t('activity.task_movedSection', { actor, section: sectionName(x.to_section ?? null) });
+          ? t('activity.taskMovedHere', { actor, project: projectName(x.from_project) ?? t('activity.otherProject') })
+          : t('activity.taskMovedAway', { actor, project: projectName(x.to_project) ?? t('activity.otherProject') });
+      } else sentence = t('activity.taskMovedSection', { actor, section: sectionName(x.to_section ?? null) });
       break;
-    case 'task_deleted': sentence = t('activity.task_deleted', { actor }); break;
-    case 'task_restored': sentence = t('activity.task_restored', { actor }); break;
-    case 'section_added': sentence = t('activity.section_added', { actor }); break;
-    case 'section_renamed': sentence = t('activity.section_renamed', { actor, from: String(x.from ?? '') }); break;
-    case 'section_deleted': sentence = t('activity.section_deleted', { actor }); break;
-    case 'section_restored': sentence = t('activity.section_restored', { actor }); break;
-    case 'comment_added': sentence = entry.task_id ? t('activity.comment_added', { actor }) : t('activity.comment_addedProject', { actor }); break;
-    case 'comment_deleted': sentence = t('activity.comment_deleted', { actor }); break;
-    case 'attachment_added': sentence = t('activity.attachment_added', { actor }); break;
-    case 'attachment_deleted': sentence = t('activity.attachment_deleted', { actor }); break;
-    case 'member_added': sentence = t('activity.member_added', { actor, name: name(entry.user_id), role: roleName(x.role) }); break;
-    case 'member_role': sentence = t('activity.member_role', { actor, name: name(entry.user_id), role: roleName(x.role) }); break;
-    case 'member_removed': sentence = t('activity.member_removed', { actor, name: name(entry.user_id) }); break;
-    case 'member_left': sentence = t('activity.member_left', { actor }); break;
-    case 'project_created': sentence = t('activity.project_created', { actor }); break;
-    case 'project_renamed': sentence = t('activity.project_renamed', { actor, from: String(x.from ?? '') }); break;
-    case 'project_archived': sentence = t('activity.project_archived', { actor }); break;
-    case 'project_unarchived': sentence = t('activity.project_unarchived', { actor }); break;
+    case 'task_deleted': sentence = t('activity.taskDeleted', { actor }); break;
+    case 'task_restored': sentence = t('activity.taskRestored', { actor }); break;
+    case 'section_added': sentence = t('activity.sectionAdded', { actor }); break;
+    case 'section_renamed': sentence = t('activity.sectionRenamed', { actor, from: String(x.from ?? '') }); break;
+    case 'section_deleted': sentence = t('activity.sectionDeleted', { actor }); break;
+    case 'section_restored': sentence = t('activity.sectionRestored', { actor }); break;
+    case 'comment_added': sentence = entry.task_id ? t('activity.commentAdded', { actor }) : t('activity.commentAddedProject', { actor }); break;
+    case 'comment_deleted': sentence = t('activity.commentDeleted', { actor }); break;
+    case 'attachment_added': sentence = t('activity.attachmentAdded', { actor }); break;
+    case 'attachment_deleted': sentence = t('activity.attachmentDeleted', { actor }); break;
+    case 'member_added': sentence = t('activity.memberAdded', { actor, name: name(entry.user_id), role: roleName(x.role) }); break;
+    case 'member_role': sentence = t('activity.memberRole', { actor, name: name(entry.user_id), role: roleName(x.role) }); break;
+    case 'member_removed': sentence = t('activity.memberRemoved', { actor, name: name(entry.user_id) }); break;
+    case 'member_left': sentence = t('activity.memberLeft', { actor }); break;
+    case 'project_created': sentence = t('activity.projectCreated', { actor }); break;
+    case 'project_renamed': sentence = t('activity.projectRenamed', { actor, from: String(x.from ?? '') }); break;
+    case 'project_archived': sentence = t('activity.projectArchived', { actor }); break;
+    case 'project_unarchived': sentence = t('activity.projectUnarchived', { actor }); break;
     default: sentence = t('activity.other', { actor });
   }
   const task = entry.task_id ? view.tasks.get(entry.task_id) : null;

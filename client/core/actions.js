@@ -272,7 +272,10 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
 
     // ---- delen en samenwerken ----
     /** Deelt een project met iemand, op gebruikersnaam. De server meldt het als die niet bestaat. */
-    shareProject: (project_id, username) => send([{ type: 'project_share', args: { project_id, username: username.trim() } }]),
+    /** `role`: 'member' (kan bewerken, de standaard) of 'viewer' (alleen lezen); zie shared/roles.js. */
+    shareProject: (project_id, username, role = 'member') => send([{ type: 'project_share', args: { project_id, username: username.trim(), ...(role !== 'member' ? { role } : {}) } }]),
+    /** De rol van een lid wijzigen (alleen de eigenaar): 'member' of 'viewer'. Wordt iemand lezer, dan vervallen zijn toewijzingen. */
+    updateMemberRole: (project_id, user_id, role) => send([{ type: 'member_update', args: { project_id, user_id, role } }]),
     unshareProject: (project_id, user_id) => send([{ type: 'project_unshare', args: { project_id, user_id } }]),
     leaveProject: (project_id) => send([{ type: 'project_leave', args: { project_id } }]),
     /** Wijst een taak toe aan een lid van het project, of aan niemand (null). */

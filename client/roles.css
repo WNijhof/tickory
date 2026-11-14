@@ -1,0 +1,33 @@
+/* Rollen in een gedeeld project (alleen lezen) en het scherm Activiteit (ui/activity.js).
+   Alleen de kleuren uit app.css (die hebben een licht en een donker thema). */
+
+/* ---------- alleen lezen ---------- */
+.banner-readonly { justify-content: flex-start; color: var(--text-soft); }
+.banner-readonly .icon { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.task-readonly .check, .check[disabled] { opacity: 0.45; cursor: not-allowed; }
+.task-readonly .task-body { cursor: pointer; }
+.nav-readonly .icon { color: var(--text-soft); }
+.cal-lock .icon { opacity: 0.7; }
+.dialog-task .field[readonly], .dialog-task .subtask-title[readonly] { background: transparent; }
+.dialog-task .banner-readonly { margin: 0 0 10px; }
+.share-invite { flex-wrap: wrap; }
+.share-role { width: auto; min-height: 40px; }
+.device .share-role { margin-left: auto; }
+
+/* ---------- activiteit ---------- */
+.activity-status:empty { display: none; }
+.activity-day { max-width: 760px; }
+.activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.activity-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+.activity-avatar { width: 30px; height: 30px; font-size: 0.8rem; }
+.activity-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.activity-sentence { font-size: 0.92rem; color: var(--text); overflow-wrap: anywhere; }
+.activity-title { align-self: flex-start; text-align: left; overflow-wrap: anywhere; }
+.activity-title-plain { color: var(--text-soft); }
+.activity-gone { font-size: 0.85rem; }
+.activity-time { font-size: 0.78rem; color: var(--text-soft); font-variant-numeric: tabular-nums; }
+.activity-more { margin: 14px 0 24px; }
+@media (max-width: 760px) {
+  .activity-item { padding: 10px 2px; }
+  .device { flex-wrap: wrap; }
+}

@@ -21,6 +21,7 @@ import { formatDate, todayString } from '../core/format.js';
 import { isTyping } from '../core/shortcuts.js';
 import { t } from '../core/i18n.js';
 import { labelList } from '../core/selectors.js';
+import { canEditProject } from '../core/access.js';
 import { assignDialog, dateDialog, labelsDialog, moveDialog, priorityDialog } from './bulkDialogs.js';
 import { confirmDialog, h, replace, toast } from './dom.js';
 import { icon } from './icons.js';
@@ -62,7 +63,7 @@ export function installSelection({ content, store, actions, handlers }) {
     const out = [];
     for (const row of content.querySelectorAll(ROW)) {
       const id = idOf(row);
-      if (!isReal(row) || seen.has(id)) continue;
+      if (!isReal(row) || seen.has(id) || row.dataset.readonly === 'true') continue; // een taak die je alleen leest, kies je niet
       seen.add(id);
       out.push(id);
     }
@@ -160,7 +161,12 @@ export function installSelection({ content, store, actions, handlers }) {
 
   // ---------- klikken ----------
   const taskOf = (id) => store.view.tasks.get(id);
-  const toggleId = (id) => { sel.toggle(id); };
+  // een taak in een project dat je alleen leest (core/access.js) kun je niet kiezen: er is niets mee te doen
+  const editable = (id) => { const task = taskOf(id); return Boolean(task) && canEditProject(store.view, task.project_id, store.userId); };
+  const toggleId = (id) => {
+    if (editable(id) || sel.has?.(id)) sel.toggle(id);
+    else announce(t('readonly.cannotSelect'));
+  };
 
   // Na een lange druk volgt bij het loslaten nog een "klik". Die telt niet: hij zou de keuze weer opheffen, of (de actiebalk schuift de
   // lijst op) op een ander element landen. We negeren klikken vanaf de lange druk tot 60 ms na het loslaten.
