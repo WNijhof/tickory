@@ -12,7 +12,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
 
 <h2>What the app is</h2>
 <ul>
-  <li>An app of its own, written in Kotlin, that shows your Tickory server in Android's built-in browser (<em>Android System WebView</em>). It is the same app as in your browser, with the same screens.</li>
+  <li>An app of its own, written in Kotlin, that shows your Tickory server in Android's built-in browser (<em>Android System WebView</em>). It is the same app as in your browser, with the same screens: on the phone with the menu in a bar at the bottom (Inbox, Today, Upcoming and Browse) and a round <strong>+</strong> button to add a task, see <a href="the-screen.html#on-a-phone">On a phone</a>.</li>
   <li>On top of that the app fetches your tasks and reminders and sets them as <strong>alarms on the device</strong>. A reminder goes off without the server or a push service being involved.</li>
   <li><strong>No Google services</strong>: no Google Play, no Firebase, no trackers or statistics. The app only talks to the server you enter. The built-in browser sends no usage statistics to Google and does not use <em>Safe Browsing</em>.</li>
   <li>The sign-in the app itself uses in the background is stored encrypted on the device (key in the Android Keystore). The web app inside the app keeps its own copy of the sign-in, like any browser does, in the app's private storage and not encrypted; whoever roots the device or can read the app's data can read that one too. Nothing from the app goes into cloud backups or when transferring to another device.</li>
