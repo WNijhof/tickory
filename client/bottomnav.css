@@ -27,6 +27,8 @@
   .bnav-icon { position: relative; display: inline-flex; }
   .bnav-icon .icon { width: 24px; height: 24px; }
   .bnav-item.active .bnav-icon .icon { stroke-width: 2.3; }
+  /* één regel, zoals de balk van Android zelf; pas bij heel grote letters (meer dan ongeveer 130 %, de app volgt de lettergrootte van
+     Android) krijgt een lange naam een beletselteken. Voor een schermlezer blijft de hele naam staan. */
   .bnav-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* het aantal bij Vandaag, zoals in de zijbalk */
   .bnav-badge {

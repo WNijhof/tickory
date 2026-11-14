@@ -2158,6 +2158,15 @@ try {
   assert.deepEqual([barNow.current, barNow.active, barNow.expanded], [['browse'], ['browse'], 'false'], 'een project (niet de Inbox) hoort bij Bladeren');
   assert.ok(barNow.sizes.every(([w, h]: number[]) => w >= 48 && h >= 48), `tikvlakken van de balk: ${JSON.stringify(barNow.sizes)}`);
   assert.equal(barNow.clipped, 0, 'geen afgekapte namen in de balk');
+  // ook op een smal toestel (360 pixels) met grote letters (125 %) past "Aankomend"
+  await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 3, mobile: true });
+  await evaluate(`document.documentElement.style.fontSize = '20px'`);
+  await sleep(200);
+  assert.deepEqual([(await barState()).clipped, await evaluate(`document.documentElement.scrollWidth`)], [0, 360], 'op 360 pixels met grote letters niets afgekapt en niets dat uitsteekt');
+  await shot('telefoon-balk-groot');
+  await evaluate(`document.documentElement.style.removeProperty('font-size')`);
+  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+  await sleep(200);
   assert.equal(barNow.color, await cssColor('--accent'), 'de actieve knop in de accentkleur');
   assert.notEqual(barNow.soft, barNow.color, 'de andere knoppen niet');
   assert.equal(barNow.background, barNow.page, 'de balk heeft de achtergrond van de pagina (die van de Android-app loopt eronder door)');
