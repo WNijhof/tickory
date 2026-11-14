@@ -1,0 +1,67 @@
+<!--
+title: Overstappen van Todoist
+description: Je projecten in één keer meenemen uit Todoist: de back-up downloaden, in Tickory importeren, en wat er wel en niet meekomt (secties, subtaken, labels, opmerkingen, datums in het Nederlands en Engels).
+-->
+<h1>Overstappen van Todoist</h1>
+<p class="intro">Kom je van Todoist, dan neem je je lijsten in één keer mee: projecten, secties, taken met subtaken, beschrijvingen, prioriteit, labels, opmerkingen en datums. Je downloadt de back-up in Todoist, kiest dat bestand in Tickory, ziet eerst wat er meekomt, en importeert. Het gebeurt op je eigen apparaat; Tickory haalt niets op bij Todoist en vraagt niet om je wachtwoord.</p>
+
+<h2 id="in-todoist">In Todoist: de back-up downloaden</h2>
+<ol>
+  <li>Open Todoist in de browser (of de app voor de computer) en ga naar <strong>Instellingen</strong> › <strong>Back-ups</strong>.</li>
+  <li>Download de nieuwste back-up. Je krijgt een zip-bestand met per project een CSV-bestand. Pak het niet uit: Tickory leest de zip zelf.</li>
+</ol>
+<p>Zie je geen back-ups (Todoist maakt ze niet bij elk abonnement), exporteer dan elk project apart: open het project in Todoist, kies in het menu met de drie puntjes <strong>Exporteren als CSV-bestand</strong> (bij oudere versies "Exporteren als sjabloon"), en kies daarna in Tickory al die CSV-bestanden tegelijk.</p>
+
+<h2 id="in-tickory">In Tickory: importeren</h2>
+<ol>
+  <li>Open <x-ui k="settings.title"></x-ui> (je naam linksonder) en kies <x-ui k="settings.import"></x-ui>.</li>
+  <li>Kies bij <x-ui k="import.fileLabel"></x-ui> de zip, of een of meer CSV-bestanden.</li>
+  <li>Je ziet per project wat er meekomt: het aantal secties, taken, opmerkingen en labels, en wat niet herkend is (bijvoorbeeld "3 datums niet herkend, staan in de beschrijving"). Er wordt nog niets aangemaakt.</li>
+  <li>Vink uit wat je niet wilt meenemen (met <x-ui k="import.selectAll"></x-ui> en <x-ui k="import.selectNone"></x-ui> kies je alles in één keer), en kies waar de projecten komen: onder een nieuw project <strong><x-ui k="import.umbrellaName"></x-ui></strong> (de naam kun je aanpassen) of los, bovenaan in je lijst.</li>
+  <li>Klik op <x-ui k="import.submit"></x-ui>. De projecten staan er meteen, ook zonder verbinding; ze gaan naar de server zodra die er is.</li>
+</ol>
+<p>Niet goed gegaan? Klik in de melding onderin op <strong>Ongedaan maken</strong>: de geïmporteerde projecten verdwijnen weer, met alles erin. Labels die de import aanmaakte, blijven staan.</p>
+
+<h2 id="wat-meekomt">Wat er meekomt</h2>
+<table>
+  <thead><tr><th>Uit Todoist</th><th>In Tickory</th></tr></thead>
+  <tbody>
+    <tr><td>Een project (een CSV-bestand)</td><td>Een project met dezelfde naam. Heet een bestand "Werk - Klanten" en staat er ook een project "Werk" in de back-up, dan wordt "Klanten" een subproject van "Werk". Is dat niet eenduidig, dan blijft de naam zoals hij is.</td></tr>
+    <tr><td>Secties, taken en subtaken</td><td>Hetzelfde, in dezelfde volgorde (tot vijf niveaus diep, zoals in Todoist).</td></tr>
+    <tr><td>Beschrijving en prioriteit</td><td>Hetzelfde: p1 is P1, p4 is geen prioriteit.</td></tr>
+    <tr><td>Labels (<code>@boodschappen</code>)</td><td>Labels. Een label dat je al hebt (ook met andere hoofdletters) wordt hergebruikt; de rest wordt aangemaakt.</td></tr>
+    <tr><td>Opmerkingen</td><td>Opmerkingen bij de taak (of bij het project).</td></tr>
+    <tr><td>Datums en herhalingen</td><td>Datums met tijd en herhalingen, in het Nederlands en het Engels (zie hieronder).</td></tr>
+    <tr><td>Deadline en duur</td><td>De deadline en de duur van de taak.</td></tr>
+    <tr><td>Een project als bord</td><td>Het project als bord.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="wat-niet">Wat niet meekomt</h2>
+<ul>
+  <li><strong>Afgevinkte taken en gearchiveerde projecten</strong>: die staan niet in een back-up van Todoist.</li>
+  <li><strong>Herinneringen</strong>: zet ze opnieuw in Tickory. De import zet ook geen automatische herinneringen, zodat er niet honderden tegelijk afgaan.</li>
+  <li><strong>Bijlagen</strong>: alleen de naam staat in de opmerking ("[Bijlage: bonnetje.jpg]"); het bestand zelf niet.</li>
+  <li><strong>Wie een taak maakte of toegewezen kreeg</strong>: die namen zie je in het voorbeeld, maar ze worden niet gekoppeld aan gebruikers van jouw server. <a href="delen.html">Deel een project</a> daarna opnieuw en wijs taken opnieuw toe.</li>
+  <li>De kleur van een project, filters, en labels die op geen enkele taak staan.</li>
+</ul>
+
+<h2 id="datums">Datums</h2>
+<p>Todoist schrijft een datum als tekst in de taal van je Todoist-app. Tickory leest:</p>
+<ul>
+  <li><strong>Nederlands</strong>: alles wat je ook in Tickory kunt typen, zoals "morgen om 9 uur", "elke maandag", "elke tweede dinsdag", "elk jaar op 5 december" (zie <a href="datums-en-herhalingen.html">Datums en herhalingen</a>).</li>
+  <li><strong>Engels</strong>: de gangbare vormen, zoals "today", "tomorrow at 9am", "Jan 12", "12 Jan 2027", "every day", "every monday", "every mon, wed and fri", "every other week", "every weekday", "every month on the 15th", "every last friday", "every jan 12" en "every! 3 days". Een Engelse herhaling krijgt in Tickory een Nederlandse tekst ("elke maandag"), zodat je hem in het taakvenster gewoon kunt aanpassen.</li>
+  <li>Een datum als <code>2026-12-01</code> in elke taal.</li>
+</ul>
+<p>Een datum die Tickory niet herkent, gaat niet verloren: hij staat onderaan de beschrijving van de taak, als "Datum uit Todoist: every 3rd workday". Het voorbeeld zegt hoeveel dat er zijn. <a href="zoeken.html">Zoek</a> daarna op <code>Datum uit Todoist</code> om ze terug te vinden en een datum te kiezen.</p>
+
+<h2 id="telefoon">Op een telefoon</h2>
+<p>In de <a href="android-app.html">Android-app</a> kies je het bestand met de gewone bestandskiezer. Je kunt de zip ook vanuit je Downloads of een andere app <strong>delen naar Tickory</strong>: dan opent het importvenster vanzelf met dat bestand, in plaats van een nieuwe taak.</p>
+
+<h2 id="eigen-export">Ook voor je eigen export</h2>
+<p>Hetzelfde venster leest ook wat Tickory zelf <a href="exporteren.html">exporteert</a>: de CSV met alle taken (met subprojecten) en de JSON. Handig als je naar een andere Tickory-server verhuist. Uit de JSON komen ook kleuren mee; afgevinkte taken niet.</p>
+
+<div class="note">
+  <span class="note-label">Veilig</span>
+  <p>Het bestand wordt alleen gelezen en gecontroleerd, op je eigen apparaat: er wordt niets uitgevoerd of opgehaald, en tekst blijft tekst. Een beschadigde, afgekapte of versleutelde zip wordt geweigerd met een duidelijke melding, en bestanden in de zip die geen CSV zijn, worden overgeslagen. Past de import niet binnen de grenzen van de server (bijvoorbeeld meer dan 200 secties in één project), dan zegt het venster dat vooraf en wordt er niets half aangemaakt.</p>
+</div>

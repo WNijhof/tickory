@@ -18,7 +18,7 @@ description: A copy of your tasks: everything as JSON to keep, or tasks as CSV (
   <li>A subtask sits under its task, with <code>INDENT</code> 2, 3 or 4 (deeper than four levels becomes 4).</li>
   <li>A comment is a <code>note</code> line under its task. Comments on a whole project and attachments (the files themselves) are not included; the JSON has the list of attachments.</li>
   <li>Labels follow the title as <code>@label</code>; spaces in a label name become <code>_</code>.</li>
-  <li><code>DATE</code> is the text as you typed it (<code>vrijdag</code>, <code>elke maandag</code>), or the date if there was no text; <code>DATE_LANG</code> is <code>nl</code> or <code>en</code>.</li>
+  <li><code>DATE</code> is, for a recurrence, the text as you typed it (<code>elke maandag</code>), and otherwise the date itself (<code>2026-11-20</code> or <code>2026-11-20T09:30</code>); <code>DATE_LANG</code> is <code>nl</code> or <code>en</code>.</li>
   <li>The file is UTF-8, with a marker for Excel so letters such as é and ï stay intact.</li>
 </ul>
 <div class="note">
@@ -29,8 +29,10 @@ description: A copy of your tasks: everything as JSON to keep, or tasks as CSV (
 <h2>In the Android app</h2>
 <p>The app opens the Android screen where you choose where the file is saved. In a browser it is a normal download.</p>
 
+<h2 id="importing-again">Importing again</h2>
+<p>You read both files back in with <x-ui k="settings.import"></x-ui> (see <a href="switching-from-todoist.html#own-export">Switching from Todoist</a>), for example when you move to another server: projects with sub-projects, sections, open tasks with sub-tasks, labels, comments and dates come along. For the CSV, Tickory then removes the <code>'</code> in front of formulas again. A plain date is in the CSV as a date (<code>2026-11-20</code>), a recurrence as text (<code>elke maandag</code>), so importing again gives the same dates.</p>
+
 <h2>What it cannot do yet</h2>
 <ul>
-  <li>Importing such a file into Tickory itself, except as a template: a CSV in Todoist's format can be imported as a project template (tasks, sections, subtasks and priority; no dates). See <a href="templates.html#sharing">Templates</a>. Importing individual tasks is not possible.</li>
   <li>One file per project in one go, or an export of the attachments themselves.</li>
 </ul>
