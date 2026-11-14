@@ -73,7 +73,7 @@
   },
   "instellingen": {
     "width": 976,
-    "height": 876
+    "height": 1388
   },
   "meldingen": {
     "width": 1296,
@@ -185,7 +185,7 @@
   },
   "en/instellingen": {
     "width": 976,
-    "height": 876
+    "height": 1388
   },
   "en/meldingen": {
     "width": 1296,
@@ -238,5 +238,21 @@
   "en/voltooid": {
     "width": 2240,
     "height": 1440
+  },
+  "productiviteit": {
+    "width": 1680,
+    "height": 3000
+  },
+  "telefoon-productiviteit": {
+    "width": 780,
+    "height": 1560
+  },
+  "en/productiviteit": {
+    "width": 1680,
+    "height": 3030
+  },
+  "en/telefoon-productiviteit": {
+    "width": 780,
+    "height": 1560
   }
 }

@@ -1,0 +1,52 @@
+<!--
+title: Productiviteit
+description: Hoeveel taken je vandaag en deze week afvinkte tegenover je eigen doelen, je reeksen van dagen en weken, de laatste 7 dagen en 12 weken als staafdiagram, per project, en hoe je doelen en vrije dagen instelt.
+-->
+<h1>Productiviteit</h1>
+<p class="intro">Hoeveel heb je deze week eigenlijk gedaan, en lukt het je om dat vol te houden? <x-ui k="productivity.title"></x-ui> zet het op een rij: vandaag en deze week tegenover je eigen doelen, hoeveel dagen en weken achter elkaar je die haalde, en waar je werk zat. Zonder punten, niveaus of beloningen: alleen wat je deed.</p>
+
+<x-shot name="productiviteit" alt="Het scherm Productiviteit: bovenaan vier tegels (Vandaag 3/5, Deze week 10/25, Reeks dagen 8 dagen, Reeks weken 6 weken), daaronder een staafdiagram van de laatste 7 dagen met een stippellijn voor het dagdoel, een staafdiagram per week met weeknummers, de verdeling over projecten van deze week en onderaan de doelen met de vrije dagen zaterdag en zondag.">Vandaag, deze week, je reeksen, de laatste dagen en weken, per project en je doelen, op één scherm.</x-shot>
+
+<h2 id="openen">Openen</h2>
+<ul>
+  <li>Boven <a href="voltooid.html">Voltooid</a> staat een regel met wat je vandaag en deze week afvinkte en je reeks; de knop <x-ui k="productivity.open"></x-ui> opent het hele overzicht.</li>
+  <li>Of via <x-ui k="settings.title"></x-ui> (je naam onderaan de zijbalk) en dan <x-ui k="settings.productivity"></x-ui>.</li>
+  <li>Het scherm heeft geen eigen regel in de zijbalk. Met <x-ui k="nav.completed"></x-ui> rechtsboven ga je terug naar Voltooid.</li>
+</ul>
+
+<h2 id="wat-telt">Wat telt</h2>
+<ul>
+  <li><strong>Elke afvinking van jou.</strong> Ook elke keer dat je een terugkerende taak afvinkt (die staat niet in Voltooid, omdat ze open blijft met de volgende datum). Een subtaak die samen met haar taak wordt afgevinkt, telt niet apart.</li>
+  <li><strong>Terugzetten telt niet.</strong> Zet je een taak terug (of maak je het afvinken ongedaan), dan telt die afvinking niet meer. Maak je het afvinken van een <em>terugkerende</em> taak ongedaan, dan telt het wel mee, net als de teller van de taak zelf.</li>
+  <li><strong>Alleen jij.</strong> Wat anderen in een gedeeld project afvinken, telt niet mee en is hier ook niet te zien; ook bij de projecten staat alleen wat jij er afvinkte.</li>
+  <li><strong>De projecten die je nu ziet,</strong> ook je Inbox en gearchiveerde projecten. Verlaat je een project, of wordt het verwijderd, dan tellen de afvinkingen daarin niet meer.</li>
+  <li><strong>Per dag</strong> in de tijdzone van het apparaat waarop je kijkt, zoals Vandaag en Voltooid: wat je om half een 's nachts afvinkt, hoort bij de nieuwe dag. Zomer- en wintertijd maken niets uit.</li>
+  <li><strong>180 dagen terug.</strong> Zo lang bewaart de server wat er gebeurde (het <a href="activiteit.html">activiteitenlogboek</a>); daarvoor weet het overzicht niets. Een reeks kan dus hooguit zo lang zijn.</li>
+</ul>
+
+<h2 id="wat-je-ziet">Wat je ziet</h2>
+<ul>
+  <li><strong>Vandaag en deze week:</strong> hoeveel je afvinkte, van hoeveel je doel is, en hoeveel er nog te gaan zijn (of <em>Doel gehaald</em>). Een week loopt van maandag tot en met zondag.</li>
+  <li><strong>Reeks dagen:</strong> hoeveel dagen achter elkaar je het dagdoel haalde, en de langste reeks. Vandaag breekt de reeks nog niet: de dag is nog niet om. Een <a href="#vrije-dagen">vrije dag</a> breekt de reeks ook niet.</li>
+  <li><strong>Reeks weken:</strong> hoeveel weken achter elkaar je het weekdoel haalde, en de langste.</li>
+  <li><strong>De laatste 7 dagen</strong> en <strong>per week</strong> (de laatste 4 of 12 weken, kies met de knoppen; dit apparaat onthoudt de keuze) als staafdiagram. De stippellijn is je doel; vandaag en deze week zijn het donkerst, vrije dagen lichter. Onder de weken staat het weeknummer. Wijs je een staaf aan, dan zie je de dag of week voluit met het aantal. Voor een schermlezer staan dezelfde getallen in een tabel.</li>
+  <li><strong>Deze week per project:</strong> de vijf projecten waar je het meest afvinkte, met hun kleur, en de rest samen onder <em>Overige projecten</em>.</li>
+</ul>
+
+<x-shot name="telefoon-productiviteit" alt="Productiviteit op een telefoon: de vier tegels Vandaag, Deze week, Reeks dagen en Reeks weken staan onder elkaar, elk met het getal groot en een regel eronder; bij Vandaag en Deze week een balkje dat laat zien hoe ver je bent.">Op een telefoon staat alles onder elkaar.</x-shot>
+
+<h2 id="doelen">Doelen</h2>
+<p>Onderaan het scherm stel je in hoeveel taken je wilt afvinken: <x-ui k="productivity.goalDaily"></x-ui> (standaard 5) en <x-ui k="productivity.goalWeekly"></x-ui> (standaard 25). Een doel van <strong>0</strong> zet het uit: dan zie je alleen het aantal en is er geen reeks. Een doel kan tot 100 per dag en 700 per week. De doelen horen bij je account, dus ze gelden op al je apparaten, ook in de Android-app.</p>
+
+<h2 id="vrije-dagen">Vrije dagen</h2>
+<p>Kies de dagen waarop je niet aan je dagdoel hoeft te denken; standaard zaterdag en zondag. Op een vrije dag breekt je reeks niet. Haal je het dagdoel op een vrije dag toch, dan telt die dag gewoon mee. Minstens één dag van de week telt altijd mee. Het weekdoel kijkt niet naar vrije dagen: alles wat je in de week afvinkt, telt.</p>
+
+<h2 id="offline">Zonder verbinding</h2>
+<p>De getallen komen van de server. Het laatste overzicht blijft op het apparaat bewaard, dus zonder verbinding zie je wat er was, met erbij wanneer het is bijgewerkt. Vink je iets af (hier of op een ander apparaat), dan werkt het overzicht zichzelf bij zolang het in beeld is; met <x-ui k="productivity.refresh"></x-ui> vraag je het meteen. Afmelden wist het bewaarde overzicht.</p>
+
+<h2>Wat nog niet kan</h2>
+<ul>
+  <li>Een doel per project, of doelen die met de tijd veranderen: een reeks rekent altijd met je huidige doel en vrije dagen, ook voor de dagen ervoor.</li>
+  <li>Verder terugkijken dan 180 dagen, of het overzicht van iemand anders bekijken.</li>
+  <li>Een eigen scherm in de Android-app buiten de web-app: daar zie je hetzelfde scherm als in de browser.</li>
+</ul>

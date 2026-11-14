@@ -22,9 +22,10 @@ export const isCompletedRoute = (route) => Boolean(route) && route.type === 'com
  *   store: import('../core/store.js').Store,
  *   handlers: { navigate: (route: object) => void, refresh: () => void },
  *   getRoute: () => object,
- * }} options
+ *   header?: (ctx: { view: object, today: string }) => Node | null,
+ * }} options `header`: een kop boven de lijst bij alle projecten (de cijfers van ui/productivity.js)
  */
-export function installCompleted({ store, handlers, getRoute }) {
+export function installCompleted({ store, handlers, getRoute, header = null }) {
   const state = { query: '', limit: PAGE };
   let composing = false;
 
@@ -80,6 +81,7 @@ export function installCompleted({ store, handlers, getRoute }) {
       lead: icon('completed'),
       actions: [],
       nodes: [
+        !projectId && header && header({ view, today }),
         h('div', { class: 'completed-tools' }, select, search),
         h('p', { class: 'hint completed-note' }, t('completed.note')),
         ...groups.map((g) => group({

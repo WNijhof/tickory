@@ -10,6 +10,7 @@ import { PLACE_RADIUS_DEFAULT, PLACE_RADIUS_MAX, PLACE_RADIUS_MIN } from './plac
 import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
 import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notifications.js';
 import { ROLES } from './roles.js';
+import { GOALS, daysOffCheck } from './stats.js';
 
 /**
  * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification'} EntityName
@@ -218,6 +219,12 @@ export const ENTITIES = {
       // Welke soorten meldingen bij samenwerken ook als pushmelding komen: { assigned, comment, mention, completed, shared };
       // een ontbrekende soort (of null) volgt de standaard (alles behalve "completed"). Zie pushChoices in shared/notifications.js.
       { name: 'notify_push', type: 'json', nullable: true, default: null, check: notifyPushCheck },
+      // Het productiviteitsoverzicht (shared/stats.js): een dag- en weekdoel (aantal afgevinkte taken; 0 = geen doel) en de vrije
+      // dagen die een reeks niet breken (ISO-weekdagen). null = de standaard (5, 25 en het weekend); zo heeft een rij van vóór deze
+      // velden vanzelf de standaard.
+      { name: 'goal_daily', type: 'int', nullable: true, default: null, min: GOALS.daily.min, max: GOALS.daily.max },
+      { name: 'goal_weekly', type: 'int', nullable: true, default: null, min: GOALS.weekly.min, max: GOALS.weekly.max },
+      { name: 'days_off', type: 'json', nullable: true, default: null, check: daysOffCheck },
       owner(),
     ],
   },

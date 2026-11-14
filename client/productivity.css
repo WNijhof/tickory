@@ -1,0 +1,97 @@
+/* Het scherm Productiviteit en de kop boven Voltooid (ui/productivity.js, ui/charts.js). Alleen kleuren uit de tokens van app.css:
+   licht, donker en de gekozen accentkleur volgen vanzelf. De staafjes van projecten gebruiken de projectkleur (--dot, .pc-<naam>). */
+
+/* ---------- de kop boven Voltooid ---------- */
+.stats-strip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
+  margin: 2px 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-soft);
+}
+.stats-strip-item { display: inline-flex; align-items: baseline; gap: 4px; }
+.stats-strip-label { color: var(--text-soft); font-size: 0.9rem; }
+.stats-strip-value { font-variant-numeric: tabular-nums; }
+.stats-strip-met { display: inline-flex; align-self: center; color: var(--accent); }
+.stats-strip-met .icon { width: 16px; height: 16px; stroke-width: 3; }
+.stats-strip-status { margin: 0; }
+.stats-strip-open { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.stats-strip-open .icon { width: 16px; height: 16px; }
+
+/* ---------- het scherm ---------- */
+.stats-status { margin: 0 0 10px; }
+.stats-section { margin-top: 22px; }
+.stats-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.stats-heading { font-size: 1rem; font-weight: 700; margin: 0 0 8px; }
+.stats-section-head .stats-heading { margin: 0; }
+.stats-about { margin-top: 26px; max-width: 70ch; }
+
+.stat-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.stat-tile { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); box-shadow: var(--shadow-card); }
+.stat-label { margin: 0; color: var(--text-soft); font-size: 0.88rem; }
+.stat-value { margin: 2px 0 0; font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat-sub { margin: 2px 0 0; color: var(--text-soft); font-size: 0.85rem; }
+.stat-meter { display: block; height: 6px; margin-top: 10px; border-radius: 3px; background: var(--bg-sunk); overflow: hidden; }
+.stat-meter-fill { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.3s ease; }
+
+/* ---------- staafdiagrammen ---------- */
+.chart { margin: 0; }
+.bar-chart { display: block; overflow: visible; }
+.bar-axis { stroke: var(--line-strong); stroke-width: 1; }
+.bar-fill { fill: var(--accent); }
+.bar-shape { opacity: 0.72; }
+.bar-current .bar-shape { opacity: 1; }
+.bar-muted .bar-shape { opacity: 0.38; }
+.bar-hit { fill: transparent; }
+.bar-value { fill: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+.bar-label { fill: var(--text-soft); font-size: 12px; }
+.bar-current .bar-label, .bar-current .bar-value { font-weight: 700; fill: var(--text); }
+.bar-goal { stroke: var(--text-soft); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.chart-dense .bar-label { font-size: 11px; }
+.chart-legend { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; color: var(--text-soft); font-size: 0.85rem; }
+.chart-legend-goal { width: 22px; border-top: 2px dashed var(--text-soft); }
+.chart-note { margin: 2px 0 0; }
+
+/* ---------- per project ---------- */
+.share-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.share-row { display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr) 3ch; align-items: center; gap: 10px; min-height: 32px; }
+.share-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.share-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-bar { display: block; height: 10px; border-radius: 5px; background: var(--bg-sunk); overflow: hidden; }
+.share-fill { display: block; height: 100%; border-radius: 5px; background: var(--dot, var(--p4)); }
+.share-rest { --dot: var(--p4); }
+.share-count { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- doelen ---------- */
+.goal-row { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.goal-field { display: grid; gap: 4px; }
+.goal-label { font-weight: 600; font-size: 0.92rem; }
+.goal-input { width: 8rem; }
+.goal-hint { margin: 0; }
+.days-off { border: 0; margin: 14px 0 0; padding: 0; min-width: 0; }
+.days-off legend { padding: 0; margin-bottom: 6px; }
+.days-off-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-toggle { position: relative; display: inline-block; cursor: pointer; }
+.day-toggle input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.day-toggle span[aria-hidden] {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 3rem; min-height: 38px; padding: 0 10px;
+  border: 1px solid var(--line-strong); border-radius: 9px; background: var(--bg); color: var(--text-soft);
+}
+.day-toggle:hover span[aria-hidden] { background: var(--bg-hover); }
+.day-toggle input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 600; }
+.day-toggle input:focus-visible + span { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* ---------- telefoon: alles onder elkaar, tikvlakken van 44 px ---------- */
+@media (max-width: 760px) {
+  .stats-strip { flex-direction: column; align-items: stretch; }
+  .stats-strip-open { margin-left: 0; justify-content: center; min-height: 44px; }
+  .stat-tiles { grid-template-columns: 1fr; }
+  .share-row { grid-template-columns: minmax(0, 1fr) 3ch; row-gap: 4px; }
+  .share-bar { grid-column: 1 / -1; grid-row: 2; }
+  .day-toggle span[aria-hidden] { min-height: 44px; min-width: 44px; }
+  .goal-input { min-height: 44px; }
+  .goal-row { flex-direction: column; }
+}
+
+@media (forced-colors: active) {
+  .bar-fill, .stat-meter-fill, .share-fill { fill: CanvasText; background: CanvasText; forced-color-adjust: none; }
+  .bar-shape { opacity: 1; }
+  .day-toggle input:checked + span { outline: 2px solid Highlight; }
+}

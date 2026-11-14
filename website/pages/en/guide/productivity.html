@@ -1,0 +1,52 @@
+<!--
+title: Productivity
+description: How many tasks you completed today and this week against your own goals, your streaks of days and weeks, the last 7 days and 12 weeks as bar charts, by project, and how to set goals and days off.
+-->
+<h1>Productivity</h1>
+<p class="intro">How much did you actually get done this week, and are you keeping it up? <x-ui k="productivity.title"></x-ui> lays it out: today and this week against your own goals, how many days and weeks in a row you reached them, and where your work went. No points, levels or rewards: just what you did.</p>
+
+<x-shot name="productiviteit" alt="The Productivity screen: at the top four tiles (Today 3 of 5, This week 10 of 25, Daily streak 8 days, Weekly streak 6 weeks), below them a bar chart of the last 7 days with a dashed line for the daily goal, a bar chart by week with week numbers, this week's split by project and at the bottom the goals with Saturday and Sunday as days off.">Today, this week, your streaks, the last days and weeks, by project and your goals, on one screen.</x-shot>
+
+<h2 id="opening">Opening it</h2>
+<ul>
+  <li>Above <a href="completed.html">Completed</a> there is a line with what you completed today and this week and your streak; the <x-ui k="productivity.open"></x-ui> button opens the full overview.</li>
+  <li>Or go to <x-ui k="settings.title"></x-ui> (your name at the bottom of the sidebar) and choose <x-ui k="settings.productivity"></x-ui>.</li>
+  <li>The screen has no line of its own in the sidebar. <x-ui k="nav.completed"></x-ui> at the top right takes you back to Completed.</li>
+</ul>
+
+<h2 id="what-counts">What counts</h2>
+<ul>
+  <li><strong>Every completion of yours.</strong> Including every time you complete a recurring task (it is not listed in Completed, because it stays open with its next date). A subtask completed together with her task does not count separately.</li>
+  <li><strong>Reopening does not count.</strong> If you restore a task (or undo completing it), that completion no longer counts. If you undo completing a <em>recurring</em> task, it does still count, like the task's own counter.</li>
+  <li><strong>Only you.</strong> What others complete in a shared project does not count and is not shown here; the projects list only what you completed in them.</li>
+  <li><strong>The projects you can see now,</strong> including your Inbox and archived projects. If you leave a project, or it is deleted, the completions in it no longer count.</li>
+  <li><strong>Per day</strong> in the time zone of the device you are looking at, like Today and Completed: what you complete at half past midnight belongs to the new day. Daylight saving time makes no difference.</li>
+  <li><strong>180 days back.</strong> That is how long the server keeps what happened (the <a href="activity.html">activity log</a>); before that the overview knows nothing. A streak can therefore be at most that long.</li>
+</ul>
+
+<h2 id="what-you-see">What you see</h2>
+<ul>
+  <li><strong>Today and this week:</strong> how many you completed, out of how many your goal is, and how many are left (or <em>Goal reached</em>). A week runs from Monday to Sunday.</li>
+  <li><strong>Daily streak:</strong> how many days in a row you reached the daily goal, and the longest streak. Today does not break the streak yet: the day is not over. A <a href="#days-off">day off</a> does not break it either.</li>
+  <li><strong>Weekly streak:</strong> how many weeks in a row you reached the weekly goal, and the longest.</li>
+  <li><strong>The last 7 days</strong> and <strong>by week</strong> (the last 4 or 12 weeks, chosen with the buttons; this device remembers the choice) as bar charts. The dashed line is your goal; today and this week are the darkest, days off lighter. The week number is below each week. Point at a bar to see the day or week in full with its number. For a screen reader the same numbers are in a table.</li>
+  <li><strong>This week by project:</strong> the five projects where you completed the most, in their colour, and the rest together under <em>Other projects</em>.</li>
+</ul>
+
+<x-shot name="telefoon-productiviteit" alt="Productivity on a phone: the four tiles Today, This week, Daily streak and Weekly streak are stacked, each with the number in large type and a line below it; Today and This week have a small bar that shows how far along you are.">On a phone everything is stacked.</x-shot>
+
+<h2 id="goals">Goals</h2>
+<p>At the bottom of the screen you set how many tasks you want to complete: <x-ui k="productivity.goalDaily"></x-ui> (5 by default) and <x-ui k="productivity.goalWeekly"></x-ui> (25 by default). A goal of <strong>0</strong> turns it off: you then just see the number, without a streak. A goal can be up to 100 a day and 700 a week. The goals belong to your account, so they apply on all your devices, also in the Android app.</p>
+
+<h2 id="days-off">Days off</h2>
+<p>Choose the days on which you do not have to think about your daily goal; Saturday and Sunday by default. A day off does not break your streak. If you reach the daily goal on a day off anyway, that day simply counts. At least one day of the week always counts. The weekly goal ignores days off: everything you complete in the week counts.</p>
+
+<h2 id="offline">Without a connection</h2>
+<p>The numbers come from the server. The last overview is kept on the device, so without a connection you see what was there, together with when it was updated. When you complete something (here or on another device), the overview updates itself while it is on screen; <x-ui k="productivity.refresh"></x-ui> asks right away. Signing out clears the stored overview.</p>
+
+<h2>What it cannot do yet</h2>
+<ul>
+  <li>A goal per project, or goals that change over time: a streak always uses your current goal and days off, also for the days before.</li>
+  <li>Looking back further than 180 days, or viewing someone else's overview.</li>
+  <li>A screen of its own in the Android app outside the web app: there you see the same screen as in the browser.</li>
+</ul>
