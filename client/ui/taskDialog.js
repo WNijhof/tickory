@@ -13,7 +13,8 @@ import { quickDates } from '../core/quickDates.js';
 import { byOrder, membersOf, subtasksOf } from '../core/selectors.js';
 import { nameKey } from '../../shared/text.js';
 import { commentsSection } from './comments.js';
-import { confirmDialog, h, replace } from './dom.js';
+import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
+import { taskLink } from '../core/duplicate.js';
 import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
 import { attachmentsSection } from './attachments.js';
@@ -318,6 +319,34 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       }
     });
 
+    /** Het menu achter ⋯: dupliceren (bewaart eerst wat je hebt gewijzigd) en een link naar de taak kopiëren. */
+    const more = async () => {
+      const choice = await menuDialog({
+        title: t('task.more'),
+        items: [
+          !readOnly && { value: 'duplicate', label: t('task.duplicate') },
+          { value: 'link', label: t('task.copyLink') },
+        ].filter(Boolean),
+      });
+      if (choice === 'duplicate') {
+        if (!(await save())) return; // een fout in het venster: eerst oplossen
+        const name = current().content;
+        const done = await actions.duplicateTask(task.id, { label: name });
+        if (!done.ok) { toast(done.reason === 'too_many' ? t('task.duplicateTooMany') : t('task.duplicateGone'), { kind: 'error' }); return; }
+        if (onUndoable) onUndoable(t('undo.taskDuplicated', { name }), done.entry);
+        else toast(t('undo.taskDuplicated', { name }));
+      } else if (choice === 'link') {
+        const link = taskLink(location.origin, task.id);
+        try {
+          await navigator.clipboard.writeText(link);
+          toast(t('task.linkCopied'));
+        } catch {
+          // zonder toestemming van de browser (of in een WebView zonder klembord): de link om zelf te kopiëren
+          await promptDialog({ title: t('task.copyLink'), label: t('task.linkLabel'), value: link, okText: t('common.close'), hint: t('task.linkHint') });
+        }
+      }
+    };
+
     const remove = async () => {
       const ok = await confirmDialog({ title: t('task.deleteTitle'), text: t('task.deleteText', { name: task.content }) });
       if (!ok) return;
@@ -376,6 +405,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         h('div', { class: 'dialog-buttons' },
           !readOnly && h('button', { type: 'button', class: 'button button-danger button-left', onclick: remove }, t('common.delete')),
           saveTemplate && h('button', { type: 'button', class: `button button-small${readOnly ? ' button-left' : ''}`, onclick: () => saveTemplate(current()) }, icon('template'), t('template.save.button')),
+          h('button', { type: 'button', class: 'icon-button', 'aria-label': t('task.more'), title: t('task.more'), 'aria-haspopup': 'dialog', dataset: { fk: 'task-more' }, onclick: more }, icon('more')),
           !readOnly && h('span', { class: 'save-tip' }, t('task.saveTip')),
           h('button', { type: 'button', class: 'button', onclick: close }, readOnly ? t('common.close') : t('common.cancel')),
           !readOnly && h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),

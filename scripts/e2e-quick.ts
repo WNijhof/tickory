@@ -149,7 +149,53 @@ export async function quickScenario(c: any) {
   await evaluate(`history.replaceState(null, '', location.pathname)`);
   step('adres: #view=today opent Vandaag en #note=new een nieuwe notitie (zoals de snelkoppelingen onder het app-icoon op Android); iets onbekends doet niets');
 
+  // ---- een taak dupliceren (met zijn open subtaken), ongedaan maken, en een link naar de taak ----
+  const inbox = (serverState().me as any).inbox_project_id;
+  await as([
+    ['task_add', { id: 'e2edupliceer0001', project_id: inbox, content: 'Dupliceerproef', priority: 2, due: { date: tomorrow, string: 'morgen', lang: 'nl' } }],
+    ['task_add', { id: 'e2edupliceer0002', project_id: inbox, parent_id: 'e2edupliceer0001', content: 'Stap een' }],
+    ['task_add', { id: 'e2edupliceer0003', project_id: inbox, parent_id: 'e2edupliceer0001', content: 'Al klaar' }],
+    ['task_complete', { id: 'e2edupliceer0003' }],
+  ]);
+  await nav('Inbox');
+  const openDup = async () => {
+    await waitFor(`!document.querySelector('#task-dialog')`, 'geen taakvenster open');
+    await waitFor(`[...document.querySelectorAll('li.task .task-title')].some((e) => e.textContent === 'Dupliceerproef')`, 'de taak in de lijst');
+    await evaluate(`[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title').textContent === 'Dupliceerproef').querySelector('.task-body').click()`);
+    await waitFor(`document.querySelector('#task-dialog [data-fk="task-more"]')`, 'het taakvenster met ⋯');
+    await evaluate(`document.querySelector('#task-dialog [data-fk="task-more"]').click()`);
+    await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Meer')`, 'het menu Meer');
+  };
+  await openDup();
+  await clickText('Dupliceren');
+  await waitFor(`!document.querySelector('#task-dialog')`, 'het venster dicht');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const dups = (serverState().tasks as any[]).filter((x) => x.content === 'Dupliceerproef');
+  assert.equal(dups.length, 2, 'een kopie erbij');
+  const copy = dups.find((x) => x.id !== 'e2edupliceer0001');
+  assert.deepEqual([copy.priority, copy.due?.date, copy.project_id], [2, tomorrow, inbox]);
+  assert.deepEqual((serverState().tasks as any[]).filter((x) => x.parent_id === copy.id).map((x) => x.content), ['Stap een'], 'alleen de open subtaak gaat mee');
+  const order = await evaluate<string[]>(`[...document.querySelectorAll('li.task .task-title')].map((e) => e.textContent)`);
+  assert.equal(order[order.indexOf('Dupliceerproef') + 1 + (order[order.indexOf('Dupliceerproef') + 1] === 'Stap een' ? 1 : 0)], 'Dupliceerproef', `de kopie direct onder het origineel: ${order}`);
+  await waitFor(`document.querySelector('.toast')?.textContent.includes('gedupliceerd')`, 'de melding met ongedaan maken');
+  await evaluate(`[...document.querySelector('.toast').querySelectorAll('button')].find((b) => b.textContent === 'Ongedaan maken').click()`);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  await waitFor(`[...document.querySelectorAll('li.task .task-title')].filter((e) => e.textContent === 'Dupliceerproef').length === 1`, 'de kopie weer weg');
+  assert.equal((serverState().tasks as any[]).filter((x) => x.content === 'Dupliceerproef' || x.parent_id === copy.id).length, 1, 'ook op de server, met de subtaak');
+  await openDup();
+  await clickText('Link kopiëren');
+  await waitFor(`document.querySelector('.toast')?.textContent.includes('Link gekopieerd') || [...document.querySelectorAll('dialog[open] input')].some((i) => /#task=/.test(i.value))`, 'gekopieerd, of de link om zelf te kopiëren');
+  const shown = await evaluate<string | null>(`[...document.querySelectorAll('dialog[open] input')].find((i) => /#task=/.test(i.value))?.value ?? null`);
+  if (shown) {
+    assert.equal(shown, `${await evaluate<string>('location.origin')}/#task=e2edupliceer0001`);
+    await evaluate(`[...document.querySelectorAll('dialog[open] input')].find((i) => /#task=/.test(i.value)).closest('dialog').close()`);
+  }
+  await evaluate(`document.querySelector('#task-dialog')?.close()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'alles dicht');
+  step(`taak dupliceren via ⋯: een kopie direct onder het origineel met de open subtaak (niet de afgevinkte), ongedaan te maken; link kopiëren (${shown ? 'als tekst om zelf te kopiëren' : 'naar het klembord'})`);
+
   // ---- opruimen ----
+  await as([['task_delete', { id: 'e2edupliceer0001' }]]);
   await as([...pasted.map((x) => ['task_delete', { id: x.id }] as [string, object]), ['project_delete', { id: 'e2esnelproject01' }], ['label_delete', { id: 'e2esnellabel0001' }]]);
   await nav(startView);
   await waitFor(`document.getElementById('view-title').textContent === ${js(startView)}`, 'terug bij het begin');

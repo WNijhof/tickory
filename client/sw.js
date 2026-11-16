@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v117';
+const CACHE = 'tickory-v118';
 const SHELL = [
   '/',
   '/app.css',
@@ -73,6 +73,7 @@ const SHELL = [
   '/ui/generalDialog.js',
   '/shared/general.js',
   '/core/quickSuggest.js',
+  '/core/duplicate.js',
   '/ui/reminderUi.js',
   '/ui/placesUi.js',
   '/ui/render.js',

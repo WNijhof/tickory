@@ -2,6 +2,7 @@
 // herhalen) en nieuwe rijen krijgen hier al hun definitieve id en volgordesleutel, zodat alles offline werkt.
 
 import { keyAfter, keysAfter } from '../../shared/orderKey.js';
+import { planDuplicate } from './duplicate.js';
 import { maxKey, scopeOf } from './reducer.js';
 import { deepNormalize, nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime } from '../../shared/reminders.js';
@@ -186,6 +187,18 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       if (allLabels.length > 0) args.labels = allLabels;
       await send([...extra.commands, { type: 'task_add', args }, ...remindersForNewTask(id, args.due ?? null, reminders)]);
       return id;
+    },
+    /**
+     * Dupliceert een taak met zijn open subtaken, direct onder het origineel (core/duplicate.js); één stap om ongedaan te maken.
+     * Een kopie met een tijd krijgt de automatische herinnering, zoals een nieuwe taak.
+     * @returns {Promise<{ ok: true, id: string, entry: object | null } | { ok: false, reason: 'missing' | 'too_many' }>}
+     */
+    async duplicateTask(id, { label = '' } = {}) {
+      const plan = planDuplicate(store.view, id, { makeId });
+      if (!plan.ok) return plan;
+      const reminders = plan.copies.flatMap((c) => remindersForNewTask(c.id, c.due, null));
+      const { entry } = await track(label, () => send([...plan.commands, ...reminders]));
+      return { ok: true, id: plan.id, entry };
     },
     /**
      * Wijzigt een taak. Verandert de datum, dan volgen de herinneringen zoals in Todoist: krijgt de taak een tijd en heb

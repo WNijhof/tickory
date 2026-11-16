@@ -66,8 +66,9 @@ description: Viewing and editing a task in Tickory: name and description, date w
 <h2 id="deleting-a-task">Deleting a task</h2>
 <p>Choose <x-ui k="common.delete"></x-ui> at the bottom left (or the trash can on the row in the list). After confirmation the task is gone, with its subtasks, comments, attachments and reminders. There is no recycle bin: what you delete does not come back. If you only want a task out of sight, tick it off instead.</p>
 
-<h2>What is not possible yet</h2>
+<h2 id="more">Duplicating and copying a link</h2>
+<p>Under <strong>⋯</strong> (<x-ui k="task.more"></x-ui>) at the bottom of the window there are two more things:</p>
 <ul>
-  <li>The duration of a task.</li>
-  <li>Renaming or deleting labels.</li>
+  <li><strong><x-ui k="task.duplicate"></x-ui></strong> first saves your changes and then puts a copy right below the task: with the same name, description, priority, labels, date, deadline, duration and assignee, and with the subtasks that are still open. Comments, attachments, completed subtasks and your own reminders are not copied (if the task has a time, the copy gets the automatic reminder). You can undo it from the message.</li>
+  <li><strong><x-ui k="task.copyLink"></x-ui></strong> puts a link to the task on the clipboard. Anyone who may see the task (you, or a member of a shared project) opens it with that link after signing in. If copying does not work automatically, the link is shown in a window so you can copy it yourself.</li>
 </ul>
