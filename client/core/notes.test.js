@@ -125,3 +125,48 @@ test('de reducer: toevoegen, wijzigen, verwijderen en een label dat verdwijnt (l
   applyCommand(v, { type: 'note_delete', args: { id: 'note-reducer-1' } }, NOW, ME);
   assert.equal(v.notes.has('note-reducer-1'), false);
 });
+
+test('kaartdatum: Vandaag, Gisteren, dag en maand, en het jaar alleen in een ander jaar', async () => {
+  const { cardDate, editedText } = await import('./notes.js');
+  const now = new Date(2026, 10, 16, 15, 0);
+  assert.equal(cardDate(new Date(2026, 10, 16, 0, 5).toISOString(), now), 'Vandaag');
+  assert.equal(cardDate(new Date(2026, 10, 15, 23, 59).toISOString(), now), 'Gisteren');
+  assert.match(cardDate(new Date(2026, 8, 22, 12).toISOString(), now), /^22 sep$/);
+  assert.match(cardDate(new Date(2025, 8, 22, 12).toISOString(), now), /^22 sep 2025$/);
+  assert.equal(cardDate('rommel', now), '');
+  assert.equal(editedText(new Date(2026, 10, 16, 14, 3).toISOString(), now), 'Bewerkt vandaag om 14:03');
+  assert.equal(editedText(new Date(2026, 10, 15, 9, 15).toISOString(), now), 'Bewerkt gisteren om 09:15');
+  assert.match(editedText(new Date(2026, 9, 22, 9, 15).toISOString(), now), /^Bewerkt 22 okt$/);
+});
+
+test('sorteren: laatst bewerkt, aangemaakt en titel (zonder titel achteraan), in beide richtingen', async () => {
+  const { noteComparator } = await import('./notes.js');
+  const rows = [
+    { id: 'a', title: 'Zebra', created_at: '2026-01-03', updated_at: '2026-02-01' },
+    { id: 'b', title: '', created_at: '2026-01-01', updated_at: '2026-03-01' },
+    { id: 'c', title: 'appel', created_at: '2026-01-02', updated_at: '2026-01-01' },
+    { id: 'd', title: 'Éclair', created_at: '2026-01-04', updated_at: '2026-02-15' },
+  ];
+  const ids = (sort, order) => [...rows].sort(noteComparator(sort, order)).map((r) => r.id).join('');
+  assert.equal(ids('updated', 'desc'), 'bdac');
+  assert.equal(ids('updated', 'asc'), 'cadb');
+  assert.equal(ids('created', 'desc'), 'dacb');
+  assert.equal(ids('created', 'asc'), 'bcad');
+  assert.equal(ids('title', 'asc'), 'cdab', 'appel, Éclair, Zebra, en zonder titel achteraan');
+  assert.equal(ids('title', 'desc'), 'adcb', 'ook aflopend blijft zonder titel achteraan');
+});
+
+test('groepen en zoeken: vastgepind apart, zoeken in "alle" vindt ook het archief', async () => {
+  const { noteGroups } = await import('./notes.js');
+  const { v, note } = world();
+  note({ title: 'vast', is_pinned: true });
+  note({ title: 'los' });
+  note({ title: 'oud archief', is_archived: true, is_pinned: true });
+  const list = noteList(v);
+  assert.deepEqual(titles(list), ['vast', 'los']);
+  const g = noteGroups(list);
+  assert.deepEqual([titles(g.pinned), titles(g.others)], [['vast'], ['los']]);
+  assert.deepEqual(noteGroups(list, 'archive').pinned, [], 'in het archief geen groepen');
+  assert.deepEqual(titles(noteList(v, { query: 'archief' })), ['oud archief'], 'zoeken vindt ook wat in het archief staat');
+  assert.deepEqual(noteGroups(noteList(v, { query: 'archief' })).pinned, [], 'een vastgepinde notitie in het archief staat niet bij Vastgepind');
+});

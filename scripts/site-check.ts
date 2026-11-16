@@ -1205,7 +1205,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo();
         assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'er staat geen (inlog)venster open');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
@@ -1328,7 +1328,7 @@ if (wants('browser')) {
         await clickText('Verlaten', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
         await viewTitle('Inbox');
         await waitFor(`await ${SYNCED}`, 'bijgewerkt');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Familieweekend', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Familieweekend', 'Anna']);
         assert.deepEqual(b.errors, []);
         assertClean('delen en verlaten');
       });
@@ -2055,7 +2055,7 @@ if (wants('browser')) {
         await b.send('Page.reload');
         await waitFor(`document.body.classList.contains('ready') && await ${SYNCED}`, 'de demo is opnieuw gestart');
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag', 'ook het laatst bekeken scherm is vergeten');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         await nav('Huishouden');
         await viewTitle('Huishouden');
         const list = await titles();
@@ -2120,7 +2120,7 @@ if (wants('browser')) {
         await b.viewport(1280, 860);
         await openDemo('?lang=en');
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Notes', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Today');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-long').textContent`), 'This is a demo: changes are not saved.');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-link').href`), `${site.url}en/`, 'de link in de balk gaat naar de Engelse website');

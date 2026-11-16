@@ -39,6 +39,7 @@ import { accountScenario } from './e2e-account.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
 import { listsScenario } from './e2e-lists.ts';
+import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
@@ -419,6 +420,13 @@ try {
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
   // meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts); met E2E_NOTIFY_ONLY=1 alleen dat onderdeel
   const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
+  // notities (scripts/e2e-notes.ts); met E2E_NOTES_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
+  if (process.env.E2E_NOTES_ONLY) {
+    try { await notesScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN NOTITIES: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-notities'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   if (process.env.E2E_NOTIFY_ONLY) {
     try { await notifyScenario(notifyCtx()); console.log('ALLEEN MELDINGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-meldingen'); process.exitCode = 1; }
     browser.kill();
@@ -713,7 +721,7 @@ try {
 
   // zijbalk en projectscherm
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'project Thuis in het Engels');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Notes', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projects', 'Settings']);
   assert.deepEqual(await evaluate(`[document.getElementById('sidebar').getAttribute('aria-label'), document.querySelector('.nav').getAttribute('aria-label'), document.getElementById('bottom-nav').getAttribute('aria-label'), document.querySelector('.nav-heading button').title, document.querySelector('.nav-shared').title, document.getElementById('sync-status').title]`),
     ['Navigation', 'Views', 'Main menu', 'Add project', 'Shared project', 'Click to sync now']);
@@ -1026,7 +1034,7 @@ try {
   await clickText('Nederlands');
   await waitFor(`!document.querySelector('dialog[open]') && document.documentElement.lang === 'nl'`, 'terug naar Nederlands');
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
-  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
+  assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
   assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
@@ -1260,7 +1268,7 @@ try {
 
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis');
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Aankomend (en Meldingen: Thuis is gedeeld), dan de projecten');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Thuis', 'Alice'], 'de Inbox staat bovenaan, dan Vandaag en Aankomend (en Meldingen: Thuis is gedeeld), dan de projecten');
   await click('.nav-heading button');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw project'`, 'projectvenster');
   assert.equal(await evaluate(`document.querySelectorAll('dialog[open] input[name="project-color"]').length`), 16, 'zestien kleuren');
@@ -1277,7 +1285,7 @@ try {
   const tuin = projectOnServer('Tuin');
   assert.deepEqual([tuin.color, tuin.is_favorite, tuin.parent_id], ['green', true, thuisId], 'kleur, favoriet en bovenliggend project staan op de server');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorieten', 'Projecten']);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Tuin', 'Thuis', 'Tuin', 'Alice'], 'Tuin staat bij de favorieten en onder Thuis');
   assert.ok(await evaluate(`document.querySelector('.nav-row[data-depth="1"] .dot').classList.contains('pc-green')`), 'het bolletje heeft de kleur van het project');
   assert.equal(await evaluate(`document.querySelector('#view-lead .dot').classList.contains('pc-green')`), true, 'ook in de kop');
   await shot('zijbalk-projecten');
@@ -1286,12 +1294,12 @@ try {
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, true);
-  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
+  assert.deepEqual(await labelsOfNav(), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Tuin', 'Thuis', 'Alice'], 'Tuin is niet meer onder Thuis te zien');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-expanded')`), 'false');
   await click('button.nav-toggle');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(projectOnServer('Thuis').is_collapsed, false);
-  assert.equal((await labelsOfNav()).length, 9);
+  assert.equal((await labelsOfNav()).length, 10);
   // bewerken via het projectmenu: kleur en favoriet
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
@@ -1524,6 +1532,9 @@ try {
 
   // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
   await listsScenario({ ...notifyCtx(), startServer, stopServer });
+
+  // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
+  await notesScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
@@ -2287,7 +2298,7 @@ try {
   })()`);
   assert.deepEqual(sheet.box, [0, 0, 390, true], `Bladeren vult het scherm boven de balk: ${sheet.box}`);
   assert.deepEqual([sheet.first, sheet.focus], ['search-field', 'search-field'], 'zoeken staat bovenaan, en de focus begint daar');
-  for (const name of ['Voltooid', 'Meldingen', 'Filters', 'Labels', 'Projecten', 'Thuis']) assert.ok(sheet.items.includes(name), `${name} staat in Bladeren: ${sheet.items}`);
+  for (const name of ['Voltooid', 'Meldingen', 'Notities', 'Filters', 'Labels', 'Projecten', 'Thuis']) assert.ok(sheet.items.includes(name), `${name} staat in Bladeren: ${sheet.items}`);
   assert.deepEqual(sheet.views, [], 'Inbox, Vandaag en Aankomend staan niet nog eens in Bladeren');
   assert.equal(sheet.state, true, 'Bladeren is een stap in de geschiedenis (de terugknop sluit het)');
   assert.equal(sheet.inert, true, 'wat Bladeren afdekt, is niet te bereiken met Tab of een schermlezer');

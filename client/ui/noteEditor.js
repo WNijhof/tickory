@@ -1,285 +1,280 @@
-// Het venster om een notitie te lezen en te schrijven (SPEC 5k): titel, tekst in Markdown met een werkbalk, lezen of bewerken, kleur,
-// labels, vastpinnen, archief en prullenbak. Alles wat je typt wordt vanzelf bewaard (kort na het laatste typen, en bij sluiten);
-// offline gaat het naar de wachtrij zoals elke wijziging. Het is een venster en geen pagina: de lijst erachter wordt bij elke wijziging
-// opnieuw getekend en zou het invoerveld tijdens het typen kwijtraken.
+// Het venster van één notitie (SPEC 5k), zoals in Anchor: bovenaan terug en de opslagstatus, en rechts de achtergrond, vastpinnen en
+// een menu; daaronder een grote titel, "Bewerkt … · N woorden", de labels als chips en de tekst met opmaak in beeld
+// (ui/blockEditor.js). Het hele venster krijgt de achtergrond van de notitie. Alles wordt vanzelf bewaard: kort na het laatste typen
+// en bij sluiten; offline gaat het in de wachtrij zoals elke wijziging. Een notitie in de prullenbak is alleen te lezen.
 //
-// De tekst blijft Markdown (core/markdown.js); in de leesstand zijn de vinkjes van `- [ ]` aan te klikken en worden ze direct bewaard.
+// Het is een venster en geen pagina: de lijst erachter wordt bij elke wijziging opnieuw getekend en zou de editor anders kwijtraken.
 
-import { COLOR_NAMES, colorClass, colorName } from '../core/colors.js';
-import { t } from '../core/i18n.js';
 import { NOTE_LIMITS } from '../../shared/schema.js';
-import { toggleTask } from '../core/markdown.js';
-import { noteTitle, trashDaysLeft } from '../core/notes.js';
-import { labelList } from '../core/selectors.js';
-import { h, openDialog, toast } from './dom.js';
+import { notePrefsOf } from '../../shared/notes.js';
+import { t } from '../core/i18n.js';
+import { colorClass } from '../core/colors.js';
+import { editedText, noteTitle, trashDaysLeft } from '../core/notes.js';
+import { labelList, mySettings } from '../core/selectors.js';
+import { confirmDialog, h, menuDialog, openDialog, promptDialog, toast } from './dom.js';
 import { icon } from './icons.js';
-import { renderMarkdown } from './markdown.js';
-import { colorLabel } from './projectDialog.js';
+import { createBlockEditor } from './blockEditor.js';
+import { backgroundPicker, bgClass } from './noteLook.js';
 import { saveTextFile } from './exportDialog.js';
 
-const SAVE_DELAY_MS = 700;
-
-/** Een regel (of de geselecteerde regels) voorzien van `prefix`, of die er weer afhalen als alle regels hem al hebben. */
-export function toggleLinePrefix(value, start, end, prefix, { ordered = false } = {}) {
-  const from = value.lastIndexOf('\n', start - 1) + 1;
-  const toRaw = value.indexOf('\n', end);
-  const to = toRaw === -1 ? value.length : toRaw;
-  const lines = value.slice(from, to).split('\n');
-  const marker = ordered ? /^\d{1,9}[.)] / : null;
-  const has = (l) => (ordered ? marker.test(l) : l.startsWith(prefix));
-  const all = lines.every((l) => !l.trim() || has(l));
-  const out = lines.map((l, i) => {
-    if (!l.trim()) return l;
-    if (all) return ordered ? l.replace(marker, '') : l.slice(prefix.length);
-    if (has(l)) return l;
-    return ordered ? `${i + 1}. ${l}` : `${prefix}${l}`;
-  });
-  const text = out.join('\n');
-  return { value: value.slice(0, from) + text + value.slice(to), start: from, end: from + text.length };
-}
-
-/** Wat er bij Enter in een lijst volgt: het volgende punt (genummerd, taak of streepje), of de lijst eindigt bij een leeg punt. */
-export function continueList(value, caret) {
-  const from = value.lastIndexOf('\n', caret - 1) + 1;
-  const line = value.slice(from, caret);
-  const m = /^([ \t]*)(?:([-*+])|(\d{1,9})([.)])) (\[[ xX]\] )?(.*)$/.exec(line);
-  if (!m) return null;
-  if (m[6] === '') {
-    // een leeg punt: het punt weghalen en de lijst afsluiten
-    return { value: value.slice(0, from) + value.slice(caret), caret: from };
-  }
-  const marker = m[3] !== undefined ? `${Number.parseInt(m[3], 10) + 1}${m[4]}` : m[2];
-  const insert = `\n${m[1]}${marker} ${m[5] ? '[ ] ' : ''}`;
-  return { value: value.slice(0, caret) + insert + value.slice(caret), caret: caret + insert.length };
-}
+const SAVE_DELAY_MS = 600;
 
 /**
- * @param {{ store: import('../core/store.js').Store, actions: object, noteId: string, edit?: boolean, created?: boolean }} options
- *   `created`: de notitie is zojuist gemaakt; blijft ze leeg, dan wordt ze bij sluiten weer verwijderd
- * @returns {Promise<void>} klaar zodra het venster gesloten is
+ * @param {{ store: import('../core/store.js').Store, actions: object, noteId: string, created?: boolean }} options
+ *   `created`: de notitie is zojuist gemaakt; blijft ze leeg, dan wordt ze bij sluiten weer weggehaald
+ * @returns {Promise<void>} klaar zodra het venster dicht is
  */
-export function openNoteEditor({ store, actions, noteId, edit = false, created = false }) {
+export function openNoteEditor({ store, actions, noteId, created = false }) {
   const note = () => store.view.notes.get(noteId);
   if (!note()) return Promise.resolve();
-  let mode = edit || (!note().content && !note().title) ? 'edit' : 'read';
   let timer = null;
   let closing = false;
-  let labelsOpen = false;
+  let saving = false;
+  let pop = null; // het open keuzevenstertje (achtergrond, menu, labels)
 
   return openDialog((finish, dialog) => {
     const initial = note();
-    const titleInput = h('input', {
-      class: 'field note-title-input', type: 'text', value: initial.title ?? '', maxLength: NOTE_LIMITS.title, placeholder: t('note.titlePlaceholder'),
-      'aria-label': t('note.titleLabel'), autocomplete: 'off', dataset: { fk: 'note-title' },
-    });
-    const area = h('textarea', {
-      class: 'field note-text', value: initial.content ?? '', maxLength: NOTE_LIMITS.content, placeholder: t('note.contentPlaceholder'),
-      'aria-label': t('note.contentLabel'), spellcheck: true, dataset: { fk: 'note-text' },
-    });
-    const preview = h('div', { class: 'note-read', tabIndex: -1, dataset: { fk: 'note-read' } });
-    const status = h('span', { class: 'note-status', role: 'status', 'aria-live': 'polite' });
-    const bar = h('div', { class: 'note-toolbar', role: 'toolbar', 'aria-label': t('note.toolbar') });
-    const side = h('div', { class: 'note-side' });
-    const labelPanel = h('div', { class: 'note-labels-panel', hidden: true });
+    const trashed = () => Boolean(note()?.trashed_at);
+    const prefs = () => notePrefsOf(mySettings(store.view, store.userId));
+    const sheet = h('div', { class: `note-sheet ${bgClass(initial.background)}` });
 
-    // ---------- opslaan ----------
+    // ---------- titel en tekst ----------
+    const title = h('textarea', {
+      class: 'note-title', rows: 1, maxLength: NOTE_LIMITS.title, placeholder: t('note.titlePlaceholder'), 'aria-label': t('note.titleLabel'),
+      readOnly: trashed(), dataset: { fk: 'note-title' },
+    });
+    title.value = initial.title ?? '';
+    const grow = () => { title.style.height = 'auto'; title.style.height = `${title.scrollHeight}px`; };
+    const editor = createBlockEditor({
+      markdown: initial.content ?? '',
+      readOnly: trashed(),
+      checkedBottom: prefs().checked_bottom,
+      placeholder: t('note.contentPlaceholder'),
+      onChange: () => later(),
+      onExitUp: () => { title.focus(); title.setSelectionRange(title.value.length, title.value.length); },
+      onLink: (current) => askLink(current),
+    });
+    title.addEventListener('input', () => { grow(); later(); });
+    title.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'ArrowDown' && title.selectionStart === title.value.length)) {
+        e.preventDefault();
+        editor.focus('start');
+      }
+    });
+
+    // ---------- bewaren ----------
+    const status = h('span', { class: 'note-save', role: 'status', 'aria-live': 'polite' });
+    const drawStatus = () => {
+      const offline = globalThis.navigator?.onLine === false;
+      status.replaceChildren(
+        saving ? h('span', { class: 'note-save-dot', 'aria-hidden': 'true' }) : icon(offline ? 'history' : 'check'),
+        h('span', { class: 'note-save-text' }, saving ? t('note.saving') : offline ? t('note.waiting') : t('note.saved')));
+      status.title = offline ? t('note.waitingHint') : '';
+    };
     const flush = () => {
       if (timer) { clearTimeout(timer); timer = null; }
       const now = note();
-      if (!now) return;
+      if (!now || trashed()) { saving = false; drawStatus(); return; }
       const changes = {};
-      if (titleInput.value !== (now.title ?? '')) changes.title = titleInput.value;
-      if (area.value !== (now.content ?? '')) changes.content = area.value;
-      if (Object.keys(changes).length === 0) return;
-      actions.updateNote(noteId, changes);
-      status.textContent = t('note.saved');
+      const md = editor.getMarkdown();
+      if (title.value !== (now.title ?? '')) changes.title = title.value;
+      if (md !== (now.content ?? '')) changes.content = md;
+      saving = false;
+      if (Object.keys(changes).length > 0) actions.updateNote(noteId, changes);
+      drawStatus();
+      drawMeta();
     };
-    const later = () => {
-      status.textContent = t('note.saving');
+    function later() {
+      saving = true;
+      drawStatus();
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, SAVE_DELAY_MS);
-    };
-    titleInput.addEventListener('input', later);
-    area.addEventListener('input', later);
-
-    // ---------- werkbalk ----------
-    const edited = (value, start, end) => {
-      area.value = value;
-      area.setSelectionRange(start, end);
-      area.focus();
-      later();
-    };
-    const wrap = (before, after = before, sample = '') => () => {
-      const { selectionStart: s, selectionEnd: e, value } = area;
-      if (s >= before.length && value.slice(s - before.length, s) === before && value.slice(e, e + after.length) === after) {
-        edited(value.slice(0, s - before.length) + value.slice(s, e) + value.slice(e + after.length), s - before.length, e - before.length);
-        return;
-      }
-      const chosen = value.slice(s, e) || sample;
-      const text = `${before}${chosen}${after}`;
-      edited(value.slice(0, s) + text + value.slice(e), s + before.length, s + before.length + chosen.length);
-    };
-    const prefix = (p, opts) => () => {
-      const r = toggleLinePrefix(area.value, area.selectionStart, area.selectionEnd, p, opts);
-      edited(r.value, r.start, r.end);
-    };
-    const insertAt = (text, selectFrom = 0, selectTo = 0) => () => {
-      const { selectionEnd: s, value } = area; // na de selectie, zonder iets te vervangen
-      const lead = s > 0 && value[s - 1] !== '\n' ? '\n' : '';
-      edited(value.slice(0, s) + lead + text + value.slice(s), s + lead.length + selectFrom, s + lead.length + (selectTo || text.length));
-    };
-    const link = () => {
-      const { selectionStart: s, selectionEnd: e, value } = area;
-      const label = value.slice(s, e) || t('note.linkSample');
-      const text = `[${label}](https://)`;
-      edited(value.slice(0, s) + text + value.slice(e), s + label.length + 3, s + text.length - 1);
-    };
-    const TOOLS = [
-      { fk: 'bold', glyph: 'B', cls: 'tb-bold', label: () => t('note.tb.bold'), run: wrap('**', '**', t('note.sampleBold')), key: 'b' },
-      { fk: 'italic', glyph: 'I', cls: 'tb-italic', label: () => t('note.tb.italic'), run: wrap('*', '*', t('note.sampleItalic')), key: 'i' },
-      { fk: 'strike', glyph: 'S', cls: 'tb-strike', label: () => t('note.tb.strike'), run: wrap('~~', '~~', t('note.sampleStrike')) },
-      { fk: 'heading', glyph: 'H', cls: 'tb-heading', label: () => t('note.tb.heading'), run: prefix('## ') },
-      { fk: 'bullets', glyph: '•', label: () => t('note.tb.bullets'), run: prefix('- ') },
-      { fk: 'numbers', glyph: '1.', label: () => t('note.tb.numbers'), run: prefix('1. ', { ordered: true }) },
-      { fk: 'tasks', glyph: '☐', label: () => t('note.tb.tasks'), run: prefix('- [ ] ') },
-      { fk: 'quote', glyph: '❝', label: () => t('note.tb.quote'), run: prefix('> ') },
-      { fk: 'code', glyph: '</>', cls: 'tb-code', label: () => t('note.tb.code'), run: wrap('`', '`', t('note.sampleCode')) },
-      { fk: 'link', glyph: '🔗', label: () => t('note.tb.link'), run: link, key: 'k' },
-      { fk: 'table', glyph: '▦', label: () => t('note.tb.table'), run: insertAt(`| ${t('note.table.a')} | ${t('note.table.b')} |\n|---|---|\n|  |  |\n`, 2, 2 + t('note.table.a').length) },
-    ];
-    for (const tool of TOOLS) {
-      bar.append(h('button', {
-        class: `note-tool ${tool.cls ?? ''}`, type: 'button', title: tool.label() + (tool.key ? ` (Ctrl+${tool.key.toUpperCase()})` : ''), 'aria-label': tool.label(),
-        dataset: { fk: `note-tool:${tool.fk}` }, onclick: tool.run,
-      }, tool.glyph));
-    }
-    area.addEventListener('keydown', (e) => {
-      const mod = e.ctrlKey || e.metaKey;
-      const tool = mod && !e.altKey ? TOOLS.find((x) => x.key === e.key.toLowerCase()) : null;
-      if (tool) {
-        e.preventDefault();
-        tool.run();
-        return;
-      }
-      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && area.selectionStart === area.selectionEnd) {
-        const next = continueList(area.value, area.selectionStart);
-        if (next) {
-          e.preventDefault();
-          area.value = next.value;
-          area.setSelectionRange(next.caret, next.caret);
-          later();
-        }
-      }
-    });
-
-    // ---------- lezen of bewerken ----------
-    const drawRead = () => {
-      preview.replaceChildren(renderMarkdown(area.value, {
-        onToggleTask: (index) => {
-          const next = toggleTask(area.value, index);
-          if (next === null) return;
-          area.value = next;
-          flush();
-          drawRead();
-        },
-      }));
-      if (!area.value.trim()) preview.replaceChildren(h('p', { class: 'hint' }, t('note.emptyRead')));
-    };
-    const setMode = (next) => {
-      mode = next;
-      if (mode === 'read') flush();
-      dialog.classList.toggle('note-editing', mode === 'edit');
-      if (mode === 'read') drawRead();
-      area.hidden = mode !== 'edit';
-      bar.hidden = mode !== 'edit';
-      preview.hidden = mode !== 'read';
-      drawSide();
-      (mode === 'edit' ? area : preview).focus?.({ preventScroll: true });
-    };
-
-    // ---------- kleur, labels, vastpinnen, archief, prullenbak ----------
-    const trashed = () => Boolean(note()?.trashed_at);
-    const tool = (fk, iconName, text, onclick, extra = {}) => h('button', {
-      class: `button button-small button-ghost note-action${extra.active ? ' active' : ''}`, type: 'button', dataset: { fk: `note:${fk}` }, 'aria-pressed': extra.pressed === undefined ? null : String(extra.pressed),
-      onclick,
-    }, icon(iconName), h('span', { class: 'btn-label' }, text));
-
-    const labelInput = h('input', { class: 'field', type: 'text', maxLength: 100, placeholder: t('note.newLabel'), 'aria-label': t('note.newLabelLabel'), autocomplete: 'off', dataset: { fk: 'note-new-label' } });
-    const createLabel = async () => {
-      const name = labelInput.value.trim();
-      if (!name) return;
-      labelInput.value = '';
-      const id = await actions.addLabel(name);
-      if (id && !(note()?.labels ?? []).includes(id)) await actions.updateNote(noteId, { labels: [...(note()?.labels ?? []), id] });
-    };
-    labelInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { e.preventDefault(); createLabel(); }
-    });
-
-    function drawLabels() {
-      const n = note();
-      const own = labelList(store.view, store.userId).own.map((x) => x.label);
-      const chosen = new Set(n?.labels ?? []);
-      const focused = document.activeElement?.dataset?.fk ?? null;
-      labelPanel.replaceChildren(
-        own.length === 0 && h('p', { class: 'hint' }, t('note.noLabels')),
-        own.length > 0 && h('ul', { class: 'note-label-list' }, own.map((label) => h('li', {},
-          h('label', { class: 'note-label-option' },
-            h('input', {
-              type: 'checkbox', checked: chosen.has(label.id), dataset: { fk: `note-label:${label.id}` },
-              onchange: (e) => actions.updateNote(noteId, { labels: e.target.checked ? [...(note()?.labels ?? []), label.id] : (note()?.labels ?? []).filter((x) => x !== label.id) }),
-            }),
-            h('span', { class: `dot ${colorClass(label.color)}`, 'aria-hidden': 'true' }), h('span', {}, label.name))))),
-        h('div', { class: 'note-label-new' }, labelInput, h('button', { class: 'button button-small', type: 'button', onclick: createLabel }, t('common.add'))));
-      labelPanel.hidden = !labelsOpen;
-      if (focused && document.activeElement === document.body) labelPanel.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
     }
 
-    function drawSide() {
+    // ---------- de kop ----------
+    const iconButton = (fk, name, label, onclick, extra = {}) => h('button', {
+      type: 'button', class: `icon-button note-bar-button${extra.cls ? ` ${extra.cls}` : ''}`, 'aria-label': label, title: label, dataset: { fk }, onclick,
+      'aria-pressed': extra.pressed === undefined ? null : String(extra.pressed), 'aria-haspopup': extra.popup ? 'true' : null,
+    }, icon(name));
+    const right = h('div', { class: 'note-bar-right' });
+    const bar = h('div', { class: 'note-bar' },
+      h('div', { class: 'note-bar-left' }, iconButton('note-close', 'chevronLeft', t('note.back'), () => finish(null)), status),
+      right);
+
+    function drawBar() {
       const n = note();
       if (!n) return;
-      const focused = side.contains(document.activeElement) ? document.activeElement.dataset.fk ?? null : null;
-      const swatches = COLOR_NAMES.map((c) => h('label', { class: `swatch ${colorClass(c)}`, title: colorLabel(c) },
-        h('input', { type: 'radio', name: `note-color-${noteId}`, value: c, checked: c === colorName(n.color), 'aria-label': colorLabel(c), onchange: () => actions.updateNote(noteId, { color: c }) }),
-        h('span', { class: 'swatch-dot' }, icon('check'))));
-      side.replaceChildren(
-        trashed()
-          ? [
-            h('p', { class: 'hint' }, t('note.trashedHint', { count: trashDaysLeft(n) })),
-            tool('restore', 'undo', t('note.restore'), async () => { await actions.restoreNote(noteId); toast(t('note.restored')); }),
-            tool('delete', 'trash', t('note.deleteForever'), () => removeForever(), {}),
-          ]
-          : [
-            tool('mode', mode === 'edit' ? 'eye' : 'pencil', mode === 'edit' ? t('note.read') : t('note.edit'), () => setMode(mode === 'edit' ? 'read' : 'edit')),
-            tool('pin', 'pin', n.is_pinned ? t('note.unpin') : t('note.pin'), () => actions.updateNote(noteId, { is_pinned: !n.is_pinned }), { active: n.is_pinned, pressed: Boolean(n.is_pinned) }),
-            tool('labels', 'tag', t('note.labels'), () => { labelsOpen = !labelsOpen; drawLabels(); }, { active: labelsOpen, pressed: labelsOpen }),
-            tool('archive', 'archive', n.is_archived ? t('note.unarchive') : t('note.archive'), async () => {
-              flush();
-              await actions.updateNote(noteId, { is_archived: !n.is_archived });
-              toast(n.is_archived ? t('note.unarchived') : t('note.archived'));
-              if (!n.is_archived) close();
+      const focused = right.contains(document.activeElement) ? document.activeElement.dataset.fk : null;
+      if (trashed()) {
+        right.replaceChildren(
+          h('button', { type: 'button', class: 'button button-small', dataset: { fk: 'note:restore' }, onclick: async () => { await actions.restoreNote(noteId); toast(t('note.restored')); } }, icon('undo'), t('note.restore')),
+          h('button', { type: 'button', class: 'button button-small button-danger', dataset: { fk: 'note:delete' }, onclick: removeForever }, icon('trash'), t('note.deleteForever')));
+      } else {
+        right.replaceChildren(
+          iconButton('note:background', 'palette', t('note.background'), (e) => openBackground(e.currentTarget), { popup: true }),
+          iconButton('note:pin', 'pin', n.is_pinned ? t('note.unpin') : t('note.pin'), () => actions.updateNote(noteId, { is_pinned: !n.is_pinned }), { pressed: Boolean(n.is_pinned), cls: n.is_pinned ? 'is-on' : '' }),
+          iconButton('note:more', 'more', t('note.more'), (e) => openMenu(e.currentTarget), { popup: true }));
+      }
+      if (focused) right.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
+    }
+
+    // ---------- labels als chips ----------
+    const tags = h('div', { class: 'note-tags' });
+    function drawTags() {
+      const n = note();
+      if (!n) return;
+      const chosen = (n.labels ?? []).map((id) => store.view.labels.get(id)).filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+      tags.replaceChildren(
+        ...chosen.map((label) => h('span', { class: 'note-tag' },
+          h('span', { class: `note-tag-hash ${colorClass(label.color)}`, 'aria-hidden': 'true' }, '#'), h('span', {}, label.name),
+          !trashed() && h('button', {
+            type: 'button', class: 'note-tag-remove', 'aria-label': t('note.removeLabel', { name: label.name }), title: t('note.removeLabel', { name: label.name }),
+            dataset: { fk: `note-tag-remove:${label.id}` }, onclick: () => actions.updateNote(noteId, { labels: (note()?.labels ?? []).filter((x) => x !== label.id) }),
+          }, '×'))),
+        !trashed() && h('button', { type: 'button', class: 'note-tag-add', dataset: { fk: 'note-tag-add' }, 'aria-haspopup': 'true', onclick: (e) => openTags(e.currentTarget) }, icon('plus'), t('note.addLabel')));
+    }
+
+    // ---------- bewerkt, woorden ----------
+    const meta = h('p', { class: 'note-meta' });
+    function drawMeta() {
+      const n = note();
+      if (!n) return;
+      const parts = [editedText(n.updated_at), t('note.words', { count: editor.wordCount() })];
+      if (trashed()) parts.push(t('note.daysLeftLong', { count: trashDaysLeft(n) }));
+      else if (n.is_archived) parts.push(t('note.inArchive'));
+      meta.textContent = parts.filter(Boolean).join(' · ');
+    }
+
+    // ---------- keuzevenstertjes ----------
+    function closePop() {
+      if (!pop) return;
+      const { el, anchor } = pop;
+      pop = null;
+      el.remove();
+      sheet.className = `note-sheet ${bgClass(note()?.background)}`;
+      anchor?.focus?.();
+    }
+    function openPop(anchor, content, kind) {
+      const same = pop?.kind === kind;
+      closePop();
+      if (same) return;
+      const el = h('div', { class: `note-pop note-pop-${kind}`, role: kind === 'menu' ? 'menu' : 'dialog', 'aria-label': anchor.getAttribute('aria-label') ?? anchor.textContent }, content);
+      dialog.append(el);
+      const a = anchor.getBoundingClientRect();
+      const d = dialog.getBoundingClientRect();
+      const width = el.offsetWidth;
+      el.style.top = `${a.bottom - d.top + 6}px`;
+      el.style.left = `${Math.max(8, Math.min(a.right - d.left - width, d.width - width - 8))}px`;
+      pop = { el, anchor, kind };
+      (el.querySelector('[aria-checked="true"], input, button:not([disabled])'))?.focus();
+    }
+    dialog.addEventListener('pointerdown', (e) => {
+      if (pop && !pop.el.contains(e.target) && !pop.anchor.contains(e.target)) closePop();
+    });
+    dialog.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && pop) { e.preventDefault(); e.stopPropagation(); closePop(); }
+    }, true);
+    dialog.addEventListener('cancel', (e) => { if (pop) { e.preventDefault(); closePop(); } });
+
+    function openBackground(anchor) {
+      openPop(anchor, backgroundPicker({
+        value: note()?.background ?? null,
+        onChange: (bg) => { actions.updateNote(noteId, { background: bg }); sheet.className = `note-sheet ${bgClass(bg)}`; closePop(); },
+        onPreview: (bg) => { sheet.className = `note-sheet ${bgClass(bg === false ? note()?.background : bg)}`; },
+      }), 'background');
+    }
+
+    function openMenu(anchor) {
+      const n = note();
+      const counts = editor.counts();
+      const item = (fk, iconName, label, run, opts = {}) => h('button', {
+        type: 'button', role: 'menuitem', class: `note-menu-item${opts.danger ? ' danger' : ''}`, disabled: opts.disabled, dataset: { fk: `note-menu:${fk}` },
+        onclick: () => { closePop(); run(); },
+      }, icon(iconName), label);
+      openPop(anchor, [
+        item('pin', 'pin', n.is_pinned ? t('note.unpin') : t('note.pin'), () => actions.updateNote(noteId, { is_pinned: !n.is_pinned })),
+        item('archive', 'archive', n.is_archived ? t('note.unarchive') : t('note.archive'), async () => {
+          flush();
+          await actions.updateNote(noteId, { is_archived: !n.is_archived });
+          toast(n.is_archived ? t('note.unarchived') : t('note.archived'));
+          if (!n.is_archived) finish(null);
+        }),
+        counts.items > 0 && h('hr', { class: 'note-menu-sep' }),
+        counts.items > 0 && item('uncheck', 'undo', t('note.uncheckAll'), () => editor.uncheckAll(), { disabled: counts.checked === 0 }),
+        counts.items > 0 && item('delete-checked', 'trash', t('note.deleteChecked'), () => editor.deleteChecked(), { disabled: counts.checked === 0, danger: true }),
+        h('hr', { class: 'note-menu-sep' }),
+        item('export', 'paperclip', t('note.export'), () => exportFile()),
+        item('trash', 'trash', t('note.trash'), async () => {
+          flush();
+          await actions.trashNote(noteId);
+          toast(t('note.trashed'), { action: { label: t('note.undo'), run: () => actions.restoreNote(noteId) } });
+          finish(null);
+        }, { danger: true }),
+      ], 'menu');
+    }
+
+    function openTags(anchor) {
+      const search = h('input', { class: 'field', type: 'text', maxLength: 100, placeholder: t('note.labelSearch'), 'aria-label': t('note.labelSearch'), autocomplete: 'off', dataset: { fk: 'note-label-search' } });
+      const list = h('div', { class: 'note-label-list', role: 'group', 'aria-label': t('note.labels') });
+      const fold = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+      const draw = () => {
+        const q = search.value.trim();
+        const all = labelList(store.view, store.userId).own.map((x) => x.label);
+        const own = all.filter((l) => !q || fold(l.name).includes(fold(q)));
+        const chosen = new Set(note()?.labels ?? []);
+        const exact = all.some((l) => fold(l.name) === fold(q));
+        list.replaceChildren(
+          ...own.map((label) => h('label', { class: 'note-label-option' },
+            h('input', {
+              type: 'checkbox', checked: chosen.has(label.id), dataset: { fk: `note-label:${label.id}` },
+              onchange: (e) => actions.updateNote(noteId, { labels: e.target.checked ? [...new Set([...(note()?.labels ?? []), label.id])] : (note()?.labels ?? []).filter((x) => x !== label.id) }),
             }),
-            tool('export', 'paperclip', t('note.export'), () => {
-              flush();
-              const now = note();
-              const name = `${(noteTitle(now, t('note.untitled')).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').trim().slice(0, 60) || 'notitie')}.md`;
-              const body = now.title ? `# ${now.title}\n\n${now.content ?? ''}` : (now.content ?? '');
-              if (!saveTextFile({ name, mime: 'text/markdown', text: body })) toast(t('note.exportFailed'), { kind: 'error' });
-            }),
-            tool('trash', 'trash', t('note.trash'), async () => {
-              flush();
-              await actions.trashNote(noteId);
-              toast(t('note.trashed'), { action: { label: t('note.undo'), run: () => actions.restoreNote(noteId) } });
-              close();
-            }),
-            h('fieldset', { class: 'color-field note-colors' }, h('legend', {}, t('note.color')), h('div', { class: 'swatches' }, swatches)),
-          ],
-      );
-      drawLabels();
-      if (focused) side.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
+            h('span', { class: `note-tag-hash ${colorClass(label.color)}`, 'aria-hidden': 'true' }, '#'), h('span', {}, label.name))),
+          q && !exact && h('button', {
+            type: 'button', class: 'note-label-create', dataset: { fk: 'note-label-create' },
+            onclick: async () => {
+              const id = await actions.addLabel(q);
+              if (id) await actions.updateNote(noteId, { labels: [...new Set([...(note()?.labels ?? []), id])] });
+              search.value = '';
+              draw();
+              search.focus();
+            },
+          }, icon('plus'), t('note.createLabel', { name: q })),
+          all.length === 0 && !q && h('p', { class: 'hint' }, t('note.noLabels')));
+      };
+      search.addEventListener('input', draw);
+      search.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); list.querySelector('.note-label-create')?.click(); }
+      });
+      draw();
+      openPop(anchor, [search, list], 'labels');
+    }
+
+    async function askLink(current) {
+      if (current) {
+        const choice = await menuDialog({
+          title: current,
+          items: [{ value: 'open', label: t('note.linkOpen') }, { value: 'edit', label: t('note.linkEdit') }, { value: 'remove', label: t('note.linkRemove'), danger: true }],
+        });
+        if (choice === 'open') { window.open(current, '_blank', 'noopener,noreferrer'); return null; }
+        if (choice === 'remove') return '';
+        if (choice !== 'edit') return null;
+      }
+      return promptDialog({ title: t('note.linkTitle'), label: t('note.linkLabel'), value: current ?? '', type: 'url', okText: t('common.save'), placeholder: 'https://' });
+    }
+
+    function exportFile() {
+      flush();
+      const n = note();
+      const name = `${(noteTitle(n, t('note.untitled')).replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').trim().slice(0, 60) || 'notitie')}.md`;
+      const body = n.title ? `# ${n.title}\n\n${n.content ?? ''}` : (n.content ?? '');
+      if (!saveTextFile({ name, mime: 'text/markdown', text: body })) toast(t('note.exportFailed'), { kind: 'error' });
     }
 
     async function removeForever() {
+      const ok = await confirmDialog({ title: t('note.deleteForeverTitle'), text: t('note.deleteForeverText'), okText: t('note.deleteForever') });
+      if (!ok) return;
       closing = true;
       if (timer) { clearTimeout(timer); timer = null; }
       await actions.deleteNotes([noteId]);
@@ -287,42 +282,54 @@ export function openNoteEditor({ store, actions, noteId, edit = false, created =
       finish(null);
     }
 
-    function close() {
-      finish(null);
-    }
-
-    // wijzigingen van buiten (een ander apparaat, de knoppen hierboven) komen in de knoppen en kleuren; de tekst blijft zoals je hem typt
+    // ---------- wijzigingen van buiten (een ander apparaat, de knoppen hierboven) ----------
+    let lastSeen = { title: initial.title ?? '', content: initial.content ?? '' };
     const unsubscribe = store.subscribe(() => {
-      if (!note()) { if (!closing) finish(null); return; }
-      drawSide();
+      const n = note();
+      if (!n) { if (!closing) { closing = true; finish(null); } return; }
+      // de tekst van een ander apparaat alleen overnemen als je hier niet zelf aan het typen bent
+      const typing = Boolean(timer) || editor.el.contains(document.activeElement) || document.activeElement === title;
+      if (!typing && n.content !== lastSeen.content) editor.setMarkdown(n.content ?? '');
+      if (!typing && n.title !== lastSeen.title) { title.value = n.title ?? ''; grow(); }
+      lastSeen = { title: n.title ?? '', content: n.content ?? '' };
+      if (!pop || pop.kind !== 'background') sheet.className = `note-sheet ${bgClass(n.background)}`;
+      editor.setCheckedBottom(prefs().checked_bottom);
+      drawBar();
+      drawTags();
+      drawMeta();
+      if (pop?.kind === 'labels') pop.el.querySelector('input')?.dispatchEvent(new Event('input'));
     });
+    const onOnline = () => drawStatus();
+    globalThis.addEventListener?.('online', onOnline);
+    globalThis.addEventListener?.('offline', onOnline);
+
     dialog.addEventListener('close', () => {
       unsubscribe();
-      // bij sluiten (ook met Escape): wat er nog niet bewaard is, nu bewaren; een nieuwe, lege notitie weer weghalen
-      if (closing) return;
-      flush();
+      globalThis.removeEventListener?.('online', onOnline);
+      globalThis.removeEventListener?.('offline', onOnline);
+      if (!closing) flush();
+      editor.destroy();
+      // een nieuwe notitie die leeg bleef, weer weghalen
       const n = note();
-      if (created && n && !n.title && !n.content && (n.labels ?? []).length === 0) actions.deleteNotes([noteId]);
+      if (created && !closing && n && !n.title && !n.content && (n.labels ?? []).length === 0) actions.deleteNotes([noteId]);
     });
 
-    const meta = () => {
-      const n = note();
-      return n?.updated_at ? t('note.updated', { when: new Date(n.updated_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) }) : '';
-    };
-    status.textContent = meta();
-
-    const root = h('div', { class: 'dialog-form note-form' },
-      h('div', { class: 'note-head' },
-        titleInput,
-        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('common.close'), title: t('common.close'), dataset: { fk: 'note-close' }, onclick: close }, icon('close'))),
-      h('div', { class: 'note-body' },
-        h('div', { class: 'note-main' }, bar, area, preview, labelPanel),
-        side),
-      h('div', { class: 'note-foot' }, status));
+    drawBar();
+    drawTags();
+    drawMeta();
+    sheet.append(
+      bar,
+      h('div', { class: 'note-scroll' },
+        h('div', { class: 'note-page' },
+          trashed() && h('p', { class: 'note-banner' }, icon('trash'), t('note.trashedBanner', { count: trashDaysLeft(initial) })),
+          title, meta, tags,
+          !trashed() && editor.toolbar,
+          h('div', { class: 'note-body' }, editor.el))));
     queueMicrotask(() => {
-      setMode(mode);
-      if (mode === 'edit') (created ? titleInput : area).focus();
+      grow();
+      if (created) title.focus();
+      else if (!trashed()) editor.focus('end');
     });
-    return root;
+    return sheet;
   }, { wide: true, className: 'note-dialog' });
 }

@@ -135,6 +135,7 @@ function render() {
     showCompleted: ui.route.type === 'project' && ui.showCompleted.has(ui.route.id), handlers,
     me: store.me, userName: (id) => store.userName(id),
   });
+  document.body.dataset.route = ui.route.type; // zo kan de stijl per soort scherm iets weglaten (bijvoorbeeld Taak toevoegen bij Notities)
   $('view-title').textContent = main.title;
   $('view-count').textContent = main.count === null ? '' : t('view.count', { count: main.count });
   replace($('view-lead'), main.lead);

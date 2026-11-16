@@ -1,12 +1,15 @@
 // Notities lezen uit de lokale toestand: de lijst met zoeken, labels, archief en prullenbak, aantallen, een voorbeeldtekst en wat
 // opgeruimd mag worden. Alleen lezen, geen wijzigingen (die staan in core/actions.js). Geen scherm.
 //
-// Een notitie is privé en van jou (SPEC 5k). Volgorde: vastgepinde notities eerst, dan de laatst gewijzigde. Zoeken werkt zoals het
-// zoekveld voor taken: hoofdletters, accenten en spaties tellen niet mee, alle woorden moeten voorkomen in willekeurige volgorde,
-// en een woord is ook een stuk van een woord; er wordt gezocht in de titel, de tekst (zonder opmaaktekens) en de labelnamen.
+// Een notitie is privé en van jou (SPEC 5k). Volgorde: zoals gekozen in de voorkeuren (laatst bewerkt, aangemaakt of titel; een notitie
+// zonder titel staat bij "titel" altijd achteraan); de vastgepinde staan apart (groepen Vastgepind en Overige, zoals in Anchor).
+// Zoeken werkt zoals het zoekveld voor taken: hoofdletters, accenten en spaties tellen niet mee, alle woorden moeten voorkomen in
+// willekeurige volgorde, en een woord is ook een stuk van een woord; er wordt gezocht in de titel, de tekst (zonder opmaaktekens) en
+// de labelnamen. Bij "Alle notities" zoekt het ook in het archief (zoals Anchor), niet in de prullenbak.
 
 import { foldMap, foldText, foldWords, occurrences } from './fold.js';
 import { plainText } from './markdown.js';
+import { getLocale, t } from './i18n.js';
 
 /** Zoveel dagen blijft een notitie in de prullenbak; daarna ruimt de app haar op (definitief verwijderen). */
 export const NOTE_TRASH_DAYS = 30;
@@ -16,6 +19,26 @@ export const SNIPPET_CHARS = 220;
 export const NOTE_SCOPES = ['all', 'archive', 'trash'];
 
 const byRecent = (a, b) => (a.updated_at < b.updated_at ? 1 : a.updated_at > b.updated_at ? -1 : a.id < b.id ? -1 : 1);
+
+/** De vergelijking voor een sortering uit de voorkeuren (shared/notes.js). */
+export function noteComparator(sort = 'updated', order = 'desc') {
+  const sign = order === 'asc' ? 1 : -1;
+  let col = null;
+  return (a, b) => {
+    let c = 0;
+    if (sort === 'title') {
+      const ta = (a.title ?? '').trim();
+      const tb = (b.title ?? '').trim();
+      if (!ta !== !tb) return ta ? -1 : 1; // zonder titel altijd achteraan
+      col ??= new Intl.Collator(getLocale(), { sensitivity: 'base', numeric: true });
+      c = col.compare(ta, tb) * (order === 'desc' ? -1 : 1);
+    } else {
+      const key = sort === 'created' ? 'created_at' : 'updated_at';
+      c = (a[key] < b[key] ? -1 : a[key] > b[key] ? 1 : 0) * sign; // asc: oud eerst; desc: nieuw eerst
+    }
+    return c || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  };
+}
 
 // de tekst zonder opmaak per notitie bewaren zolang de rij dezelfde is (bij elke wijziging komt er een nieuwe rij)
 const plainCache = new WeakMap();
@@ -37,24 +60,26 @@ export function noteTitle(note, fallback = '') {
 }
 
 /** Een notitie die niet meer bestaat of in de prullenbak ligt, hoort niet bij "Alle notities". */
-const inScope = (n, scope) => {
+const inScope = (n, scope, searching = false) => {
   const trashed = Boolean(n.trashed_at);
   if (scope === 'trash') return trashed;
   if (trashed) return false;
-  return scope === 'archive' ? Boolean(n.is_archived) : !n.is_archived;
+  if (scope === 'archive') return Boolean(n.is_archived);
+  return !n.is_archived || searching; // zoeken bij "Alle notities" vindt ook wat in het archief staat
 };
 
 /**
  * @param {{ notes: Map<string, object>, labels: Map<string, object> }} view
- * @param {{ scope?: 'all' | 'archive' | 'trash', labelId?: string | null, query?: string }} [options]
- * @returns {object[]} de notities, vastgepind eerst (niet in het archief of de prullenbak) en dan de laatst gewijzigde;
- *   bij een zoekterm eerst de notities waarvan de titel alle woorden bevat
+ * @param {{ scope?: 'all' | 'archive' | 'trash', labelId?: string | null, query?: string, sort?: string, order?: string }} [options]
+ * @returns {object[]} de notities, vastgepind eerst (alleen bij "Alle notities") en dan in de gekozen volgorde (standaard: laatst
+ *   bewerkt eerst); bij een zoekterm eerst de notities waarvan de titel alle woorden bevat
  */
-export function noteList(view, { scope = 'all', labelId = null, query = '' } = {}) {
+export function noteList(view, { scope = 'all', labelId = null, query = '', sort = 'updated', order = 'desc' } = {}) {
   const words = foldWords(String(query ?? '').slice(0, 200));
+  const compare = noteComparator(sort, order);
   const out = [];
   for (const n of view.notes.values()) {
-    if (!inScope(n, scope)) continue;
+    if (!inScope(n, scope, words.length > 0)) continue;
     if (labelId && !(n.labels ?? []).includes(labelId)) continue;
     if (words.length > 0) {
       const title = foldText(noteTitle(n));
@@ -66,8 +91,39 @@ export function noteList(view, { scope = 'all', labelId = null, query = '' } = {
       out.push({ n, rank: 0 });
     }
   }
-  out.sort((a, b) => a.rank - b.rank || (scope === 'all' ? Number(Boolean(b.n.is_pinned)) - Number(Boolean(a.n.is_pinned)) : 0) || byRecent(a.n, b.n));
+  out.sort((a, b) => a.rank - b.rank || (scope === 'all' ? Number(Boolean(b.n.is_pinned)) - Number(Boolean(a.n.is_pinned)) : 0) || compare(a.n, b.n));
   return out.map((x) => x.n);
+}
+
+/** Vastgepind en overige (bij "Alle notities"; in het archief en de prullenbak is alles "overige"). */
+export function noteGroups(list, scope = 'all') {
+  if (scope !== 'all') return { pinned: [], others: list };
+  return { pinned: list.filter((n) => n.is_pinned && !n.is_archived), others: list.filter((n) => !(n.is_pinned && !n.is_archived)) };
+}
+
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+const daysAgo = (date, now) => Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+
+/** De datum op een kaart: "Vandaag", "Gisteren", "22 sep", of "22 sep 2025" in een ander jaar (zoals Anchor). */
+export function cardDate(iso, now = new Date()) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const ago = daysAgo(date, now);
+  if (ago === 0) return t('note.today');
+  if (ago === 1) return t('note.yesterday');
+  const opts = date.getFullYear() === now.getFullYear() ? { day: 'numeric', month: 'short' } : { day: 'numeric', month: 'short', year: 'numeric' };
+  return new Intl.DateTimeFormat(getLocale(), opts).format(date).replace(/\.$/, '');
+}
+
+/** "Bewerkt vandaag om 14:03", "Bewerkt gisteren om 09:15" of "Bewerkt 22 okt". */
+export function editedText(iso, now = new Date()) {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const time = new Intl.DateTimeFormat(getLocale(), { hour: '2-digit', minute: '2-digit' }).format(date);
+  const ago = daysAgo(date, now);
+  if (ago === 0) return t('note.editedToday', { time });
+  if (ago === 1) return t('note.editedYesterday', { time });
+  return t('note.editedOn', { date: cardDate(iso, now) });
 }
 
 /** Aantallen voor de zijbalk en de filters: alle, archief, prullenbak en per label (alleen notities die niet in de prullenbak liggen). */
