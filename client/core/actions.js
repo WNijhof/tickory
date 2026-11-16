@@ -319,9 +319,9 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
      * uuid volgt uit het id, zodat dit commando niet twee keer wordt uitgevoerd als de app tussen uploaden en bewaren sluit en later
      * opnieuw uploadt (de server geeft dan dezelfde uitkomst).
      */
-    addAttachment: ({ taskId, name, uploaded }) => send([{
+    addAttachment: ({ taskId, name, uploaded, commentId = null }) => send([{
       type: 'attachment_add', uuid: `attach-${uploaded.id}`.slice(0, 64),
-      args: { id: uploaded.id, task_id: taskId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
+      args: { id: uploaded.id, task_id: taskId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256, ...(commentId ? { comment_id: commentId } : {}) },
     }]),
     deleteAttachment: (id) => send([{ type: 'attachment_delete', args: { id } }]),
     /** Een foto of geluid bij een notitie, na de upload (core/attachments.js); het uuid volgt het id, zodat een herhaling niets verdubbelt. */

@@ -674,3 +674,29 @@ test('notitie: hooguit twintig foto\'s en geluiden (ook wachtende tellen); een n
     assert.equal(c.net.uploads, 0);
   } finally { c.close(); }
 });
+
+// ---------- bij een opmerking ----------
+
+test('opmerking: een bestand wacht tot taak én opmerking op de server staan, krijgt comment_id, en gaat weg met de opmerking', async () => {
+  const c = setup();
+  try {
+    const taskId = await withTask(c);
+    await c.sync.syncNow();
+    const commentId = await c.actions.addComment({ taskId }, 'Zie de foto');
+    const { added } = await c.manager.stage(taskId, [file('keuken.png', PNG, 'image/png')], { commentId });
+    assert.equal(added.length, 1);
+    assert.deepEqual(c.manager.pendingFor(taskId), [], 'niet bij de bijlagen van de taak zelf');
+    assert.equal(c.manager.pendingFor(taskId, { commentId }).length, 1);
+    await c.manager.process();
+    assert.equal(c.net.uploads, 0, 'de opmerking staat nog niet op de server');
+    await c.sync.syncNow();
+    await c.manager.process();
+    await c.sync.syncNow();
+    const [row] = serverAttachments(c);
+    assert.deepEqual([row.comment_id, row.task_id, row.name], [commentId, taskId, 'keuken.png']);
+    await c.actions.deleteComment(commentId);
+    assert.equal([...c.store.view.attachments.values()].length, 0, 'meteen weg in de app');
+    await c.sync.syncNow();
+    assert.equal(serverAttachments(c).length, 0, 'en op de server');
+  } finally { c.close(); }
+});

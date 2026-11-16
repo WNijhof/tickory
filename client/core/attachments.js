@@ -115,7 +115,7 @@ export function createAttachmentManager({
   const notify = () => { for (const fn of [...listeners]) fn(); };
   const sorted = () => [...records.values()].sort((a, b) => a.created_at - b.created_at || (a.id < b.id ? -1 : 1));
   /** Wat de interface van een record mag zien (zonder het bestand zelf). */
-  const view = (r) => ({ id: r.id, task_id: r.task_id ?? null, note_id: r.note_id ?? null, name: r.name, size: r.size, mime: r.mime, status: r.status, error: r.error ?? null, progress: r.progress ?? 0, reason: r.reason ?? null });
+  const view = (r) => ({ id: r.id, task_id: r.task_id ?? null, note_id: r.note_id ?? null, comment_id: r.comment_id ?? null, name: r.name, size: r.size, mime: r.mime, status: r.status, error: r.error ?? null, progress: r.progress ?? 0, reason: r.reason ?? null });
 
   async function save(rec) {
     records.set(rec.id, rec);
@@ -127,8 +127,9 @@ export function createAttachmentManager({
   }
 
   /** De taak (of notitie) moet door de server bevestigd zijn voordat we een bestand erbij kunnen zetten. */
-  const confirmed = (rec) => (rec.note_id ? store.base.notes.has(rec.note_id) : store.base.tasks.has(rec.task_id));
-  const known = (rec) => (rec.note_id ? store.view.notes.has(rec.note_id) : store.view.tasks.has(rec.task_id));
+  // bij een opmerking moet ook die opmerking al op de server staan (en nog bestaan)
+  const confirmed = (rec) => (rec.note_id ? store.base.notes.has(rec.note_id) : store.base.tasks.has(rec.task_id) && (!rec.comment_id || store.base.comments.has(rec.comment_id)));
+  const known = (rec) => (rec.note_id ? store.view.notes.has(rec.note_id) : store.view.tasks.has(rec.task_id) && (!rec.comment_id || store.view.comments.has(rec.comment_id)));
   const taskKnown = (taskId) => store.view.tasks.has(taskId);
 
   const schedule = (ms) => {
@@ -154,7 +155,7 @@ export function createAttachmentManager({
       // dan volgt een nieuwe upload (dezelfde inhoud = hetzelfde antwoord) en hetzelfde commando-uuid (geen dubbele bijlage).
       if (!records.has(rec.id)) return 'discarded'; // intussen weggegooid: het bestand op de server ruimt de server zelf op
       if (rec.note_id) await actions.addNoteFile({ noteId: rec.note_id, name: rec.name, uploaded });
-      else await actions.addAttachment({ taskId: rec.task_id, name: rec.name, uploaded });
+      else await actions.addAttachment({ taskId: rec.task_id, name: rec.name, uploaded, commentId: rec.comment_id ?? null });
       rememberBlob(rec.id, rec.blob);
       await forget(rec.id);
       return 'done';
@@ -257,8 +258,8 @@ export function createAttachmentManager({
     },
 
     /** De bestanden bij een taak die nog niet als bijlage in de lijst staan. */
-    pendingFor(taskId) {
-      return sorted().filter((r) => !r.note_id && r.task_id === taskId).map(view);
+    pendingFor(taskId, { commentId = null } = {}) {
+      return sorted().filter((r) => !r.note_id && r.task_id === taskId && (r.comment_id ?? null) === commentId).map(view);
     },
     /** De foto's en geluiden bij een notitie die nog niet in de lijst staan (wachten, bezig, mislukt). */
     pendingForNote(noteId) {
@@ -272,7 +273,7 @@ export function createAttachmentManager({
      * @param {readonly File[]} fileList
      * @returns {Promise<{ added: string[], rejected: { name: string, reason: 'empty' | 'tooLarge' | 'tooMany' | 'storageFull' | 'noTask', max?: number }[] }>}
      */
-    async stage(taskId, fileList) {
+    async stage(taskId, fileList, { commentId = null } = {}) {
       const limits = await manager.limits();
       const added = [];
       const rejected = [];
@@ -284,7 +285,7 @@ export function createAttachmentManager({
         if (file.size > limits.max_upload_bytes) { rejected.push({ name, reason: 'tooLarge', max: limits.max_upload_bytes }); continue; }
         if (have() >= (limits.per_task ?? MAX_ATTACHMENTS_PER_TASK)) { rejected.push({ name, reason: 'tooMany', max: limits.per_task ?? MAX_ATTACHMENTS_PER_TASK }); continue; }
         const rec = {
-          id: makeId(), task_id: taskId, name, size: file.size, mime: normalizeMime(file.type), blob: file,
+          id: makeId(), task_id: taskId, ...(commentId ? { comment_id: commentId } : {}), name, size: file.size, mime: normalizeMime(file.type), blob: file,
           status: 'waiting', error: null, reason: null, progress: 0, tries: 0, retryAt: 0, created_at: now(),
         };
         try {

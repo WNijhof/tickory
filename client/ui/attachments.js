@@ -177,7 +177,7 @@ export function attachmentsSection({ task, store, actions, readOnly = false }) {
   };
 
   function draw() {
-    const saved = attachmentsOf(store.view, task.id);
+    const saved = attachmentsOf(store.view, task.id).filter((a) => !a.comment_id); // die bij een opmerking staan onder de opmerking
     const pending = manager.pendingFor(task.id);
     const signature = JSON.stringify([saved.map((a) => [a.id, a.name, urls.has(a.id), who(a)]), pending.map((p) => [p.id, p.status, Math.round((p.progress || 0) * 20), p.error]), store.userId]);
     if (signature === drawn) return;

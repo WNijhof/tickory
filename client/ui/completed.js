@@ -51,7 +51,8 @@ export function installCompleted({ store, handlers, getRoute, header = null, api
   const recurringRow = (e, showProject) => {
     const task = store.view.tasks.get(e.task_id);
     const project = store.view.projects.get(e.project_id);
-    return h('li', { class: 'task task-recurring-done', dataset: { fk: `recurring-done:${e.id}` } },
+    // geen `task`: het is geen taak om te kiezen of te tellen (selecteren, Ctrl+A), alleen een regel met dezelfde opmaak
+    return h('li', { class: 'task-recurring-done', dataset: { fk: `recurring-done:${e.id}` } },
       h('span', { class: 'check task-done check-static', 'aria-hidden': 'true' }),
       h('div', { class: 'task-content' },
         h('button', {

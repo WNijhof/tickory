@@ -1399,6 +1399,8 @@ export default {
   'comment.placeholder': 'Write a comment…',
   'comment.inputLabel': 'New comment',
   'comment.post': 'Post comment',
+  'comment.attach': 'Attach a file to the comment',
+  'comment.fileRemove': 'Remove {name}',
   'comment.tip': 'Ctrl+Enter to post',
   'comment.none': 'No comments yet.',
   'comment.edited': '(edited)',

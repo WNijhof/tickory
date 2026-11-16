@@ -175,6 +175,25 @@ export async function attachmentScenario(c: any): Promise<void> {
   assert.equal(remaining.length, 4, 'ook het bestand zelf is van schijf');
   step('bijlagen offline: kiezen zonder server (status "Wacht op verbinding"), herladen (lokaal bewaard), uploaden zodra de server terug is; verwijderen met bevestiging haalt ook het bestand van schijf');
 
+  // ---- een bestand bij een opmerking: onder de opmerking, niet bij de bijlagen van de taak; weg met de opmerking ----
+  await choose([files.png], `${dlg} [data-fk="comment-file-input"]`);
+  await waitFor(`document.querySelector('${dlg} .comment-file-chip')?.textContent.includes('foto van de keuken.png')`, 'het gekozen bestand als chip');
+  await evaluate(`(() => { const i = document.querySelector('${dlg} .comment-input'); i.value = 'Zo ziet het eruit'; i.dispatchEvent(new Event('input')); })()`);
+  await evaluate(`[...document.querySelectorAll('${dlg} .comment-form .button-primary')].at(-1).click()`);
+  await waitFor(`document.querySelector('${dlg} .comment-files .comment-file img')`, 'het bestand met voorbeeld onder de opmerking', 20_000);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const onComment = serverAttachments().filter((a: any) => a.comment_id);
+  assert.equal(onComment.length, 1);
+  assert.equal(onComment[0].name, 'foto van de keuken.png');
+  assert.equal(await evaluate(`document.querySelectorAll('${dlg} .attachments .attachment:not(.attachment-pending)').length`), 4, 'niet nog eens bij de bijlagen van de taak');
+  await evaluate(`[...document.querySelectorAll('${dlg} .comment')].find((c) => c.textContent.includes('Zo ziet het eruit')).querySelector('.comment-tools button:last-child').click()`);
+  await waitFor(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger')`, 'bevestiging');
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(`!document.querySelector('${dlg} .comment-files')`, 'de opmerking met bestand is weg');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverAttachments().filter((a: any) => a.comment_id).length, 0, 'het bestand ging mee met de opmerking');
+  step('bijlagen bij een opmerking: kiezen met de paperclip, met voorbeeld onder de opmerking (niet bij de taak), en weg met de opmerking');
+
   await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
 }

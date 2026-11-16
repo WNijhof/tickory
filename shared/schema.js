@@ -168,6 +168,8 @@ export const ENTITIES = {
       { name: 'mime', type: 'text', required: true, maxLen: 255 },
       { name: 'sha256', type: 'text', required: true, maxLen: 64, check: (v) => (/^[0-9a-f]{64}$/.test(v) ? null : 'moet 64 hexadecimale tekens zijn') },
       { name: 'creator_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
+      // bij een opmerking op dezelfde taak (zoals Todoist): staat dan onder die opmerking, en gaat weg met de opmerking
+      { name: 'comment_id', type: 'text', nullable: true, default: null, ref: 'comment', immutable: true },
     ],
   },
   // Herinneringen zijn persoonlijk: ieder lid van een gedeeld project stelt zijn eigen herinneringen in.

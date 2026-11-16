@@ -1396,6 +1396,8 @@ export default {
   'comment.placeholder': 'Schrijf een opmerking…',
   'comment.inputLabel': 'Nieuwe opmerking',
   'comment.post': 'Opmerking plaatsen',
+  'comment.attach': 'Bestand bij de opmerking',
+  'comment.fileRemove': '{name} weghalen',
   'comment.tip': 'Ctrl+Enter om te plaatsen',
   'comment.none': 'Nog geen opmerkingen.',
   'comment.edited': '(bewerkt)',

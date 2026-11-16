@@ -621,6 +621,7 @@ export class DemoServer {
         if (((v.task_id ?? null) === null) === ((v.project_id ?? null) === null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
         break;
       case 'attachment': {
+        if (v.comment_id && requireLive(state, 'comment', v.comment_id, 'attachment.comment_id').task_id !== v.task_id) fail('CONFLICT', 'de opmerking hoort bij een andere taak');
         // zoals de server: het bestand moet eerst zijn geüpload en moet kloppen met wat hier wordt opgegeven
         const f = this.files.get(id);
         if (!f || f.task_id !== v.task_id || f.linked) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');

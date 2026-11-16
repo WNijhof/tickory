@@ -98,6 +98,7 @@ function add(state, e, args, now, userId) {
   if (e.name === 'attachment') {
     // hoort bij een bestaande taak, en een taak heeft hooguit zoveel bijlagen (zoals de server; zie server/limits.ts)
     if (!state.tasks.has(row.task_id)) return;
+    if (row.comment_id && state.comments.get(row.comment_id)?.task_id !== row.task_id) return; // bij een opmerking op dezelfde taak
     let count = 0;
     for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
     if (count >= MAX_ATTACHMENTS_PER_TASK) return;
@@ -293,6 +294,7 @@ function remove(state, e, args, now, userId) {
     case 'comment':
       state.comments.delete(id);
       removeWhere(state, 'notifications', (n) => n.comment_id === id);
+      removeWhere(state, 'attachments', (a) => a.comment_id === id); // de bijlagen bij de opmerking gaan mee, zoals op de server
       break;
     case 'note':
       // de foto's en het geluid gaan mee, en de delingen, zoals op de server (alleen de eigenaar verwijdert een notitie)

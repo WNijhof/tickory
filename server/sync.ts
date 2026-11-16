@@ -309,6 +309,8 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       if (has(given, 'mentions')) given.mentions = notify.onlyMembers(db, notify.commentProject(db, v), given.mentions as string[]);
       break;
     case 'attachment': {
+      // bij een opmerking: die hoort bij dezelfde taak
+      if (v.comment_id && requireLive(ctx, 'comment', v.comment_id, 'attachment.comment_id').task_id !== v.task_id) fail('CONFLICT', 'de opmerking hoort bij een andere taak');
       // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak, en nog bij geen enkele bijlage horen. Wat de
       // client over grootte, type en inhoud opgeeft, moet kloppen met wat de server bij de upload zelf zag.
       const f = db.prepare('SELECT user_id, task_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
@@ -619,6 +621,7 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
     case 'comment': {
       const project = notify.commentProject(ctx.db, row);
       mark(ctx, 'comments', 'id = ?', [id]);
+      mark(ctx, 'attachments', 'comment_id = ?', [id]); // de bijlagen bij de opmerking gaan mee (de bestanden ruimt attachments.ts op)
       notify.forgetComment(ctx, id);
       if (project) activity.record(ctx, project, 'comment_deleted', { comment_id: id, task_id: (row.task_id as string | null) ?? null, title: row.task_id ? taskTitle(ctx.db, row.task_id) : null });
       break;

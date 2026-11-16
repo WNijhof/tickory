@@ -8,8 +8,11 @@ import { mentionIds, mentionParts } from '../core/mentions.js';
 import { commentsOf, membersOf } from '../core/selectors.js';
 import { timeAgo } from '../core/timeAgo.js';
 import { initials } from '../core/rowModel.js';
-import { confirmDialog, h, iconButton, replace } from './dom.js';
+import { confirmDialog, h, iconButton, replace, toast } from './dom.js';
 import { attachMentionPicker } from './mentionPicker.js';
+import { attachmentRuntime, failureText, rejectionText, saveBlob } from './attachments.js';
+import { icon } from './icons.js';
+import { formatBytes, isPreviewMime } from '../../shared/attachments.js';
 
 /**
  * De tekst van een opmerking als stukken tekst, tekstlinks en vermeldingen.
@@ -40,6 +43,54 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const title = h('h3', { class: 'subheading' });
   const input = h('textarea', { class: 'field comment-input', rows: 2, maxLength: 16000, placeholder: t('comment.placeholder'), 'aria-label': t('comment.inputLabel') });
   const post = h('button', { class: 'button button-primary button-small', type: 'button', disabled: true, onclick: () => submit() }, t('comment.post'));
+
+  // ---- bijlagen bij een opmerking (alleen bij een taak, zoals Todoist; core/attachments.js met comment_id) ----
+  const runtime = target.taskId ? attachmentRuntime() : null;
+  let chosenFiles = [];
+  const fileInput = h('input', { type: 'file', multiple: true, hidden: true, 'aria-hidden': 'true', tabIndex: -1, dataset: { fk: 'comment-file-input' } });
+  const chips = h('div', { class: 'comment-files-chosen' });
+  const drawChosen = () => {
+    replace(chips, chosenFiles.map((f, i) => h('span', { class: 'comment-file-chip' }, icon('paperclip'), h('span', {}, f.name),
+      h('button', { type: 'button', class: 'comment-file-remove', 'aria-label': t('comment.fileRemove', { name: f.name }), onclick: () => { chosenFiles.splice(i, 1); drawChosen(); } }, '×'))));
+    post.disabled = !input.value.trim() && chosenFiles.length === 0;
+  };
+  fileInput.addEventListener('change', () => { chosenFiles = [...chosenFiles, ...fileInput.files]; fileInput.value = ''; drawChosen(); });
+  const attachButton = runtime && h('button', {
+    type: 'button', class: 'icon-button comment-attach', 'aria-label': t('comment.attach'), title: t('comment.attach'), dataset: { fk: 'comment-attach' },
+    onclick: () => fileInput.click(),
+  }, icon('paperclip'));
+  const previews = new Map(); // bijlage-id -> blob-URL
+  const loadPreview = (a) => {
+    if (previews.has(a.id) || !isPreviewMime(a.mime) || a.size > 8_000_000) return;
+    previews.set(a.id, null);
+    runtime.manager.fetchBlob(a.id).then((blob) => { previews.set(a.id, URL.createObjectURL(blob)); drawn = null; draw(); }).catch(() => {});
+  };
+  const openFile = async (a) => {
+    try {
+      const blob = await runtime.manager.fetchBlob(a.id);
+      saveBlob(blob, a.name, a.mime);
+    } catch {
+      toast(t('attachment.loadFailed', { name: a.name }), { kind: 'error' });
+    }
+  };
+  /** De bijlagen onder een opmerking: afbeeldingen als voorbeeld, de rest als naam; en wat nog wordt geüpload. */
+  const filesOf = (c) => {
+    if (!runtime) return null;
+    const saved = [...(store.view.attachments?.values() ?? [])].filter((a) => a.comment_id === c.id).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+    const pending = runtime.manager.pendingFor(target.taskId, { commentId: c.id });
+    if (saved.length === 0 && pending.length === 0) return null;
+    for (const a of saved) loadPreview(a);
+    return h('ul', { class: 'comment-files' },
+      saved.map((a) => {
+        const url = previews.get(a.id);
+        return h('li', { class: 'comment-file', dataset: { id: a.id } },
+          h('button', { type: 'button', class: 'comment-file-open', 'aria-label': t('attachment.saveLabel', { name: a.name }), title: a.name, onclick: () => openFile(a) },
+            url ? h('img', { src: url, alt: '' }) : icon('paperclip'), h('span', { class: 'comment-file-name' }, a.name)));
+      }),
+      pending.map((p) => h('li', { class: `comment-file comment-file-pending is-${p.status}` },
+        icon('paperclip'), h('span', { class: 'comment-file-name' }, p.name),
+        h('span', { class: 'hint' }, p.status === 'failed' ? failureText(p.error) : p.status === 'uploading' ? `${Math.round((p.progress || 0) * 100)}%` : formatBytes(p.size)))));
+  };
 
   // wie je kunt noemen: de leden van het project van de taak (of van het project zelf), met hun naam en gebruikersnaam
   const people = () => {
@@ -105,7 +156,9 @@ export function commentsSection({ target, store, actions, heading = true }) {
   function draw() {
     const comments = commentsOf(store.view, target);
     // Alleen opnieuw tekenen als er iets veranderd is: zo blijft een opmerking die je net bewerkt met rust als er een sync binnenkomt.
-    const signature = JSON.stringify([editing?.id ?? null, comments.map((c) => [c.id, c.content, c.updated_at, authorName(c), (c.mentions ?? []).map(nameOf)])]);
+    const files = runtime ? [...(store.view.attachments?.values() ?? [])].filter((a) => a.comment_id && comments.some((c) => c.id === a.comment_id)).map((a) => [a.id, previews.get(a.id) ?? null])
+      .concat(comments.flatMap((c) => runtime.manager.pendingFor(target.taskId, { commentId: c.id }).map((p) => [p.id, p.status, Math.round((p.progress || 0) * 10)]))) : [];
+    const signature = JSON.stringify([editing?.id ?? null, comments.map((c) => [c.id, c.content, c.updated_at, authorName(c), (c.mentions ?? []).map(nameOf)]), files]);
     if (signature === drawn) return;
     drawn = signature;
     title.textContent = comments.length > 0 ? t('comment.headingCount', { count: comments.length }) : t('comment.heading');
@@ -124,22 +177,31 @@ export function commentsSection({ target, store, actions, heading = true }) {
               mine && editing?.id !== c.id && h('span', { class: 'comment-tools' },
                 iconButton({ name: 'pencil', label: t('comment.edit'), onclick: () => startEdit(c) }),
                 iconButton({ name: 'trash', label: t('comment.delete'), onclick: () => remove(c) }))),
-            editing?.id === c.id ? editor(c) : h('p', { class: 'comment-text' }, commentBody(c.content, c.mentions, nameOf))));
+            editing?.id === c.id ? editor(c) : h('p', { class: 'comment-text' }, commentBody(c.content, c.mentions, nameOf)),
+            filesOf(c)));
       })
       : [h('li', { class: 'comment-none' }, t('comment.none'))]);
   }
 
   const submit = async () => {
-    const content = input.value.trim();
+    const files = chosenFiles;
+    // alleen bestanden, zonder tekst: dan de namen als tekst (een opmerking heeft altijd tekst)
+    const content = input.value.trim() || files.map((f) => f.name).join(', ').slice(0, 1000);
     if (!content) return;
     const mentions = mentionIds(content, picker.chosen);
     input.value = '';
     picker.reset();
+    chosenFiles = [];
+    drawChosen();
     post.disabled = true;
-    await actions.addComment(target, content, mentions);
+    const id = await actions.addComment(target, content, mentions);
+    if (files.length > 0 && runtime) {
+      const { rejected } = await runtime.manager.stage(target.taskId, files, { commentId: id });
+      if (rejected.length) toast(rejected.map(rejectionText).join(' '), { kind: 'error' });
+    }
     list.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
   };
-  input.addEventListener('input', () => { post.disabled = !input.value.trim(); });
+  input.addEventListener('input', () => { post.disabled = !input.value.trim() && chosenFiles.length === 0; });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -149,6 +211,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
   });
 
   const unsubscribe = store.subscribe(draw);
+  const unsubscribeFiles = runtime ? runtime.manager.subscribe(draw) : () => {};
   draw();
   const node = h('section', { class: 'comments', 'aria-label': t('comment.heading') },
     heading && title,
@@ -156,6 +219,12 @@ export function commentsSection({ target, store, actions, heading = true }) {
     // geen <form>: de opmerkingen staan ook in het taakvenster, en formulieren mogen niet in elkaar
     h('div', { class: 'comment-form' },
       h('div', { class: 'comment-compose' }, input, picker.node),
-      h('div', { class: 'comment-buttons' }, h('span', { class: 'comment-tip' }, people().length > 1 ? t('comment.tipMention') : t('comment.tip')), post)));
-  return { node, dispose: unsubscribe, focus: () => input.focus() };
+      chips,
+      h('div', { class: 'comment-buttons' }, attachButton, fileInput, h('span', { class: 'comment-tip' }, people().length > 1 ? t('comment.tipMention') : t('comment.tip')), post)));
+  const dispose = () => {
+    unsubscribe();
+    unsubscribeFiles();
+    for (const url of previews.values()) if (url) URL.revokeObjectURL(url);
+  };
+  return { node, dispose, focus: () => input.focus() };
 }
