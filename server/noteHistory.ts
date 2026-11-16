@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import { ENTITIES, ID_RE } from './schema.ts';
 import { SyncError, getRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
+import { noteRole } from './noteAccess.ts';
 
 export const REVISION_GAP_MS = 10 * 60 * 1000;
 export const REVISIONS_PER_NOTE = 50;
@@ -55,11 +56,11 @@ export function forgetNoteRevisions(db: DatabaseSync, noteId: string): void {
   db.prepare('DELETE FROM note_revisions WHERE note_id = ?').run(noteId);
 }
 
-/** De notitie, als deze gebruiker de eigenaar is; anders "bestaat niet" (ook voor een notitie van een ander). */
+/** De notitie, als deze gebruiker haar ziet (eigenaar, of gedeeld); anders "bestaat niet". */
 function ownNote(db: DatabaseSync, userId: string, noteId: unknown): Row {
-  if (typeof noteId !== 'string' || !ID_RE.test(noteId)) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+  if (typeof noteId !== 'string' || !ID_RE.test(noteId) || noteRole(db, userId, noteId) === null) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
   const note = getRow(db, ENTITIES.note, noteId);
-  if (!note || note.is_deleted === 1 || note.owner_id !== userId) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+  if (!note) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
   return note;
 }
 
@@ -92,7 +93,6 @@ export function getRevision(db: DatabaseSync, userId: string, noteId: string, re
  * Geeft de wijzigingen terug die de aanroeper op de notitie toepast, of null als er niets verandert.
  */
 export function restoreChanges(ctx: Ctx, note: Row, revisionId: unknown): { title: string; content: string } | null {
-  if (note.owner_id !== ctx.userId) throw new SyncError('NOT_FOUND', 'note.id: note bestaat niet');
   const r = typeof revisionId === 'string' && /^rev_[A-Za-z0-9_-]{8,40}$/.test(revisionId)
     ? ctx.db.prepare('SELECT title, content FROM note_revisions WHERE id = ? AND note_id = ?').get(revisionId, note.id as string) as Row | undefined
     : undefined;

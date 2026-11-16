@@ -23,6 +23,7 @@ import { join } from 'node:path';
 import { DEFAULT_MIME, effectiveMime, isInlineMime, normalizeMime } from '../shared/attachments.js';
 import { canEditRole } from '../shared/roles.js';
 import { isNoteFileMime } from '../shared/notes.js';
+import { canEditNote, noteRole } from './noteAccess.ts';
 import { ID_RE } from './schema.ts';
 import { LIMITS, RESTORE } from './limits.ts';
 import { SyncError } from './rows.ts';
@@ -61,9 +62,9 @@ const editorOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean
   canEditRole((db.prepare(`SELECT m.role FROM tasks t JOIN project_members m ON m.project_id = t.project_id
               WHERE t.id = ? AND t.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(taskId, userId) as { role?: string } | undefined)?.role ?? null);
 
-/** Een notitie is privé: alleen de eigenaar zet er bestanden bij en haalt ze op. */
-const ownerOfNote = (db: DatabaseSync, userId: string, noteId: string): boolean =>
-  db.prepare('SELECT 1 FROM notes WHERE id = ? AND is_deleted = 0 AND owner_id = ?').get(noteId, userId) !== undefined;
+/** Bij een notitie zet de eigenaar of een bewerker bestanden; wie de notitie ziet (ook een lezer) haalt ze op (noteAccess.ts). */
+const editorOfNote = (db: DatabaseSync, userId: string, noteId: string): boolean => canEditNote(noteRole(db, userId, noteId));
+const seesNote = (db: DatabaseSync, userId: string, noteId: string): boolean => noteRole(db, userId, noteId) !== null;
 
 /** Bestandsnaam voor de Content-Disposition: een veilige ASCII-terugval plus de echte naam als filename* (RFC 6266 / 8187). */
 export function contentDisposition(kind: 'attachment' | 'inline', name: string): string {
@@ -214,7 +215,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       else if (forNote && params.taskId !== null && params.taskId !== undefined) problem = new SyncError('INVALID_ARG', 'geef task_id of note_id, niet allebei');
       else if (forNote) {
         if (typeof noteId !== 'string' || !ID_RE.test(noteId)) problem = new SyncError('INVALID_ARG', 'note_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
-        else if (!ownerOfNote(db, userId, noteId)) problem = new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+        else if (!seesNote(db, userId, noteId)) problem = new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+        else if (!editorOfNote(db, userId, noteId)) problem = new SyncError('FORBIDDEN', 'je kunt deze notitie alleen lezen');
         else if (!isNoteFileMime(normalizeMime(req.headers['content-type']))) problem = new SyncError('INVALID_ARG', 'bij een notitie kan alleen een afbeelding of geluid');
       } else if (typeof taskId !== 'string' || !ID_RE.test(taskId)) problem = new SyncError('INVALID_ARG', 'task_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
       else if (!memberOfTask(db, userId, taskId)) problem = new SyncError('NOT_FOUND', 'deze taak bestaat niet');
@@ -272,7 +274,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
           throw new SyncError('CONFLICT', 'er is al een ander bestand met dit id geüpload');
         }
         if (uploadNote !== null) {
-          if (!ownerOfNote(db, userId, uploadNote)) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+          if (!seesNote(db, userId, uploadNote)) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+          if (!editorOfNote(db, userId, uploadNote)) throw new SyncError('FORBIDDEN', 'je kunt deze notitie alleen lezen');
         } else {
           if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
           if (!editorOfTask(db, userId, uploadTask)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
@@ -313,8 +316,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
                 COALESCE(a.is_deleted, nf.is_deleted) AS is_deleted
          FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN note_files nf ON nf.id = f.id WHERE f.id = ?`).get(id) as Row | undefined;
       if (!f) throw notFound;
-      // bij een notitie alleen de eigenaar (de notitie is privé); bij een taak de leden van het project
-      const allowed = f.note_id ? ownerOfNote(db, userId, f.note_id as string) : memberOfTask(db, userId, f.task_id as string);
+      // bij een notitie wie haar ziet (eigenaar of met wie ze gedeeld is); bij een taak de leden van het project
+      const allowed = f.note_id ? seesNote(db, userId, f.note_id as string) : memberOfTask(db, userId, f.task_id as string);
       if (f.linked === 1) {
         if (f.is_deleted !== 0 || !allowed) throw notFound;
       } else if (f.user_id !== userId || !allowed) throw notFound;

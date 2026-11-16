@@ -295,10 +295,22 @@ function remove(state, e, args, now, userId) {
       removeWhere(state, 'notifications', (n) => n.comment_id === id);
       break;
     case 'note':
-      // de foto's en het geluid gaan mee, zoals op de server
+      // de foto's en het geluid gaan mee, en de delingen, zoals op de server (alleen de eigenaar verwijdert een notitie)
+      if (userId && state.notes.get(id).owner_id && state.notes.get(id).owner_id !== userId) return;
       removeWhere(state, 'note_files', (f) => f.note_id === id);
+      removeWhere(state, 'note_shares', (s) => s.note_id === id);
       state.notes.delete(id);
       break;
+    case 'note_share': {
+      // haal je een notitie van een ander weg uit je eigen notities, dan verdwijnen de notitie en haar bestanden hier ook
+      const share = state.note_shares.get(id);
+      state.note_shares.delete(id);
+      if (userId && share.user_id === userId) {
+        removeWhere(state, 'note_files', (f) => f.note_id === share.note_id);
+        state.notes.delete(share.note_id);
+      }
+      break;
+    }
     case 'place':
       // de herinneringen op deze plaats gaan mee, zoals op de server
       removeWhere(state, 'reminders', (r) => r.place_id === id);

@@ -516,6 +516,58 @@ export async function notesScenario(c: any) {
   await closeToasts();
   step('notities: importeren uit een Takeout-zip van Keep (lijst, kleur, eigen label, foto, archief; de prullenbak niet) en uit Markdown (tags, titel uit # …)');
 
+  // ---- delen: Alice deelt met Bob (bewerker, dan lezer, dan weer bewerker); Bob wijzigt de tekst; Bob deelt met Alice ----
+  const bobName = (db.prepare('SELECT name FROM users WHERE id = ?').get(bob.id) as any).name as string;
+  const bobUser = (db.prepare('SELECT username FROM users WHERE id = ?').get(bob.id) as any).username as string;
+  const shares = (): any[] => ((serverState().note_shares as any[]) ?? []).filter((s) => !s.is_deleted);
+  await click(`[data-fk="note:${made.id}"]`);
+  await waitFor(`document.querySelector('dialog[open] .note-title')?.value === 'Boodschappen & ideeën'`, 'de notitie open');
+  await click('dialog[open] [data-fk="note:more"]');
+  await click('dialog[open] [data-fk="note-menu:share"]');
+  await waitFor(`document.querySelector('.dialog-note-share[open] [data-fk="note-share-username"]')`, 'het deelvenster');
+  await evaluate(`(() => { const i = document.querySelector('.dialog-note-share[open] [data-fk="note-share-username"]'); i.value = ${js(bobUser)}; i.dispatchEvent(new Event('input')); })()`);
+  await click('.dialog-note-share[open] [data-fk="note-share-invite"]');
+  await synced();
+  await waitFor(`document.querySelector('.dialog-note-share[open] [data-fk="note-share-role:${bob.id}"]')`, 'Bob in de lijst', 10_000);
+  assert.deepEqual(shares().map((s) => [s.note_id, s.user_id, s.role]), [[made.id, bob.id, 'editor']]);
+  await evaluate(`(() => { const s = document.querySelector('.dialog-note-share[open] [data-fk="note-share-role:${bob.id}"]'); s.value = 'viewer'; s.dispatchEvent(new Event('change')); })()`);
+  await synced();
+  assert.equal(shares()[0].role, 'viewer');
+  await evaluate(`(() => { const s = document.querySelector('.dialog-note-share[open] [data-fk="note-share-role:${bob.id}"]'); s.value = 'editor'; s.dispatchEvent(new Event('change')); })()`);
+  await synced();
+  assert.equal(shares()[0].role, 'editor');
+  await key('Escape', { vk: 27 });
+  await waitFor(`!document.querySelector('.dialog-note-share[open]')`, 'het deelvenster dicht');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="note-shared-with"]')?.textContent`), 'Gedeeld met 1 persoon');
+  // Bob (op een ander apparaat) past de tekst aan: die komt in de open notitie van Alice
+  const before3 = savedContent(made.id);
+  await as(bobToken, [['note_update', { id: made.id, content: `${before3}\nmeel (van Bob)` }]]);
+  await waitFor(`document.querySelector('dialog[open] .ned')?.textContent.includes('meel (van Bob)')`, 'de wijziging van Bob in beeld', 10_000);
+  await click('dialog[open] [data-fk="note-close"]');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'dicht');
+  await waitFor(`document.querySelector('.nc[data-id=${js(made.id)}] .nc-shared')?.textContent === '1'`, 'de kaart toont dat ze gedeeld is');
+  // Bob deelt een notitie met Alice, alleen lezen
+  await as(bobToken, [['note_add', { id: 'e2enotitiebob001', title: 'Van Bob', content: 'Lees mee' }], ['note_share', { note_id: 'e2enotitiebob001', username: 'alice', role: 'viewer' }]]);
+  const bobCard = `document.querySelector('.nc[data-id="e2enotitiebob001"]')`;
+  await waitFor(`${bobCard}?.querySelector('.nc-shared')?.textContent === ${js(bobName)}`, 'de kaart van Bob met zijn naam', 10_000);
+  await evaluate(`${bobCard}.querySelector('.nc-open').click()`);
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-shared-by"]')`, 'de notitie van Bob open');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="note-shared-by"]').textContent`), `Van ${bobName} · Alleen lezen`);
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .note-title').readOnly`), true, 'alleen lezen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .ned').getAttribute('contenteditable')`), 'false');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .note-bar-right [data-fk]')].map((b) => b.dataset.fk)`), ['note:more'], 'geen kleur, belletje of punaise');
+  await click('dialog[open] [data-fk="note:more"]');
+  await click('dialog[open] [data-fk="note-menu:leave"]');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].some((b) => b.textContent === 'Weghalen')`, 'de vraag');
+  await evaluate(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].find((b) => b.textContent === 'Weghalen').click()`);
+  await waitFor(`!document.querySelector('dialog[open]') && !${bobCard}`, 'weg uit de notities van Alice', 10_000);
+  await synced();
+  assert.equal(((serverState(bob.id).notes as any[]) ?? []).some((x) => x.id === 'e2enotitiebob001'), true, 'bij Bob bestaat ze nog');
+  assert.equal(((serverState().note_shares as any[]) ?? []).some((s) => s.note_id === 'e2enotitiebob001' && !s.is_deleted), false);
+  await as(bobToken, [['note_delete', { id: 'e2enotitiebob001' }]]);
+  await closeToasts();
+  step('notities: delen op gebruikersnaam (bewerker, lezer), een wijziging van de ander komt live binnen, "Gedeeld met 1 persoon"; een notitie van een ander alleen lezen en "Uit mijn notities halen"');
+
   // ---- opruimen ----
   const boeken = (serverState().labels as any[]).filter((l) => ['Vakantie', 'boeken'].includes(l.name) && l.owner_id === alice.id).map((l) => ['label_delete', { id: l.id }] as [string, object]);
   await as(aliceToken, [...notes().map((n) => ['note_delete', { id: n.id }] as [string, object]), ['label_delete', { id: labelId }], ...boeken, ['settings_update', { id: `settings-${alice.id}`, note_prefs: null }]]);

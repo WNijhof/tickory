@@ -254,6 +254,17 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .note-tag { min-height: 30px; padding: 2px 6px 2px 11px; }
 .note-tag-remove { border: 0; background: transparent; color: var(--text-soft); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; }
 .note-tag-remove:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+/* gedeelde notities */
+.note-shared-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 2px 11px; border: 0; border-radius: 999px; font: inherit;
+  font-size: 0.85rem; background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text);
+}
+button.note-shared-chip { cursor: pointer; }
+.note-shared-chip .icon { width: 14px; height: 14px; color: var(--accent); }
+.nc-shared { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nc-shared .icon { width: 12px; height: 12px; flex: none; }
+@media (pointer: coarse) { .note-shared-chip { min-height: 44px; } }
+
 /* notities importeren */
 .dialog-note-import { width: min(560px, calc(100vw - 24px)); }
 .ni-drop { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 16px; border: 2px dashed var(--line); border-radius: 12px; }

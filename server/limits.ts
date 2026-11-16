@@ -29,6 +29,8 @@ export const LIMITS = {
   notesPerUser: 10_000,
   /** Foto's en geluidsfragmenten per notitie (gelijk aan MAX_FILES_PER_NOTE in shared/notes.js). */
   filesPerNote: 20,
+  /** Met hoeveel mensen één notitie gedeeld kan worden. */
+  sharesPerNote: 50,
   membersPerProject: 100,
   /** Aangemelde apparaten; bij het inloggen op een volgend apparaat wordt het langst ongebruikte afgemeld. */
   sessionsPerUser: 20,

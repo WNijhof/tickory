@@ -11,10 +11,11 @@ import { icon } from './icons.js';
 const CURRENT = 'current';
 
 /**
- * @param {{ store: import('../core/store.js').Store, actions: object, api: object, noteId: string, onRestored?: () => void }} options
+ * @param {{ store: import('../core/store.js').Store, actions: object, api: object, noteId: string, onRestored?: () => void, canRestore?: boolean }} options
+ *   `canRestore`: false voor wie de notitie alleen leest (een lezer ziet de versies wel)
  * @returns {Promise<void>}
  */
-export function openNoteHistory({ store, actions, api, noteId, onRestored = () => {} }) {
+export function openNoteHistory({ store, actions, api, noteId, onRestored = () => {}, canRestore: mayRestore = true }) {
   const note = () => store.view.notes.get(noteId);
   if (!note()) return Promise.resolve();
   return openDialog((finish) => {
@@ -26,7 +27,7 @@ export function openNoteHistory({ store, actions, api, noteId, onRestored = () =
     const preview = h('div', { class: 'nh-preview' });
     const status = h('p', { class: 'hint nh-status', role: 'status', 'aria-live': 'polite' });
 
-    const canRestore = () => !note()?.trashed_at && selected !== CURRENT;
+    const canRestore = () => mayRestore && !note()?.trashed_at && selected !== CURRENT;
     /** De versie die na `id` kwam (nieuwer), of de huidige. */
     const newerThan = (id) => {
       const i = revisions.findIndex((r) => r.id === id);

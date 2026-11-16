@@ -31,6 +31,7 @@ import { restoreHandlers } from './restore.ts';
 import * as notify from './notify.ts';
 import * as activity from './activity.ts';
 import { beforeNoteUpdate, forgetNoteRevisions, restoreChanges } from './noteHistory.ts';
+import { EDITOR_FIELDS, NOTES_I_SEE, NOTES_SHARED_WITH, canEditNote, noteRole } from './noteAccess.ts';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../shared/roles.js';
 import { changedTaskFields } from '../shared/activity.js';
 
@@ -71,7 +72,11 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': case 'place': case 'template': case 'note': case 'note_file': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': case 'template': return row.owner_id === userId;
+    // een notitie: de eigenaar, en wie haar gedeeld kreeg; een foto of geluid: wie de notitie ziet
+    case 'note': return noteRole(db, userId, row.id) !== null || (row.owner_id === userId && row.is_deleted === 1);
+    case 'note_file': return noteRole(db, userId, row.note_id) !== null;
+    case 'note_share': return row.owner_id === userId || row.user_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -102,6 +107,20 @@ function requireMayWrite(ctx: Ctx, e: Entity, row: Row): void {
       break;
     case 'comment':
       if (row.author_id !== null && row.author_id !== ctx.userId) fail('FORBIDDEN', 'je kunt alleen je eigen opmerkingen wijzigen of verwijderen');
+      break;
+    case 'note':
+      // een gedeelde notitie: een bewerker wijzigt titel en tekst (zie updateEntity); verwijderen alleen de eigenaar
+      if (!canEditNote(noteRole(ctx.db, ctx.userId, row.id))) fail('FORBIDDEN', 'je kunt deze notitie alleen lezen');
+      break;
+    case 'note_file': {
+      // een foto of geluid weghalen: de eigenaar van de notitie, of wie het toevoegde als die nog mag bewerken
+      const role = noteRole(ctx.db, ctx.userId, row.note_id);
+      if (role !== 'owner' && !(role === 'editor' && row.owner_id === ctx.userId)) fail('FORBIDDEN', 'alleen de eigenaar van de notitie of wie het toevoegde kan dit weghalen');
+      break;
+    }
+    case 'note_share':
+      // de rol wijzigen alleen de eigenaar; weghalen ook de ander zelf ("uit mijn notities")
+      if (row.owner_id !== ctx.userId && row.user_id !== ctx.userId) fail('FORBIDDEN', 'dit is niet jouw deling');
       break;
     case 'attachment': {
       // verwijderen mag de maker, en de eigenaar van het project (die ruimt zo op wat anderen erin zetten)
@@ -249,7 +268,7 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     }
     case 'note': {
       // alleen je eigen labels: een label van iemand anders dat je ziet via een gedeelde taak, hoort niet bij een privénotitie
-      for (const l of (v.labels as string[]) ?? []) {
+      for (const l of has(given, 'labels') ? (given.labels as string[]) ?? [] : []) {
         if (requireLive(ctx, 'label', l, 'note.labels').owner_id !== ctx.userId) fail('INVALID_ARG', 'note.labels: je kunt alleen je eigen labels gebruiken');
       }
       break;
@@ -301,6 +320,7 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
     case 'note_file': {
       // Net als bij een bijlage van een taak: eerst geüpload door deze gebruiker, bij deze notitie, nog niet gekoppeld, en
       // grootte, type en controlegetal zoals de server ze zag. De notitie zelf is al gecontroleerd (ref: alleen je eigen).
+      if (!canEditNote(noteRole(db, ctx.userId, v.note_id))) fail('FORBIDDEN', 'je kunt deze notitie alleen lezen');
       const f = db.prepare('SELECT user_id, note_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
       if (!f || f.user_id !== ctx.userId || f.note_id !== v.note_id || f.linked === 1) fail('NOT_FOUND', 'note_file.id: het bestand is niet geüpload (of hoort al ergens bij)');
       if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
@@ -483,6 +503,10 @@ function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
   const edited = editedProject(ctx.db, e.name, row);
   if (edited !== null) requireEditor(ctx, edited);
   const changes = collect(ctx, e, args, 'update');
+  if (e.name === 'note' && row.owner_id !== ctx.userId) {
+    for (const k of Object.keys(changes)) if (!EDITOR_FIELDS.includes(k)) fail('FORBIDDEN', `alleen de eigenaar kan "${k}" van deze notitie wijzigen`);
+  }
+  if (e.name === 'note_share' && row.owner_id !== ctx.userId) fail('FORBIDDEN', 'alleen de eigenaar kan de rol wijzigen');
   if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) {
     requireOwner(ctx, row.id as string, 'alleen de eigenaar kan een project verplaatsen');
     if (changes.parent_id !== null) requireEditor(ctx, changes.parent_id); // niet onder een project dat je alleen leest
@@ -564,7 +588,9 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       activity.record(ctx, row.project_id as string, 'task_deleted', { task_id: id, title: row.content });
       break;
     case 'note':
-      // de foto's en het geluid gaan mee (de bestanden ruimt attachments.ts daarna op)
+      if (row.owner_id !== ctx.userId) fail('FORBIDDEN', 'alleen de eigenaar kan een notitie verwijderen; haal haar weg uit je notities');
+      // de foto's en het geluid gaan mee (de bestanden ruimt attachments.ts daarna op), en de delingen
+      mark(ctx, 'note_shares', 'note_id = ?', [id]);
       mark(ctx, 'note_files', 'note_id = ?', [id]);
       mark(ctx, 'notes', 'id = ?', [id]);
       forgetNoteRevisions(ctx.db, id);
@@ -843,10 +869,35 @@ function projectUnshare(ctx: Ctx, args: Args): void {
  * Een eerdere versie van een notitie terugzetten (noteHistory.ts). De client stuurt titel en tekst van die versie mee om ze meteen te
  * tonen; de server neemt ze uit de bewaarde versie zelf. Niet in de prullenbak: daar is een notitie alleen te lezen.
  */
+/**
+ * Een notitie delen: `note_share { note_id, username, role }` (role `viewer` of `editor`, standaard `editor`). Alleen de eigenaar.
+ * Een onbekende of geblokkeerde gebruiker geeft dezelfde melding (de lijst met gebruikers is niet af te tasten). Al gedeeld met
+ * die persoon: dan krijgt de bestaande deling de nieuwe rol. Met jezelf delen doet niets.
+ */
+function noteShare(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['note_id', 'username', 'role']);
+  const note = requireLive(ctx, 'note', args.note_id, 'note_id');
+  if (note.owner_id !== ctx.userId) fail('FORBIDDEN', 'alleen de eigenaar kan een notitie delen');
+  if (typeof args.username !== 'string') fail('INVALID_ARG', 'username moet tekst zijn');
+  const role = args.role === undefined ? 'editor' : args.role;
+  if (role !== 'viewer' && role !== 'editor') fail('INVALID_ARG', 'role moet viewer of editor zijn');
+  const target = getUserByName(ctx.db, args.username);
+  if (!target || target.is_disabled) fail('NOT_FOUND', 'deze gebruiker bestaat niet');
+  if (target.id === ctx.userId) return;
+  const existing = ctx.db.prepare('SELECT id, role FROM note_shares WHERE note_id = ? AND user_id = ? AND is_deleted = 0').get(note.id as string, target.id) as Row | undefined;
+  if (existing) {
+    if (existing.role !== role) updateRow(ctx, ENTITIES.note_share, existing.id as string, { role });
+    return;
+  }
+  quota(ctx, `note_shares:${note.id as string}`, LIMITS.sharesPerNote, 'delingen per notitie', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM note_shares WHERE note_id = ? AND is_deleted = 0', note.id as string));
+  insertRow(ctx, ENTITIES.note_share, newId(), { note_id: note.id, user_id: target.id, role, owner_id: ctx.userId });
+}
+
 function noteRestore(ctx: Ctx, args: Args): void {
   exactArgs(args, ['id', 'revision_id', 'title', 'content']);
   const note = requireLive(ctx, 'note', args.id, 'note.id');
   if (note.trashed_at) fail('CONFLICT', 'een notitie in de prullenbak zet je eerst terug');
+  if (!canEditNote(noteRole(ctx.db, ctx.userId, note.id))) fail('FORBIDDEN', 'je kunt deze notitie alleen lezen');
   const changes = restoreChanges(ctx, note, args.revision_id);
   if (changes) updateRow(ctx, ENTITIES.note, note.id as string, changes);
 }
@@ -883,6 +934,7 @@ HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
 HANDLERS.note_restore = noteRestore;
+HANDLERS.note_share = noteShare;
 HANDLERS.member_update = memberUpdate;
 Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 HANDLERS.notification_read_all = notificationReadAll;
@@ -919,6 +971,14 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
      UNION SELECT owner_id FROM notifications WHERE rev > ? UNION SELECT owner_id FROM notes WHERE rev > ?
      UNION SELECT owner_id FROM note_files WHERE rev > ?`,
     since, since, since, since, since, since, since, since, since,
+  );
+  // gedeelde notities: eigenaar en ontvangers van wat er aan notities, hun bestanden en de delingen zelf veranderde
+  collect(
+    `SELECT owner_id AS user_id FROM note_shares WHERE rev > ? UNION SELECT user_id FROM note_shares WHERE rev > ?
+     UNION SELECT s.user_id FROM note_shares s JOIN notes n ON n.id = s.note_id WHERE n.rev > ? AND s.is_deleted = 0
+     UNION SELECT n.owner_id FROM note_files f JOIN notes n ON n.id = f.note_id WHERE f.rev > ?
+     UNION SELECT s.user_id FROM note_files f JOIN note_shares s ON s.note_id = f.note_id WHERE f.rev > ? AND s.is_deleted = 0`,
+    since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -1008,7 +1068,10 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': case 'place': case 'template': case 'note': case 'note_file': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': case 'template': return { sql: 'owner_id = ?', params: [uid] };
+    case 'note': return { sql: `(owner_id = ? OR id IN (${NOTES_SHARED_WITH}))`, params: [uid, uid] };
+    case 'note_file': return { sql: `note_id IN (${NOTES_I_SEE})`, params: [uid, uid] };
+    case 'note_share': return { sql: '(owner_id = ? OR user_id = ?)', params: [uid, uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
     case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine})))`, params: [uid, uid, uid] };
   }
@@ -1052,6 +1115,13 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
            WHERE m.rev > ? AND m.from_project_id IN (${MY_PROJECTS}) AND t.project_id NOT IN (${MY_PROJECTS})`,
         )
         .all(since, uid, uid) as Row[]).map((r) => r.task_id as string);
+  // Notities die niet meer met deze gebruiker gedeeld zijn (weggehaald, of de notitie is verwijderd) en die hij ook niet zelf heeft.
+  const lostNotes = full
+    ? []
+    : (db.prepare(`SELECT DISTINCT note_id FROM note_shares WHERE user_id = ? AND is_deleted = 1 AND rev > ?
+                   AND note_id NOT IN (${NOTES_SHARED_WITH}) AND note_id NOT IN (SELECT id FROM notes WHERE owner_id = ?)`)
+      .all(uid, since, uid, uid) as Row[]).map((r) => r.note_id as string);
+  const SHARED_SINCE = 'SELECT note_id FROM note_shares WHERE user_id = ? AND is_deleted = 0 AND rev > ?';
   for (const e of ENTITY_LIST) {
     if (!include.has(e.resource)) continue;
     const vis = visibility(e.name, uid);
@@ -1070,6 +1140,9 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
       if (np) { extra.push(np.sql); extraParams.push(...np.params); }
       if (e.name === 'comment' || e.name === 'attachment') { extra.push(`task_id IN (${MOVED_SINCE})`); extraParams.push(since); }
       if (e.name === 'reminder' || e.name === 'notification') { extra.push(`(owner_id = ? AND task_id IN (${MOVED_SINCE}))`); extraParams.push(uid, since); }
+      // een notitie die net met je gedeeld is: de notitie en haar bestanden, ook als ze zelf niet veranderden
+      if (e.name === 'note') { extra.push(`id IN (${SHARED_SINCE})`); extraParams.push(uid, since); }
+      if (e.name === 'note_file') { extra.push(`note_id IN (${SHARED_SINCE})`); extraParams.push(uid, since); }
       if (e.name === 'label') {
         extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);
         extraParams.push(uid, since, uid, since);
@@ -1090,6 +1163,13 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
     // verdwenen toegang: de client verwijdert het project met alles erin
     if (e.name === 'project') for (const p of lost) out.push({ id: p, is_deleted: true });
     if (e.name === 'task') for (const t of moved) out.push({ id: t, is_deleted: true });
+    // een notitie die je niet meer ziet: weg, met haar bestanden
+    if (e.name === 'note') for (const n of lostNotes) out.push({ id: n, is_deleted: true });
+    if (e.name === 'note_file' && lostNotes.length) {
+      for (const part of chunked(lostNotes)) {
+        for (const f of db.prepare(`SELECT id FROM note_files WHERE note_id IN (${placeholders(part.length)})`).all(...part) as Row[]) out.push({ id: f.id, is_deleted: true });
+      }
+    }
     response[e.resource] = out;
   }
 }

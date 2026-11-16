@@ -15,7 +15,7 @@ import { viewOptionsCheck } from './viewOptions.js';
 import { NOTE_BACKGROUNDS, NOTE_REPEATS, isNoteFileMime, notePrefsCheck, noteRemindCheck } from './notes.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'notification'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'note_share' | 'notification'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -226,6 +226,18 @@ export const ENTITIES = {
       // een herinnering (shared/notes.js): zwevend tijdstip in de tijdzone van de gebruiker, eenmalig of herhaald
       { name: 'remind_at', type: 'text', nullable: true, default: null, maxLen: 16, check: noteRemindCheck },
       { name: 'remind_repeat', type: 'text', nullable: true, default: null, oneOf: NOTE_REPEATS },
+      owner(),
+    ],
+  },
+  // Een notitie delen (zoals in Anchor): met iemand anders als lezer (`viewer`) of bewerker (`editor`). Toevoegen gaat met het
+  // commando note_share (op gebruikersnaam, zoals project_share); de rol wijzigen en weghalen met de gewone commando's. De
+  // eigenaar ziet al zijn delingen, de ander alleen die van zichzelf (en kan die weghalen: "uit mijn notities").
+  note_share: {
+    name: 'note_share', table: 'note_shares', resource: 'note_shares', commands: ['update', 'delete'],
+    cols: [
+      { name: 'note_id', type: 'text', required: true, ref: 'note', immutable: true },
+      { name: 'user_id', type: 'text', required: true, immutable: true },
+      { name: 'role', type: 'text', required: true, oneOf: ['viewer', 'editor'] },
       owner(),
     ],
   },

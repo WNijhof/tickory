@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'notification';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'note_share' | 'notification';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -209,6 +209,8 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS notes_owner ON notes (owner_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS note_files_note ON note_files (note_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS note_files_owner ON note_files (owner_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS note_shares_note ON note_shares (note_id, is_deleted)');
+  db.exec('CREATE INDEX IF NOT EXISTS note_shares_user ON note_shares (user_id, is_deleted)');
   // versies van notities (noteHistory.ts): geen gesynchroniseerde rijen, alleen voor het venster "Versiegeschiedenis"
   db.exec(`CREATE TABLE IF NOT EXISTS note_revisions (
     id TEXT PRIMARY KEY, note_id TEXT NOT NULL, owner_id TEXT NOT NULL, author_id TEXT, title TEXT NOT NULL, content TEXT NOT NULL,

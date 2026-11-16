@@ -140,7 +140,7 @@ export function reminderFingerprint(view, userId) {
   }
   // herinneringen op notities (de app plant ze zelf, zie NoteReminders.kt): het tijdstip, de herhaling, de prullenbak en de kop
   for (const n of view.notes?.values() ?? []) {
-    if (!n.remind_at) continue;
+    if (!n.remind_at || (n.owner_id && userId && n.owner_id !== userId)) continue; // een gedeelde notitie: de herinnering is van de eigenaar
     lines.push(['note', n.id, n.remind_at, n.remind_repeat ?? '', n.trashed_at ? 1 : 0, n.title ?? '', (n.content ?? '').slice(0, 80)].join('\u0001'));
   }
   // meldingen bij samenwerken: de app toont nieuwe als melding op het toestel en haalt gelezen weg (zie android/README.md)

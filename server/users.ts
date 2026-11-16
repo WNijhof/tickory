@@ -155,9 +155,11 @@ export function peersOf(db: DatabaseSync, userId: string): { id: string; usernam
         `SELECT id, username, name FROM users WHERE id = ? OR id IN (
            SELECT user_id FROM project_members WHERE is_deleted = 0 AND project_id IN (
              SELECT project_id FROM project_members WHERE user_id = ? AND is_deleted = 0))
+           OR id IN (SELECT user_id FROM note_shares WHERE owner_id = ? AND is_deleted = 0)
+           OR id IN (SELECT owner_id FROM note_shares WHERE user_id = ? AND is_deleted = 0)
          ORDER BY username_key`,
       )
-      .all(userId, userId) as { id: string; username: string; name: string }[]
+      .all(userId, userId, userId, userId) as { id: string; username: string; name: string }[]
   ).map(publicPeer);
 }
 

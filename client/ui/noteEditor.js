@@ -21,6 +21,7 @@ import { saveTextFile } from './exportDialog.js';
 import { canRecord, createNoteFiles, noteFilesOf, pastedFile } from './noteFiles.js';
 import { attachmentRuntime } from './attachments.js';
 import { openNoteHistory } from './noteHistory.js';
+import { noteRoleLabel, openNoteShare, sharesOf } from './noteShare.js';
 
 const SAVE_DELAY_MS = 600;
 /** Zo lang na het laatste typen blijft tekst van buiten (een ander apparaat) nog even weg uit de editor. */
@@ -49,25 +50,30 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
   return openDialog((finish, dialog) => {
     const initial = note();
     const trashed = () => Boolean(note()?.trashed_at);
+    // de rol: eigenaar, bewerker of lezer (een notitie van een ander, met jou gedeeld; zie server/noteAccess.ts)
+    const mine = () => !note()?.owner_id || note().owner_id === store.userId;
+    const myShare = () => [...(store.view.note_shares?.values() ?? [])].find((s) => s.note_id === noteId && s.user_id === store.userId) ?? null;
+    const role = () => (mine() ? 'owner' : myShare()?.role === 'editor' ? 'editor' : 'viewer');
+    const readOnly = () => trashed() || role() === 'viewer';
     const prefs = () => notePrefsOf(mySettings(store.view, store.userId));
     const sheet = h('div', { class: `note-sheet ${bgClass(initial.background)}` });
 
     // ---------- titel en tekst ----------
     const title = h('textarea', {
       class: 'note-title', rows: 1, maxLength: NOTE_LIMITS.title, placeholder: t('note.titlePlaceholder'), 'aria-label': t('note.titleLabel'),
-      readOnly: trashed(), dataset: { fk: 'note-title' },
+      readOnly: readOnly(), dataset: { fk: 'note-title' },
     });
     title.value = initial.title ?? '';
     const grow = () => { title.style.height = 'auto'; title.style.height = `${title.scrollHeight}px`; };
     // foto's en geluid (ui/noteFiles.js); zonder bijlagen (geen beheerder) ontbreken de knoppen
-    const files = createNoteFiles({ store, actions, noteId, readOnly: trashed });
+    const files = createNoteFiles({ store, actions, noteId, readOnly });
     const mediaTool = (fk, glyph, label, run) => h('button', {
       type: 'button', class: 'ned-tool', title: label, 'aria-label': label, dataset: { fk: `note-tool:${fk}`, tool: fk },
       onmousedown: (e) => e.preventDefault(), onclick: run,
     }, glyph);
     const editor = createBlockEditor({
       markdown: initial.content ?? '',
-      readOnly: trashed(),
+      readOnly: readOnly(),
       checkedBottom: prefs().checked_bottom,
       placeholder: t('note.contentPlaceholder'),
       onChange: () => later(),
@@ -100,7 +106,7 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
     const flush = () => {
       if (timer) { clearTimeout(timer); timer = null; }
       const now = note();
-      if (!now || trashed()) { saving = false; drawStatus(); return; }
+      if (!now || readOnly()) { saving = false; drawStatus(); return; }
       const changes = {};
       const md = editor.getMarkdown();
       if (title.value !== (now.title ?? '')) changes.title = title.value;
@@ -136,6 +142,8 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
         right.replaceChildren(
           h('button', { type: 'button', class: 'button button-small', dataset: { fk: 'note:restore' }, onclick: async () => { await actions.restoreNote(noteId); toast(t('note.restored')); } }, icon('undo'), t('note.restore')),
           h('button', { type: 'button', class: 'button button-small button-danger', dataset: { fk: 'note:delete' }, onclick: removeForever }, icon('trash'), t('note.deleteForever')));
+      } else if (!mine()) {
+        right.replaceChildren(iconButton('note:more', 'more', t('note.more'), (e) => openMenu(e.currentTarget), { popup: true }));
       } else {
         const reminder = noteReminderInfo(n);
         right.replaceChildren(
@@ -154,7 +162,13 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
       if (!n) return;
       const chosen = (n.labels ?? []).map((id) => store.view.labels.get(id)).filter(Boolean)
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-      const reminder = trashed() ? null : noteReminderInfo(n);
+      const reminder = trashed() || !mine() ? null : noteReminderInfo(n);
+      if (!mine()) {
+        const owner = store.userName(n.owner_id) ?? t('common.unknownUser');
+        tags.replaceChildren(h('span', { class: 'note-shared-chip', dataset: { fk: 'note-shared-by' } }, icon('users'), t('note.share.fromLine', { name: owner, role: noteRoleLabel(role()) })));
+        return;
+      }
+      const shares = sharesOf(store, noteId);
       // replaceChildren zet false als tekst neer: alleen echte knooppunten doorgeven
       tags.replaceChildren(...[
         reminder && h('button', {
@@ -168,6 +182,9 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
             dataset: { fk: `note-tag-remove:${label.id}` }, onclick: () => actions.updateNote(noteId, { labels: (note()?.labels ?? []).filter((x) => x !== label.id) }),
           }, '×'))),
         !trashed() && h('button', { type: 'button', class: 'note-tag-add', dataset: { fk: 'note-tag-add' }, 'aria-haspopup': 'true', onclick: (e) => openTags(e.currentTarget) }, icon('plus'), t('note.addLabel')),
+        shares.length > 0 && h('button', {
+          type: 'button', class: 'note-shared-chip', dataset: { fk: 'note-shared-with' }, 'aria-haspopup': 'dialog', onclick: () => openNoteShare({ store, actions, noteId }),
+        }, icon('users'), t('note.share.withCount', { count: shares.length })),
       ].filter(Boolean));
     }
 
@@ -254,6 +271,7 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
     function openMenu(anchor) {
       const n = note();
       const counts = editor.counts();
+      if (!mine()) { openTheirMenu(anchor); return; }
       const item = (fk, iconName, label, run, opts = {}) => h('button', {
         type: 'button', role: 'menuitem', class: `note-menu-item${opts.danger ? ' danger' : ''}`, disabled: opts.disabled, dataset: { fk: `note-menu:${fk}` },
         onclick: () => { closePop(); run(); },
@@ -271,6 +289,7 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
         counts.items > 0 && item('delete-checked', 'trash', t('note.deleteChecked'), () => editor.deleteChecked(), { disabled: counts.checked === 0, danger: true }),
         h('hr', { class: 'note-menu-sep' }),
         api && item('history', 'history', t('note.history'), () => { flush(); openNoteHistory({ store, actions, api, noteId }); }),
+        item('share', 'users', t('note.share'), () => { flush(); openNoteShare({ store, actions, noteId }); }),
         item('export', 'paperclip', t('note.export'), () => exportFile()),
         item('trash', 'trash', t('note.trash'), async () => {
           flush();
@@ -279,6 +298,29 @@ export function openNoteEditor({ store, actions, noteId, created = false, api = 
           finish(null);
         }, { danger: true }),
       ], 'menu');
+    }
+
+    /** Het menu bij een notitie van een ander: de versies, opslaan als bestand en "Uit mijn notities". */
+    function openTheirMenu(anchor) {
+      const item = (fk, iconName, label, run, opts = {}) => h('button', {
+        type: 'button', role: 'menuitem', class: `note-menu-item${opts.danger ? ' danger' : ''}`, dataset: { fk: `note-menu:${fk}` },
+        onclick: () => { closePop(); run(); },
+      }, icon(iconName), label);
+      openPop(anchor, [
+        api && item('history', 'history', t('note.history'), () => { flush(); openNoteHistory({ store, actions, api, noteId, canRestore: role() === 'editor' }); }),
+        item('export', 'paperclip', t('note.export'), () => exportFile()),
+        h('hr', { class: 'note-menu-sep' }),
+        item('leave', 'trash', t('note.share.leave'), async () => {
+          const owner = store.userName(note()?.owner_id) ?? t('common.unknownUser');
+          const ok = await confirmDialog({ title: t('note.share.leaveTitle'), text: t('note.share.leaveText', { name: owner }), okText: t('note.share.leaveOk') });
+          if (!ok) return;
+          flush();
+          const share = myShare();
+          closing = true;
+          if (share) await actions.deleteNoteShare(share.id);
+          finish(null);
+        }, { danger: true }),
+      ].filter(Boolean), 'menu');
     }
 
     function openTags(anchor) {

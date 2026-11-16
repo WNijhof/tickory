@@ -17,8 +17,8 @@ import { nextNoteReminder } from '../../shared/notes.js';
  * De herinnering van een notitie om te tonen: de volgende keer (bij een herhaling), of de eenmalige die al voorbij is (`past`).
  * @returns {{ at: string, past: boolean, repeat: string | null, text: string } | null}
  */
-export function noteReminderInfo(note, now = new Date()) {
-  if (!note?.remind_at) return null;
+export function noteReminderInfo(note, now = new Date(), userId = null) {
+  if (!note?.remind_at || !isMyNote(note, userId)) return null; // de herinnering van een gedeelde notitie is van de eigenaar
   const next = nextNoteReminder(note.remind_at, note.remind_repeat ?? null, nowString(now));
   const at = next ?? note.remind_at;
   return { at, past: !next, repeat: note.remind_repeat ?? null, text: formatDue({ date: at }, todayString(now)) };
@@ -86,8 +86,15 @@ export function noteTitle(note, fallback = '') {
   return line.length > 80 ? `${line.slice(0, 79).trimEnd()}…` : line || fallback;
 }
 
+/**
+ * Is de notitie van deze gebruiker? Zonder gebruiker (oude aanroepen, tests): ja. Een notitie van een ander (met jou gedeeld) staat
+ * bij "Alle notities", nooit in je archief of prullenbak; vastpinnen, archief en labels zijn van de eigenaar.
+ */
+export const isMyNote = (n, userId = null) => !userId || !n.owner_id || n.owner_id === userId;
+
 /** Een notitie die niet meer bestaat of in de prullenbak ligt, hoort niet bij "Alle notities". */
-const inScope = (n, scope, searching = false) => {
+const inScope = (n, scope, searching = false, mine = true) => {
+  if (!mine) return scope === 'all' && !n.trashed_at; // gedeeld met jou: alleen bij alle notities, en niet als de eigenaar haar weggooide
   const trashed = Boolean(n.trashed_at);
   if (scope === 'trash') return trashed;
   if (trashed) return false;
@@ -101,16 +108,17 @@ const inScope = (n, scope, searching = false) => {
  * @returns {object[]} de notities, vastgepind eerst (alleen bij "Alle notities") en dan in de gekozen volgorde (standaard: laatst
  *   bewerkt eerst); bij een zoekterm eerst de notities waarvan de titel alle woorden bevat
  */
-export function noteList(view, { scope = 'all', labelId = null, query = '', sort = 'updated', order = 'desc' } = {}) {
+export function noteList(view, { scope = 'all', labelId = null, query = '', sort = 'updated', order = 'desc', userId = null } = {}) {
   const words = foldWords(String(query ?? '').slice(0, 200));
   const compare = noteComparator(sort, order);
   const out = [];
   for (const n of view.notes.values()) {
-    if (!inScope(n, scope, words.length > 0)) continue;
-    if (labelId && !(n.labels ?? []).includes(labelId)) continue;
+    const mine = isMyNote(n, userId);
+    if (!inScope(n, scope, words.length > 0, mine)) continue;
+    if (labelId && (!mine || !(n.labels ?? []).includes(labelId))) continue;
     if (words.length > 0) {
       const title = foldText(noteTitle(n));
-      const labelNames = (n.labels ?? []).map((id) => view.labels.get(id)?.name ?? '').join(' ');
+      const labelNames = mine ? (n.labels ?? []).map((id) => view.labels.get(id)?.name ?? '').join(' ') : '';
       const hay = foldText(`${n.title ?? ''} ${plainOf(n)} ${labelNames}`);
       if (!words.every((w) => hay.includes(w))) continue;
       out.push({ n, rank: words.every((w) => title.includes(w)) ? 0 : 1 });
@@ -118,14 +126,16 @@ export function noteList(view, { scope = 'all', labelId = null, query = '', sort
       out.push({ n, rank: 0 });
     }
   }
-  out.sort((a, b) => a.rank - b.rank || (scope === 'all' ? Number(Boolean(b.n.is_pinned)) - Number(Boolean(a.n.is_pinned)) : 0) || compare(a.n, b.n));
+  const pinned = (n) => (scope === 'all' && n.is_pinned && isMyNote(n, userId) ? 1 : 0);
+  out.sort((a, b) => a.rank - b.rank || pinned(b.n) - pinned(a.n) || compare(a.n, b.n));
   return out.map((x) => x.n);
 }
 
 /** Vastgepind en overige (bij "Alle notities"; in het archief en de prullenbak is alles "overige"). */
-export function noteGroups(list, scope = 'all') {
+export function noteGroups(list, scope = 'all', userId = null) {
   if (scope !== 'all') return { pinned: [], others: list };
-  return { pinned: list.filter((n) => n.is_pinned && !n.is_archived), others: list.filter((n) => !(n.is_pinned && !n.is_archived)) };
+  const isPinned = (n) => n.is_pinned && !n.is_archived && isMyNote(n, userId);
+  return { pinned: list.filter(isPinned), others: list.filter((n) => !isPinned(n)) };
 }
 
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -154,9 +164,10 @@ export function editedText(iso, now = new Date()) {
 }
 
 /** Aantallen voor de zijbalk en de filters: alle, archief, prullenbak en per label (alleen notities die niet in de prullenbak liggen). */
-export function noteCounts(view) {
+export function noteCounts(view, userId = null) {
   const out = { all: 0, archive: 0, trash: 0, perLabel: new Map() };
   for (const n of view.notes.values()) {
+    if (!isMyNote(n, userId)) { if (!n.trashed_at) out.all++; continue; }
     if (n.trashed_at) { out.trash++; continue; }
     if (n.is_archived) out.archive++;
     else out.all++;
@@ -166,8 +177,8 @@ export function noteCounts(view) {
 }
 
 /** Labels die op minstens één notitie staan (niet in de prullenbak), met hun aantal, op naam. */
-export function noteLabels(view) {
-  const counts = noteCounts(view).perLabel;
+export function noteLabels(view, userId = null) {
+  const counts = noteCounts(view, userId).perLabel;
   return [...counts].map(([id, count]) => ({ label: view.labels.get(id), count })).filter((x) => x.label)
     .sort((a, b) => a.label.name.localeCompare(b.label.name, undefined, { sensitivity: 'base' }));
 }
@@ -194,9 +205,10 @@ export function noteSnippet(note, query = '', max = SNIPPET_CHARS) {
 }
 
 /** Notities die langer dan `NOTE_TRASH_DAYS` dagen in de prullenbak liggen en dus opgeruimd mogen worden. */
-export function expiredNotes(view, nowMs = Date.now(), days = NOTE_TRASH_DAYS) {
+export function expiredNotes(view, nowMs = Date.now(), days = NOTE_TRASH_DAYS, userId = null) {
   const limit = nowMs - days * 86_400_000;
-  return [...view.notes.values()].filter((n) => n.trashed_at && Date.parse(n.trashed_at) < limit);
+  // alleen eigen notities: een notitie van een ander ruimt de eigenaar zelf op
+  return [...view.notes.values()].filter((n) => isMyNote(n, userId) && n.trashed_at && Date.parse(n.trashed_at) < limit);
 }
 
 /** Het aantal dagen dat een notitie nog in de prullenbak ligt (hooguit `NOTE_TRASH_DAYS`, minstens 0). */

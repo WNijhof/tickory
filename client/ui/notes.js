@@ -11,7 +11,7 @@ import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { markSegments } from '../core/search.js';
 import { cachedNoteFileUrl, forgetNoteFileUrls, noteFileUrl, noteFilesOf } from './noteFiles.js';
-import { NOTE_TRASH_DAYS, cardDate, expiredNotes, noteCounts, noteGroups, noteLabels, noteList, noteReminderInfo, noteSnippet, trashDaysLeft } from '../core/notes.js';
+import { NOTE_TRASH_DAYS, cardDate, expiredNotes, isMyNote, noteCounts, noteGroups, noteLabels, noteList, noteReminderInfo, noteSnippet, trashDaysLeft } from '../core/notes.js';
 import { cardRows, fromMarkdown, runsText } from '../core/noteDoc.js';
 import { mySettings } from '../core/selectors.js';
 import { isTyping } from '../core/shortcuts.js';
@@ -128,7 +128,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     store.subscribe(() => {
       if (cleaned || !store.ready || !store.me) return;
       cleaned = true; // één keer per start is genoeg
-      const old = expiredNotes(store.view);
+      const old = expiredNotes(store.view, Date.now(), undefined, store.userId);
       if (old.length > 0) actions.deleteNotes(old.map((n) => n.id));
     });
   }
@@ -143,7 +143,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
   const open = (note) => openNoteEditor({ store, actions, api, noteId: note.id });
 
   async function emptyTrash() {
-    const ids = [...store.view.notes.values()].filter((n) => n.trashed_at).map((n) => n.id);
+    const ids = [...store.view.notes.values()].filter((n) => n.trashed_at && isMyNote(n, store.userId)).map((n) => n.id);
     if (ids.length === 0) return;
     const ok = await confirmDialog({ title: t('note.emptyTrashTitle'), text: t('note.emptyTrashText', { count: ids.length }), okText: t('note.emptyTrash') });
     if (!ok) return;
@@ -201,7 +201,8 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     handlers.refresh();
   }
   async function bulk(kind) {
-    const ids = [...state.picked].filter((id) => store.view.notes.has(id));
+    // alleen eigen notities: vastpinnen, archiveren en weggooien zijn van de eigenaar
+    const ids = [...state.picked].filter((id) => store.view.notes.has(id) && isMyNote(store.view.notes.get(id), store.userId));
     if (ids.length === 0) return;
     if (kind === 'delete') {
       const ok = await confirmDialog({ title: t('note.deleteForeverTitle'), text: t('note.deleteManyText', { count: ids.length }), okText: t('note.deleteForever') });
@@ -223,7 +224,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     if (!extra || !store.ready || !store.me) return;
     const route = getRoute();
     const here = isNotesRoute(route);
-    const counts = noteCounts(store.view);
+    const counts = noteCounts(store.view, store.userId);
     const { scope, labelId } = scopeOfRoute(route);
     const item = (target, iconName, label, count, active, fk, sub = false) => h('button', {
       class: `nav-item${sub ? ' nav-sub-item' : ''}${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk },
@@ -234,7 +235,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       nodes.push(h('div', { class: 'nav-sub', role: 'group', 'aria-label': t('note.title') },
         item({ type: 'notes', id: 'archive' }, 'archive', t('note.scope.archive'), counts.archive, scope === 'archive', 'nav-notes-archive', true),
         item({ type: 'notes', id: 'trash' }, 'trash', t('note.scope.trash'), counts.trash, scope === 'trash', 'nav-notes-trash', true),
-        noteLabels(store.view).map(({ label, count }) => item({ type: 'notes', id: `label:${label.id}` }, null, label.name, count, labelId === label.id, `nav-notes-label:${label.id}`, true))));
+        noteLabels(store.view, store.userId).map(({ label, count }) => item({ type: 'notes', id: `label:${label.id}` }, null, label.name, count, labelId === label.id, `nav-notes-label:${label.id}`, true))));
     }
     extra.before(...nodes);
   });
@@ -305,7 +306,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
   // ---------- het scherm ----------
   function card(note, ctx) {
     const { view, query, scope, layout } = ctx;
-    const labels = (note.labels ?? []).map((id) => view.labels.get(id)).filter(Boolean)
+    const labels = (isMyNote(note, store.userId) ? note.labels ?? [] : []).map((id) => view.labels.get(id)).filter(Boolean)
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     const title = (note.title ?? '').trim();
     const picked = state.picked.has(note.id);
@@ -315,7 +316,10 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       ? (snippet.text ? h('p', { class: 'nc-p nc-snippet' }, markSegments(snippet.text, snippet.marks).map((p) => (p.mark ? h('mark', { class: 'nc-hit' }, p.text) : p.text))) : null)
       : cardBody(note, ROW_LIMIT[layout]);
     const label = title || t('note.untitled');
-    const reminder = noteReminderInfo(note);
+    const reminder = noteReminderInfo(note, new Date(), store.userId);
+    const mine = isMyNote(note, store.userId);
+    const pinnedHere = mine && Boolean(note.is_pinned); // vastpinnen is van de eigenaar
+    const shareCount = mine ? [...(view.note_shares?.values() ?? [])].filter((s) => s.note_id === note.id).length : 0;
     // zoals Anchor: bij metselwerk tot vier foto's bovenaan, bij raster één, in een lijst een miniatuur rechts; "+N" voor de rest
     const files = noteFilesOf(view, note.id);
     const images = files.filter((f) => noteFileKind(f.mime) === 'image');
@@ -325,9 +329,9 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       shown.map((f, i) => h('div', { class: 'nc-ph' }, picture(f), i === shown.length - 1 && hiddenCount > 0 && h('span', { class: 'nc-more-pics' }, `+${hiddenCount}`))));
     const thumb = layout === 'list' && images.length > 0 && h('div', { class: 'nc-thumb', 'aria-hidden': 'true' },
       picture(images[0]), files.length > 1 && h('span', { class: 'nc-more-pics' }, `+${files.length - 1}`));
-    return h('article', { class: `nc ${bgClass(note.background)}${note.is_pinned ? ' nc-pinned' : ''}${picked ? ' picked' : ''}${thumb ? ' nc-with-thumb' : ''}`, dataset: { id: note.id } },
+    return h('article', { class: `nc ${bgClass(note.background)}${pinnedHere ? ' nc-pinned' : ''}${picked ? ' picked' : ''}${thumb ? ' nc-with-thumb' : ''}`, dataset: { id: note.id } },
       h('button', {
-        class: 'nc-open', type: 'button', dataset: { fk: `note:${note.id}` }, 'aria-label': `${label}${note.is_pinned ? `, ${t('note.pinnedMark')}` : ''}`,
+        class: 'nc-open', type: 'button', dataset: { fk: `note:${note.id}` }, 'aria-label': `${label}${pinnedHere ? `, ${t('note.pinnedMark')}` : ''}`,
         'aria-pressed': state.picking ? String(picked) : null,
         onclick: (e) => {
           // in de selecteerstand (of met Ctrl/Cmd) kiest een klik de kaart; anders opent hij de notitie
@@ -339,13 +343,15 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       state.picking && h('span', { class: 'nc-pick', 'aria-hidden': 'true' }, icon('check')),
       pics,
       h('div', { class: 'nc-in' },
-        (title || note.is_pinned) && h('div', { class: 'nc-head' }, title && h('span', { class: 'nc-title' }, title), note.is_pinned && h('span', { class: 'nc-pin', role: 'img', 'aria-label': t('note.pinnedMark') }, icon('pin'))),
+        (title || pinnedHere) && h('div', { class: 'nc-head' }, title && h('span', { class: 'nc-title' }, title), pinnedHere && h('span', { class: 'nc-pin', role: 'img', 'aria-label': t('note.pinnedMark') }, icon('pin'))),
         body ?? (!title && h('p', { class: 'nc-p nc-empty' }, t('note.emptyNote'))),
         labels.length > 0 && h('div', { class: 'nc-tags' }, labels.slice(0, 3).map((l) => h('span', { class: 'nc-tag' }, h('span', { class: `note-tag-hash ${colorClass(l.color)}`, 'aria-hidden': 'true' }, '#'), l.name)),
           labels.length > 3 && h('span', { class: 'nc-tag nc-more' }, `+${labels.length - 3}`)),
         h('div', { class: 'nc-foot' },
           reminder && scope !== 'trash' && h('span', { class: `nc-reminder${reminder.past ? ' is-late' : ''}`, title: t('note.reminderAt', { when: reminder.text }) }, icon(reminder.repeat ? 'repeat' : 'bell'), reminder.text),
-          note.is_archived && scope === 'all' && h('span', { class: 'nc-flag' }, icon('archive'), t('note.archivedFlag')),
+          !mine && h('span', { class: 'nc-shared', title: t('note.share.sharedBy', { name: store.userName(note.owner_id) ?? t('common.unknownUser') }) }, icon('users'), store.userName(note.owner_id) ?? t('common.unknownUser')),
+          shareCount > 0 && h('span', { class: 'nc-shared', title: t('note.share.sharedWith', { count: shareCount }) }, icon('users'), String(shareCount)),
+          mine && note.is_archived && scope === 'all' && h('span', { class: 'nc-flag' }, icon('archive'), t('note.archivedFlag')),
           files.length > 0 && shown.length === 0 && !thumb && h('span', { class: 'nc-files', title: t('note.files.count', { count: files.length }) }, icon('paperclip'), String(files.length)),
           h('span', { class: 'nc-date' }, scope === 'trash' ? t('note.daysLeft', { count: trashDaysLeft(note) }) : cardDate(note.updated_at)))),
       thumb,
@@ -361,14 +367,14 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     const { scope, labelId } = scopeOfRoute(route);
     const label = labelId ? view.labels.get(labelId) : null;
     const p = prefs();
-    const list = noteList(view, { scope, labelId: label ? labelId : null, query: state.query, sort: p.sort, order: p.order });
+    const list = noteList(view, { scope, labelId: label ? labelId : null, query: state.query, sort: p.sort, order: p.order, userId: store.userId });
     for (const id of [...state.picked]) if (!view.notes.has(id)) state.picked.delete(id);
     search.placeholder = scope === 'archive' ? t('note.searchArchive') : scope === 'trash' ? t('note.searchTrash') : t('note.searchPlaceholder');
     search.setAttribute('aria-label', search.placeholder);
     if (search.value !== state.query) search.value = state.query;
 
     const cardCtx = { view, query: state.query, scope, layout: p.layout };
-    const { pinned, others } = noteGroups(list, scope);
+    const { pinned, others } = noteGroups(list, scope, store.userId);
     const groupNode = (key, heading, notes) => notes.length > 0 && h('section', { class: 'note-group', dataset: { group: key } },
       heading && h('h2', { class: 'note-group-title' }, key === 'pinned' && icon('pin'), heading, h('span', { class: 'note-group-count' }, String(notes.length))),
       h('div', { class: `note-cards ${p.layout}` }, notes.map((n) => card(n, cardCtx))));
@@ -412,7 +418,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         h('button', { class: 'button button-small button-ghost', type: 'button', dataset: { fk: 'notes-view' }, 'aria-haspopup': 'dialog', onclick: viewOptions }, icon('sliders'), h('span', { class: 'btn-label' }, t('note.view'))),
         list.length > 0 && h('button', { class: `button button-small button-ghost${state.picking ? ' active' : ''}`, type: 'button', 'aria-pressed': String(state.picking), dataset: { fk: 'notes-select' }, onclick: togglePicking }, icon('selectAll'), h('span', { class: 'btn-label' }, t('note.select'))),
         scope === 'trash'
-          ? (noteCounts(view).trash > 0 && h('button', { class: 'button button-small button-ghost', type: 'button', dataset: { fk: 'notes-empty-trash' }, onclick: emptyTrash }, icon('trash'), h('span', { class: 'btn-label' }, t('note.emptyTrash'))))
+          ? (noteCounts(view, store.userId).trash > 0 && h('button', { class: 'button button-small button-ghost', type: 'button', dataset: { fk: 'notes-empty-trash' }, onclick: emptyTrash }, icon('trash'), h('span', { class: 'btn-label' }, t('note.emptyTrash'))))
           : h('button', { class: 'button button-small button-primary', type: 'button', dataset: { fk: 'notes-new' }, 'aria-keyshortcuts': 'n', title: `${t('note.new')} (N)`, onclick: newNote }, icon('plus'), h('span', { class: 'btn-label' }, t('note.new'))),
       ],
       nodes: [

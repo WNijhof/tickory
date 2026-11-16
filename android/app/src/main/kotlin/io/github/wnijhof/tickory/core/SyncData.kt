@@ -104,10 +104,14 @@ object SyncParser {
         // (note_<id>) met per komende keer een herinnering van het type "absolute"; zie NoteReminders.
         val noteTasks = ArrayList<TaskInfo>()
         val noteReminders = ArrayList<ReminderInfo>()
+        // Een notitie die iemand met je deelde, heeft de herinnering van de eigenaar: die gaat hier niet af.
+        val me = root.obj("me")?.text("id")
         for (entry in root.list("notes") ?: emptyList()) {
             val o = Json.asObject(entry) ?: continue
             val id = o.text("id")?.takeIf { Ids.isSafeId(NoteReminders.reminderIdFor(it, "2000-01-01T00:00")) } ?: continue
             if (o.flag("is_deleted") || o.text("trashed_at") != null) continue
+            val owner = o.text("owner_id")
+            if (me != null && owner != null && owner != me) continue
             // vanaf een uur geleden, net als bij taken: een herinnering die net gemist is (toestel uit) komt nog
             val times = NoteReminders.upcoming(o.text("remind_at"), o.text("remind_repeat"), now.minusHours(1))
             if (times.isEmpty()) continue

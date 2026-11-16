@@ -209,3 +209,29 @@ test('de vingerafdruk voor de Android-app verandert met de herinnering van een n
   }
   assert.equal(last, empty);
 });
+
+test('de vingerafdruk voor Android neemt de herinnering van een gedeelde notitie van een ander niet mee', () => {
+  const s = emptyState();
+  const empty = reminderFingerprint(s, ME);
+  s.notes.set('note-fp-0101', { id: 'note-fp-0101', owner_id: 'user-bram-0001', title: 'Van Bram', content: '', remind_at: '2026-11-20T09:00' });
+  assert.equal(reminderFingerprint(s, ME), empty);
+});
+
+test('notities van een ander: bij alle notities (niet vastgepind, zonder labels), nooit in archief of prullenbak; opruimen alleen eigen', async () => {
+  const { noteList, noteGroups, noteCounts, expiredNotes, isMyNote } = await import('./notes.js');
+  const s = emptyState();
+  const row = (id, extra) => s.notes.set(id, { id, title: id, content: '', labels: [], is_pinned: false, is_archived: false, trashed_at: null, owner_id: ME, updated_at: '2026-11-10T10:00:00.000Z', created_at: '2026-11-10T10:00:00.000Z', ...extra });
+  row('note-mijn-0001', { is_pinned: true });
+  row('note-bram-0001', { owner_id: 'user-bram-0001', is_pinned: true, is_archived: true, labels: ['label-bram'] });
+  row('note-bram-0002', { owner_id: 'user-bram-0001', trashed_at: '2026-01-01T00:00:00.000Z' });
+  const all = noteList(s, { userId: ME }).map((n) => n.id);
+  assert.deepEqual(all, ['note-mijn-0001', 'note-bram-0001'], 'die van Bram bij alle notities, ondanks zijn archief; zijn weggegooide niet');
+  assert.deepEqual(noteList(s, { scope: 'archive', userId: ME }), []);
+  assert.deepEqual(noteList(s, { scope: 'trash', userId: ME }), []);
+  assert.deepEqual(noteGroups(noteList(s, { userId: ME }), 'all', ME).pinned.map((n) => n.id), ['note-mijn-0001'], 'vastpinnen is van de eigenaar');
+  assert.deepEqual(noteList(s, { labelId: 'label-bram', userId: ME }), [], 'zijn labels tellen hier niet');
+  const counts = noteCounts(s, ME);
+  assert.deepEqual([counts.all, counts.archive, counts.trash, counts.perLabel.size], [2, 0, 0, 0]);
+  assert.deepEqual(expiredNotes(s, Date.parse('2026-11-16T00:00:00Z'), 30, ME), [], 'de weggegooide van Bram ruimt Bram zelf op');
+  assert.equal(isMyNote({ owner_id: null }, ME), true);
+});

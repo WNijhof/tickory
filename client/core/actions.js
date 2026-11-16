@@ -329,6 +329,11 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       args: { id: uploaded.id, note_id: noteId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
     }]),
     deleteNoteFile: (id) => send([{ type: 'note_file_delete', args: { id } }]),
+    /** Een notitie delen met iemand (op gebruikersnaam), als lezer (`viewer`) of bewerker (`editor`); de server maakt de deling. */
+    shareNote: (noteId, username, role = 'editor') => send([{ type: 'note_share', args: { note_id: noteId, username, role } }]),
+    updateNoteShare: (id, role) => send([{ type: 'note_share_update', args: { id, role } }]),
+    /** Een deling weghalen: de eigenaar haalt iemand eraf, of de ander haalt de notitie uit zijn eigen notities. */
+    deleteNoteShare: (id) => send([{ type: 'note_share_delete', args: { id } }]),
     /** Een eerdere versie van een notitie terugzetten (de server bewaart eerst de huidige; zie server/noteHistory.ts). */
     restoreNoteRevision: (noteId, revision) => send([{ type: 'note_restore', args: { id: noteId, revision_id: revision.id, title: revision.title, content: revision.content } }]),
 

@@ -182,7 +182,8 @@ export class DemoServer {
 
   /** De gebruiker zelf en iedereen met wie een project wordt gedeeld (alleen om namen te tonen). */
   peers() {
-    const ids = new Set([this.me.id, ...[...this.state.members.values()].map((m) => m.user_id)]);
+    // wie je kent: leden van je projecten, en met wie je een notitie deelt
+    const ids = new Set([this.me.id, ...[...this.state.members.values()].map((m) => m.user_id), ...[...this.state.note_shares.values()].map((s) => s.user_id)]);
     return this.accounts
       .filter((u) => ids.has(u.id))
       .sort((a, b) => (nameKey(a.username) < nameKey(b.username) ? -1 : 1))
@@ -249,6 +250,7 @@ export class DemoServer {
       case 'project_unshare': return this.projectUnshare(state, args, at);
       case 'project_leave': return this.projectLeave(state, args, at);
       case 'note_restore': return this.noteRestore(state, args, at);
+      case 'note_share': return this.noteShare(state, args, at);
       case 'notification_read_all':
         // zoals de server: alle eigen meldingen gelezen, met `up_to` alleen wat de afzender al zag
         exactArgs(args, ['up_to']);
@@ -329,6 +331,23 @@ export class DemoServer {
     if (r.title === note.title && r.content === note.content) return undefined;
     this.storeRevision(note, 'restore', at);
     return applyCommand(state, { type: 'note_update', args: { id: note.id, title: r.title, content: r.content } }, at, this.me.id);
+  }
+
+  /** Een notitie delen, zoals `noteShare` in server/sync.ts: op gebruikersnaam, als lezer of bewerker; nog eens = een andere rol. */
+  noteShare(state, args, at) {
+    exactArgs(args, ['note_id', 'username', 'role']);
+    const note = requireLive(state, 'note', args.note_id, 'note_id');
+    if (typeof args.username !== 'string') fail('INVALID_ARG', 'username moet tekst zijn');
+    const role = args.role === undefined ? 'editor' : args.role;
+    if (role !== 'viewer' && role !== 'editor') fail('INVALID_ARG', 'role moet viewer of editor zijn');
+    const target = this.accounts.find((u) => nameKey(u.username) === nameKey(args.username));
+    if (!target || target.is_disabled) fail('NOT_FOUND', 'deze gebruiker bestaat niet');
+    if (target.id === this.me.id) return undefined;
+    const existing = [...state.note_shares.values()].find((x) => x.note_id === note.id && x.user_id === target.id);
+    if (existing) return applyCommand(state, { type: 'note_share_update', args: { id: existing.id, role } }, at, this.me.id);
+    const id = newId();
+    state.note_shares.set(id, { id, note_id: note.id, user_id: target.id, role, owner_id: this.me.id, is_deleted: false, created_at: at, updated_at: at });
+    return undefined;
   }
 
   revisionsPage(noteId) {

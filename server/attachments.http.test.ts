@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
-import { request } from 'node:http';
+import { Agent, request } from 'node:http';
 import { connect } from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -648,10 +648,19 @@ test('Range en HEAD: een deel van een bestand, een ongeldig bereik en alleen de 
       assert.ok([200, 416].includes(r.status), `${weird}: ${r.status}`);
       await r.arrayBuffer();
     }
-    const head = await fetch(`${w.base}/api/v1/attachments/bereik-000001`, { method: 'HEAD', headers: { Authorization: `Bearer ${w.tokens.alice}` } });
-    assert.equal(head.status, 200);
-    assert.equal(head.headers.get('content-length'), '20');
-    assert.equal(await head.text(), '');
+    // HEAD met een client die de verbinding open houdt. fetch (undici) vraagt bij HEAD zelf om sluiten, en bij dat sluiten ging het
+    // antwoord op Windows af en toe verloren (ECONNRESET): een eigenschap van die client en het besturingssysteem, niet van de server.
+    const agent = new Agent({ keepAlive: true });
+    const head = await new Promise<{ status: number; length: string | undefined; body: string }>((resolve, reject) => {
+      const r = request(`${w.base}/api/v1/attachments/bereik-000001`, { method: 'HEAD', agent, headers: { Authorization: `Bearer ${w.tokens.alice}` } }, (res) => {
+        let body = '';
+        res.on('data', (c) => { body += c; });
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, length: res.headers['content-length'], body }));
+      });
+      r.on('error', reject);
+      r.end();
+    }).finally(() => agent.destroy());
+    assert.deepEqual([head.status, head.length, head.body], [200, '20', '']);
     // een bereik laat de toegangsregels intact
     assert.equal((await w.get('bob', '/api/v1/attachments/bereik-000001', { Range: 'bytes=0-1' })).status, 404);
   } finally { await w.close(); }

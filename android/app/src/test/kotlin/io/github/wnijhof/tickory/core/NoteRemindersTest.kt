@@ -85,6 +85,15 @@ class NoteRemindersTest {
     }
 
     @Test
+    fun `een notitie die iemand met je deelde - de herinnering is van de eigenaar en gaat hier niet af`() {
+        val body = """{"me": {"id": "user-anna"}, "tasks": [], "reminders": [], "notes": [
+            {"id": "note-eigen-001", "owner_id": "user-anna", "title": "Mijn", "remind_at": "2026-11-16T18:00", "is_deleted": false},
+            {"id": "note-bram-0001", "owner_id": "user-bram", "title": "Van Bram", "remind_at": "2026-11-16T18:00", "is_deleted": false}
+        ]}"""
+        assertEquals(listOf("note_note-eigen-001"), SyncParser.parseSnapshot(body, t("2026-11-16T12:00"))!!.tasks.map { it.id })
+    }
+
+    @Test
     fun `een herinnering die net gemist is (toestel uit) komt nog, tot een uur te laat`() {
         val body = """{"tasks": [], "reminders": [], "notes": [{"id": "note-bbbb-0001", "title": "Bellen", "remind_at": "2026-11-16T11:30", "is_deleted": false}]}"""
         assertEquals(1, SyncParser.parseSnapshot(body, t("2026-11-16T12:00"))!!.reminders.size)
