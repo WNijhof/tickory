@@ -127,6 +127,24 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .note-cards.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 14px; align-items: stretch; }
 .note-cards.list { display: flex; flex-direction: column; gap: 10px; max-width: 780px; width: 100%; justify-self: center; }
 
+/* foto's op een kaart (zoals Anchor): bovenaan tot vier, met vaste verhoudingen zodat het metselwerk niet verspringt */
+.nc-pics { display: grid; gap: 2px; overflow: hidden; border-radius: 13px 13px 0 0; aspect-ratio: 4 / 3; }
+.nc-pics.n2 { grid-template-columns: 1fr 1fr; aspect-ratio: 2 / 1; }
+.nc-pics.n3 { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.nc-pics.n3 .nc-ph:first-child { grid-row: span 2; }
+.nc-pics.n4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; aspect-ratio: 1 / 1; }
+.nc-ph, .nc-thumb { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.nc-pic-img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.2s ease; }
+.nc-pic-img.is-loaded { opacity: 1; }
+.nc-more-pics {
+  position: absolute; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / 45%); color: #fff; font-weight: 700; font-size: 1.05rem;
+}
+.layout-list .nc.nc-with-thumb { flex-direction: row; }
+.layout-list .nc.nc-with-thumb .nc-in { flex: 1; }
+.nc-thumb { flex: 0 0 88px; align-self: stretch; min-height: 72px; border-radius: 0 13px 13px 0; }
+.nc-files { display: inline-flex; align-items: center; gap: 3px; margin-right: auto; }
+.nc-files .icon { width: 12px; height: 12px; }
+
 /* een kaart */
 .nc {
   position: relative; display: flex; flex-direction: column; min-width: 0; border-radius: 14px; background-color: var(--nbg);
@@ -236,6 +254,53 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .note-tag { min-height: 30px; padding: 2px 6px 2px 11px; }
 .note-tag-remove { border: 0; background: transparent; color: var(--text-soft); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; }
 .note-tag-remove:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+/* foto's en geluid in de notitie */
+.note-files { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
+.note-files[hidden] { display: none; }
+.nf-pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.nf-pics:empty, .nf-sounds:empty, .nf-pending-list:empty, .nf-message:empty { display: none; }
+.nf-pics.nf-n1 { grid-template-columns: minmax(0, 420px); }
+.nf-pic { position: relative; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.nf-pics.nf-n1 .nf-pic { aspect-ratio: 4 / 3; }
+.nf-pic-open { display: block; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.nf-pic-open img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.nf-pic-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.nf-del {
+  position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border: 0; border-radius: 50%; cursor: pointer;
+  background: rgb(0 0 0 / 55%); color: #fff; font-size: 1.1rem; line-height: 1; opacity: 0; transition: opacity 0.12s ease;
+}
+.nf-pic:hover .nf-del, .nf-pic:focus-within .nf-del, .nf-del:focus-visible { opacity: 1; }
+.nf-sounds, .nf-pending-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.nf-sound, .nf-pending {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.nf-sound-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); flex: none; }
+.nf-sound-icon .icon { width: 16px; height: 16px; }
+.nf-sound-main { display: flex; flex-direction: column; min-width: 0; flex: 0 1 auto; }
+.nf-sound-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+.nf-sound-size { color: var(--text-soft); font-size: 0.78rem; }
+.nf-sound-player { margin-left: auto; display: flex; align-items: center; min-width: 0; }
+.nf-audio { height: 36px; max-width: 280px; }
+.nf-play { width: 36px; height: 36px; border: 0; border-radius: 50%; cursor: pointer; background: var(--accent); color: var(--on-accent, #fff); font-size: 0.9rem; }
+.nf-del-row { position: static; opacity: 1; background: transparent; color: var(--text-soft); }
+.nf-del-row:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.nf-pending { flex-wrap: wrap; }
+.nf-pending .nf-sound-main { flex: 1 1 200px; }
+.nf-failed .nf-sound-size { color: var(--danger); }
+.note-sheet.note-drop { outline: 3px dashed var(--accent); outline-offset: -8px; }
+.nf-viewer-head { display: flex; align-items: baseline; gap: 12px; }
+.nf-viewer-head h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nf-viewer-count { color: var(--text-soft); font-size: 0.85rem; }
+.nf-rec { text-align: center; }
+.nf-rec-live { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 10px 0; }
+.nf-rec-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--danger); animation: nf-pulse 1.2s ease-in-out infinite; }
+.nf-rec-clock { margin: 0; font-size: 2rem; font-variant-numeric: tabular-nums; }
+@keyframes nf-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .nf-rec-dot { animation: none; } }
+@media (pointer: coarse) { .nf-del { opacity: 1; width: 44px; height: 44px; top: 2px; right: 2px; } .nf-play { width: 44px; height: 44px; } }
+
+
 .note-reminder-chip {
   display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 2px 11px; border: 0; border-radius: 999px; cursor: pointer; font: inherit;
   font-size: 0.85rem; background: var(--accent-soft); color: var(--text);
@@ -351,6 +416,7 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .nb-slash-link::before { content: '🔗'; }
 .nb-slash-table::before { content: '▦'; }
 .nb-slash-rule::before { content: '—'; }
+.nb-slash-media::before { content: '🖼'; }
 
 /* ---------- keuzevensters in het editorvenster (achtergrond, menu, labels) ---------- */
 .note-pop {

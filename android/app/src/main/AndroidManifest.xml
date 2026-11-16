@@ -51,6 +51,14 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
+    <!--
+      Geluid opnemen bij een notitie. De app vraagt het pas als de gebruiker zelf op "Geluid opnemen" tikt; de opname gaat
+      alleen naar de eigen server, als bestand bij die notitie. Toestellen zonder microfoon kunnen de app gewoon installeren.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
     <!-- Ook toestellen zonder GPS mogen de app installeren; dan werkt alleen een grove positie via netwerken. -->
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />

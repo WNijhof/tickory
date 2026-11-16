@@ -1,5 +1,6 @@
 // Bijlagen op de client: een gekozen bestand wordt eerst lokaal bewaard (IndexedDB, los van de wachtrij met commando's), daarna
-// geüpload zodra dat kan, en pas dan wordt het commando attachment_add aan de wachtrij toegevoegd. Zo werkt "bestand kiezen"
+// geüpload zodra dat kan, en pas dan wordt het commando attachment_add aan de wachtrij toegevoegd (of note_file_add: een foto of
+// geluid bij een notitie, zie SPEC 5k; zo'n record heeft note_id in plaats van task_id). Zo werkt "bestand kiezen"
 // ook zonder verbinding, en blijft het staan als de app tussendoor sluit.
 //
 // Een bestand heeft een status: 'waiting' (wacht op verbinding, inloggen of op de taak zelf, die eerst op de server moet komen),
@@ -11,6 +12,7 @@ import { AuthError } from './syncClient.js';
 import { AttachmentError } from './attachmentsApi.js';
 import { cleanFileName, normalizeMime } from '../../shared/attachments.js';
 import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
+import { MAX_FILES_PER_NOTE, isNoteFileMime } from '../../shared/notes.js';
 
 const DB_NAME = 'tickory-files';
 const STORE = 'uploads';
@@ -84,7 +86,7 @@ const DEFAULT_LIMITS = { max_upload_bytes: 25_000_000, quota_bytes: null, used_b
 /**
  * @param {{
  *   store: import('./store.js').Store,
- *   actions: { addAttachment: (input: object) => Promise<void> },
+ *   actions: { addAttachment: (input: object) => Promise<void>, addNoteFile?: (input: object) => Promise<void> },
  *   api: ReturnType<typeof import('./attachmentsApi.js').createAttachmentsApi>,
  *   files?: { list: () => Promise<object[]>, put: (rec: object) => Promise<void>, delete: (id: string) => Promise<void>, clear: () => Promise<void> },
  *   getToken: () => string | null,
@@ -113,7 +115,7 @@ export function createAttachmentManager({
   const notify = () => { for (const fn of [...listeners]) fn(); };
   const sorted = () => [...records.values()].sort((a, b) => a.created_at - b.created_at || (a.id < b.id ? -1 : 1));
   /** Wat de interface van een record mag zien (zonder het bestand zelf). */
-  const view = (r) => ({ id: r.id, task_id: r.task_id, name: r.name, size: r.size, mime: r.mime, status: r.status, error: r.error ?? null, progress: r.progress ?? 0, reason: r.reason ?? null });
+  const view = (r) => ({ id: r.id, task_id: r.task_id ?? null, note_id: r.note_id ?? null, name: r.name, size: r.size, mime: r.mime, status: r.status, error: r.error ?? null, progress: r.progress ?? 0, reason: r.reason ?? null });
 
   async function save(rec) {
     records.set(rec.id, rec);
@@ -124,8 +126,9 @@ export function createAttachmentManager({
     await files.delete(id).catch(() => {});
   }
 
-  /** De taak moet door de server bevestigd zijn voordat we een bestand erbij kunnen zetten. */
-  const taskConfirmed = (taskId) => store.base.tasks.has(taskId);
+  /** De taak (of notitie) moet door de server bevestigd zijn voordat we een bestand erbij kunnen zetten. */
+  const confirmed = (rec) => (rec.note_id ? store.base.notes.has(rec.note_id) : store.base.tasks.has(rec.task_id));
+  const known = (rec) => (rec.note_id ? store.view.notes.has(rec.note_id) : store.view.tasks.has(rec.task_id));
   const taskKnown = (taskId) => store.view.tasks.has(taskId);
 
   const schedule = (ms) => {
@@ -144,13 +147,14 @@ export function createAttachmentManager({
     notify();
     try {
       const uploaded = await api.upload({
-        id: rec.id, taskId: rec.task_id, blob: rec.blob, mime: rec.mime, signal: controller.signal,
+        id: rec.id, taskId: rec.task_id ?? null, noteId: rec.note_id ?? null, blob: rec.blob, mime: rec.mime, signal: controller.signal,
         onProgress: (f) => { rec.progress = f; notify(); },
       });
       // Bewaar eerst het commando (in de wachtrij op schijf) en pas dan het wissen van de lokale kopie: sluit de app ertussen,
       // dan volgt een nieuwe upload (dezelfde inhoud = hetzelfde antwoord) en hetzelfde commando-uuid (geen dubbele bijlage).
       if (!records.has(rec.id)) return 'discarded'; // intussen weggegooid: het bestand op de server ruimt de server zelf op
-      await actions.addAttachment({ taskId: rec.task_id, name: rec.name, uploaded });
+      if (rec.note_id) await actions.addNoteFile({ noteId: rec.note_id, name: rec.name, uploaded });
+      else await actions.addAttachment({ taskId: rec.task_id, name: rec.name, uploaded });
       rememberBlob(rec.id, rec.blob);
       await forget(rec.id);
       return 'done';
@@ -207,12 +211,12 @@ export function createAttachmentManager({
         let soonest = Infinity;
         for (const rec of sorted()) {
           if (rec.status !== 'waiting') continue;
-          if (!taskKnown(rec.task_id)) {
-            // de taak bestaat niet meer (verwijderd, of het project verlaten): het bestand heeft geen bestemming meer
+          if (!known(rec)) {
+            // de taak of notitie bestaat niet meer (verwijderd, of het project verlaten): het bestand heeft geen bestemming meer
             if (store.ready) await forget(rec.id);
             continue;
           }
-          if (!taskConfirmed(rec.task_id)) continue; // de taak staat nog in de wachtrij; zodra de server hem heeft, gaan we door
+          if (!confirmed(rec)) continue; // de taak of notitie staat nog in de wachtrij; zodra de server haar heeft, gaan we door
           if ((rec.retryAt ?? 0) > t) { soonest = Math.min(soonest, rec.retryAt); continue; }
           next = rec;
           break;
@@ -254,7 +258,11 @@ export function createAttachmentManager({
 
     /** De bestanden bij een taak die nog niet als bijlage in de lijst staan. */
     pendingFor(taskId) {
-      return sorted().filter((r) => r.task_id === taskId).map(view);
+      return sorted().filter((r) => !r.note_id && r.task_id === taskId).map(view);
+    },
+    /** De foto's en geluiden bij een notitie die nog niet in de lijst staan (wachten, bezig, mislukt). */
+    pendingForNote(noteId) {
+      return sorted().filter((r) => r.note_id === noteId).map(view);
     },
     get pendingCount() { return records.size; },
 
@@ -269,7 +277,7 @@ export function createAttachmentManager({
       const added = [];
       const rejected = [];
       if (!taskKnown(taskId)) return { added, rejected: [...fileList].map((f) => ({ name: f.name, reason: 'noTask' })) };
-      const have = () => [...store.view.attachments.values()].filter((a) => a.task_id === taskId).length + [...records.values()].filter((r) => r.task_id === taskId && r.status !== 'failed').length;
+      const have = () => [...store.view.attachments.values()].filter((a) => a.task_id === taskId).length + [...records.values()].filter((r) => !r.note_id && r.task_id === taskId && r.status !== 'failed').length;
       for (const file of fileList) {
         const name = cleanFileName(file.name);
         if (file.size === 0) { rejected.push({ name, reason: 'empty' }); continue; }
@@ -284,6 +292,44 @@ export function createAttachmentManager({
         } catch {
           records.delete(rec.id);
           rejected.push({ name, reason: 'storageFull' }); // vol, of de opslag werkt niet (privévenster): in beide gevallen kan het hier niet bewaard worden
+          continue;
+        }
+        added.push(rec.id);
+      }
+      notify();
+      manager.process();
+      return { added, rejected };
+    },
+
+    /**
+     * Kiest foto's en geluid voor een notitie: alleen wat de app kan tonen of afspelen (shared/notes.js), niet leeg of te groot,
+     * en hooguit twintig per notitie. Verder net als bij een taak: lokaal bewaard en geüpload zodra het kan.
+     * @param {string} noteId
+     * @param {readonly File[]} fileList
+     * @returns {Promise<{ added: string[], rejected: { name: string, reason: 'empty' | 'tooLarge' | 'tooMany' | 'storageFull' | 'noTask' | 'notMedia', max?: number }[] }>}
+     */
+    async stageNote(noteId, fileList) {
+      const limits = await manager.limits();
+      const added = [];
+      const rejected = [];
+      if (!store.view.notes.has(noteId)) return { added, rejected: [...fileList].map((f) => ({ name: f.name, reason: 'noTask' })) };
+      const have = () => [...store.view.note_files.values()].filter((f) => f.note_id === noteId).length + [...records.values()].filter((r) => r.note_id === noteId && r.status !== 'failed').length;
+      for (const file of fileList) {
+        const name = cleanFileName(file.name);
+        const mime = normalizeMime(file.type);
+        if (!isNoteFileMime(mime)) { rejected.push({ name, reason: 'notMedia' }); continue; }
+        if (file.size === 0) { rejected.push({ name, reason: 'empty' }); continue; }
+        if (file.size > limits.max_upload_bytes) { rejected.push({ name, reason: 'tooLarge', max: limits.max_upload_bytes }); continue; }
+        if (have() >= MAX_FILES_PER_NOTE) { rejected.push({ name, reason: 'tooMany', max: MAX_FILES_PER_NOTE }); continue; }
+        const rec = {
+          id: makeId(), note_id: noteId, name, size: file.size, mime, blob: file,
+          status: 'waiting', error: null, reason: null, progress: 0, tries: 0, retryAt: 0, created_at: now(),
+        };
+        try {
+          await save(rec);
+        } catch {
+          records.delete(rec.id);
+          rejected.push({ name, reason: 'storageFull' });
           continue;
         }
         added.push(rec.id);

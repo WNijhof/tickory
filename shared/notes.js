@@ -14,6 +14,19 @@ export const NOTE_ORDERS = Object.freeze(['asc', 'desc']);
 
 export const DEFAULT_NOTE_PREFS = Object.freeze({ layout: 'masonry', sort: 'updated', order: 'desc', checked_bottom: true });
 
+// ---------- foto's en geluid bij een notitie ----------
+//
+// Alleen wat de app zelf kan tonen of afspelen. Een afbeelding herkent de server aan de eerste bytes (shared/attachments.js);
+// geluid aan wat de afzender zegt. Een ander type weigert de server al bij de upload.
+
+export const NOTE_IMAGE_MIMES = Object.freeze(['image/png', 'image/jpeg', 'image/gif', 'image/webp']);
+export const NOTE_AUDIO_MIMES = Object.freeze(['audio/webm', 'audio/ogg', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac', 'audio/wav', 'audio/x-wav', 'audio/flac']);
+export const isNoteFileMime = (mime) => NOTE_IMAGE_MIMES.includes(mime) || NOTE_AUDIO_MIMES.includes(mime);
+/** 'image', 'audio' of null. */
+export const noteFileKind = (mime) => (NOTE_IMAGE_MIMES.includes(mime) ? 'image' : NOTE_AUDIO_MIMES.includes(mime) ? 'audio' : null);
+/** Zoveel foto's en geluidsfragmenten kan een notitie hebben (gelijk aan LIMITS.filesPerNote op de server). */
+export const MAX_FILES_PER_NOTE = 20;
+
 // ---------- herinneringen op een notitie ----------
 //
 // Zoals in Anchor: één tijdstip per notitie (`remind_at`, zwevend 'YYYY-MM-DDTHH:MM' in de tijdzone van de gebruiker, net als de

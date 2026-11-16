@@ -70,7 +70,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': case 'place': case 'template': case 'note': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': case 'template': case 'note': case 'note_file': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -297,6 +297,15 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       db.prepare('UPDATE attachment_files SET linked = 1 WHERE id = ?').run(id);
       break;
     }
+    case 'note_file': {
+      // Net als bij een bijlage van een taak: eerst geüpload door deze gebruiker, bij deze notitie, nog niet gekoppeld, en
+      // grootte, type en controlegetal zoals de server ze zag. De notitie zelf is al gecontroleerd (ref: alleen je eigen).
+      const f = db.prepare('SELECT user_id, note_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
+      if (!f || f.user_id !== ctx.userId || f.note_id !== v.note_id || f.linked === 1) fail('NOT_FOUND', 'note_file.id: het bestand is niet geüpload (of hoort al ergens bij)');
+      if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
+      db.prepare('UPDATE attachment_files SET linked = 1 WHERE id = ?').run(id);
+      break;
+    }
     case 'reminder': {
       const due = v.due as { date: string } | null;
       if (v.type === 'location') {
@@ -387,6 +396,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
       break;
     case 'note':
       quota(ctx, `notes:${ctx.userId}`, LIMITS.notesPerUser, 'notities per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM notes WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'note_file':
+      quota(ctx, `note_files:${v.note_id}`, LIMITS.filesPerNote, 'bestanden per notitie', () => countOf(db, 'SELECT COUNT(*) AS n FROM note_files WHERE note_id = ? AND is_deleted = 0', v.note_id as string));
       break;
     case 'place':
       quota(ctx, `places:${ctx.userId}`, LIMITS.placesPerUser, 'plaatsen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
@@ -548,6 +560,11 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
     case 'task':
       deleteTaskTree(ctx, [id]);
       activity.record(ctx, row.project_id as string, 'task_deleted', { task_id: id, title: row.content });
+      break;
+    case 'note':
+      // de foto's en het geluid gaan mee (de bestanden ruimt attachments.ts daarna op)
+      mark(ctx, 'note_files', 'note_id = ?', [id]);
+      mark(ctx, 'notes', 'id = ?', [id]);
       break;
     case 'place':
       // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
@@ -883,8 +900,9 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
      UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
      UNION SELECT owner_id FROM places WHERE rev > ? UNION SELECT owner_id FROM templates WHERE rev > ?
-     UNION SELECT owner_id FROM notifications WHERE rev > ? UNION SELECT owner_id FROM notes WHERE rev > ?`,
-    since, since, since, since, since, since, since, since,
+     UNION SELECT owner_id FROM notifications WHERE rev > ? UNION SELECT owner_id FROM notes WHERE rev > ?
+     UNION SELECT owner_id FROM note_files WHERE rev > ?`,
+    since, since, since, since, since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -974,7 +992,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': case 'place': case 'template': case 'note': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': case 'template': case 'note': case 'note_file': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
     case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine})))`, params: [uid, uid, uid] };
   }

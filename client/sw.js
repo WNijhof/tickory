@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v105';
+const CACHE = 'tickory-v106';
 const SHELL = [
   '/',
   '/app.css',
@@ -35,6 +35,7 @@ const SHELL = [
   '/ui/markdown.js',
   '/ui/noteLook.js',
   '/ui/noteEditor.js',
+  '/ui/noteFiles.js',
   '/ui/notes.js',
   '/ui/exportDialog.js',
   '/ui/importDialog.js',

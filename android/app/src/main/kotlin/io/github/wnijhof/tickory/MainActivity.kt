@@ -17,6 +17,7 @@ import android.speech.RecognizerIntent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.PermissionRequest
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.ServiceWorkerController
 import android.webkit.SslErrorHandler
@@ -51,6 +52,7 @@ import io.github.wnijhof.tickory.inbox.AppVisibility
 import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.ServerAddress
+import io.github.wnijhof.tickory.core.WebPermissions
 import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.core.SignInLink
 import io.github.wnijhof.tickory.core.VoiceScript
@@ -121,6 +123,14 @@ class MainActivity : ComponentActivity() {
     private var pendingSave: AttachmentFiles.Ready? = null
     private val saveDocument = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         finishSave(result.resultCode, result.data?.data)
+    }
+
+    // De microfoon, voor geluid opnemen bij een notitie: de web-app vraagt het (getUserMedia), Android vraagt het de gebruiker.
+    private var pendingMic: PermissionRequest? = null
+    private val micPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val request = pendingMic ?: return@registerForActivityResult
+        pendingMic = null
+        if (granted) request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) else request.deny()
     }
 
     private val localNetworkPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -289,6 +299,25 @@ class MainActivity : ComponentActivity() {
         view.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(webView: WebView, filePathCallback: ValueCallback<Array<Uri>>, fileChooserParams: FileChooserParams): Boolean =
                 showFileChooser(webView, filePathCallback, fileChooserParams)
+
+            // Alleen de microfoon, en alleen voor de eigen server (zie WebPermissions); al het andere wordt geweigerd.
+            override fun onPermissionRequest(request: PermissionRequest) {
+                if (!WebPermissions.allowMicrophone(request.resources, request.origin?.toString(), origin)) {
+                    request.deny()
+                    return
+                }
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    return
+                }
+                pendingMic?.deny()
+                pendingMic = request
+                micPermission.launch(Manifest.permission.RECORD_AUDIO)
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (pendingMic === request) pendingMic = null
+            }
         }
         view.addJavascriptInterface(WebBridge(this), WebBridge.NAME)
 

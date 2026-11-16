@@ -175,9 +175,15 @@ export function textToBlocks(text) {
  *   markdown: string, readOnly?: boolean, checkedBottom?: boolean,
  *   onChange?: () => void, onExitUp?: () => void, onLink?: (current: string | null) => Promise<string | null | undefined>,
  *   placeholder?: string,
- * }} options `onLink`: vraagt een adres (geeft null bij annuleren, '' om de link weg te halen)
+ *   onFiles?: (files: File[]) => void, onAddMedia?: () => void, extraTools?: () => Node[],
+ * }} options `onLink`: vraagt een adres (geeft null bij annuleren, '' om de link weg te halen). `onFiles`: geplakte afbeeldingen en
+ *   geluid (ze komen niet in de tekst). `onAddMedia`: de regel "Afbeelding of geluid" in het /-menu. `extraTools`: knoppen achteraan
+ *   in de werkbalk.
  */
-export function createBlockEditor({ markdown, readOnly = false, checkedBottom = true, onChange = () => {}, onExitUp = () => {}, onLink = async () => null, placeholder = '' }) {
+export function createBlockEditor({
+  markdown, readOnly = false, checkedBottom = true, onChange = () => {}, onExitUp = () => {}, onLink = async () => null, placeholder = '',
+  onFiles = null, onAddMedia = null, extraTools = null,
+}) {
   let blocks = fromMarkdown(markdown);
   let pendingMarks = null; // opmaak voor de volgende getypte tekst (Ctrl+B zonder selectie)
   let composing = false;
@@ -465,6 +471,7 @@ export function createBlockEditor({ markdown, readOnly = false, checkedBottom = 
     { id: 'link', label: t('note.slash.link'), keys: 'link url adres web address' },
     { id: 'table', label: t('note.slash.table'), keys: 'tabel table grid' },
     { id: 'rule', label: t('note.slash.rule'), keys: 'lijn scheiding divider rule line hr' },
+    ...(onAddMedia ? [{ id: 'media', label: t('note.slash.media'), keys: 'afbeelding foto plaatje beeld geluid audio opname spraak bestand bijlage image picture photo sound voice recording file attachment' }] : []),
   ];
   const fold = (s) => s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 
@@ -518,6 +525,11 @@ export function createBlockEditor({ markdown, readOnly = false, checkedBottom = 
     if (item.id === 'link') {
       commit(next, { a: { index, offset: slash.start } });
       await insertLink();
+      return;
+    }
+    if (item.id === 'media') {
+      commit(next, { a: { index, offset: slash.start } });
+      onAddMedia?.();
       return;
     }
     if (item.id === 'table') {
@@ -753,6 +765,12 @@ export function createBlockEditor({ markdown, readOnly = false, checkedBottom = 
 
   function pasteFrom(dt, sel) {
     if (!dt) return;
+    // een geplakte afbeelding (schermafdruk) of geluid gaat als bestand naar de notitie, niet in de tekst
+    const media = onFiles ? [...(dt.files ?? [])].filter((f) => /^(image|audio)\//.test(f.type)) : [];
+    if (media.length) {
+      onFiles(media);
+      if (!(dt.getData('text/plain') ?? '').trim()) return;
+    }
     let inserted = null;
     const own = dt.getData(MIME);
     if (own) {
@@ -973,6 +991,8 @@ export function createBlockEditor({ markdown, readOnly = false, checkedBottom = 
       tool('undo', '↶', `${t('note.tb.undo')} (Ctrl+Z)`, () => restore(undoStack, redoStack)),
       tool('redo', '↷', `${t('note.tb.redo')} (Ctrl+Shift+Z)`, () => restore(redoStack, undoStack)),
     );
+    const extra = extraTools?.() ?? [];
+    if (extra.length) toolbar.append(h('span', { class: 'ned-sep', 'aria-hidden': 'true' }), ...extra);
   }
 
   function updateToolbar() {

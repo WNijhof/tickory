@@ -10,6 +10,7 @@ import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
 import { isValidKey, keyAfter } from '../../shared/orderKey.js';
 import { nextDue, nextOccurrence } from '../../shared/recurrence.js';
 import { canEditRole, SHARE_ROLES } from '../../shared/roles.js';
+import { MAX_FILES_PER_NOTE } from '../../shared/notes.js';
 
 export const RESOURCES = ENTITY_LIST.map((e) => e.resource);
 
@@ -100,6 +101,13 @@ function add(state, e, args, now, userId) {
     let count = 0;
     for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
     if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+  }
+  if (e.name === 'note_file') {
+    // bij een bestaande notitie, en hooguit zoveel per notitie (zoals de server)
+    if (!state.notes.has(row.note_id)) return;
+    let count = 0;
+    for (const f of state.note_files.values()) if (f.note_id === row.note_id) count += 1;
+    if (count >= MAX_FILES_PER_NOTE) return;
   }
   if (e.name === 'reminder') {
     if (!state.tasks.has(row.task_id)) return; // bij een taak die bestaat (zoals de server)
@@ -286,6 +294,11 @@ function remove(state, e, args, now, userId) {
       state.comments.delete(id);
       removeWhere(state, 'notifications', (n) => n.comment_id === id);
       break;
+    case 'note':
+      // de foto's en het geluid gaan mee, zoals op de server
+      removeWhere(state, 'note_files', (f) => f.note_id === id);
+      state.notes.delete(id);
+      break;
     case 'place':
       // de herinneringen op deze plaats gaan mee, zoals op de server
       removeWhere(state, 'reminders', (r) => r.place_id === id);
@@ -427,7 +440,8 @@ function restore(state, cmd, now, userId) {
   putTasks(rows.tasks ?? [], undefined);
 }
 
-const GENERIC = /^([a-z]+)_(add|update|delete)$/;
+// de entiteit mag zelf een liggend streepje hebben (note_file_add): de kortste naam die past
+const GENERIC = /^([a-z][a-z_]*?)_(add|update|delete)$/;
 /** Zoveel bijlagen kan een taak hebben (gelijk aan LIMITS.attachmentsPerTask op de server). */
 export const MAX_ATTACHMENTS_PER_TASK = 20;
 const CAN_WRITE_FOREIGN = new Set(['label', 'filter']); // alleen de eigenaar wijzigt of verwijdert deze

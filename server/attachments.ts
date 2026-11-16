@@ -22,6 +22,7 @@ import { PassThrough, Transform, Writable } from 'node:stream';
 import { join } from 'node:path';
 import { DEFAULT_MIME, effectiveMime, isInlineMime, normalizeMime } from '../shared/attachments.js';
 import { canEditRole } from '../shared/roles.js';
+import { isNoteFileMime } from '../shared/notes.js';
 import { ID_RE } from './schema.ts';
 import { LIMITS, RESTORE } from './limits.ts';
 import { SyncError } from './rows.ts';
@@ -59,6 +60,10 @@ const memberOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean
 const editorOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean =>
   canEditRole((db.prepare(`SELECT m.role FROM tasks t JOIN project_members m ON m.project_id = t.project_id
               WHERE t.id = ? AND t.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(taskId, userId) as { role?: string } | undefined)?.role ?? null);
+
+/** Een notitie is privé: alleen de eigenaar zet er bestanden bij en haalt ze op. */
+const ownerOfNote = (db: DatabaseSync, userId: string, noteId: string): boolean =>
+  db.prepare('SELECT 1 FROM notes WHERE id = ? AND is_deleted = 0 AND owner_id = ?').get(noteId, userId) !== undefined;
 
 /** Bestandsnaam voor de Content-Disposition: een veilige ASCII-terugval plus de echte naam als filename* (RFC 6266 / 8187). */
 export function contentDisposition(kind: 'attachment' | 'inline', name: string): string {
@@ -106,6 +111,11 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
   const perTaskCount = (taskId: string): number => Number((db.prepare(
     `SELECT (SELECT COUNT(*) FROM attachments WHERE task_id = ? AND is_deleted = 0)
           + (SELECT COUNT(*) FROM attachment_files WHERE task_id = ? AND linked = 0) AS n`).get(taskId, taskId) as Row).n);
+
+  /** Bestanden bij een notitie, plus de uploads die er nog op wachten. */
+  const perNoteCount = (noteId: string): number => Number((db.prepare(
+    `SELECT (SELECT COUNT(*) FROM note_files WHERE note_id = ? AND is_deleted = 0)
+          + (SELECT COUNT(*) FROM attachment_files WHERE note_id = ? AND linked = 0) AS n`).get(noteId, noteId) as Row).n);
 
   const removeFile = (key: string): void => {
     try { unlinkSync(pathOf(key)); } catch { /* weg of nooit gekomen */ }
@@ -188,26 +198,37 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
      * Neemt een upload aan. Alle controles die zonder de inhoud kunnen, gebeuren vóór het eerste byte wordt gelezen: een
      * onbekende taak, een taak van een ander project, een volle schijf van de gebruiker. Wat de server niet mag zien is "niet gevonden".
      */
-    async upload(req: IncomingMessage, userId: string, params: { id: unknown; taskId: unknown }): Promise<Uploaded> {
+    async upload(req: IncomingMessage, userId: string, params: { id: unknown; taskId: unknown; noteId?: unknown }): Promise<Uploaded> {
       const raw = req.headers['content-length'];
       if (typeof raw !== 'string' || !/^\d{1,15}$/.test(raw)) throw new SyncError('LENGTH_REQUIRED', 'geef de grootte van het bestand op (Content-Length)');
       const length = Number(raw);
       // Wat zonder de inhoud te beoordelen kan, gebeurt vóór we haar bewaren. Daarna lezen we de body toch weg (zonder te bewaren):
       // antwoorden terwijl de afzender nog verstuurt, geeft bij hem vaak een verbroken verbinding in plaats van een bruikbare melding.
       const id = params.id;
-      const taskId = params.taskId;
+      // bij een taak (task_id) of bij een notitie (note_id), nooit allebei
+      const noteId = params.noteId ?? null;
+      const forNote = noteId !== null && noteId !== undefined;
+      const taskId = forNote ? null : params.taskId;
       let problem: SyncError | null = null;
       if (typeof id !== 'string' || !ID_RE.test(id)) problem = new SyncError('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
-      else if (typeof taskId !== 'string' || !ID_RE.test(taskId)) problem = new SyncError('INVALID_ARG', 'task_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+      else if (forNote && params.taskId !== null && params.taskId !== undefined) problem = new SyncError('INVALID_ARG', 'geef task_id of note_id, niet allebei');
+      else if (forNote) {
+        if (typeof noteId !== 'string' || !ID_RE.test(noteId)) problem = new SyncError('INVALID_ARG', 'note_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+        else if (!ownerOfNote(db, userId, noteId)) problem = new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+        else if (!isNoteFileMime(normalizeMime(req.headers['content-type']))) problem = new SyncError('INVALID_ARG', 'bij een notitie kan alleen een afbeelding of geluid');
+      } else if (typeof taskId !== 'string' || !ID_RE.test(taskId)) problem = new SyncError('INVALID_ARG', 'task_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
       else if (!memberOfTask(db, userId, taskId)) problem = new SyncError('NOT_FOUND', 'deze taak bestaat niet');
       else if (!editorOfTask(db, userId, taskId)) problem = new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
-      else if (length === 0) problem = new SyncError('INVALID_ARG', 'het bestand is leeg');
-      else if (length > options.maxUploadBytes) problem = new SyncError('TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(options.maxUploadBytes / 1_000_000)} MB)`);
-      else if (used(userId) + (inflight.get(userId) ?? 0) + length > options.quotaBytes) problem = new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
-      else {
-        const perTask = perTaskCount(taskId as string);
-        const already = db.prepare('SELECT 1 FROM attachment_files WHERE id = ?').get(id) !== undefined;
-        if (!already && perTask >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+      // daarna, als de bestemming klopt: de grootte, de ruimte en het aantal
+      if (problem === null) {
+        if (length === 0) problem = new SyncError('INVALID_ARG', 'het bestand is leeg');
+        else if (length > options.maxUploadBytes) problem = new SyncError('TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(options.maxUploadBytes / 1_000_000)} MB)`);
+        else if (used(userId) + (inflight.get(userId) ?? 0) + length > options.quotaBytes) problem = new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+        else if (db.prepare('SELECT 1 FROM attachment_files WHERE id = ?').get(id) === undefined) {
+          // een herhaling van een upload die er al is, telt niet nog eens mee
+          if (forNote && perNoteCount(noteId as string) >= LIMITS.filesPerNote) problem = new SyncError('LIMIT_REACHED', `een notitie kan hooguit ${LIMITS.filesPerNote} bestanden hebben`);
+          else if (!forNote && perTaskCount(taskId as string) >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+        }
       }
       if (problem) {
         // Een absurd grote body lezen we niet weg: die verbinding sluit de server na het antwoord.
@@ -220,7 +241,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         throw problem;
       }
       const uploadId = id as string;
-      const uploadTask = taskId as string;
+      const uploadTask = forNote ? '' : (taskId as string); // de kolom task_id is verplicht: leeg voor een notitie
+      const uploadNote = forNote ? (noteId as string) : null;
 
       inflight.set(userId, (inflight.get(userId) ?? 0) + length);
       let received;
@@ -233,28 +255,41 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       }
       const { tmp, size, sha256, head } = received;
       const mime = effectiveMime(normalizeMime(req.headers['content-type']), head);
+      if (forNote && !isNoteFileMime(mime)) {
+        // een "afbeelding" waarvan de eerste bytes dat niet bevestigen
+        rmSync(tmp, { force: true });
+        throw new SyncError('INVALID_ARG', 'bij een notitie kan alleen een afbeelding of geluid');
+      }
 
       // Vanaf hier niets meer dat wacht (geen await): controleren, vastleggen en op zijn plek zetten gebeurt in één keer.
       try {
-        const existing = db.prepare('SELECT user_id, task_id, size, sha256, mime FROM attachment_files WHERE id = ?').get(uploadId) as Row | undefined;
+        const existing = db.prepare('SELECT user_id, task_id, note_id, size, sha256, mime FROM attachment_files WHERE id = ?').get(uploadId) as Row | undefined;
         if (existing) {
           rmSync(tmp, { force: true });
-          if (existing.user_id === userId && existing.task_id === uploadTask && existing.sha256 === sha256 && existing.size === size) {
+          if (existing.user_id === userId && existing.task_id === uploadTask && (existing.note_id ?? null) === uploadNote && existing.sha256 === sha256 && existing.size === size) {
             return { id: uploadId, size, sha256, mime: existing.mime as string }; // dezelfde upload nog eens: niets te doen
           }
           throw new SyncError('CONFLICT', 'er is al een ander bestand met dit id geüpload');
         }
-        if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
-        if (!editorOfTask(db, userId, uploadTask)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
+        if (uploadNote !== null) {
+          if (!ownerOfNote(db, userId, uploadNote)) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
+        } else {
+          if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
+          if (!editorOfTask(db, userId, uploadTask)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
+        }
         if (used(userId) + size > options.quotaBytes) throw new SyncError('LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
-        // ook hier nog eens: gelijktijdige uploads voor dezelfde taak hebben de controle vooraf allemaal gepasseerd
-        if (perTaskCount(uploadTask) >= LIMITS.attachmentsPerTask) throw new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+        // ook hier nog eens: gelijktijdige uploads voor dezelfde taak of notitie hebben de controle vooraf allemaal gepasseerd
+        if (uploadNote !== null) {
+          if (perNoteCount(uploadNote) >= LIMITS.filesPerNote) throw new SyncError('LIMIT_REACHED', `een notitie kan hooguit ${LIMITS.filesPerNote} bestanden hebben`);
+        } else if (perTaskCount(uploadTask) >= LIMITS.attachmentsPerTask) {
+          throw new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+        }
         const key = randomBytes(16).toString('hex');
         mkdirSync(join(dir, key.slice(0, 2)), { recursive: true });
         renameSync(tmp, pathOf(key));
         try {
-          db.prepare('INSERT INTO attachment_files (id, user_id, task_id, size, sha256, mime, key, linked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)')
-            .run(uploadId, userId, uploadTask, size, sha256, mime, key, new Date(now()).toISOString());
+          db.prepare('INSERT INTO attachment_files (id, user_id, task_id, note_id, size, sha256, mime, key, linked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)')
+            .run(uploadId, userId, uploadTask, uploadNote, size, sha256, mime, key, new Date(now()).toISOString());
         } catch (err) {
           removeFile(key);
           throw err;
@@ -274,12 +309,15 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       const notFound = new SyncError('NOT_FOUND', 'deze bijlage bestaat niet');
       if (!ID_RE.test(id)) throw notFound;
       const f = db.prepare(
-        `SELECT f.key, f.size, f.mime, f.task_id, f.user_id, f.linked, a.name, a.is_deleted
-         FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id WHERE f.id = ?`).get(id) as Row | undefined;
+        `SELECT f.key, f.size, f.mime, f.task_id, f.note_id, f.user_id, f.linked, COALESCE(a.name, nf.name) AS name,
+                COALESCE(a.is_deleted, nf.is_deleted) AS is_deleted
+         FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN note_files nf ON nf.id = f.id WHERE f.id = ?`).get(id) as Row | undefined;
       if (!f) throw notFound;
+      // bij een notitie alleen de eigenaar (de notitie is privé); bij een taak de leden van het project
+      const allowed = f.note_id ? ownerOfNote(db, userId, f.note_id as string) : memberOfTask(db, userId, f.task_id as string);
       if (f.linked === 1) {
-        if (f.is_deleted === 1 || !memberOfTask(db, userId, f.task_id as string)) throw notFound;
-      } else if (f.user_id !== userId || !memberOfTask(db, userId, f.task_id as string)) throw notFound;
+        if (f.is_deleted !== 0 || !allowed) throw notFound;
+      } else if (f.user_id !== userId || !allowed) throw notFound;
       let size: number;
       try {
         size = statSync(pathOf(f.key as string)).size;
@@ -351,6 +389,17 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         }
         db.prepare("UPDATE attachments SET name = '', mime = '', sha256 = '', size = 0 WHERE id = ? AND is_deleted = 1").run(id);
       }
+      // bestanden bij notities: een notitie in de prullenbak is niet verwijderd, dus hier hoeft niets te wachten
+      for (const nf of db.prepare("SELECT id FROM note_files WHERE is_deleted = 1 AND rev > ? AND name <> ''").all(mark) as Row[]) {
+        const id = nf.id as string;
+        const f = db.prepare('SELECT key FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
+        if (f) {
+          removeFile(f.key as string);
+          db.prepare('DELETE FROM attachment_files WHERE id = ?').run(id);
+          n += 1;
+        }
+        db.prepare("UPDATE note_files SET name = '', mime = '', sha256 = '', size = 0 WHERE id = ? AND is_deleted = 1").run(id);
+      }
       db.prepare("INSERT INTO meta (key, value) VALUES ('attachments_purged_rev', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(waiting === null ? rev : waiting - 1));
       return n;
     },
@@ -393,13 +442,18 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       let rowsRemoved = 0;
       let missing = 0;
       const rows = db.prepare(
-        `SELECT f.id, f.key, f.linked, a.id AS attachment, a.is_deleted, t.is_deleted AS task_deleted, t.updated_at AS task_at
-         FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN tasks t ON t.id = a.task_id`).all() as Row[];
+        `SELECT f.id, f.key, f.linked, f.note_id, a.id AS attachment, a.is_deleted, t.is_deleted AS task_deleted, t.updated_at AS task_at,
+                nf.id AS note_file, nf.is_deleted AS note_file_deleted
+         FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN tasks t ON t.id = a.task_id
+         LEFT JOIN note_files nf ON nf.id = f.id`).all() as Row[];
       const cutoff = new Date(now() - restoreGraceMs()).toISOString();
       for (const r of rows) {
         // een verwijderde bijlage van een zojuist verwijderde taak blijft nog even (zie purgeDeleted)
         const recent = r.is_deleted === 1 && r.task_deleted === 1 && (r.task_at as string) > cutoff;
-        const orphanRow = r.linked === 1 ? r.attachment === null || (r.is_deleted === 1 && !recent) : false;
+        // een bestand bij een notitie hoort bij een note_file, niet bij een attachment
+        const orphanRow = r.linked !== 1 ? false
+          : r.note_id ? r.note_file === null || r.note_file_deleted === 1
+            : r.attachment === null || (r.is_deleted === 1 && !recent);
         const hasFile = existsSync(pathOf(r.key as string));
         if (orphanRow || (!hasFile && r.linked === 0)) {
           removeFile(r.key as string);

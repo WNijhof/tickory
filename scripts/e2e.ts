@@ -422,7 +422,7 @@ try {
   const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
   // notities (scripts/e2e-notes.ts); met E2E_NOTES_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
   if (process.env.E2E_NOTES_ONLY) {
-    try { await notesScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN NOTITIES: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-notities'); process.exitCode = 1; }
+    try { await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir }); console.log('ALLEEN NOTITIES: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-notities'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -1534,7 +1534,7 @@ try {
   await listsScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
-  await notesScenario({ ...notifyCtx(), startServer, stopServer });
+  await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });
 
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({

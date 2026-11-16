@@ -27,6 +27,8 @@ export const LIMITS = {
   tasksPerTemplate: 1000,
   /** Notities per gebruiker (ook die in het archief of de prullenbak). */
   notesPerUser: 10_000,
+  /** Foto's en geluidsfragmenten per notitie (gelijk aan MAX_FILES_PER_NOTE in shared/notes.js). */
+  filesPerNote: 20,
   membersPerProject: 100,
   /** Aangemelde apparaten; bij het inloggen op een volgend apparaat wordt het langst ongebruikte afgemeld. */
   sessionsPerUser: 20,

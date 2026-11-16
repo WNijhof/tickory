@@ -9,7 +9,8 @@
 import { ENTITIES } from '../../shared/schema.js';
 import { applyCommand, cloneState, descendantIds } from './reducer.js';
 
-const GENERIC = /^([a-z]+)_(add|update|delete)$/;
+// de entiteit mag zelf een liggend streepje hebben (note_file_add): de kortste naam die past
+const GENERIC = /^([a-z][a-z_]*?)_(add|update|delete)$/;
 const clone = (v) => (v === null || typeof v !== 'object' ? v : structuredClone(v));
 /** Rijen die in deze resources door verwijderen verdwijnen, en dus mee moeten voor terugzetten. */
 const RESTORABLE = ['tasks', 'comments', 'attachments', 'reminders', 'sections'];

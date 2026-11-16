@@ -318,6 +318,12 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       args: { id: uploaded.id, task_id: taskId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
     }]),
     deleteAttachment: (id) => send([{ type: 'attachment_delete', args: { id } }]),
+    /** Een foto of geluid bij een notitie, na de upload (core/attachments.js); het uuid volgt het id, zodat een herhaling niets verdubbelt. */
+    addNoteFile: ({ noteId, name, uploaded }) => send([{
+      type: 'note_file_add', uuid: `notefile-${uploaded.id}`.slice(0, 64),
+      args: { id: uploaded.id, note_id: noteId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
+    }]),
+    deleteNoteFile: (id) => send([{ type: 'note_file_delete', args: { id } }]),
 
     // ---- labels ----
     async addLabel(name) {

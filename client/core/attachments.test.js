@@ -38,7 +38,7 @@ function setup({ limits = {}, extraUsers = [], managerOptions = {} } = {}) {
   };
   const api = {
     limits: async () => ({ max_upload_bytes: attachments.maxUploadBytes, quota_bytes: attachments.quotaBytes, used_bytes: 0, per_task: 20 }),
-    upload: async ({ id, taskId, blob, mime, signal, onProgress }) => {
+    upload: async ({ id, taskId, noteId = null, blob, mime, signal, onProgress }) => {
       net.calls += 1; // elke aanroep, ook als hij meteen mislukt
       if (!net.online) throw new AttachmentError('geen verbinding', { retryable: true });
       if (!net.auth) throw new AuthError();
@@ -50,7 +50,7 @@ function setup({ limits = {}, extraUsers = [], managerOptions = {} } = {}) {
       const req = Object.assign(Readable.from([data]), { headers: { 'content-length': String(data.length), 'content-type': mime } });
       Object.defineProperty(req, 'complete', { get: () => req.readableEnded });
       try {
-        const out = await attachments.upload(req, alice.id, { id, taskId });
+        const out = await attachments.upload(req, alice.id, { id, taskId, noteId });
         onProgress(1);
         await net.onUploaded?.({ id });
         return out;
@@ -617,4 +617,60 @@ test('de client weigert een bijlage bij een taak die er niet is, en laat de make
   assert.ok(!state.attachments.has('bijlage-van-bob-002'));
   del('bijlage-van-alice-1', 'user-alice');
   assert.equal(state.attachments.size, 0);
+});
+
+// ---------- foto's en geluid bij een notitie ----------
+
+test('notitie: een foto en een geluid kiezen; alleen media, wacht tot de notitie op de server is, dan note_file_add', async () => {
+  const c = setup();
+  try {
+    await c.store.init();
+    await c.sync.syncNow();
+    const noteId = await c.actions.addNote({ title: 'Vakantie' }); // staat nog in de wachtrij
+    const { added, rejected } = await c.manager.stageNote(noteId, [
+      file('strand.png', PNG, 'image/png'), file('golven.ogg', Buffer.concat([Buffer.from('OggS'), Buffer.alloc(50, 1)]), 'audio/ogg'),
+      file('rekening.pdf', '%PDF-1.7', 'application/pdf'), file('leeg.png', '', 'image/png'),
+    ]);
+    assert.equal(added.length, 2);
+    assert.deepEqual(rejected.map((r) => [r.name, r.reason]), [['rekening.pdf', 'notMedia'], ['leeg.png', 'empty']]);
+    assert.deepEqual(c.manager.pendingForNote(noteId).map((p) => [p.name, p.note_id, p.task_id]), [['strand.png', noteId, null], ['golven.ogg', noteId, null]]);
+    assert.deepEqual(c.manager.pendingFor(noteId), [], 'niet bij de bijlagen van een taak');
+    await c.manager.process();
+    assert.equal(c.net.uploads, 0, 'de notitie staat nog niet op de server');
+    await c.sync.syncNow();
+    await c.manager.process();
+    assert.equal(c.net.uploads, 2);
+    assert.equal(c.manager.pendingForNote(noteId).length, 0);
+    assert.equal(c.store.view.note_files.size, 2, 'meteen zichtbaar');
+    await c.sync.syncNow();
+    const rows = c.db.prepare('SELECT note_id, name, mime FROM note_files WHERE is_deleted = 0 ORDER BY name').all().map((r) => ({ ...r }));
+    assert.deepEqual(rows, [{ note_id: noteId, name: 'golven.ogg', mime: 'audio/ogg' }, { note_id: noteId, name: 'strand.png', mime: 'image/png' }]);
+    assert.equal(serverAttachments(c).length, 0, 'geen taakbijlagen');
+    // ophalen gaat net als bij een taak
+    const id = [...c.store.view.note_files.values()].find((f) => f.name === 'strand.png').id;
+    assert.deepEqual(Buffer.from(await (await c.manager.fetchBlob(id)).arrayBuffer()), PNG);
+    // de notitie verwijderen: de bestanden gaan mee, ook in de client
+    await c.actions.deleteNotes([noteId]);
+    assert.equal(c.store.view.note_files.size, 0);
+    await c.sync.syncNow();
+    assert.equal(c.db.prepare('SELECT COUNT(*) AS n FROM note_files WHERE is_deleted = 0').get().n, 0);
+  } finally { c.close(); }
+});
+
+test('notitie: hooguit twintig foto\'s en geluiden (ook wachtende tellen); een notitie die weg is, krijgt niets meer', async () => {
+  const c = setup();
+  try {
+    await c.store.init();
+    await c.sync.syncNow();
+    const noteId = await c.actions.addNote({ title: 'Veel' });
+    const many = Array.from({ length: 22 }, (_, i) => file(`foto${i}.png`, PNG, 'image/png'));
+    const { added, rejected } = await c.manager.stageNote(noteId, many);
+    assert.equal(added.length, 20);
+    assert.deepEqual(rejected.map((r) => r.reason), ['tooMany', 'tooMany']);
+    assert.deepEqual((await c.manager.stageNote('note-bestaatniet', [file('x.png', PNG, 'image/png')])).rejected.map((r) => r.reason), ['noTask']);
+    await c.actions.deleteNotes([noteId]);
+    await c.manager.process();
+    assert.equal(c.manager.pendingForNote(noteId).length, 0, 'de wachtende bestanden zijn weggegooid');
+    assert.equal(c.net.uploads, 0);
+  } finally { c.close(); }
 });

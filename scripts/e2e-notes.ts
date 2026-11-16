@@ -4,10 +4,12 @@
 // archief en prullenbak, privé voor een ander, en op een telefoon en in het donker. Wordt aangeroepen vanuit scripts/e2e.ts.
 
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { crc32, deflateSync } from 'node:zlib';
 import { createSession } from '../server/users.ts';
 
 export async function notesScenario(c: any) {
-  const { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, click, nav } = c;
+  const { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, click, nav, workDir } = c;
   const aliceToken = createSession(db, alice.id, 'Controle notities').token;
   const bobToken = createSession(db, bob.id, 'Bob notities').token;
   let k = 0;
@@ -223,6 +225,109 @@ export async function notesScenario(c: any) {
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
   await closeToasts();
   step('notities: een melding aangetikt (#note=…) opent de notitie, het adres wordt weer schoon; de herinnering weghalen');
+
+  // ---- foto's en geluid: kiezen, plakken, bekijken, afspelen, verwijderen; op de kaart ----
+  const filesDir = `${workDir}notitiebestanden/`;
+  mkdirSync(filesDir, { recursive: true });
+  // een echte (kleine) png en een echte wav van een tiende seconde stilte, en een pdf die niet mag
+  // een echte png van 64×48 (een zee boven een strand), zodat de browser hem ook echt kan tonen
+  const png = (() => {
+    const w = 64, hgt = 48;
+    const chunk = (type: string, data: Buffer) => {
+      const td = Buffer.concat([Buffer.from(type), data]);
+      const out = Buffer.alloc(12 + data.length);
+      out.writeUInt32BE(data.length, 0); td.copy(out, 4); out.writeUInt32BE(crc32(td) >>> 0, 8 + data.length);
+      return out;
+    };
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(hgt, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+    const raw = Buffer.alloc((w * 3 + 1) * hgt);
+    for (let y = 0; y < hgt; y++) {
+      for (let x = 0; x < w; x++) {
+        const o = y * (w * 3 + 1) + 1 + x * 3;
+        const [r, g, b] = y < hgt * 0.6 ? [70, 150, 210] : [236, 210, 150];
+        raw[o] = r; raw[o + 1] = g; raw[o + 2] = b;
+      }
+    }
+    return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+  })();
+  const wav = (() => {
+    const samples = 800;
+    const b = Buffer.alloc(44 + samples, 128);
+    b.write('RIFF', 0); b.writeUInt32LE(36 + samples, 4); b.write('WAVE', 8); b.write('fmt ', 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+    b.writeUInt32LE(8000, 24); b.writeUInt32LE(8000, 28); b.writeUInt16LE(1, 32); b.writeUInt16LE(8, 34); b.write('data', 36); b.writeUInt32LE(samples, 40);
+    return b;
+  })();
+  const media = { png: `${filesDir}strand.png`, wav: `${filesDir}golven.wav`, pdf: `${filesDir}rekening.pdf` };
+  writeFileSync(media.png, png);
+  writeFileSync(media.wav, wav);
+  writeFileSync(media.pdf, '%PDF-1.4\n');
+  const noteFiles = () => (serverState().note_files as any[] ?? []).filter((f) => !f.is_deleted && f.note_id === made.id);
+  await click(`[data-fk="note:${made.id}"]`);
+  await waitFor(`document.querySelector('dialog[open] .note-title')?.value === 'Boodschappen & ideeën'`, 'de notitie open');
+  assert.ok(await evaluate(`Boolean(document.querySelector('dialog[open] [data-fk="note-tool:media"]'))`), 'de knop "Afbeelding of geluid toevoegen" in de werkbalk');
+  assert.ok(await evaluate(`Boolean(document.querySelector('dialog[open] [data-fk="note-tool:record"]'))`), 'en opnemen (deze browser kan dat)');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .note-files').hidden`), true, 'zonder bestanden geen ruimte');
+  {
+    const { result } = await send('Runtime.evaluate', { expression: `document.querySelector('dialog[open] [data-fk="note-file-input"]')` });
+    await send('DOM.enable');
+    await send('DOM.setFileInputFiles', { files: [media.png, media.wav, media.pdf], objectId: result.objectId });
+  }
+  await waitFor(`document.querySelector('dialog[open] .nf-message')?.textContent.includes('rekening.pdf')`, 'een pdf mag niet');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .nf-message').textContent`), 'rekening.pdf: bij een notitie kan alleen een afbeelding of geluid.');
+  await waitFor(`document.querySelectorAll('dialog[open] .nf-pic img').length === 1 && document.querySelectorAll('dialog[open] .nf-sound').length === 1 && !document.querySelector('dialog[open] .nf-pending')`, 'de foto en het geluid in de notitie', 20_000);
+  await synced();
+  assert.deepEqual(noteFiles().map((f) => [f.name, f.mime]).sort(), [['golven.wav', 'audio/wav'], ['strand.png', 'image/png']]);
+  // plakken van een schermafdruk: een foto erbij, niets in de tekst
+  const textBefore = await blocks();
+  await evaluate(`(() => {
+    const bytes = Uint8Array.from(atob(${js(png.toString('base64'))}), (c) => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([bytes], 'image.png', { type: 'image/png' }));
+    document.querySelector('dialog[open] .ned .nb-text')?.focus();
+    document.querySelector('dialog[open] .ned').dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  })()`);
+  await waitFor(`document.querySelectorAll('dialog[open] .nf-pic img').length === 2`, 'de geplakte foto', 20_000);
+  assert.deepEqual(await blocks(), textBefore, 'de tekst bleef gelijk');
+  // afspelen: een speler met het geluid
+  const wavId = noteFiles().find((f) => f.name === 'golven.wav').id;
+  await click(`dialog[open] [data-fk="nf-play:${wavId}"]`);
+  await waitFor(`document.querySelector('dialog[open] .nf-sound audio')?.src.startsWith('blob:')`, 'een speler');
+  await waitFor(`document.querySelector('dialog[open] .nf-sound audio').readyState >= 1`, 'het geluid laadt (juist type, CSP staat blob: toe)', 10_000);
+  // bekijken: groot, met vorige en volgende
+  const pngId = noteFiles().find((f) => f.name === 'strand.png').id;
+  await click(`dialog[open] [data-fk="nf-view:${pngId}"]`);
+  await waitFor(`document.querySelector('.dialog-viewer[open] .nf-viewer img')?.src.startsWith('blob:')`, 'de foto groot');
+  assert.equal(await evaluate(`document.querySelector('.dialog-viewer[open] .nf-viewer-count').textContent`), '1 / 2');
+  assert.match(await evaluate<string>(`[...document.querySelectorAll('dialog[open] .nf-pic-open')].map((b) => b.getAttribute('aria-label')).join('|')`), /^strand\.png bekijken\|Schermafdruk \d\d-\d\d-\d{4} \d\d\.\d\d\.png bekijken$/, 'een geplakte schermafdruk krijgt een naam met datum');
+  await click('.dialog-viewer[open] [data-fk="nf-next"]');
+  await waitFor(`document.querySelector('.dialog-viewer[open] .nf-viewer-count').textContent === '2 / 2'`, 'volgende');
+  await shot('notitie-fotos');
+  // de tweede (geplakte) foto verwijderen vanuit het venster, na een vraag
+  await click('.dialog-viewer[open] [data-fk="nf-delete"]');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].some((b) => b.textContent === 'Verwijderen' && !b.closest('.dialog-viewer'))`, 'de vraag');
+  await evaluate(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].find((b) => b.textContent === 'Verwijderen' && !b.closest('.dialog-viewer')).click()`);
+  await waitFor(`!document.querySelector('.dialog-viewer[open]') && document.querySelectorAll('dialog[open] .nf-pic').length === 1`, 'nog één foto');
+  await synced();
+  assert.equal(noteFiles().length, 2);
+  // het /-menu kent "Afbeelding of geluid"
+  await evaluate(`document.querySelector('dialog[open] .ned .nb:last-child .nb-text')?.focus()`);
+  await evaluate(`(() => { const t = document.querySelector('dialog[open] .ned .nb:last-child .nb-text'); const r = document.createRange(); r.selectNodeContents(t); r.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(r); })()`);
+  await key('End', { vk: 35 });
+  await key('Enter', { text: '\r' });
+  await type('/geluid');
+  await waitFor(`[...document.querySelectorAll('dialog[open] .nb-slash-item')].map((b) => b.textContent).join('|') === 'Afbeelding of geluid'`, '/geluid vindt "Afbeelding of geluid"');
+  await key('Escape', { vk: 27 });
+  await key('Backspace', { vk: 8 }); for (let i = 0; i < 7; i++) await key('Backspace', { vk: 8 });
+  await click('dialog[open] [data-fk="note-close"]');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await synced();
+  // op de kaart: de foto bovenaan, "+1" voor het geluid
+  await waitFor(`document.querySelector('.nc[data-id=${js(made.id)}] .nc-pics.n1 .nc-pic-img.is-loaded')`, 'de foto op de kaart', 10_000);
+  assert.equal(await evaluate(`document.querySelector('.nc[data-id=${js(made.id)}] .nc-more-pics').textContent`), '+1');
+  assert.equal(savedContent(made.id)?.includes('/geluid'), false, 'de getypte opdracht staat niet in de tekst');
+  await closeToasts();
+  step('notities: foto\'s en geluid kiezen (een pdf niet), een schermafdruk plakken, afspelen, groot bekijken met vorige/volgende, verwijderen na een vraag; /geluid in het menu; op de kaart de foto met "+1"');
 
   // ---- meer notities van een ander apparaat: Overige, zoeken (ook in het archief), indeling ----
   await as(aliceToken, [

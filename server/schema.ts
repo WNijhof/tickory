@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'notification';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'notification';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -175,6 +175,11 @@ export function createSchema(db: DatabaseSync): void {
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS attachment_files_user ON attachment_files (user_id)');
   db.exec('CREATE INDEX IF NOT EXISTS attachment_files_task ON attachment_files (task_id)');
+  // Een bestand bij een notitie (note_file) staat in dezelfde tabel, met note_id en een lege task_id (die kolom is verplicht).
+  if (!(db.prepare('PRAGMA table_info(attachment_files)').all() as { name: string }[]).some((c) => c.name === 'note_id')) {
+    db.exec('ALTER TABLE attachment_files ADD COLUMN note_id TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS attachment_files_note ON attachment_files (note_id)');
 
   for (const e of ENTITY_LIST) {
     const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
@@ -202,6 +207,8 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS reminders_place ON reminders (place_id)');
   db.exec('CREATE INDEX IF NOT EXISTS places_owner ON places (owner_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS notes_owner ON notes (owner_id, is_deleted)');
+  db.exec('CREATE INDEX IF NOT EXISTS note_files_note ON note_files (note_id, is_deleted)');
+  db.exec('CREATE INDEX IF NOT EXISTS note_files_owner ON note_files (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS labels_owner ON labels (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');

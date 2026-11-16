@@ -24,6 +24,16 @@ import type { DatabaseSync as Db } from 'node:sqlite';
 const BLOCK = 512;
 const CHUNK = 64 * 1024;
 /** De tijdelijke kopie: herkenbaar, zodat een achtergebleven bestand (na een crash) bij de volgende start wordt opgeruimd. */
+/**
+ * De SQL voor de sleutels van alle bestanden die bij een bestaande bijlage horen: bij een taak (attachments) en, als de database
+ * die al kent, bij een notitie (note_files). Een database van vóór de notitiebestanden heeft die tabel nog niet.
+ */
+export function liveFileKeysSql(db: DatabaseSync): string {
+  const tasks = 'SELECT f.key AS key FROM attachment_files f JOIN attachments a ON a.id = f.id WHERE f.linked = 1 AND a.is_deleted = 0';
+  const hasNotes = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'note_files'").get() !== undefined;
+  return hasNotes ? `${tasks} UNION SELECT f.key FROM attachment_files f JOIN note_files n ON n.id = f.id WHERE f.linked = 1 AND n.is_deleted = 0` : tasks;
+}
+
 export const TEMP_PREFIX = '.tickory-backup-';
 const TEMP_RE = /^\.tickory-backup-[0-9a-f]{16}\.db$/;
 
@@ -156,7 +166,7 @@ export function createBackupArchive(
     // Welke bestanden bij de kopie horen, volgens de kopie zelf (niet volgens de database die intussen doorloopt).
     const copy = new DatabaseSync(temp, { readOnly: true });
     try {
-      keys = (copy.prepare('SELECT f.key FROM attachment_files f JOIN attachments a ON a.id = f.id WHERE f.linked = 1 AND a.is_deleted = 0 ORDER BY f.key').all() as { key: string }[])
+      keys = (copy.prepare(`${liveFileKeysSql(copy)} ORDER BY key`).all() as { key: string }[])
         .map((r) => r.key).filter((k) => /^[0-9a-f]{32}$/.test(k)); // alleen sleutels zoals de server ze maakt: nooit een pad
     } finally {
       copy.close();

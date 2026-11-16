@@ -18,6 +18,8 @@ import { icon } from './icons.js';
 import { createBlockEditor } from './blockEditor.js';
 import { backgroundPicker, bgClass } from './noteLook.js';
 import { saveTextFile } from './exportDialog.js';
+import { canRecord, createNoteFiles, noteFilesOf, pastedFile } from './noteFiles.js';
+import { attachmentRuntime } from './attachments.js';
 
 const SAVE_DELAY_MS = 600;
 // letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
@@ -52,6 +54,12 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
     });
     title.value = initial.title ?? '';
     const grow = () => { title.style.height = 'auto'; title.style.height = `${title.scrollHeight}px`; };
+    // foto's en geluid (ui/noteFiles.js); zonder bijlagen (geen beheerder) ontbreken de knoppen
+    const files = createNoteFiles({ store, actions, noteId, readOnly: trashed });
+    const mediaTool = (fk, glyph, label, run) => h('button', {
+      type: 'button', class: 'ned-tool', title: label, 'aria-label': label, dataset: { fk: `note-tool:${fk}`, tool: fk },
+      onmousedown: (e) => e.preventDefault(), onclick: run,
+    }, glyph);
     const editor = createBlockEditor({
       markdown: initial.content ?? '',
       readOnly: trashed(),
@@ -60,6 +68,12 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
       onChange: () => later(),
       onExitUp: () => { title.focus(); title.setSelectionRange(title.value.length, title.value.length); },
       onLink: (current) => askLink(current),
+      onFiles: files ? (list) => files.pick(list.map((f) => pastedFile(f))) : null,
+      onAddMedia: files ? () => files.choose() : null,
+      extraTools: files ? () => [
+        mediaTool('media', icon('paperclip'), t('note.files.add'), () => files.choose()),
+        canRecord() && mediaTool('record', icon('mic'), t('note.files.record'), () => files.record()),
+      ].filter(Boolean) : null,
     });
     title.addEventListener('input', () => { grow(); later(); });
     title.addEventListener('keydown', (e) => {
@@ -356,9 +370,11 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
       globalThis.removeEventListener?.('offline', onOnline);
       if (!closing) flush();
       editor.destroy();
+      files?.destroy();
       // een nieuwe notitie die leeg bleef, weer weghalen
       const n = note();
-      if (created && !closing && n && !n.title && !n.content && (n.labels ?? []).length === 0) actions.deleteNotes([noteId]);
+      const hasFiles = noteFilesOf(store.view, noteId).length > 0 || (attachmentRuntime()?.manager.pendingForNote(noteId).length ?? 0) > 0;
+      if (created && !closing && n && !n.title && !n.content && (n.labels ?? []).length === 0 && !hasFiles) actions.deleteNotes([noteId]);
     });
 
     drawBar();
@@ -371,7 +387,23 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
           trashed() && h('p', { class: 'note-banner' }, icon('trash'), t('note.trashedBanner', { count: trashDaysLeft(initial) })),
           title, meta, tags,
           !trashed() && editor.toolbar,
+          files?.el,
           h('div', { class: 'note-body' }, editor.el))));
+    // bestanden neerzetten op de notitie: foto's en geluid komen erbij (wat anders is, krijgt een melding)
+    if (files) {
+      sheet.addEventListener('dragover', (e) => {
+        if (trashed() || !e.dataTransfer?.types?.includes('Files')) return;
+        e.preventDefault();
+        sheet.classList.add('note-drop');
+      });
+      sheet.addEventListener('dragleave', (e) => { if (!sheet.contains(e.relatedTarget)) sheet.classList.remove('note-drop'); });
+      sheet.addEventListener('drop', (e) => {
+        sheet.classList.remove('note-drop');
+        if (trashed() || !e.dataTransfer?.files?.length) return;
+        e.preventDefault();
+        files.pick(e.dataTransfer.files);
+      });
+    }
     queueMicrotask(() => {
       grow();
       if (created) title.focus();

@@ -6,10 +6,11 @@
 // Route: `{ type: 'notes' }` voor alle notities, of met `id`: 'archive', 'trash' of 'label:<label-id>'. Een notitie lezen en
 // schrijven doet ui/noteEditor.js, in een venster.
 
-import { NOTE_LAYOUTS, NOTE_SORTS, notePrefsOf } from '../../shared/notes.js';
+import { NOTE_LAYOUTS, NOTE_SORTS, noteFileKind, notePrefsOf } from '../../shared/notes.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { markSegments } from '../core/search.js';
+import { cachedNoteFileUrl, forgetNoteFileUrls, noteFileUrl, noteFilesOf } from './noteFiles.js';
 import { NOTE_TRASH_DAYS, cardDate, expiredNotes, noteCounts, noteGroups, noteLabels, noteList, noteReminderInfo, noteSnippet, trashDaysLeft } from '../core/notes.js';
 import { cardRows, fromMarkdown, runsText } from '../core/noteDoc.js';
 import { mySettings } from '../core/selectors.js';
@@ -257,6 +258,28 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     }
   }
 
+  // ---------- foto's op de kaarten: pas ophalen als de kaart (bijna) in beeld komt ----------
+  const picObserver = typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        picObserver.unobserve(entry.target);
+        const img = entry.target;
+        const file = store.view.note_files?.get(img.dataset.file);
+        if (file) noteFileUrl(file).then((url) => { if (url) { img.src = url; img.classList.add('is-loaded'); } });
+      }
+    }, { rootMargin: '300px' })
+    : null;
+  const picture = (file) => {
+    const url = cachedNoteFileUrl(file.id);
+    const img = h('img', { class: `nc-pic-img${url ? ' is-loaded' : ''}`, alt: '', src: url ?? null, dataset: { file: file.id }, draggable: 'false' });
+    if (!url) {
+      if (picObserver) picObserver.observe(img);
+      else noteFileUrl(file).then((u) => { if (u) { img.src = u; img.classList.add('is-loaded'); } });
+    }
+    return img;
+  };
+
   // ---------- het scherm ----------
   function card(note, ctx) {
     const { view, query, scope, layout } = ctx;
@@ -271,7 +294,16 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       : cardBody(note, ROW_LIMIT[layout]);
     const label = title || t('note.untitled');
     const reminder = noteReminderInfo(note);
-    return h('article', { class: `nc ${bgClass(note.background)}${note.is_pinned ? ' nc-pinned' : ''}${picked ? ' picked' : ''}`, dataset: { id: note.id } },
+    // zoals Anchor: bij metselwerk tot vier foto's bovenaan, bij raster één, in een lijst een miniatuur rechts; "+N" voor de rest
+    const files = noteFilesOf(view, note.id);
+    const images = files.filter((f) => noteFileKind(f.mime) === 'image');
+    const shown = layout === 'list' ? [] : images.slice(0, layout === 'grid' ? 1 : 4);
+    const hiddenCount = files.length - shown.length;
+    const pics = shown.length > 0 && h('div', { class: `nc-pics n${shown.length}`, 'aria-hidden': 'true' },
+      shown.map((f, i) => h('div', { class: 'nc-ph' }, picture(f), i === shown.length - 1 && hiddenCount > 0 && h('span', { class: 'nc-more-pics' }, `+${hiddenCount}`))));
+    const thumb = layout === 'list' && images.length > 0 && h('div', { class: 'nc-thumb', 'aria-hidden': 'true' },
+      picture(images[0]), files.length > 1 && h('span', { class: 'nc-more-pics' }, `+${files.length - 1}`));
+    return h('article', { class: `nc ${bgClass(note.background)}${note.is_pinned ? ' nc-pinned' : ''}${picked ? ' picked' : ''}${thumb ? ' nc-with-thumb' : ''}`, dataset: { id: note.id } },
       h('button', {
         class: 'nc-open', type: 'button', dataset: { fk: `note:${note.id}` }, 'aria-label': `${label}${note.is_pinned ? `, ${t('note.pinnedMark')}` : ''}`,
         'aria-pressed': state.picking ? String(picked) : null,
@@ -283,6 +315,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         },
       }),
       state.picking && h('span', { class: 'nc-pick', 'aria-hidden': 'true' }, icon('check')),
+      pics,
       h('div', { class: 'nc-in' },
         (title || note.is_pinned) && h('div', { class: 'nc-head' }, title && h('span', { class: 'nc-title' }, title), note.is_pinned && h('span', { class: 'nc-pin', role: 'img', 'aria-label': t('note.pinnedMark') }, icon('pin'))),
         body ?? (!title && h('p', { class: 'nc-p nc-empty' }, t('note.emptyNote'))),
@@ -291,7 +324,9 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         h('div', { class: 'nc-foot' },
           reminder && scope !== 'trash' && h('span', { class: `nc-reminder${reminder.past ? ' is-late' : ''}`, title: t('note.reminderAt', { when: reminder.text }) }, icon(reminder.repeat ? 'repeat' : 'bell'), reminder.text),
           note.is_archived && scope === 'all' && h('span', { class: 'nc-flag' }, icon('archive'), t('note.archivedFlag')),
+          files.length > 0 && shown.length === 0 && !thumb && h('span', { class: 'nc-files', title: t('note.files.count', { count: files.length }) }, icon('paperclip'), String(files.length)),
           h('span', { class: 'nc-date' }, scope === 'trash' ? t('note.daysLeft', { count: trashDaysLeft(note) }) : cardDate(note.updated_at)))),
+      thumb,
       scope === 'trash' && !state.picking && h('button', {
         class: 'button button-small nc-restore', type: 'button', dataset: { fk: `note-restore:${note.id}` },
         onclick: async () => { await actions.restoreNote(note.id); toast(t('note.restored')); },
@@ -300,6 +335,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
 
   viewHooks.notes = (ctx) => {
     const { view, route, emptyState } = ctx;
+    forgetNoteFileUrls(view); // URL's van verwijderde foto's en geluid opruimen
     const { scope, labelId } = scopeOfRoute(route);
     const label = labelId ? view.labels.get(labelId) : null;
     const p = prefs();

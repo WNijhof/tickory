@@ -22,6 +22,8 @@ let runtime = null;
 export function configureAttachments(value) {
   runtime = value;
 }
+/** De beheerder en de brug (voor de foto's en het geluid bij notities, ui/noteFiles.js); null als er geen bijlagen zijn. */
+export const attachmentRuntime = () => runtime;
 
 const readShrink = () => { try { return localStorage.getItem(SHRINK_KEY) === '1'; } catch { return false; } };
 const writeShrink = (on) => { try { localStorage.setItem(SHRINK_KEY, on ? '1' : '0'); } catch { /* alleen een gemak */ } };

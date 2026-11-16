@@ -59,10 +59,10 @@ export function createAttachmentsApi({ getToken, baseUrl = '', fetch: fetchFn = 
 
     /**
      * Stuurt een bestand naar de server. Gebruikt XMLHttpRequest, want alleen die meldt de voortgang van het versturen.
-     * @param {{ id: string, taskId: string, blob: Blob, mime: string, signal?: AbortSignal, onProgress?: (fraction: number) => void }} input
+     * @param {{ id: string, taskId?: string | null, noteId?: string | null, blob: Blob, mime: string, signal?: AbortSignal, onProgress?: (fraction: number) => void }} input
      * @returns {Promise<{ id: string, size: number, sha256: string, mime: string }>}
      */
-    upload({ id, taskId, blob, mime, signal, onProgress = () => {} }) {
+    upload({ id, taskId = null, noteId = null, blob, mime, signal, onProgress = () => {} }) {
       return new Promise((resolve, reject) => {
         let headers;
         try {
@@ -72,7 +72,9 @@ export function createAttachmentsApi({ getToken, baseUrl = '', fetch: fetchFn = 
           return;
         }
         const xhr = new XHR();
-        const url = `${baseUrl}/api/v1/attachments?id=${encodeURIComponent(id)}&task_id=${encodeURIComponent(taskId)}`;
+        // bij een taak of, voor een foto of geluid bij een notitie, bij een notitie
+        const target = noteId ? `note_id=${encodeURIComponent(noteId)}` : `task_id=${encodeURIComponent(taskId)}`;
+        const url = `${baseUrl}/api/v1/attachments?id=${encodeURIComponent(id)}&${target}`;
         xhr.open('POST', url);
         for (const [k, v] of Object.entries({ ...headers, 'Content-Type': mime || 'application/octet-stream' })) xhr.setRequestHeader(k, v);
         xhr.responseType = 'text';

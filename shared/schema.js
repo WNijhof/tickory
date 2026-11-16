@@ -12,10 +12,10 @@ import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notificati
 import { ROLES } from './roles.js';
 import { GOALS, daysOffCheck } from './stats.js';
 import { viewOptionsCheck } from './viewOptions.js';
-import { NOTE_BACKGROUNDS, NOTE_REPEATS, notePrefsCheck, noteRemindCheck } from './notes.js';
+import { NOTE_BACKGROUNDS, NOTE_REPEATS, isNoteFileMime, notePrefsCheck, noteRemindCheck } from './notes.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'notification'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'note_file' | 'notification'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -226,6 +226,19 @@ export const ENTITIES = {
       // een herinnering (shared/notes.js): zwevend tijdstip in de tijdzone van de gebruiker, eenmalig of herhaald
       { name: 'remind_at', type: 'text', nullable: true, default: null, maxLen: 16, check: noteRemindCheck },
       { name: 'remind_repeat', type: 'text', nullable: true, default: null, oneOf: NOTE_REPEATS },
+      owner(),
+    ],
+  },
+  // Foto's en geluid bij een notitie (zoals in Anchor). Privé zoals de notitie zelf. Het bestand gaat net als een bijlage bij een
+  // taak eerst naar POST /api/v1/attachments (met note_id in plaats van task_id), daarna volgt note_file_add met dezelfde waarden.
+  note_file: {
+    name: 'note_file', table: 'note_files', resource: 'note_files', commands: ['add', 'delete'],
+    cols: [
+      { name: 'note_id', type: 'text', required: true, ref: 'note', immutable: true },
+      { name: 'name', type: 'text', required: true, maxLen: MAX_NAME_LENGTH * 2, check: fileNameProblem },
+      { name: 'size', type: 'int', required: true, min: 0, max: 2 ** 40 },
+      { name: 'mime', type: 'text', required: true, maxLen: 255, check: (v) => (isNoteFileMime(v) ? null : 'alleen een afbeelding of geluid') },
+      { name: 'sha256', type: 'text', required: true, maxLen: 64, check: (v) => (/^[0-9a-f]{64}$/.test(v) ? null : 'moet 64 hexadecimale tekens zijn') },
       owner(),
     ],
   },

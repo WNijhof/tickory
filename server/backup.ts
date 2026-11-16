@@ -14,6 +14,7 @@
 // leesbewerking een compleet, consistent bestand. Een bestaand doelbestand wordt nooit overschreven.
 
 import { DatabaseSync } from 'node:sqlite';
+import { liveFileKeysSql } from './backupArchive.ts';
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
@@ -46,7 +47,7 @@ export function backupTo(sourcePath: string, destPath: string, attachmentsDir: s
   const copy = new DatabaseSync(dest, { readOnly: true });
   let keys: string[] = [];
   try {
-    keys = (copy.prepare(`SELECT f.key FROM attachment_files f JOIN attachments a ON a.id = f.id WHERE f.linked = 1 AND a.is_deleted = 0`).all() as { key: string }[]).map((r) => r.key);
+    keys = (copy.prepare(liveFileKeysSql(copy)).all() as { key: string }[]).map((r) => r.key);
   } catch { /* een database van vóór de bijlagen heeft deze tabellen niet */ } finally {
     copy.close();
   }

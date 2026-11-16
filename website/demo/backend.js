@@ -23,6 +23,7 @@ import { addMember, createSeed } from './demoSeed.js';
 import { AttachmentError } from './attachmentsApi.js';
 import { DEFAULT_MIME, effectiveMime, isInlineMime } from '../../shared/attachments.js';
 import { MAX_ATTACHMENTS_PER_TASK } from './reducer.js';
+import { MAX_FILES_PER_NOTE, isNoteFileMime } from '../../shared/notes.js';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../../shared/roles.js';
 import { changedTaskFields, parseActivityQuery, shortTitle } from '../../shared/activity.js';
 import { isTimeZone, parseStatsQuery, statsSince, tallyCompletions } from '../../shared/stats.js';
@@ -96,7 +97,8 @@ function resolveResources(requested) {
   return { include, partial: include.size !== RESOURCE_NAMES.length };
 }
 
-const GENERIC = /^([a-z]+)_(add|update|delete)$/;
+// de entiteit mag zelf een liggend streepje hebben (note_file_add): de kortste naam die past
+const GENERIC = /^([a-z][a-z_]*?)_(add|update|delete)$/;
 
 export class DemoServer {
   /**
@@ -559,6 +561,17 @@ export class DemoServer {
         f.linked = true;
         break;
       }
+      case 'note_file': {
+        // zoals de server: eerst geüpload bij deze notitie, en het moet kloppen met wat hier wordt opgegeven
+        const f = this.files.get(id);
+        if (!f || f.note_id !== v.note_id || f.linked) fail('NOT_FOUND', 'note_file.id: het bestand is niet geüpload (of hoort al ergens bij)');
+        if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
+        let count = 0;
+        for (const x of state.note_files.values()) if (x.note_id === v.note_id) count += 1;
+        if (count >= MAX_FILES_PER_NOTE) fail('LIMIT_REACHED', `bestanden per notitie: de grens van ${MAX_FILES_PER_NOTE} is bereikt`);
+        f.linked = true;
+        break;
+      }
       case 'reminder': {
         const none = (x) => x === null || x === undefined;
         if (v.type === 'location') {
@@ -705,10 +718,32 @@ export class DemoServer {
     const used = () => [...this.files.values()].reduce((sum, f) => sum + f.size, 0);
     const sha256 = async (blob) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].map((b) => b.toString(16).padStart(2, '0')).join('');
     const refuse = (status, code, message, retryable = false) => new AttachmentError(capitalize(message), { status, code, retryable });
+    // een foto of geluid bij een notitie (zoals de server: alleen bij je eigen notitie, alleen afbeeldingen en geluid, hooguit twintig)
+    const uploadForNote = async ({ id, noteId, blob, mime, onProgress }) => {
+      if (!this.state.notes.has(noteId)) throw refuse(404, 'NOT_FOUND', 'deze notitie bestaat niet');
+      if (blob.size === 0) throw refuse(400, 'INVALID_ARG', 'het bestand is leeg');
+      if (blob.size > this.maxUploadBytes) throw refuse(413, 'TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(this.maxUploadBytes / 1_000_000)} MB)`);
+      const hash = await sha256(blob);
+      const have = this.files.get(id);
+      if (have) {
+        if (have.note_id === noteId && have.sha256 === hash && have.size === blob.size) return { id, size: have.size, sha256: hash, mime: have.mime };
+        throw refuse(409, 'CONFLICT', 'er is al een ander bestand met dit id geüpload');
+      }
+      if (used() + blob.size > this.quotaBytes) throw refuse(409, 'LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+      const effective = effectiveMime(mime, new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
+      if (!isNoteFileMime(effective)) throw refuse(400, 'INVALID_ARG', 'bij een notitie kan alleen een afbeelding of geluid');
+      let count = [...this.files.values()].filter((f) => f.note_id === noteId && !f.linked).length;
+      for (const f of this.state.note_files.values()) if (f.note_id === noteId) count += 1;
+      if (count >= MAX_FILES_PER_NOTE) throw refuse(409, 'LIMIT_REACHED', `een notitie kan hooguit ${MAX_FILES_PER_NOTE} bestanden hebben`);
+      this.files.set(id, { blob, task_id: null, note_id: noteId, size: blob.size, sha256: hash, mime: effective, linked: false });
+      onProgress(1);
+      return { id, size: blob.size, sha256: hash, mime: effective };
+    };
     return {
       limits: async () => ({ max_upload_bytes: this.maxUploadBytes, quota_bytes: this.quotaBytes, used_bytes: used(), per_task: MAX_ATTACHMENTS_PER_TASK }),
-      upload: async ({ id, taskId, blob, mime, onProgress = () => {} }) => {
+      upload: async ({ id, taskId = null, noteId = null, blob, mime, onProgress = () => {} }) => {
         if (typeof id !== 'string' || !ID_RE.test(id)) throw refuse(400, 'INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+        if (noteId) return uploadForNote({ id, noteId, blob, mime, onProgress });
         if (!this.state.tasks.has(taskId)) throw refuse(404, 'NOT_FOUND', 'deze taak bestaat niet');
         if (blob.size === 0) throw refuse(400, 'INVALID_ARG', 'het bestand is leeg');
         if (blob.size > this.maxUploadBytes) throw refuse(413, 'TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(this.maxUploadBytes / 1_000_000)} MB)`);
