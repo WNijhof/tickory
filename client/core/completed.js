@@ -2,8 +2,9 @@
 // Geen scherm. De client heeft alle taken lokaal; een lijst van duizenden voltooide taken blijft vlot doordat het scherm er
 // maar een deel van tekent (`completedGroups` met een grens, de rest via "Meer tonen").
 //
-// Wat erin hoort: afgevinkte taken uit projecten waar je nu lid van bent en die niet gearchiveerd zijn. Wat er niet in kan staan:
-// een terugkerende taak, want die blijft na afvinken open met de volgende datum (alleen de teller `completed_count` loopt op).
+// Wat erin hoort: afgevinkte taken uit projecten waar je nu lid van bent en die niet gearchiveerd zijn. Een terugkerende taak blijft na
+// afvinken open met de volgende datum; die afvinkingen komen van de server (`GET /api/v1/completed/recurring`, uit het logboek) en
+// staan met `recurringEntries` op hun dag tussen de rest.
 
 import { todayString } from './format.js';
 import { foldedField, foldText } from './fold.js';
@@ -55,6 +56,26 @@ export function completedTasks(view, { projectId = null, query = '', userId = nu
   }
   return out.sort(newestFirst);
 }
+
+/**
+ * De afvinkingen van terugkerende taken (van de server) die hier horen: uit een project dat je ziet en niet gearchiveerd is, eventueel
+ * van één project, en met de zoekterm in de titel. Elk krijgt `completed_at` (het tijdstip) en `recurring: true`.
+ */
+export function recurringEntries(view, entries, { projectId = null, query = '' } = {}) {
+  const folded = foldText(String(query ?? '').trim());
+  const out = [];
+  for (const e of entries ?? []) {
+    if (!e || typeof e.task_id !== 'string' || typeof e.at !== 'string') continue;
+    if (projectId && e.project_id !== projectId) continue;
+    if (!view.projects.has(e.project_id) || isArchivedProject(view, e.project_id)) continue;
+    if (folded && !foldText(String(e.title ?? '')).includes(folded)) continue;
+    out.push({ ...e, completed_at: e.at, recurring: true });
+  }
+  return out;
+}
+
+/** Voltooide taken en afvinkingen van terugkerende taken samen, de nieuwste eerst. */
+export const mergeCompleted = (tasks, entries) => [...tasks, ...entries].sort(newestFirst);
 
 /** Per project: hoeveel voltooide taken (voor de keuzelijst), de meeste eerst. Zonder zoekopdracht en zonder projectfilter. */
 export function completedProjects(view, { userId = null } = {}) {

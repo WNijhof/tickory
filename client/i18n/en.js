@@ -1541,6 +1541,8 @@ export default {
   'completed.note': 'A repeating task is not listed here: it stays open with its next date. In Productivity, every time you completed it does count.',
   'completed.more': 'Show more ({shown} shown of {total})',
   'completed.restore': 'Restore',
+  'completed.recurringChip': 'Recurring',
+  'completed.recurringLabel': 'Open {name} (recurring task, completed this time)',
   'completed.restoreLabel': 'Restore "{name}"',
   'completed.restored': '"{name}" restored.',
   'completed.restoredRecurring': '"{name}" restored. It repeats; its date is {date}.',

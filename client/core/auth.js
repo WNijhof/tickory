@@ -140,6 +140,8 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       call('noteRevisions', 'GET', `/api/v1/notes/${encodeURIComponent(noteId)}/revisions${before ? `?before=${encodeURIComponent(before)}` : ''}`),
     /** Eén versie met de tekst. */
     noteRevision: (noteId, revisionId) => call('noteRevision', 'GET', `/api/v1/notes/${encodeURIComponent(noteId)}/revisions/${encodeURIComponent(revisionId)}`),
+    /** De afvinkingen van terugkerende taken voor Voltooid (server/stats.ts): `{ entries }`, de nieuwste eerst. */
+    recurringCompleted: ({ days = null } = {}) => call('recurringCompleted', 'GET', `/api/v1/completed/recurring${days ? `?days=${encodeURIComponent(days)}` : ''}`),
     /** Het productiviteitsoverzicht (server/stats.ts): alleen je eigen afvinkingen, per dag in tijdzone `tz`. */
     stats: ({ tz = null, days = null } = {}) => {
       const q = new URLSearchParams();

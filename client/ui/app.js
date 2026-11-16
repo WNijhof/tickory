@@ -827,7 +827,7 @@ async function boot() {
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
   // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
   productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
-  installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
+  installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader, api }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   notesUi = installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo, api }); // notities (ui/notes.js), onder Meldingen
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)

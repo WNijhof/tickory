@@ -1538,6 +1538,8 @@ export default {
   'completed.note': 'Een terugkerende taak staat hier niet: die blijft open met de volgende datum. In Productiviteit telt elke keer dat je haar afvinkte wel mee.',
   'completed.more': 'Meer tonen ({shown} getoond van {total})',
   'completed.restore': 'Terugzetten',
+  'completed.recurringChip': 'Herhaling',
+  'completed.recurringLabel': '{name} (terugkerende taak, deze keer afgevinkt) openen',
   'completed.restoreLabel': 'Zet "{name}" terug',
   'completed.restored': '"{name}" teruggezet.',
   'completed.restoredRecurring': '"{name}" teruggezet. Deze taak herhaalt; de datum is {date}.',

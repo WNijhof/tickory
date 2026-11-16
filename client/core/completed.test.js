@@ -137,3 +137,25 @@ test('vijfduizend voltooide taken: filteren, zoeken en groeperen blijft vlot', (
   assert.equal(all[0].id, 't4999', 'nieuwste eerst');
   assert.ok(elapsed < 500, `te traag: ${Math.round(elapsed)} ms`);
 });
+
+import { mergeCompleted, recurringEntries } from './completed.js';
+
+test('afvinkingen van terugkerende taken: alleen uit een zichtbaar, niet gearchiveerd project; op zoekterm; samen met de rest op tijd', () => {
+  const view = emptyState();
+  view.projects.set('proj-0001', { id: 'proj-0001', name: 'Thuis' });
+  view.projects.set('proj-arch1', { id: 'proj-arch1', name: 'Oud', is_archived: true });
+  const entries = [
+    { id: '9', task_id: 'task-0001', project_id: 'proj-0001', title: 'Planten water geven', at: '2026-11-16T09:00:00.000Z' },
+    { id: '8', task_id: 'task-0002', project_id: 'proj-arch1', title: 'Oud', at: '2026-11-16T08:00:00.000Z' },
+    { id: '7', task_id: 'task-0003', project_id: 'proj-weg01', title: 'Weg', at: '2026-11-16T07:00:00.000Z' },
+    { id: '6', task_id: 'task-0001', project_id: 'proj-0001', title: 'Planten water geven', at: '2026-11-15T09:00:00.000Z' },
+    null, { id: '5' },
+  ];
+  const got = recurringEntries(view, entries);
+  assert.deepEqual(got.map((e) => [e.id, e.recurring, e.completed_at]), [['9', true, '2026-11-16T09:00:00.000Z'], ['6', true, '2026-11-15T09:00:00.000Z']]);
+  assert.deepEqual(recurringEntries(view, entries, { query: 'PLANTEN' }).length, 2);
+  assert.deepEqual(recurringEntries(view, entries, { query: 'iets' }).length, 0);
+  assert.deepEqual(recurringEntries(view, entries, { projectId: 'proj-arch1' }).length, 0);
+  const task = { id: 'task-9999', completed_at: '2026-11-15T12:00:00.000Z' };
+  assert.deepEqual(mergeCompleted([task], got).map((x) => x.id), ['9', 'task-9999', '6']);
+});

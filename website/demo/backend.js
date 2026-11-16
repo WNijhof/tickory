@@ -890,6 +890,11 @@ export class DemoServer {
       activity: async (projectId, q) => this.activityPage(projectId, q),
       stats: async (q) => this.statsPage(q),
       noteRevisions: async (noteId) => this.revisionsPage(noteId),
+      // zoals recurringCompletions in server/stats.ts: de afvinkingen van terugkerende taken uit het logboek, nieuwste eerst
+      recurringCompleted: async () => ({
+        entries: this.activity.filter((e) => e.kind === 'task_completed' && e.extra?.recurring === true && e.task_id && this.state.projects.has(e.project_id))
+          .slice(-500).reverse().map((e) => ({ id: e.id, task_id: e.task_id, project_id: e.project_id, actor_id: e.actor_id, title: e.title ?? '', at: e.at })),
+      }),
       noteRevision: async (noteId, revisionId) => this.revisionOne(noteId, revisionId),
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);

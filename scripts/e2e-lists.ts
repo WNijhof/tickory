@@ -175,6 +175,20 @@ export async function listsScenario(c: any) {
   await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
   step('Vandaag: "Opnieuw plannen" bij Te laat zet alle te late taken naar morgen (de tijd blijft), en ongedaan maken zet ze terug');
 
+  // ---- Voltooid: een afvinking van een terugkerende taak staat er ook, en opent de taak zelf ----
+  await as([['task_add', { id: 'e2elijstherhaal1', project_id: P, content: 'Vuilnis **buiten** zetten', due: { date: today, recurrence: { freq: 'daily' } } }]]);
+  await as([['task_complete', { id: 'e2elijstherhaal1' }]]);
+  await nav('Voltooid');
+  await waitFor(`[...document.querySelectorAll('.task-recurring-done .task-title')].some((e) => e.textContent === 'Vuilnis buiten zetten')`, 'de afvinking van de terugkerende taak in Voltooid', 15_000);
+  const recRow = `[...document.querySelectorAll('.task-recurring-done')].find((l) => l.querySelector('.task-title').textContent === 'Vuilnis buiten zetten')`;
+  assert.equal(await evaluate(`${recRow}.querySelector('.chip-repeat').textContent`), 'Herhaling');
+  await evaluate(`${recRow}.querySelector('.task-body').click()`);
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'de taak zelf open (ze staat nog open met de volgende datum)');
+  await evaluate(`document.querySelector('#task-dialog[open] [aria-label="Sluiten"], #task-dialog[open] .icon-button')?.click()`);
+  await waitFor(`!document.querySelector('#task-dialog[open]')`, 'venster dicht');
+  await as([['task_delete', { id: 'e2elijstherhaal1' }]]);
+  step('Voltooid: een afgevinkte terugkerende taak staat erbij (met "Herhaling"), en een klik opent de taak zelf');
+
   // ---- de beschrijving van een project; de kalender gekleurd per project ----
   await as([['project_update', { id: P, description: 'Alles voor de **verhuizing**. Zie [de lijst](https://example.org/lijst).' }]]);
   await nav('Lijstproef');
