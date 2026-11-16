@@ -198,6 +198,10 @@ async function scenario(c: any): Promise<void> {
 
   // ---------- 5. op een project in de zijbalk laten vallen, met ongedaan maken ----------
   {
+    // met veel projecten en labels kan het doel onder de rand van de zijbalk staan: eerst in beeld, dan pas meten (het schuiven kan
+    // ook de lijst verplaatsen)
+    // (in het midden: vlak bij de rand gaat de zijbalk tijdens het slepen vanzelf scrollen)
+    await evaluate(`(${navRowExpr('Doelproject')}).scrollIntoView({ block: 'center' })`);
     const bravo = await rowRect('Bravo');
     const target = await navRect('Doelproject');
     await drag(grab(bravo), at(target, 0.5, 0.5), async () => {
@@ -341,6 +345,7 @@ async function scenario(c: any): Promise<void> {
     assert.deepEqual(projectOrder(null), orderBefore);
     // wel: een taak slepen naar dat project mag (iedereen kan in een gedeeld project schrijven)
     await nav('Sleepproef');
+    await evaluate(`(${navRowExpr('Van Bob')}).scrollIntoView({ block: 'center' })`); // het doel in beeld, niet vlak bij de rand
     const alfa = await rowRect('Alfa');
     const bobsNav = await navRect('Van Bob');
     await drag(grab(alfa), at(bobsNav, 0.5, 0.5));
