@@ -142,6 +142,37 @@ export async function listsScenario(c: any) {
   await waitFor(`!document.querySelector('.task[data-id="e2elijstkind0001"]')`, 'weer ingeklapt');
   step('Vandaag: subtaken van een taak uitklappen (een niveau dieper, zonder de taak te wijzigen) en weer inklappen; vet in de titel, zonder sterretjes voor schermlezers');
 
+  // ---- te laat: alles in één keer opnieuw plannen, en ongedaan maken ----
+  const yesterday = await evaluate<string>(`(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`);
+  const tomorrow = await evaluate<string>(`(() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); })()`);
+  await as([
+    ['task_add', { id: 'e2elijstlaat0001', project_id: P, content: 'Te laat een', due: { date: yesterday } }],
+    ['task_add', { id: 'e2elijstlaat0002', project_id: P, content: 'Te laat twee', due: { date: `${yesterday}T08:30` } }],
+  ]);
+  await waitFor(`document.querySelector('[data-fk="overdue-reschedule"]')`, 'de knop Opnieuw plannen bij Te laat', 10_000);
+  const overdueIds = () => (serverState().tasks as any[]).filter((x) => x.due && x.due.date.slice(0, 10) < today && !x.checked).map((x) => x.id);
+  const before4 = overdueIds();
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
+  await click('[data-fk="overdue-reschedule"]');
+  await waitFor(`document.querySelector('.dialog-bulk[open] [data-date="${tomorrow}"]')`, 'het datumvenster');
+  assert.match(await evaluate<string>(`document.querySelector('.dialog-bulk[open] h2').textContent`), /^\d+ te late taken opnieuw plannen$/);
+  await click(`.dialog-bulk[open] [data-date="${tomorrow}"]`);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const moved = (serverState().tasks as any[]).filter((x) => before4.includes(x.id));
+  assert.ok(moved.every((x) => x.due.date.slice(0, 10) === tomorrow), 'alles naar morgen');
+  assert.equal(moved.find((x) => x.id === 'e2elijstlaat0002').due.date, `${tomorrow}T08:30`, 'de tijd blijft');
+  await waitFor(`!document.querySelector('[data-fk="overdue-reschedule"]')`, 'geen Te laat meer');
+  await waitFor(`document.querySelector('.toast')?.textContent.includes('Ongedaan maken')`, 'de melding met ongedaan maken');
+  const toastText = await evaluate<string>(`document.querySelector('.toast').textContent`);
+  assert.match(toastText, /morgen/, toastText);
+  await evaluate(`[...document.querySelector('.toast').querySelectorAll('button')].find((b) => b.textContent === 'Ongedaan maken').click()`);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  await waitFor(`document.querySelector('[data-fk="overdue-reschedule"]')`, 'weer te laat na ongedaan maken', 10_000);
+  assert.equal((serverState().tasks as any[]).find((x) => x.id === 'e2elijstlaat0002').due.date, `${yesterday}T08:30`);
+  await as([['task_delete', { id: 'e2elijstlaat0001' }], ['task_delete', { id: 'e2elijstlaat0002' }]]);
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
+  step('Vandaag: "Opnieuw plannen" bij Te laat zet alle te late taken naar morgen (de tijd blijft), en ongedaan maken zet ze terug');
+
   // ---- de beschrijving van een project; de kalender gekleurd per project ----
   await as([['project_update', { id: P, description: 'Alles voor de **verhuizing**. Zie [de lijst](https://example.org/lijst).' }]]);
   await nav('Lijstproef');

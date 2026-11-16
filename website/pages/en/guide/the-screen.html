@@ -68,7 +68,7 @@ description: What Tickory looks like and how it works: the sidebar with Inbox, T
 
 <h2 id="today-and-upcoming">Today and Upcoming</h2>
 <ul>
-  <li><x-ui k="nav.today"></x-ui> shows all open tasks dated today, from all your projects, and above them whatever is <x-ui k="view.overdue"></x-ui>. If there is nothing to do you see “All done for today”.</li>
+  <li><x-ui k="nav.today"></x-ui> shows all open tasks dated today, from all your projects, and above them whatever is <x-ui k="view.overdue"></x-ui>. <x-ui k="view.reschedule"></x-ui> moves all overdue tasks to another day at once (the time and any recurrence stay; you can undo it). If there is nothing to do you see “All done for today”.</li>
   <li><x-ui k="nav.upcoming"></x-ui> shows the next fourteen days, starting tomorrow, with a heading per day. Days without tasks are skipped.</li>
 </ul>
 <p>Within a day, tasks without a time come first, then those with a time, from early to late; at the same time the highest priority goes first. In a shared project you also see the tasks assigned to someone else here. Tasks without a date are in neither view; you find those in their project.</p>

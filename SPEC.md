@@ -518,6 +518,8 @@ Zoals bij Todoist kies je per lijst hoe de taken staan: een project, Vandaag of 
 
 **Subtaken in overzichten** (`withSubtasks` in `ui/render.js`). In Vandaag, Aankomend en de lijsten van een label of filter staat bij een taak met open subtaken een pijltje in het chipje met het aantal; uitklappen toont die subtaken eronder, een niveau dieper (tot drie diep), in hun eigen volgorde. Een subtaak die zelf al in het overzicht staat, komt er niet nog eens bij; afgevinkte subtaken niet. Het uitklappen geldt alleen voor deze sessie en verandert de taak niet (`is_collapsed` is van de boom in het project).
 
+**Opnieuw plannen.** Bij "Te laat" in Vandaag zet de knop "Opnieuw plannen" alle te late taken die je kunt bewerken in één keer op een gekozen dag (vandaag, morgen, dit weekend, volgende week of een eigen datum; het venster van meerdere taken, `planDate` in `core/bulk.js`): tijd en herhaling blijven, één stap om ongedaan te maken.
+
 **Projectbeschrijving.** `project.description` (Markdown, hooguit 16.000 tekens) is te bewerken in het venster van het project en staat met opmaak onder de titel, in de lijst, op het bord en in de kalender.
 
 **Kalenderkleur** (`calendarColorOf` in `ui/calendar.js`). Bovenaan de kalender kies je waarop de kleur van een taak gebaseerd is: prioriteit (de standaard), project of het eerste label met een kleur (zonder: de prioriteit). De keuze geldt voor dit apparaat (`tickory.calendarColor`).

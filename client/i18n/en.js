@@ -611,6 +611,8 @@ export default {
   'label.err.readonly': "This label is someone else's; you can only read it.",
   'label.err.gone': 'This label no longer exists.',
   'view.overdue': 'Overdue',
+  'view.reschedule': 'Reschedule',
+  'view.rescheduleTitle': { one: 'Reschedule {count} overdue task', other: 'Reschedule {count} overdue tasks' },
   'view.todayEmpty': 'Nothing due today. Type above to add a task.',
   'view.upcomingEmpty': 'Nothing scheduled for the next two weeks.',
   'view.projectTitle': 'Project',

@@ -11,11 +11,13 @@ import { ApiError, deviceName } from '../core/auth.js';
 import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
-import { isArchivedProject, roleIn } from '../core/selectors.js';
+import { isArchivedProject, roleIn, todayView } from '../core/selectors.js';
 import { moveTargets } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError, quietCommandError } from '../core/messages.js';
-import { formatDue, nowString, todayString } from '../core/format.js';
+import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
+import { planDate } from '../core/bulk.js';
+import { dateDialog } from './bulkDialogs.js';
 import { reschedule } from '../core/quickDates.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
@@ -312,6 +314,19 @@ const handlers = {
   toggleProject: (project) => actions.updateProject(project.id, { is_collapsed: !project.is_collapsed }),
   toggleSection: (section) => actions.updateSection(section.id, { is_collapsed: !section.is_collapsed }),
   toggleTask: (task) => actions.updateTask(task.id, { is_collapsed: !task.is_collapsed }),
+
+  /** "Opnieuw plannen" bij Te laat (Vandaag): alle te late taken die je kunt bewerken naar een gekozen dag; tijd en herhaling blijven. */
+  async rescheduleOverdue() {
+    const today = todayString();
+    const ids = todayView(store.view, today).overdue.filter((x) => canEditProject(store.view, x.project_id, store.userId)).map((x) => x.id);
+    if (ids.length === 0) return;
+    const picked = await dateDialog({ today, hasDue: false, count: ids.length, title: t('view.rescheduleTitle', { count: ids.length }) });
+    if (!picked?.date) return;
+    const plan = planDate(store.view, ids, picked.date, (id, changes) => actions.planUpdateTask(id, changes));
+    if (plan.commands.length === 0) return;
+    const { entry } = await actions.batch(plan.commands, { label: t('view.reschedule') });
+    undoToast(t('bulk.doneDate', { count: plan.count, date: formatDate(picked.date, today) }), entry);
+  },
 
   async addProject(parentId = null) {
     const made = await openProjectDialog({ view: store.view, parentId });

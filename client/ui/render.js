@@ -448,7 +448,13 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       nodes: grouped
         ? [...optionGroups(grouped, (g) => rows(g.rows, true)), total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }), addInline(handlers, { due: 'today' })]
         : [
-          list.overdue.length > 0 && group({ title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length }),
+          list.overdue.length > 0 && group({
+            title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length,
+            // zoals Todoist: alle te late taken in één keer naar een andere dag (met ongedaan maken)
+            extra: list.overdue.some((x) => canEditProject(view, x.project_id, me?.id)) && h('button', {
+              class: 'link-button group-action', type: 'button', dataset: { fk: 'overdue-reschedule' }, onclick: () => handlers.rescheduleOverdue(),
+            }, t('view.reschedule')),
+          }),
           group({
             title: formatDayHeading(today, today), rows: rows(sort(list.today), true), total: list.today.length,
             footer: addInline(handlers, { due: 'today' }),

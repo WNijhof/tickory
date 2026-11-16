@@ -881,3 +881,6 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .project-desc { margin: 0 0 14px; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); color: var(--text-soft); max-width: 72ch; }
 .project-desc .md > :first-child { margin-top: 0; }
 .project-desc .md > :last-child { margin-bottom: 0; }
+
+/* een knop in de kop van een groep (Opnieuw plannen bij Te laat) */
+.group-action { margin-left: auto; font-size: 0.85rem; }

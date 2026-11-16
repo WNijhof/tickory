@@ -606,6 +606,8 @@ export default {
   'label.err.readonly': 'Dit label is van iemand anders; je kunt het alleen lezen.',
   'label.err.gone': 'Dit label bestaat niet meer.',
   'view.overdue': 'Te laat',
+  'view.reschedule': 'Opnieuw plannen',
+  'view.rescheduleTitle': { one: '{count} te late taak opnieuw plannen', other: '{count} te late taken opnieuw plannen' },
   'view.todayEmpty': 'Niets voor vandaag. Typ hierboven om een taak toe te voegen.',
   'view.upcomingEmpty': 'Niets gepland voor de komende twee weken.',
   'view.projectTitle': 'Project',

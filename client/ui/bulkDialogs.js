@@ -52,7 +52,7 @@ export function moveDialog({ view, count }) {
  * Een dag: vandaag, morgen, dit weekend, volgende week, geen datum, of een eigen datum.
  * @returns {Promise<{ date: string | null } | null>}
  */
-export function dateDialog({ today, hasDue, count }) {
+export function dateDialog({ today, hasDue, count, title = null }) {
   const d = quickDates(today);
   return openDialog((finish) => {
     const item = (date, label) => h('button', { type: 'button', class: 'menu-item', dataset: { date: date ?? '' }, onclick: () => finish({ date }) }, date ? `${label} · ${formatDate(date, today)}` : label);
@@ -64,7 +64,7 @@ export function dateDialog({ today, hasDue, count }) {
         if (/^\d{4}-\d{2}-\d{2}$/.test(custom.value)) finish({ date: custom.value });
       },
     },
-    h('h2', {}, t('bulk.dateTitle', { count })),
+    h('h2', {}, title ?? t('bulk.dateTitle', { count })),
     h('div', { class: 'menu' },
       item(d.today, t('task.quickToday')), item(d.tomorrow, t('task.quickTomorrow')), item(d.weekend, t('task.quickWeekend')), item(d.nextWeek, t('task.quickNextWeek')),
       hasDue && item(null, t('task.quickNone'))),
