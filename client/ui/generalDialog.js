@@ -1,8 +1,9 @@
 // Instellingen › Algemeen (SPEC 5m, shared/general.js): de startpagina, de tijdnotatie, of snel toevoegen datums in gewone taal
 // herkent, en welke onderdelen in de zijbalk staan. Bewaard in je instellingen op de server, dus op al je apparaten hetzelfde.
 
-import { SIDEBAR_ITEMS, START_PAGES, TIME_FORMATS, generalOf } from '../../shared/general.js';
-import { t } from '../core/i18n.js';
+import { SIDEBAR_ITEMS, START_PAGES, TIME_FORMATS, WEEK_STARTS, generalOf } from '../../shared/general.js';
+import { weekdayNames } from '../core/calendar.js';
+import { getLocale, t } from '../core/i18n.js';
 import { mySettings } from '../core/selectors.js';
 import { h, openDialog } from './dom.js';
 
@@ -28,6 +29,9 @@ export function openGeneralDialog({ store, actions }) {
     const clocks = TIME_FORMATS.map((f) => h('label', { class: 'check-row' },
       h('input', { type: 'radio', name: 'general-clock', value: f, checked: f === now.time_format, dataset: { fk: `general-clock:${f}` } }), CLOCK_LABEL[f]()));
     const dates = h('input', { type: 'checkbox', checked: now.date_recognition, dataset: { fk: 'general-dates' } });
+    const dayNames = weekdayNames(getLocale(), 'long');
+    const weekStart = h('select', { class: 'field', dataset: { fk: 'general-week' } },
+      WEEK_STARTS.map((d) => h('option', { value: String(d), selected: d === now.week_start }, dayNames[d - 1])));
     const items = SIDEBAR_ITEMS.map((key) => h('label', { class: 'check-row' },
       h('input', { type: 'checkbox', value: key, checked: !now.sidebar_hidden.includes(key), dataset: { fk: `general-nav:${key}` } }), ITEM_LABEL[key]()));
     return h('form', {
@@ -39,6 +43,7 @@ export function openGeneralDialog({ store, actions }) {
           time_format: clocks.map((l) => l.querySelector('input')).find((i) => i.checked)?.value ?? '24h',
           date_recognition: dates.checked,
           sidebar_hidden: items.map((l) => l.querySelector('input')).filter((i) => !i.checked).map((i) => i.value),
+          week_start: Number(weekStart.value),
         };
         await actions.updateSettings({ general: next });
         finish(true);
@@ -46,6 +51,7 @@ export function openGeneralDialog({ store, actions }) {
     },
     h('h2', {}, t('settings.general')),
     h('label', { class: 'field-label' }, t('general.start'), start),
+    h('label', { class: 'field-label' }, t('general.weekStart'), weekStart),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.clock')), clocks),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.quickAdd')),
       h('label', { class: 'check-row' }, dates, t('general.dates')),

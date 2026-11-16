@@ -736,6 +736,7 @@ export default {
   'general.quickAdd': 'Quick add',
   'general.dates': 'Recognise dates in plain language',
   'general.datesHint': 'When this is off, dates in plain words stay part of the text. A deadline in curly braces and a reminder with an exclamation mark always work.',
+  'general.weekStart': 'First day of the week',
   'general.sidebar': 'In the sidebar',
   'settings.account': 'Account, password and devices',
   'settings.syncNow': 'Sync now',

@@ -731,6 +731,7 @@ export default {
   'general.quickAdd': 'Snel toevoegen',
   'general.dates': 'Datums in gewone taal herkennen',
   'general.datesHint': 'Staat dit uit, dan blijven datums in gewone woorden deel van de tekst. Een deadline tussen accolades en een herinnering met een uitroepteken werken altijd.',
+  'general.weekStart': 'Eerste dag van de week',
   'general.sidebar': 'In de zijbalk',
   'settings.account': 'Account, wachtwoord en apparaten',
   'settings.syncNow': 'Nu bijwerken',

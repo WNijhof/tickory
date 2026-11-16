@@ -334,3 +334,30 @@ test('in elke tijdzone (ook rond een zomertijdwissel) zijn alle uitkomsten gelij
     });
   }
 });
+
+import { getWeekStart, setWeekStart, startOfCalendarWeek } from './calendar.js';
+
+test('de week kan op zondag of zaterdag beginnen (Instellingen › Algemeen); weeknummers blijven ISO', () => {
+  try {
+    setWeekStart(7);
+    assert.equal(getWeekStart(), 7);
+    assert.equal(startOfCalendarWeek('2026-11-18'), '2026-11-15', 'woensdag 18 november: de week begint zondag 15');
+    assert.equal(startOfCalendarWeek('2026-11-15'), '2026-11-15');
+    assert.deepEqual(weekDays('2026-11-21'), ['2026-11-15', '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21']);
+    const nov = monthGrid('2026-11-10');
+    assert.equal(nov.weeks[0].days[0], '2026-11-01', '1 november 2026 is een zondag: de eerste rij begint daar');
+    assert.equal(nov.weeks[0].week, 45, 'het weeknummer van de maandag in de rij (2 november)');
+    assert.deepEqual(visibleRange('week', '2026-11-18'), { from: '2026-11-15', to: '2026-11-21' });
+    assert.deepEqual(weekdayNames('nl-NL', 'short', 7).slice(0, 2), ['zo', 'ma']);
+    setWeekStart(6);
+    assert.equal(startOfCalendarWeek('2026-11-18'), '2026-11-14');
+    assert.equal(monthGrid('2026-11-10').weeks[0].days[0], '2026-10-31');
+    assert.equal(monthGrid('2026-11-10').weeks[0].week, 45);
+    setWeekStart(3);
+    assert.equal(getWeekStart(), 1, 'iets anders wordt maandag');
+  } finally {
+    setWeekStart(1);
+  }
+  assert.equal(startOfCalendarWeek('2026-11-18'), '2026-11-16');
+  assert.equal(startOfWeek('2026-11-18'), '2026-11-16', 'de ISO-week blijft maandag');
+});

@@ -3,7 +3,8 @@
 // 'YYYY-MM-DD' (of met 'THH:MM' erachter) en alles rekent in UTC, zodat zomertijd en de tijdzone van het apparaat nooit meetellen.
 // Alleen `today` komt van buiten (de aanroeper bepaalt die in de tijdzone van het apparaat).
 //
-// De week begint op maandag. Weeknummers zijn ISO 8601: week 1 is de week met de eerste donderdag van het jaar, dus
+// De week begint op maandag, tenzij je in Instellingen › Algemeen zaterdag of zondag kiest (`setWeekStart`; alleen voor de
+// kalender: weekdoelen in de productiviteit blijven ISO-weken, zoals op de server). Weeknummers zijn ISO 8601: week 1 is de week met de eerste donderdag van het jaar, dus
 // 1 januari kan nog in week 52 of 53 van het vorige jaar vallen en 31 december al in week 1 van het volgende.
 // Namen van dagen en maanden komen uit `Intl` in de taal van de interface (de aanroeper geeft de locale mee).
 
@@ -20,8 +21,15 @@ const pad = (n) => String(n).padStart(2, '0');
 /** De weekdag volgens ISO: 1 = maandag … 7 = zondag. */
 export const isoWeekday = (day) => utc(day).getUTCDay() || 7;
 
-/** De maandag van de week waarin `day` valt. */
+/** De maandag van de week waarin `day` valt (ISO-week). */
 export const startOfWeek = (day) => addDays(day.slice(0, 10), 1 - isoWeekday(day));
+
+let firstDay = 1;
+/** De eerste dag van de kalenderweek (ISO-weekdag 1 = maandag, 6 = zaterdag, 7 = zondag); iets anders wordt maandag. */
+export const setWeekStart = (day) => { firstDay = [1, 6, 7].includes(day) ? day : 1; };
+export const getWeekStart = () => firstDay;
+/** De eerste dag van de kalenderweek waarin `day` valt. */
+export const startOfCalendarWeek = (day) => addDays(day.slice(0, 10), -((isoWeekday(day) - firstDay + 7) % 7));
 
 /** De eerste dag van de maand van `day`. */
 export const startOfMonth = (day) => `${day.slice(0, 7)}-01`;
@@ -53,10 +61,10 @@ export function isoWeek(day) {
   return { year, week: Math.floor(dayOfYear / 7) + 1 };
 }
 
-/** De zeven dagen van de week van `day`, maandag eerst. */
+/** De zeven dagen van de kalenderweek van `day`, de eerste dag van de week (standaard maandag) eerst. */
 export function weekDays(day) {
-  const monday = startOfWeek(day);
-  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+  const start = startOfCalendarWeek(day);
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
 /**
@@ -68,8 +76,9 @@ export function monthGrid(day) {
   const first = startOfMonth(day);
   const last = endOfMonth(day);
   const weeks = [];
-  for (let monday = startOfWeek(first); monday <= last; monday = addDays(monday, 7)) {
-    weeks.push({ ...isoWeek(monday), days: weekDays(monday) });
+  // het weeknummer van een rij is dat van de maandag erin (bij een week die op zaterdag of zondag begint: een of twee dagen later)
+  for (let start = startOfCalendarWeek(first); start <= last; start = addDays(start, 7)) {
+    weeks.push({ ...isoWeek(addDays(start, (8 - firstDay) % 7)), days: weekDays(start) });
   }
   return { month: first.slice(0, 7), weeks };
 }
@@ -162,10 +171,10 @@ export function calendarModel({ tasks, mode, anchor, today }) {
 const fmt = (locale, options, day) => new Intl.DateTimeFormat(locale, { timeZone: 'UTC', ...options }).format(utc(day));
 const upperFirst = (text, locale) => (text ? text[0].toLocaleUpperCase(locale) + text.slice(1) : text);
 
-/** De namen van de weekdagen, maandag eerst: 'short' ("ma") of 'long' ("maandag"). */
-export function weekdayNames(locale, style = 'short') {
-  const monday = '2024-01-01'; // een maandag
-  return Array.from({ length: 7 }, (_, i) => fmt(locale, { weekday: style }, addDays(monday, i)));
+/** De namen van de weekdagen, maandag eerst (of vanaf ISO-weekdag `first`): 'short' ("ma") of 'long' ("maandag"). */
+export function weekdayNames(locale, style = 'short', first = 1) {
+  const start = addDays('2024-01-01', first - 1); // 1 januari 2024 is een maandag
+  return Array.from({ length: 7 }, (_, i) => fmt(locale, { weekday: style }, addDays(start, i)));
 }
 
 /** De naam van een maand voluit ("november"), voor maand 1 tot en met 12. */

@@ -204,8 +204,19 @@ export async function listsScenario(c: any) {
   await waitFor(`document.querySelector('.cal-item[data-task-id="e2elijstouder001"]')?.classList.contains('pc-teal')`, 'de taak in de kleur van het project', 10_000);
   await evaluate(`(() => { const s = document.querySelector('[data-fk="cal-color"]'); s.value = 'priority'; s.dispatchEvent(new Event('change')); })()`);
   await waitFor(`!document.querySelector('.cal-item[data-task-id="e2elijstouder001"]')?.classList.contains('cal-colored')`, 'weer op prioriteit');
+  // de eerste dag van de week (Instellingen › Algemeen): zondag
+  const calHeads = () => evaluate<string[]>(`[...document.querySelectorAll('.cal-table thead th:not(.cal-weekhead) abbr')].map((e) => e.textContent)`);
+  assert.deepEqual(await calHeads(), ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']);
+  await as([['settings_update', { id: `settings-${alice.id}`, general: { week_start: 7 } }]]);
+  await waitFor(`document.querySelector('.cal-table thead th:not(.cal-weekhead) abbr')?.textContent === 'zo'`, 'de week begint op zondag', 10_000);
+  assert.deepEqual(await calHeads(), ['zo', 'ma', 'di', 'wo', 'do', 'vr', 'za']);
+  const firstCell = await evaluate<string>(`document.querySelector('.cal-table tbody tr td[data-date]').dataset.date`);
+  assert.equal(new Date(`${firstCell}T12:00:00Z`).getUTCDay(), 0, `de eerste dag in de rij is een zondag: ${firstCell}`);
+  assert.equal(await evaluate(`document.querySelector('.cal-table thead th:first-child')?.classList.contains('cal-weekend') || document.querySelectorAll('.cal-table thead th.cal-weekend').length === 2`), true);
+  await as([['settings_update', { id: `settings-${alice.id}`, general: null }]]);
+  await waitFor(`document.querySelector('.cal-table thead th:not(.cal-weekhead) abbr')?.textContent === 'ma'`, 'weer maandag', 10_000);
   await click('[data-fk="viewstyle:list"]');
-  step('een projectbeschrijving met opmaak en een klikbare link onder de titel; de kalender gekleurd per project en weer per prioriteit');
+  step('een projectbeschrijving met opmaak en een klikbare link onder de titel; de kalender gekleurd per project en weer per prioriteit; met zondag als eerste dag begint de kalender op zondag');
 
   // ---- opruimen ----
   await as([['project_delete', { id: P }], ['label_delete', { id: 'e2elijstlabel001' }]]);

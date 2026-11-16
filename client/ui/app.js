@@ -30,6 +30,7 @@ import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
 import { openGeneralDialog } from './generalDialog.js';
+import { setWeekStart } from '../core/calendar.js';
 import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
@@ -191,6 +192,7 @@ function applyGeneral() {
   if (signature !== appliedSignature) {
     appliedSignature = signature;
     setClockFormat(general.time_format);
+    setWeekStart(general.week_start);
     document.body.dataset.hideNav = general.sidebar_hidden.join(' ');
     invalidate();
   }

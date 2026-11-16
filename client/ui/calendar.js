@@ -18,7 +18,7 @@
 //   li.cal-item in .cal-overdue-list   een taak die te laat is: data-date is zijn echte datum.
 // Een taak naar een andere dag zetten: `actions.updateTask(id, { due: reschedule(task.due, 'YYYY-MM-DD') })` (core/quickDates.js).
 
-import { calendarModel, dayLabel, isoWeek, isoWeekday, periodTitle, shiftPeriod, weekdayNames } from '../core/calendar.js';
+import { calendarModel, dayLabel, getWeekStart, isoWeek, isoWeekday, periodTitle, shiftPeriod, weekdayNames } from '../core/calendar.js';
 import { endTime } from '../core/duration.js';
 import { addDays, clockText } from '../core/format.js';
 import { getLocale, t } from '../core/i18n.js';
@@ -150,8 +150,10 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     h('ul', { class: 'cal-items cal-overdue-list' }, model.overdue.map((task) => item({ task, date: task.due.date.slice(0, 10), time: task.due.date.length > 10 ? task.due.date.slice(11, 16) : null, real: true }, { withDate: true }))));
 
   // ---------- dagen ----------
-  const names = weekdayNames(locale, 'short');
+  const names = weekdayNames(locale, 'short'); // maandag eerst (index = ISO-weekdag - 1)
   const longNames = weekdayNames(locale, 'long');
+  // de kolommen beginnen bij de gekozen eerste dag van de week (Instellingen › Algemeen)
+  const columns = Array.from({ length: 7 }, (_, i) => (getWeekStart() - 1 + i) % 7);
   const dayCell = ({ date, entries }) => {
     const out = monthMode && date.slice(0, 7) !== month;
     const num = Number(date.slice(8, 10));
@@ -188,7 +190,7 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     h('caption', { class: 'sr-only' }, t('calendar.caption', { title: periodTitle(state.mode, anchor, locale) })),
     h('thead', {}, h('tr', {},
       h('th', { class: 'cal-weekhead', scope: 'col' }, h('abbr', { title: t('calendar.weekNumberHead') }, t('calendar.weekShort'))),
-      names.map((name, i) => h('th', { scope: 'col', class: i >= 5 ? 'cal-weekend' : '' }, h('abbr', { title: longNames[i] }, name))))),
+      columns.map((i) => h('th', { scope: 'col', class: i >= 5 ? 'cal-weekend' : '' }, h('abbr', { title: longNames[i] }, names[i]))))),
     h('tbody', {}, weeks.map((days) => {
       const { week } = isoWeek(days[0].date);
       return h('tr', {},

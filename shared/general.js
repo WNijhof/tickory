@@ -2,13 +2,16 @@
 //   - start_page: wat de app opent ('last' = waar je was, of 'inbox', 'today', 'upcoming', 'notes');
 //   - time_format: '24h' (14:05) of '12h' (2:05 p.m.);
 //   - date_recognition: false = snel toevoegen herkent geen datums in gewone taal (een expliciete {deadline} en !herinnering wel);
-//   - sidebar_hidden: onderdelen van de zijbalk die je niet wilt zien.
+//   - sidebar_hidden: onderdelen van de zijbalk die je niet wilt zien;
+//   - week_start: de eerste dag van de week in de kalender (ISO: 1 = maandag, 6 = zaterdag, 7 = zondag). Weekdoelen en
+//     weeknummers blijven ISO-weken (maandag tot zondag), zoals op de server.
 // Ze gelden op al je apparaten. Een ontbrekend veld (of `general` = null) is de standaard.
 
 export const START_PAGES = Object.freeze(['last', 'inbox', 'today', 'upcoming', 'notes']);
 export const TIME_FORMATS = Object.freeze(['24h', '12h']);
 export const SIDEBAR_ITEMS = Object.freeze(['upcoming', 'completed', 'notifications', 'notes', 'filters', 'labels']);
-export const DEFAULT_GENERAL = Object.freeze({ start_page: 'last', time_format: '24h', date_recognition: true, sidebar_hidden: Object.freeze([]) });
+export const WEEK_STARTS = Object.freeze([1, 6, 7]);
+export const DEFAULT_GENERAL = Object.freeze({ start_page: 'last', time_format: '24h', date_recognition: true, sidebar_hidden: Object.freeze([]), week_start: 1 });
 
 /** Controle van `settings.general`: een object met alleen bekende velden en geldige waarden. Geeft een melding of null. */
 export function generalCheck(v) {
@@ -18,6 +21,7 @@ export function generalCheck(v) {
   if (v.start_page !== undefined && !START_PAGES.includes(v.start_page)) return `start_page moet een van ${START_PAGES.join(', ')} zijn`;
   if (v.time_format !== undefined && !TIME_FORMATS.includes(v.time_format)) return `time_format moet ${TIME_FORMATS.join(' of ')} zijn`;
   if (v.date_recognition !== undefined && typeof v.date_recognition !== 'boolean') return 'date_recognition moet true of false zijn';
+  if (v.week_start !== undefined && !WEEK_STARTS.includes(v.week_start)) return `week_start moet ${WEEK_STARTS.join(', ')} zijn`;
   if (v.sidebar_hidden !== undefined) {
     if (!Array.isArray(v.sidebar_hidden) || v.sidebar_hidden.length > SIDEBAR_ITEMS.length) return 'sidebar_hidden moet een korte lijst zijn';
     if (v.sidebar_hidden.some((x) => !SIDEBAR_ITEMS.includes(x))) return `sidebar_hidden mag alleen ${SIDEBAR_ITEMS.join(', ')} bevatten`;
@@ -35,6 +39,7 @@ export function generalOf(settings) {
     time_format: v.time_format ?? DEFAULT_GENERAL.time_format,
     date_recognition: v.date_recognition ?? DEFAULT_GENERAL.date_recognition,
     sidebar_hidden: [...(v.sidebar_hidden ?? [])],
+    week_start: v.week_start ?? DEFAULT_GENERAL.week_start,
   };
 }
 
