@@ -205,8 +205,8 @@ Gekozen versies, tegen de officiële tabellen gecontroleerd (staan in `gradle/li
 
 | Onderdeel | Versie | Reden |
 |---|---|---|
-| Gradle | 9.6.1 | De Android Gradle Plugin 9.3 vraagt 9.5.0 of hoger; Kotlin 2.4.21 is getest tot en met 9.7.0. |
-| Android Gradle Plugin | 9.3.3 | Laatste reeks waarvoor Kotlin 2.4.21 getest is (t/m 9.3.1). Nieuwer bestaat (9.5.1). |
+| Gradle | 9.9.1 | De Android Gradle Plugin 9.5 vraagt 9.6.0 of hoger. |
+| Android Gradle Plugin | 9.5.1 | Nieuwste. Kotlin 2.4.21 is officieel getest t/m AGP 9.3.1 en Gradle 9.7.0; met deze versies bouwt alles zonder waarschuwingen (ook niet met `--warning-mode all`). Komt er een Kotlin die ze noemt, dan die nemen. |
 | Kotlin | 2.4.21 | Laatste stabiele versie. De plugin compileert Kotlin zelf; deze regel kiest alleen de versie. |
 | compileSdk / targetSdk | 37 (Android 17) | Hoogste niveau dat de plugin ondersteunt. |
 | minSdk | 26 (Android 8) | Meldingskanalen en `java.time` zijn er dan altijd. |
