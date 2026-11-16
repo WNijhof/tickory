@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { createSession } from '../server/users.ts';
 
 export async function quickScenario(c: any) {
-  const { send, evaluate, waitFor, step, js, SYNCED, db, alice, syncAs, serverState, nav } = c;
+  const { send, evaluate, waitFor, step, js, SYNCED, db, alice, syncAs, serverState, nav, clickText } = c;
   const token = createSession(db, alice.id, 'Controle snel toevoegen').token;
   let k = 0;
   const as = async (commands: [string, object][]) => {
@@ -84,6 +84,52 @@ export async function quickScenario(c: any) {
   assert.equal(pasted.find((x) => x.content === 'Kaas').due?.date, tomorrow);
   assert.equal(await bar(), '', 'het veld blijft leeg');
   step('snel toevoegen: meer regels plakken geeft na een vraag een taak per regel (opsommingstekens weg, p1 en morgen herkend)');
+
+  // ---- Instellingen › Algemeen: 12 uur, onderdelen uit de zijbalk, datums niet herkennen, en de startpagina ----
+  await as([['task_add', { id: 'e2esneltijd00001', project_id: (serverState().me as any).inbox_project_id, content: 'Tijdproef', due: { date: `${tomorrow}T14:30`, string: 'morgen om 14:30', lang: 'nl' } }]]);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const openGeneral = async () => {
+    await nav('Alice');
+    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await clickText('Algemeen');
+    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Algemeen'`, 'venster Algemeen');
+  };
+  const rowText = (title: string) => evaluate<string>(`[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title')?.textContent === ${js(title)})?.textContent ?? ''`);
+  await nav('Inbox');
+  await waitFor(`[...document.querySelectorAll('li.task .task-title')].some((e) => e.textContent === 'Tijdproef')`, 'de taak met een tijd');
+  assert.match(await rowText('Tijdproef'), /14:30/);
+  await openGeneral();
+  assert.equal(await evaluate(`document.querySelector('[data-fk="general-start"]').value`), 'last');
+  await evaluate(`(() => {
+    const d = document.querySelector('dialog[open]');
+    d.querySelector('[data-fk="general-start"]').value = 'upcoming';
+    d.querySelector('[data-fk="general-clock:12h"]').click();
+    d.querySelector('[data-fk="general-dates"]').click();
+    d.querySelector('[data-fk="general-nav:notes"]').click();
+    d.querySelector('[data-fk="general-nav:labels"]').click();
+    d.querySelector('[data-fk="general-save"]').click();
+  })()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const saved = db.prepare('SELECT general FROM user_settings WHERE id = ?').get(`settings-${alice.id}`) as any;
+  assert.deepEqual(JSON.parse(saved.general), { start_page: 'upcoming', time_format: '12h', date_recognition: false, sidebar_hidden: ['notes', 'labels'] });
+  await waitFor(`/2:30\\s?p\\.?\\s?m\\.?/i.test([...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title')?.textContent === 'Tijdproef')?.textContent ?? '')`, 'de tijd in 12 uur');
+  assert.equal(await evaluate(`document.querySelector('[data-fk="nav-notes"]')?.offsetParent ?? null`), null, 'Notities staat niet meer in de zijbalk');
+  assert.equal(await evaluate(`document.querySelector('[data-fk="find-toggle:labels"]')`), null, 'Labels ook niet');
+  assert.ok(await evaluate(`!!document.querySelector('[data-fk="find-toggle:filters"]')`), 'Filters wel');
+  await evaluate(`(() => { const i = document.getElementById('quick-input'); i.value = ''; i.focus(); })()`);
+  await send('Input.insertText', { text: 'Tandarts morgen' });
+  await key('Enter', 13, '\r');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const plain = (serverState().tasks as any[]).find((x) => x.content === 'Tandarts morgen');
+  assert.ok(plain, '"morgen" blijft deel van de naam');
+  assert.equal(plain.due ?? null, null);
+  await send('Page.reload');
+  await waitFor(`document.body.classList.contains('ready') && document.getElementById('view-title').textContent === 'Aankomend'`, 'na herladen op de startpagina Aankomend', 15_000);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  await as([['settings_update', { id: `settings-${alice.id}`, general: null }], ['task_delete', { id: 'e2esneltijd00001' }], ['task_delete', { id: plain.id }]]);
+  await waitFor(`!document.body.dataset.hideNav && document.querySelector('[data-fk="find-toggle:labels"]')`, 'weer de standaard (via de server)');
+  step('Instellingen › Algemeen: 12 uur (2:30 p.m.), Notities en Labels uit de zijbalk, "morgen" blijft tekst als datums niet herkend worden, en na herladen opent de startpagina Aankomend; overal op de server bewaard');
 
   // ---- opruimen ----
   await as([...pasted.map((x) => ['task_delete', { id: x.id }] as [string, object]), ['project_delete', { id: 'e2esnelproject01' }], ['label_delete', { id: 'e2esnellabel0001' }]]);

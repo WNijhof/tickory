@@ -12,6 +12,7 @@ import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notificati
 import { ROLES } from './roles.js';
 import { GOALS, daysOffCheck } from './stats.js';
 import { viewOptionsCheck } from './viewOptions.js';
+import { generalCheck } from './general.js';
 import { NOTE_BACKGROUNDS, NOTE_REPEATS, isNoteFileMime, notePrefsCheck, noteRemindCheck } from './notes.js';
 
 /**
@@ -282,6 +283,8 @@ export const ENTITIES = {
       { name: 'view_options', type: 'json', nullable: true, default: null, check: viewOptionsCheck },
       // Voorkeuren voor de notities: { layout, sort, order, checked_bottom } (shared/notes.js); null = de standaard.
       { name: 'note_prefs', type: 'json', nullable: true, default: null, check: notePrefsCheck },
+      // Algemene voorkeuren (shared/general.js): startpagina, tijdnotatie, datums herkennen, onderdelen van de zijbalk; null = de standaard.
+      { name: 'general', type: 'json', nullable: true, default: null, check: generalCheck },
       owner(),
     ],
   },

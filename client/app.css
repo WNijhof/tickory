@@ -926,3 +926,9 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .quick-suggest-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quick-suggest-hint { color: var(--text-soft); font-size: 0.85rem; }
 @media (pointer: coarse) { .quick-suggest-item { min-height: 44px; } }
+
+/* onderdelen van de zijbalk die je hebt verborgen (Instellingen › Algemeen); app.js zet body[data-hide-nav] */
+body[data-hide-nav~="upcoming"] [data-fk="nav-upcoming"], body[data-hide-nav~="upcoming"] [data-tab="upcoming"],
+body[data-hide-nav~="completed"] [data-fk="nav-completed"],
+body[data-hide-nav~="notifications"] [data-fk="nav-notifications"],
+body[data-hide-nav~="notes"] [data-fk="nav-notes"], body[data-hide-nav~="notes"] .nav-sub-notes { display: none; }

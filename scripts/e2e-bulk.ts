@@ -657,16 +657,18 @@ async function scenario(c: any): Promise<void> {
     await waitFor(`await ${SYNCED}`, 'gesynchroniseerd', 30_000);
     await nav('Voltooid');
     await waitFor(`document.getElementById('view-title').textContent === 'Voltooid' && document.querySelector('[data-fk="completed-more"]')`, 'Meer tonen', 20_000);
-    const rows1 = await evaluate<number>(`document.querySelectorAll('li.task').length`);
+    // een regel is een taak of een afgevinkte herhaling (die telt mee voor de 100, maar is geen taak om te kiezen)
+    const ROWS = `document.querySelectorAll('li.task, li.task-recurring-done').length`;
+    const rows1 = await evaluate<number>(ROWS);
     assert.equal(rows1, 100, 'maar 100 regels getekend, ook bij ruim 1200 voltooide taken');
     assert.match(await evaluate<string>(`document.querySelector('[data-fk="completed-more"]').textContent`), /^Meer tonen \(100 getoond van \d+\)$/);
     const started = Date.now();
     await evaluate(`document.querySelector('[data-fk="completed-more"]').click()`);
-    await waitFor(`document.querySelectorAll('li.task').length === 200`, 'volgende 100');
+    await waitFor(`${ROWS} === 200`, 'volgende 100');
     assert.ok(Date.now() - started < 3000, `Meer tonen reageert vlot (${Date.now() - started} ms)`);
     // Ctrl+A kiest alleen wat in beeld is
     await key('a', 2);
-    await waitFor(`document.querySelectorAll('li.task.is-selected').length === 200`, 'Ctrl+A kiest wat getekend is');
+    await waitFor(`document.querySelectorAll('li.task.is-selected').length === document.querySelectorAll('li.task').length && document.querySelectorAll('li.task').length > 190`, 'Ctrl+A kiest wat getekend is');
     await key('Escape');
     // opruimen: weg met de proefdata, zodat de rest van de test niet trager wordt
     for (let i = 0; i < many; i += 100) {

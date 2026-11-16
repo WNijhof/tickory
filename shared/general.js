@@ -1,0 +1,50 @@
+// Algemene voorkeuren van een gebruiker (`settings.general`, SPEC 5m), zoals in Todoist onder Instellingen › Algemeen:
+//   - start_page: wat de app opent ('last' = waar je was, of 'inbox', 'today', 'upcoming', 'notes');
+//   - time_format: '24h' (14:05) of '12h' (2:05 p.m.);
+//   - date_recognition: false = snel toevoegen herkent geen datums in gewone taal (een expliciete {deadline} en !herinnering wel);
+//   - sidebar_hidden: onderdelen van de zijbalk die je niet wilt zien.
+// Ze gelden op al je apparaten. Een ontbrekend veld (of `general` = null) is de standaard.
+
+export const START_PAGES = Object.freeze(['last', 'inbox', 'today', 'upcoming', 'notes']);
+export const TIME_FORMATS = Object.freeze(['24h', '12h']);
+export const SIDEBAR_ITEMS = Object.freeze(['upcoming', 'completed', 'notifications', 'notes', 'filters', 'labels']);
+export const DEFAULT_GENERAL = Object.freeze({ start_page: 'last', time_format: '24h', date_recognition: true, sidebar_hidden: Object.freeze([]) });
+
+/** Controle van `settings.general`: een object met alleen bekende velden en geldige waarden. Geeft een melding of null. */
+export function generalCheck(v) {
+  if (v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) return 'moet een object zijn';
+  for (const key of Object.keys(v)) if (!Object.hasOwn(DEFAULT_GENERAL, key)) return `onbekend veld "${key}"`;
+  if (v.start_page !== undefined && !START_PAGES.includes(v.start_page)) return `start_page moet een van ${START_PAGES.join(', ')} zijn`;
+  if (v.time_format !== undefined && !TIME_FORMATS.includes(v.time_format)) return `time_format moet ${TIME_FORMATS.join(' of ')} zijn`;
+  if (v.date_recognition !== undefined && typeof v.date_recognition !== 'boolean') return 'date_recognition moet true of false zijn';
+  if (v.sidebar_hidden !== undefined) {
+    if (!Array.isArray(v.sidebar_hidden) || v.sidebar_hidden.length > SIDEBAR_ITEMS.length) return 'sidebar_hidden moet een korte lijst zijn';
+    if (v.sidebar_hidden.some((x) => !SIDEBAR_ITEMS.includes(x))) return `sidebar_hidden mag alleen ${SIDEBAR_ITEMS.join(', ')} bevatten`;
+    if (new Set(v.sidebar_hidden).size !== v.sidebar_hidden.length) return 'sidebar_hidden mag niets dubbel bevatten';
+  }
+  return null;
+}
+
+/** De voorkeuren uit een instellingenrij, aangevuld met de standaard (ook bij een onbekende of kapotte waarde). */
+export function generalOf(settings) {
+  const v = settings?.general;
+  if (!v || typeof v !== 'object' || generalCheck(v) !== null) return { ...DEFAULT_GENERAL, sidebar_hidden: [] };
+  return {
+    start_page: v.start_page ?? DEFAULT_GENERAL.start_page,
+    time_format: v.time_format ?? DEFAULT_GENERAL.time_format,
+    date_recognition: v.date_recognition ?? DEFAULT_GENERAL.date_recognition,
+    sidebar_hidden: [...(v.sidebar_hidden ?? [])],
+  };
+}
+
+/** De route bij een startpagina, of null voor 'last' (dan waar je was). De Inbox is een project: `inboxId` is dat van jou. */
+export function startRoute(page, inboxId = null) {
+  switch (page) {
+    case 'inbox': return inboxId ? { type: 'project', id: inboxId } : null;
+    case 'today': return { type: 'today' };
+    case 'upcoming': return { type: 'upcoming' };
+    case 'notes': return { type: 'notes' };
+    default: return null;
+  }
+}

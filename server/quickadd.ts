@@ -19,6 +19,7 @@
 // synchroon: er kan in die tijd niets anders draaien.
 
 import type { DatabaseSync } from 'node:sqlite';
+import { generalOf } from '../shared/general.js';
 import { createHash } from 'node:crypto';
 import { parseQuickAdd } from '../client/core/quickadd.js';
 import { createActions } from '../client/core/actions.js';
@@ -207,7 +208,9 @@ export async function quickAdd(db: DatabaseSync, userId: string, body: Record<st
   const today = epochToFloating(moment, tz).slice(0, 10);
   // de knoppen Vandaag en Morgen werken zoals "vandaag" in het overzicht Vandaag van de web-app: een standaard die getypte tekst verslaat
   const defaultDue = input.due === 'today' ? { date: today, string: 'vandaag', lang: 'nl' } : input.due === 'tomorrow' ? { date: nextDay(today), string: 'morgen', lang: 'nl' } : null;
-  const parsed = inZone(tz, () => parseQuickAdd(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo }));
+  // de voorkeur "datums herkennen" van de gebruiker (shared/general.js), zoals in de web-app
+  const dates = generalOf(settings).date_recognition;
+  const parsed = inZone(tz, () => parseQuickAdd(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo, dates }));
   if (input.priority !== null && parsed.priority === 4) parsed.priority = input.priority; // getypt (p1 … p4) gaat voor
   if (!parsed.content) fail('INVALID_ARG', 'de taak heeft geen naam (alleen een datum, project of label)');
 

@@ -6,7 +6,7 @@
 // afvinken open met de volgende datum; die afvinkingen komen van de server (`GET /api/v1/completed/recurring`, uit het logboek) en
 // staan met `recurringEntries` op hun dag tussen de rest.
 
-import { todayString } from './format.js';
+import { clockText, todayString } from './format.js';
 import { foldedField, foldText } from './fold.js';
 import { isArchivedProject } from './selectors.js';
 
@@ -21,7 +21,7 @@ export function completedTime(iso) {
   const ms = Date.parse(iso ?? '');
   if (Number.isNaN(ms)) return '';
   const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return clockText(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
 }
 
 const newestFirst = (a, b) => {

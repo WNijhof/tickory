@@ -4,11 +4,12 @@
 // `/` en Ctrl+K. De knoppen van die schermen (aanmaken, bewerken, verwijderen) staan hier in `api`.
 
 import { DEFAULT_COLOR } from '../core/colors.js';
+import { generalOf } from '../../shared/general.js';
 import { filterOutcome, labelCounts } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
 import { labelProblemText } from '../core/labelManage.js';
 import { searchKey } from '../core/searchKeys.js';
-import { filterList, labelList } from '../core/selectors.js';
+import { filterList, labelList, mySettings } from '../core/selectors.js';
 import { confirmDialog, h, menuDialog, replace, toast } from './dom.js';
 import { filterContext, openFilterDialog } from './filterDialog.js';
 import { filterHelpDialog } from './filterHelp.js';
@@ -253,14 +254,15 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
   function drawExtra(slot) {
     const userId = store.userId;
     const view = store.view;
+    const hidden = new Set(generalOf(mySettings(view, userId)).sidebar_hidden); // Instellingen › Algemeen
     const filters = favoritesFirst(filterList(view, userId), (f) => f.is_favorite);
     const counts = labelCounts(view);
     const labels = favoritesFirst(labelList(view, userId).own, (x) => x.label.is_favorite);
     const ctx = filters.length > 0 ? filterContext(store) : null;
     const keepVisible = (target, isHidden) => isHidden && !same(target); // een ingeklapte lijst toont alleen de keuze die open staat
     replace(slot,
-      heading({ key: 'filters', title: t('filters.title'), target: { type: 'filters' }, addLabel: t('filter.add'), onAdd: () => addFilter({ open: true }) }),
-      filters.map((f) => {
+      !hidden.has('filters') && heading({ key: 'filters', title: t('filters.title'), target: { type: 'filters' }, addLabel: t('filter.add'), onAdd: () => addFilter({ open: true }) }),
+      !hidden.has('filters') && filters.map((f) => {
         const target = { type: 'filter', id: f.id };
         if (keepVisible(target, collapsed.has('filters'))) return null;
         const outcome = filterOutcome(f, ctx);
@@ -270,8 +272,8 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
           warning: !outcome.ok,
         });
       }),
-      heading({ key: 'labels', title: t('labels.title'), target: { type: 'labels' }, addLabel: t('label.add'), onAdd: () => addLabel({ open: true }) }),
-      labels.map(({ label }) => {
+      !hidden.has('labels') && heading({ key: 'labels', title: t('labels.title'), target: { type: 'labels' }, addLabel: t('label.add'), onAdd: () => addLabel({ open: true }) }),
+      !hidden.has('labels') && labels.map(({ label }) => {
         const openCount = counts.get(label.id) ?? 0;
         const target = { type: 'label', id: label.id };
         if (keepVisible(target, collapsed.has('labels'))) return null;

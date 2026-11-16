@@ -232,7 +232,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     }, iconName ? icon(iconName) : h('span', { class: 'nav-hash', 'aria-hidden': 'true' }, '#'), h('span', { class: 'nav-label' }, label), count > 0 && h('span', { class: 'nav-count' }, String(count)));
     const nodes = [item({ type: 'notes' }, 'note', t('note.title'), counts.all, here && scope === 'all' && !labelId, 'nav-notes')];
     if (here) {
-      nodes.push(h('div', { class: 'nav-sub', role: 'group', 'aria-label': t('note.title') },
+      nodes.push(h('div', { class: 'nav-sub nav-sub-notes', role: 'group', 'aria-label': t('note.title') },
         item({ type: 'notes', id: 'archive' }, 'archive', t('note.scope.archive'), counts.archive, scope === 'archive', 'nav-notes-archive', true),
         item({ type: 'notes', id: 'trash' }, 'trash', t('note.scope.trash'), counts.trash, scope === 'trash', 'nav-notes-trash', true),
         noteLabels(store.view, store.userId).map(({ label, count }) => item({ type: 'notes', id: `label:${label.id}` }, null, label.name, count, labelId === label.id, `nav-notes-label:${label.id}`, true))));

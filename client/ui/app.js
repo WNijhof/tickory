@@ -11,11 +11,11 @@ import { ApiError, deviceName } from '../core/auth.js';
 import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.js';
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
-import { isArchivedProject, roleIn, todayView } from '../core/selectors.js';
+import { isArchivedProject, mySettings, roleIn, todayView } from '../core/selectors.js';
 import { moveTargets } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError, quietCommandError } from '../core/messages.js';
-import { formatDate, formatDue, nowString, todayString } from '../core/format.js';
+import { formatDate, formatDue, nowString, setClockFormat, todayString } from '../core/format.js';
 import { planDate } from '../core/bulk.js';
 import { dateDialog } from './bulkDialogs.js';
 import { reschedule } from '../core/quickDates.js';
@@ -29,6 +29,8 @@ import { installCompleted, isCompletedRoute } from './completed.js';
 import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
+import { openGeneralDialog } from './generalDialog.js';
+import { generalOf, startRoute } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
@@ -173,15 +175,42 @@ function renderStatus() {
   el.dataset.state = state === 'idle' && n > 0 ? 'pending' : state;
 }
 
+// ---------- Instellingen › Algemeen (shared/general.js) ----------
+
+let startApplied = false;
+let userNavigated = false;
+let appliedSignature = '';
+/**
+ * Past de algemene voorkeuren toe: de tijdnotatie (core/format.js) en de verborgen onderdelen van de zijbalk (body[data-hide-nav]),
+ * en bij het openen van de app één keer de startpagina, zodra je instellingen er zijn en zolang je nog nergens zelf heen ging.
+ */
+function applyGeneral() {
+  if (!store.ready || !store.me) return;
+  const general = generalOf(mySettings(store.view, store.userId));
+  const signature = JSON.stringify(general);
+  if (signature !== appliedSignature) {
+    appliedSignature = signature;
+    setClockFormat(general.time_format);
+    document.body.dataset.hideNav = general.sidebar_hidden.join(' ');
+    invalidate();
+  }
+  if (!startApplied) {
+    startApplied = true;
+    const route = startRoute(general.start_page, inboxId());
+    if (route && !userNavigated && !location.hash) navigate(route);
+  }
+}
+
 // ---------- snel toevoegen ----------
 
 function quickContext() {
   // in een project dat je alleen leest (core/access.js) kan geen taak: dan gaat ze naar de Inbox, en #project noemt alleen projecten waar het wel kan
   const canAddTo = (id) => canEditProject(store.view, id, store.userId);
-  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo };
+  const dates = generalOf(mySettings(store.view, store.userId)).date_recognition; // Instellingen › Algemeen
+  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo, dates };
   // `string` en `lang` horen bij de datumtaal (wat de herkenner leest), niet bij de taal van de interface: die blijven Nederlands.
-  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo };
-  return { defaultProjectId: inboxId(), canAddTo };
+  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo, dates };
+  return { defaultProjectId: inboxId(), canAddTo, dates };
 }
 
 function renderPreview() {
@@ -210,6 +239,7 @@ async function submitQuickAdd(e) {
 // ---------- handelingen ----------
 
 function navigate(route) {
+  userNavigated = true; // daarna geen startpagina meer: je ging zelf ergens heen
   ui.route = route;
   if (!backend.demo) localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
   document.body.classList.remove('nav-open');
@@ -463,6 +493,7 @@ const handlers = {
     const choice = await menuDialog({
       title: t('settings.title'),
       items: [
+        { value: 'general', label: t('settings.general') },
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
         { value: 'productivity', label: t('settings.productivity') },
@@ -477,6 +508,7 @@ const handlers = {
       ],
     });
     if (choice === 'sync') sync.requestSync(0);
+    else if (choice === 'general') await openGeneralDialog({ store, actions });
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'productivity') navigate({ type: 'productivity' });
@@ -809,6 +841,8 @@ async function boot() {
   events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
   store.subscribe(invalidate);
   store.subscribe(maybeSetTimezone);
+  store.subscribe(applyGeneral); // Instellingen › Algemeen: tijdnotatie, zijbalk en (één keer) de startpagina
+  applyGeneral();
   store.subscribe(openPendingTask);
   store.subscribe(openPendingShare);
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is

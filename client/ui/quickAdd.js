@@ -11,7 +11,8 @@ import { startVoice, voiceSupport } from '../core/voice.js';
 import { confirmDialog, h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
 import { attachQuickSuggest } from './quickSuggest.js';
-import { labelList } from '../core/selectors.js';
+import { labelList, mySettings } from '../core/selectors.js';
+import { generalOf } from '../../shared/general.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
 
 const INDENT = String.fromCharCode(160, 160);
@@ -113,7 +114,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     // `due` is 'today' (Vandaag), of een dag 'YYYY-MM-DD' (een "+" in de kalender): dan staat de taak op die dag, ook zonder dat je die typt.
     const day = /^\d{4}-\d{2}-\d{2}$/.test(context.due ?? '') ? context.due : null;
     const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : day ? { date: day } : null);
-    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), canAddTo });
+    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);

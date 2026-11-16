@@ -713,6 +713,16 @@ export default {
 
   // ---------- instellingen ----------
   'settings.title': 'Instellingen',
+  'settings.general': 'Algemeen',
+  'general.start': 'Startpagina',
+  'general.startLast': 'Waar ik het laatst was',
+  'general.clock': 'Tijdnotatie',
+  'general.clockFull': '24-uursklok',
+  'general.clockHalf': '12-uursklok (a.m. en p.m.)',
+  'general.quickAdd': 'Snel toevoegen',
+  'general.dates': 'Datums in gewone taal herkennen',
+  'general.datesHint': 'Staat dit uit, dan blijven datums in gewone woorden deel van de tekst. Een deadline tussen accolades en een herinnering met een uitroepteken werken altijd.',
+  'general.sidebar': 'In de zijbalk',
   'settings.account': 'Account, wachtwoord en apparaten',
   'settings.syncNow': 'Nu bijwerken',
   // In beide talen dezelfde tekst, zodat iedereen de taalkeuze terugvindt.

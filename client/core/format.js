@@ -1,7 +1,7 @@
 // Datums tonen in de taal van de interface. Datums zijn zwevend ('YYYY-MM-DD' of 'YYYY-MM-DDTHH:MM'); rekenen gaat in UTC
 // zodat zomer- en wintertijd geen rol spelen.
 
-import { t } from './i18n.js';
+import { getLocale, t } from './i18n.js';
 
 // Elke naam wordt pas opgezocht op het moment van tonen, zodat de taal tussentijds kan wisselen.
 const DAYS = [
@@ -58,6 +58,20 @@ export function formatDate(dateStr, today) {
   return dateStr.slice(0, 4) === today.slice(0, 4) ? `${dayShort(d)} ${base}` : `${base} ${d.getUTCFullYear()}`;
 }
 
+// De tijdnotatie (Instellingen › Algemeen, shared/general.js): '24h' (14:05) of '12h' (2:05 p.m.); app.js zet hem.
+let clockFormat = '24h';
+export const setClockFormat = (format) => { clockFormat = format === '12h' ? '12h' : '24h'; };
+export const getClockFormat = () => clockFormat;
+/** Een tijd "HH:MM" in de gekozen notatie: "14:05", of "2:05 p.m." (in de taal van de app). */
+export function clockText(hhmm) {
+  const m = /^(\d{2}):(\d{2})/.exec(hhmm ?? '');
+  if (!m) return hhmm ?? '';
+  if (clockFormat === '24h') return `${m[1]}:${m[2]}`;
+  return new Intl.DateTimeFormat(getLocale(), { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(2000, 0, 1, Number(m[1]), Number(m[2])));
+}
+/** Opties voor Intl.DateTimeFormat met de gekozen notatie (voor tijdstippen als "bewerkt om …"). */
+export const timeFormatOptions = () => ({ hour: clockFormat === '12h' ? 'numeric' : '2-digit', minute: '2-digit', hour12: clockFormat === '12h' });
+
 /**
  * Een `due` met de volledige datum ("do 19 nov", "wo 1 jan 2027 14:30"), voor bevestiging bij het invullen. De korte vorm
  * ("donderdag") is in een lijst prettig, maar bij "volgende week donderdag" te vaag om op te vertrouwen.
@@ -66,7 +80,7 @@ export function formatDueLong(due, today) {
   if (!due) return '';
   const d = utc(due.date);
   const year = due.date.slice(0, 4) === today.slice(0, 4) ? '' : ` ${d.getUTCFullYear()}`;
-  const time = due.date.length > 10 ? ` ${due.date.slice(11, 16)}` : '';
+  const time = due.date.length > 10 ? ` ${clockText(due.date.slice(11, 16))}` : '';
   return `${due.recurrence ? '↻ ' : ''}${dayShort(d)} ${d.getUTCDate()} ${monthShort(d)}${year}${time}`;
 }
 
@@ -84,7 +98,7 @@ export function formatDayHeading(dateStr, today) {
 /** Een `due` als korte tekst: "morgen 09:00", "↻ vrijdag". */
 export function formatDue(due, today) {
   if (!due) return '';
-  const time = due.date.length > 10 ? ` ${due.date.slice(11, 16)}` : '';
+  const time = due.date.length > 10 ? ` ${clockText(due.date.slice(11, 16))}` : '';
   return `${due.recurrence ? '↻ ' : ''}${formatDate(due.date, today)}${time}`;
 }
 

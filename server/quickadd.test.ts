@@ -510,3 +510,23 @@ test('de beperking per gebruiker: toevoegen en voorvertonen elk apart, per minuu
   const standard = new QuickAddLimiter();
   assert.deepEqual(standard.limits, { add: 60, preview: 240 });
 });
+
+test('met "datums herkennen" uit (Instellingen › Algemeen) herkent de server ook geen datums in gewone taal', async () => {
+  const { db, anna } = world();
+  run(db, anna, [cmd('settings_update', { id: `settings-${anna.id}`, general: { date_recognition: false } })]);
+  const answer = await quickAdd(db, anna.id, { text: 'Tandarts morgen 9:00-10:30 {vrijdag}', dry_run: true, tz: 'Europe/Amsterdam', typed_at: new Date(NOW).toISOString() }, NOW);
+  const p = answer.preview!;
+  assert.equal(p.content, 'Tandarts morgen 9:00-10:30');
+  assert.equal(p.due, null);
+  assert.equal(p.duration, null);
+  assert.ok(p.deadline, 'een {deadline} werkt wel');
+  run(db, anna, [cmd('settings_update', { id: `settings-${anna.id}`, general: { date_recognition: true } })]);
+  const again = await quickAdd(db, anna.id, { text: 'Tandarts morgen 9:00-10:30', dry_run: true, tz: 'Europe/Amsterdam', typed_at: new Date(NOW).toISOString() }, NOW);
+  assert.equal(again.preview!.duration, 90);
+});
+
+test('de algemene voorkeuren worden gecontroleerd: een onbekende startpagina wordt geweigerd', () => {
+  const { db, anna } = world();
+  const res = handleSync(db, { commands: [cmd('settings_update', { id: `settings-${anna.id}`, general: { start_page: 'ergens' } })] }, anna.id);
+  assert.notEqual(Object.values(res.sync_status)[0], 'ok');
+});

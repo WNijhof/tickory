@@ -718,6 +718,16 @@ export default {
 
   // ---------- instellingen ----------
   'settings.title': 'Settings',
+  'settings.general': 'General',
+  'general.start': 'Start page',
+  'general.startLast': 'Where I was last',
+  'general.clock': 'Time format',
+  'general.clockFull': '24-hour clock',
+  'general.clockHalf': '12-hour clock (AM and PM)',
+  'general.quickAdd': 'Quick add',
+  'general.dates': 'Recognise dates in plain language',
+  'general.datesHint': 'When this is off, dates in plain words stay part of the text. A deadline in curly braces and a reminder with an exclamation mark always work.',
+  'general.sidebar': 'In the sidebar',
   'settings.account': 'Account, password and devices',
   'settings.syncNow': 'Sync now',
   // In beide talen dezelfde tekst, zodat iedereen de taalkeuze terugvindt.

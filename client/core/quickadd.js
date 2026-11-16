@@ -80,7 +80,7 @@ export function findTimeRange(text) {
   return { start: `${String(h1).padStart(2, '0')}:${String(m1 ?? '00').padStart(2, '0')}`, minutes: b - a, index: m.index, length: m[0].length };
 }
 
-export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true }) {
+export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true, dates = true }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
@@ -168,14 +168,15 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
 
   // een tijdsbereik ("9:00-10:30", "18-19 uur", "van 9 tot 10:30"): het begin wordt de tijd, het verschil de duur (zoals Todoist).
   // "9-10" alleen is in het Nederlands een datum (9 oktober), dus pas met een dubbele punt, "uur" of "van … tot".
-  const range = findTimeRange(rest);
+  // `dates: false` (Instellingen › Algemeen): geen datums in gewone taal; een {deadline} en een !herinnering blijven werken
+  const range = dates ? findTimeRange(rest) : null;
   if (range) {
     rest = `${rest.slice(0, range.index)}om ${range.start}${rest.slice(range.index + range.length)}`.replace(/\s+/g, ' ').trim();
     if (out.duration === undefined) out.duration = range.minutes;
   }
 
   // datum of herhaling in gewone taal
-  const parsed = parseDue(rest, now);
+  const parsed = dates ? parseDue(rest, now) : null;
   if (parsed) {
     rest = parsed.content;
     if (parsed.due) out.due = parsed.due;

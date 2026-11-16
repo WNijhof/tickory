@@ -25,3 +25,14 @@ test('snel toevoegen met een tijdsbereik: begin als tijd, het verschil als duur;
   const r = parseQuickAdd('Verjaardag oma 9-10', { view, now, defaultProjectId: 'inbox' });
   assert.equal(r.duration, undefined, '9-10 is 9 oktober, geen tijd');
 });
+
+test('datums herkennen uit (Instellingen › Algemeen): "morgen 9:00-10:30" blijft tekst, een {deadline} en p1 werken nog', () => {
+  const view = { projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }]]), sections: new Map(), labels: new Map(), tasks: new Map(), members: new Map() };
+  const now = new Date(2026, 10, 16, 8, 0);
+  const p = parseQuickAdd('Vergadering morgen 9:00-10:30 {vrijdag} p1', { view, now, defaultProjectId: 'inbox', dates: false });
+  assert.equal(p.content, 'Vergadering morgen 9:00-10:30');
+  assert.equal(p.due, null);
+  assert.equal(p.duration, undefined);
+  assert.equal(p.deadline, '2026-11-20');
+  assert.equal(p.priority, 1);
+});

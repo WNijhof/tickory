@@ -722,7 +722,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Plaatsen', 'Gegevens exporteren', 'Importeren uit Todoist', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Plaatsen', 'Gegevens exporteren', 'Importeren uit Todoist', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);

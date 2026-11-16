@@ -10,7 +10,7 @@
 import { foldMap, foldText, foldWords, occurrences } from './fold.js';
 import { plainText } from './markdown.js';
 import { getLocale, t } from './i18n.js';
-import { addDays, formatDue, nowString, todayString } from './format.js';
+import { addDays, formatDue, nowString, timeFormatOptions, todayString } from './format.js';
 import { nextNoteReminder } from '../../shared/notes.js';
 
 /**
@@ -156,7 +156,7 @@ export function cardDate(iso, now = new Date()) {
 export function editedText(iso, now = new Date()) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
-  const time = new Intl.DateTimeFormat(getLocale(), { hour: '2-digit', minute: '2-digit' }).format(date);
+  const time = new Intl.DateTimeFormat(getLocale(), timeFormatOptions()).format(date);
   const ago = daysAgo(date, now);
   if (ago === 0) return t('note.editedToday', { time });
   if (ago === 1) return t('note.editedYesterday', { time });

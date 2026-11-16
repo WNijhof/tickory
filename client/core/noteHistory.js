@@ -2,6 +2,7 @@
 // er tussen twee versies veranderd is, regel voor regel.
 
 import { getLocale, t } from './i18n.js';
+import { timeFormatOptions } from './format.js';
 
 /** Het tijdstip van een versie: wanneer die tekst zo bewaard werd (`saved_at`), anders wanneer de versie gemaakt is. */
 export const revisionTime = (r) => r.saved_at || r.created_at;
@@ -18,7 +19,7 @@ export function historyDayLabel(date, now = new Date()) {
 }
 
 /** "14:03" in de taal van de app. */
-export const historyTime = (iso) => new Intl.DateTimeFormat(getLocale(), { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+export const historyTime = (iso) => new Intl.DateTimeFormat(getLocale(), timeFormatOptions()).format(new Date(iso));
 
 /**
  * De versies (nieuwste eerst) per dag, in dezelfde volgorde.
