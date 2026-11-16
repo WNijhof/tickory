@@ -42,6 +42,7 @@ description: Een project als lijst, als bord met kolommen per sectie of als kale
 <p>De kalender toont een <strong>maand</strong> of een <strong>week</strong> (kies <x-ui k="calendar.month"></x-ui> of <x-ui k="calendar.week"></x-ui> rechtsboven; de app onthoudt wat je koos). De week begint op <strong>maandag</strong>. Links staat bij elke rij het <strong>weeknummer</strong> volgens de ISO-regel: week 1 is de week met de eerste donderdag van het jaar, dus 1 januari kan nog in week 52 of 53 van het vorige jaar vallen. De namen van de dagen en maanden volgen de taal van de app. Bladeren doe je met de pijltjes naast <x-ui k="calendar.today"></x-ui>; die knop brengt je terug naar vandaag.</p>
 <ul>
   <li><strong>Taken staan op hun datum.</strong> Een taak met een tijd toont die tijd en staat bovenaan de dag op volgorde van tijd; taken zonder tijd staan eerst. Vandaag heeft een gekleurd dagnummer.</li>
+  <li><strong>Kleur.</strong> Bovenaan kies je waarop de kleur van een taak gebaseerd is: <x-ui k="calendar.colorPriority"></x-ui> (de standaard), <x-ui k="calendar.colorProject"></x-ui> of <x-ui k="calendar.colorLabel"></x-ui> (het eerste label met een kleur). De app onthoudt je keuze op dit apparaat.</li>
   <li><strong>Te laat staat apart.</strong> Taken waarvan de datum voorbij is, staan niet op hun oude dag maar in een blok <x-ui k="view.overdue"></x-ui> boven de kalender, met hun datum. Verzet of vink ze af en ze verdwijnen uit het blok.</li>
   <li><strong>Terugkerende taken</strong> staan ook op hun komende voorkomens in het getoonde bereik, met een gestippelde rand en een herhaalpictogram. Dat is alleen een voorbeeld: er wordt niets bewaard, en een voorkomen dat nog niet aan de beurt is, kun je niet afvinken of slepen. Vink je de taak zelf af (op haar eerste datum), dan schuift ze door naar de volgende keer.</li>
   <li><strong>Afvinken en openen:</strong> het rondje links in het balkje vinkt af, een klik op de naam opent het taakvenster.</li>
@@ -81,6 +82,9 @@ description: Een project als lijst, als bord met kolommen per sectie of als kale
 
 <h2 id="aankomend-als-kalender">Aankomend als kalender</h2>
 <p>Kies bij <x-ui k="nav.upcoming"></x-ui> rechtsboven <x-ui k="viewStyle.calendar"></x-ui>: je ziet de taken van al je projecten in de kalender, met de naam van het project erbij. Alles hierboven geldt ook daar; een taak die je toevoegt komt in je Inbox. <x-ui k="nav.today"></x-ui> heeft geen kalender: één dag heeft er niets aan.</p>
+
+<h2 id="subtaken-in-overzichten">Subtaken in Vandaag en Aankomend</h2>
+<p>Heeft een taak in Vandaag, Aankomend of de lijst van een label of filter open subtaken, dan staat er een pijltje bij het aantal subtaken. Klik erop en de subtaken staan eronder; nog een klik klapt ze weer in. Dat geldt alleen hier: in het project zelf blijft de taak zoals ze was.</p>
 
 <h2 id="sorteren-en-groeperen">Sorteren en groeperen</h2>
 <p>Met de knop <x-ui k="listopt.button"></x-ui> rechtsboven in een project (als lijst), in <x-ui k="nav.today"></x-ui> en in <x-ui k="nav.upcoming"></x-ui> kies je hoe de taken staan:</p>

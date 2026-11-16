@@ -512,6 +512,16 @@ Zoals bij Todoist kies je per lijst hoe de taken staan: een project, Vandaag of 
 
 **Oudere versies.** De kolom komt bij het opstarten bij `user_settings` (`addMissingColumns`, `null`); de schemaversie blijft 9. Een oudere client negeert het veld en toont de standaard; een oudere server kent het niet (`UNKNOWN_ARG`).
 
+## 5l. Taken: Markdown, subtaken in overzichten, projectbeschrijving, kalenderkleur
+
+**Markdown in taken** (`core/markdown.js`, `ui/markdown.js`). De titel van een taak toont inline-opmaak zoals Todoist (vet, cursief, doorhalen, onderstrepen, markeren, code, links, losse webadressen; `renderInline`). In een rij is de rij zelf de knop, dus een link is daar alleen tekst; in het taakvenster en elders werkt hij. Schermlezers en knoppen krijgen de titel zonder opmaaktekens (`inlinePlain`, in het rijmodel `title`); een regel zonder opmaaktekens gaat ongewijzigd en snel door. In de lijst staat de eerste regel van de beschrijving zonder Markdown-tekens. In het taakvenster staat de beschrijving met opmaak (`renderMarkdown`); een klik of Enter maakt er weer een tekstvak van, links openen in een nieuw tabblad en een vinkje in een lijst (`- [ ]`) wordt meteen omgezet (`toggleTask`) en bewaard met de rest.
+
+**Subtaken in overzichten** (`withSubtasks` in `ui/render.js`). In Vandaag, Aankomend en de lijsten van een label of filter staat bij een taak met open subtaken een pijltje in het chipje met het aantal; uitklappen toont die subtaken eronder, een niveau dieper (tot drie diep), in hun eigen volgorde. Een subtaak die zelf al in het overzicht staat, komt er niet nog eens bij; afgevinkte subtaken niet. Het uitklappen geldt alleen voor deze sessie en verandert de taak niet (`is_collapsed` is van de boom in het project).
+
+**Projectbeschrijving.** `project.description` (Markdown, hooguit 16.000 tekens) is te bewerken in het venster van het project en staat met opmaak onder de titel, in de lijst, op het bord en in de kalender.
+
+**Kalenderkleur** (`calendarColorOf` in `ui/calendar.js`). Bovenaan de kalender kies je waarop de kleur van een taak gebaseerd is: prioriteit (de standaard), project of het eerste label met een kleur (zonder: de prioriteit). De keuze geldt voor dit apparaat (`tickory.calendarColor`).
+
 ## 5k. Notities
 
 Naast taken heeft Tickory notities, zoals de app Anchor: losse teksten met opmaak, een achtergrond, labels, vastpinnen, een archief en een prullenbak. Een notitie is van haar eigenaar; die kan haar delen met anderen op dezelfde server, als lezer of bewerker (zie **Delen** hieronder). Wie niets gedeeld kreeg, ziet haar niet.

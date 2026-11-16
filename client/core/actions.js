@@ -246,9 +246,10 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     deleteTask: (id) => send([{ type: 'task_delete', args: { id } }]),
 
     // ---- projecten en secties ----
-    async addProject({ name, color, parent_id = null, is_favorite = false }) {
+    async addProject({ name, color, parent_id = null, is_favorite = false, description = '' }) {
       const id = makeId();
       const args = { id, name: name.trim(), order_key: endKey('projects', 'project', { parent_id }) };
+      if (description) args.description = description;
       if (color) args.color = color;
       if (parent_id) args.parent_id = parent_id;
       if (is_favorite) args.is_favorite = true;

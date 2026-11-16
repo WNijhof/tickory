@@ -40,7 +40,7 @@ export function initials(name) {
  *   readOnly?: boolean,   // de taak staat in een project dat je alleen leest (core/access.js): geen afvinken, slepen of snelle knoppen
  * }} ctx
  */
-export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, subtasks = new Map(), comments = new Map(), attachments = new Map(), reminder = false, me = null, userName = () => null, showCompletedAt = false, readOnly = false }) {
+export function rowModel(task, { view, today, now, depth = 0, showProject = false, hasChildren = false, collapsed = false, peek = false, subtasks = new Map(), comments = new Map(), attachments = new Map(), reminder = false, me = null, userName = () => null, showCompletedAt = false, readOnly = false }) {
   const sub = subtasks.get(task.id);
   const labels = [];
   for (const id of task.labels ?? []) {
@@ -82,5 +82,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
     assignee,
     project,
     ...(readOnly ? { readOnly: true } : {}),
+    // in een overzicht (Vandaag, Aankomend, label, filter): de subtaken hier uitklappen, zonder de taak zelf te wijzigen
+    ...(peek ? { peek: true } : {}),
   };
 }

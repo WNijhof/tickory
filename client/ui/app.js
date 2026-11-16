@@ -327,6 +327,7 @@ const handlers = {
     if (edited.name !== project.name) changes.name = edited.name;
     if (edited.color !== project.color) changes.color = edited.color;
     if (edited.is_favorite !== Boolean(project.is_favorite)) changes.is_favorite = edited.is_favorite;
+    if (edited.description !== (project.description ?? '')) changes.description = edited.description;
     if (Object.keys(changes).length > 0) await actions.updateProject(project.id, changes);
   },
 

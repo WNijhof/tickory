@@ -872,3 +872,12 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .task-desc-view .md > :last-child { margin-bottom: 0; }
 .task-title .md-link { text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
 .task-title .md-code { font-size: 0.9em; }
+
+/* kalender: kleur op project of label in plaats van prioriteit (ui/calendar.js) */
+.cal-item.cal-colored { --prio: var(--dot); }
+.cal-color { width: auto; }
+
+/* de beschrijving van een project, onder de titel */
+.project-desc { margin: 0 0 14px; padding: 2px 0 2px 12px; border-left: 3px solid var(--line); color: var(--text-soft); max-width: 72ch; }
+.project-desc .md > :first-child { margin-top: 0; }
+.project-desc .md > :last-child { margin-bottom: 0; }

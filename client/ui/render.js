@@ -17,7 +17,7 @@
 import { isInboxId } from '../../shared/schema.js';
 import {
   archivedList, attachmentCounts, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
-  mySettings, roleIn, subtaskCounts, tasksWithReminder, todayView, upcomingView,
+  mySettings, roleIn, subtaskCounts, subtasksOf, tasksWithReminder, todayView, upcomingView,
 } from '../core/selectors.js';
 import { comparator, groupRows, sortTasks } from '../core/listOptions.js';
 import { isDefaultOptions, optionsFor, viewKey } from '../../shared/viewOptions.js';
@@ -27,7 +27,7 @@ import { rowModel } from '../core/rowModel.js';
 import { t } from '../core/i18n.js';
 import { VIEW_STYLES, boardColumns, viewStyleOf } from '../core/projectViews.js';
 import { h } from './dom.js';
-import { renderInline } from './markdown.js';
+import { renderInline, renderMarkdown } from './markdown.js';
 import { emptyArt, icon } from './icons.js';
 import { boardView } from './board.js';
 import { calendarView } from './calendar.js';
@@ -177,8 +177,8 @@ function buildRow(m, variant = '') {
   if (m.deadline) chips.push(chip(`chip-deadline${m.deadline.overdue ? ' due-overdue' : ''}`, m.deadline.text));
   if (m.subtasks) {
     const body = [icon('subtasks'), m.subtasks.text];
-    if ((m.hasChildren || m.collapsed) && !m.readOnly) {
-      const toggle = rowButton('chip chip-subtasks chip-toggle', 'fold', ...body, icon(m.collapsed ? 'chevronRight' : 'chevronDown'));
+    if ((m.hasChildren || m.collapsed) && (!m.readOnly || m.peek)) {
+      const toggle = rowButton('chip chip-subtasks chip-toggle', m.peek ? 'peek' : 'fold', ...body, icon(m.collapsed ? 'chevronRight' : 'chevronDown'));
       toggle.dataset.fk = `fold:${m.id}`;
       toggle.setAttribute('aria-expanded', String(!m.collapsed));
       toggle.setAttribute('aria-label', m.subtasks.label);
@@ -301,6 +301,11 @@ export function bindList(container, handlers) {
     if (act === 'restore') handlers.restoreTask?.(task);
     else if (act === 'label') handlers.openLabel?.(control.dataset.label);
     else if (act === 'fold') handlers.toggleTask(task);
+    else if (act === 'peek') {
+      // alleen hier uitklappen (niet bewaard bij de taak): onthouden in deze sessie, en opnieuw tekenen
+      if (!peeked.delete(task.id)) peeked.add(task.id);
+      handlers.refresh();
+    }
     else if (act === 'move') handlers.moveCard(task);
     else if (act === 'date') handlers.reschedule(task);
     else if (act === 'delete') handlers.removeTask(task);
@@ -314,10 +319,39 @@ export function bindList(container, handlers) {
   container.addEventListener('focusin', reveal);
 }
 
+/** De beschrijving van een project met opmaak (Markdown), onder de titel; niets als er geen is. */
+function projectDescription(project) {
+  const text = String(project.description ?? '').trim();
+  return text ? h('div', { class: 'project-desc', 'aria-label': t('project.descriptionLabel'), role: 'note', dataset: { fk: 'project-desc' } }, renderMarkdown(text)) : null;
+}
+
+/** Taken waarvan de subtaken in een overzicht zijn uitgeklapt (alleen in deze sessie; zie `withSubtasks`). */
+const peeked = new Set();
+
+/**
+ * Voor een overzicht (Vandaag, Aankomend, een label of filter): een taak met open subtaken krijgt een pijltje, en uitgeklapt staan
+ * die subtaken eronder (een niveau dieper, tot drie diep). Een subtaak die zelf al in de lijst staat, komt er niet nog eens bij.
+ */
+export function withSubtasks(list, view, open = peeked) {
+  const present = new Set(list.map((r) => r.task.id));
+  const out = [];
+  const add = (task, depth) => {
+    const kids = subtasksOf(view, task.id).filter((k) => !k.checked && !present.has(k.id));
+    const isOpen = kids.length > 0 && open.has(task.id);
+    out.push({ task, depth, hasChildren: kids.length > 0, collapsed: kids.length > 0 && !isOpen, peek: kids.length > 0 });
+    if (isOpen && depth < 3) for (const k of kids) add(k, depth + 1);
+  };
+  for (const r of list) {
+    if (r.depth) out.push(r);
+    else add(r.task, 0);
+  }
+  return out;
+}
+
 /** Zet getekende regels in een lijst en bewaart ze voor de volgende keer. `pool` verzamelt wat nu in gebruik is. */
 function rowsOf(list, pool, ctx) {
-  return list.map(({ task, depth = 0, hasChildren = false, collapsed = false }) => {
-    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, reminder: ctx.reminders.has(task.id), showCompletedAt: ctx.variant === 'completed', readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
+  return list.map(({ task, depth = 0, hasChildren = false, collapsed = false, peek = false }) => {
+    const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, peek, reminder: ctx.reminders.has(task.id), showCompletedAt: ctx.variant === 'completed', readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
     const json = ctx.variant ? `${ctx.variant}|${JSON.stringify(model)}` : JSON.stringify(model);
     if (pool.has(task.id)) return buildRow(model, ctx.variant); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
     let entry = rowCache.get(task.id);
@@ -388,7 +422,8 @@ const optionGroups = (groups, make) => groups.map((g) => group({ title: g.title,
 export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null }) {
   const pool = new Map();
   const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), attachments: attachmentCounts(view), reminders: tasksWithReminder(view, me?.id) };
-  const rows = (list, showProject, variant = '') => rowsOf(list, pool, { ...ctx, showProject, variant });
+  // een overzicht (taken uit verschillende projecten): subtaken uit te klappen; een project heeft zijn eigen boom
+  const rows = (list, showProject, variant = '') => rowsOf(showProject && !variant ? withSubtasks(list, view) : list, pool, { ...ctx, showProject, variant });
   const finish = (result) => {
     rowCache = pool; // alleen wat nu in beeld is, blijft bewaard
     return result;
@@ -482,6 +517,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       nodes: [
         banner,
         sharedWith(view, project.id, me, userName),
+        projectDescription(project),
         boardView({ project, columns: board.columns, readOnly: archived, handlers, cards: (tasks) => rows(tasks.map((task) => ({ task })), false, 'card') }),
         pv.completedCount > 0 && h('button', { class: 'link-button', type: 'button', onclick: () => handlers.toggleCompleted(project.id) },
           showCompleted ? t('view.hideCompleted') : t('view.showCompleted', { count: pv.completedCount })),
@@ -494,6 +530,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       nodes: [
         banner,
         sharedWith(view, project.id, me, userName),
+        projectDescription(project),
         calendarView({
           calendarKey: `project:${project.id}`, tasks: [...view.tasks.values()].filter((x) => x.project_id === project.id), view, today, handlers,
           showProject: false, addTarget: { projectId: project.id }, readOnly: archived,
@@ -531,6 +568,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     nodes: [
       banner,
       sharedWith(view, project.id, me, userName),
+      projectDescription(project),
       ...sectionGroups,
       total === 0 && pv.groups.length === 1 && emptyState({
         title: t('view.projectEmptyTitle'), text: t('view.projectEmpty'), action: archived ? null : h('button', { class: 'button button-primary', type: 'button', onclick: () => handlers.quickAdd(addTarget(null)) }, t('quick.addTask')),

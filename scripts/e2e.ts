@@ -420,6 +420,13 @@ try {
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
   // meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts); met E2E_NOTIFY_ONLY=1 alleen dat onderdeel
   const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
+  // lijsten (scripts/e2e-lists.ts); met E2E_LISTS_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_LISTS_ONLY) {
+    try { await listsScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN LIJSTEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-lijsten'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // notities (scripts/e2e-notes.ts); met E2E_NOTES_ONLY=1 alleen dat onderdeel, om er snel aan te kunnen werken
   if (process.env.E2E_NOTES_ONLY) {
     try { await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir }); console.log('ALLEEN NOTITIES: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-notities'); process.exitCode = 1; }

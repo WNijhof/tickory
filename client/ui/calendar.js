@@ -28,6 +28,27 @@ import { icon } from './icons.js';
 import { readPref, writePref } from './viewPrefs.js';
 
 const MODE_KEY = 'tickory.calendarMode';
+/** Waarop de kleur van een taak in de kalender gebaseerd is (zoals in Todoist): prioriteit, project of het eerste label. */
+const COLOR_KEY = 'tickory.calendarColor';
+export const CALENDAR_COLORS = Object.freeze(['priority', 'project', 'label']);
+const readColor = () => (CALENDAR_COLORS.includes(readPref(COLOR_KEY)) ? readPref(COLOR_KEY) : 'priority');
+// letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
+const COLOR_LABEL = { priority: () => t('calendar.colorPriority'), project: () => t('calendar.colorProject'), label: () => t('calendar.colorLabel') };
+
+/**
+ * De kleur van een taak bij `mode`: een kleurnaam (project of eerste label met een kleur) of null (dan de prioriteit).
+ * @returns {string | null}
+ */
+export function calendarColorOf(task, view, mode) {
+  if (mode === 'project') return view.projects.get(task.project_id)?.color ?? null;
+  if (mode === 'label') {
+    for (const id of task.labels ?? []) {
+      const color = view.labels.get(id)?.color;
+      if (color) return color;
+    }
+  }
+  return null;
+}
 
 /** Per kalender (project of Binnenkort) wat je er op dit scherm van hebt gekozen; blijft staan zolang de pagina open is. */
 const states = new Map();
@@ -74,6 +95,11 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     writePref(MODE_KEY, mode);
     refresh();
   };
+  const colorMode = readColor();
+  const colorPick = h('select', {
+    class: 'field field-small cal-color', 'aria-label': t('calendar.colorBy'), title: t('calendar.colorBy'), dataset: { fk: 'cal-color' },
+    onchange: (e) => { writePref(COLOR_KEY, e.target.value); refresh(); },
+  }, CALENDAR_COLORS.map((c) => h('option', { value: c, selected: c === colorMode }, COLOR_LABEL[c]())));
 
   // ---------- kop ----------
   const monthMode = state.mode === 'month';
@@ -87,7 +113,8 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
       ['month', 'week'].map((mode) => h('button', {
         class: `button button-small view-switch-button${mode === state.mode ? ' active' : ''}`, type: 'button', 'aria-pressed': String(mode === state.mode),
         dataset: { mode, fk: `cal-mode:${mode}` }, onclick: () => setMode(mode),
-      }, mode === 'month' ? t('calendar.month') : t('calendar.week')))));
+      }, mode === 'month' ? t('calendar.month') : t('calendar.week')))),
+    colorPick);
 
   // ---------- een taak op een dag ----------
   const item = (entry, { withDate = false } = {}) => {
@@ -97,8 +124,9 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     const title = real ? task.content : t('calendar.repeatTitle', { name: task.content });
     // een taak in een project dat je alleen leest (core/access.js): niet af te vinken en niet te slepen
     const locked = readOnly || !canEdit(task);
+    const color = calendarColorOf(task, view, colorMode);
     return h('li', {
-      class: `cal-item prio-${task.priority ?? 4}${real ? '' : ' cal-virtual'}${overdue ? ' cal-late' : ''}${locked ? ' cal-readonly' : ''}`,
+      class: `cal-item prio-${task.priority ?? 4}${color ? ` cal-colored ${colorClass(color)}` : ''}${real ? '' : ' cal-virtual'}${overdue ? ' cal-late' : ''}${locked ? ' cal-readonly' : ''}`,
       dataset: { taskId: task.id, date, real: String(real), ...(locked ? { readonly: 'true' } : {}) },
     },
     real && locked

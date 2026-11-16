@@ -119,6 +119,47 @@ export async function listsScenario(c: any) {
   assert.deepEqual(settings().view_options, {});
   step('sorteren en groeperen: Vandaag per project (zonder keuze "Datum" bij Aankomend); herstellen laat niets achter in de instellingen');
 
+  // ---- subtaken uitklappen in Vandaag; Markdown in een titel ----
+  await as([
+    ['task_add', { id: 'e2elijstouder001', project_id: P, content: 'Verhuizing **plannen**', due: { date: today } }],
+    ['task_add', { id: 'e2elijstkind0001', project_id: P, parent_id: 'e2elijstouder001', content: 'Dozen halen' }],
+    ['task_add', { id: 'e2elijstkind0002', project_id: P, parent_id: 'e2elijstouder001', content: 'Adres doorgeven' }],
+  ]);
+  await nav('Vandaag');
+  const ouder = `document.querySelector('.task[data-id="e2elijstouder001"]')`;
+  await waitFor(`${ouder}?.querySelector('[data-fk="fold:e2elijstouder001"]')`, 'de taak met een uitklapknop bij de subtaken', 10_000);
+  assert.equal(await evaluate(`${ouder}.querySelector('.task-title strong')?.textContent`), 'plannen', 'vet in de titel');
+  assert.equal(await evaluate(`${ouder}.querySelector('.task-title').textContent`), 'Verhuizing plannen');
+  assert.ok(!(await evaluate<string>(`${ouder}.querySelector('.check').getAttribute('aria-label')`)).includes('*'), 'zonder sterretjes voor schermlezers');
+  assert.equal(await evaluate(`[...document.querySelectorAll('#content .task')].some((l) => l.dataset.id === 'e2elijstkind0001')`), false, 'ingeklapt');
+  await click('[data-fk="fold:e2elijstouder001"]');
+  await waitFor(`document.querySelector('.task[data-id="e2elijstkind0001"]')`, 'de subtaken eronder');
+  const order = await evaluate<string[]>(`[...document.querySelectorAll('#content .task')].map((l) => l.dataset.id).filter((id) => id.startsWith('e2elijst'))`);
+  assert.deepEqual(order.slice(order.indexOf('e2elijstouder001'), order.indexOf('e2elijstouder001') + 3), ['e2elijstouder001', 'e2elijstkind0001', 'e2elijstkind0002']);
+  assert.equal(await evaluate(`document.querySelector('.task[data-id="e2elijstkind0001"]').dataset.depth`), '1');
+  assert.equal((serverState().tasks as any[]).find((x) => x.id === 'e2elijstouder001').is_collapsed, false, 'het uitklappen verandert de taak zelf niet');
+  await click('[data-fk="fold:e2elijstouder001"]');
+  await waitFor(`!document.querySelector('.task[data-id="e2elijstkind0001"]')`, 'weer ingeklapt');
+  step('Vandaag: subtaken van een taak uitklappen (een niveau dieper, zonder de taak te wijzigen) en weer inklappen; vet in de titel, zonder sterretjes voor schermlezers');
+
+  // ---- de beschrijving van een project; de kalender gekleurd per project ----
+  await as([['project_update', { id: P, description: 'Alles voor de **verhuizing**. Zie [de lijst](https://example.org/lijst).' }]]);
+  await nav('Lijstproef');
+  await waitFor(`document.querySelector('[data-fk="project-desc"] strong')?.textContent === 'verhuizing'`, 'de beschrijving met opmaak onder de titel', 10_000);
+  assert.equal(await evaluate(`document.querySelector('[data-fk="project-desc"] a').getAttribute('href')`), 'https://example.org/lijst');
+  assert.equal(await evaluate(`document.querySelector('[data-fk="project-desc"] a').getAttribute('target')`), '_blank');
+  await as([['project_update', { id: P, color: 'teal' }]]);
+  await nav('Aankomend');
+  await waitFor(`document.querySelector('[data-fk="viewstyle:calendar"]')`, 'de keuze kalender');
+  await click('[data-fk="viewstyle:calendar"]');
+  await waitFor(`document.querySelector('[data-fk="cal-color"]')`, 'de kleurkeuze in de kalender');
+  await evaluate(`(() => { const s = document.querySelector('[data-fk="cal-color"]'); s.value = 'project'; s.dispatchEvent(new Event('change')); })()`);
+  await waitFor(`document.querySelector('.cal-item[data-task-id="e2elijstouder001"]')?.classList.contains('pc-teal')`, 'de taak in de kleur van het project', 10_000);
+  await evaluate(`(() => { const s = document.querySelector('[data-fk="cal-color"]'); s.value = 'priority'; s.dispatchEvent(new Event('change')); })()`);
+  await waitFor(`!document.querySelector('.cal-item[data-task-id="e2elijstouder001"]')?.classList.contains('cal-colored')`, 'weer op prioriteit');
+  await click('[data-fk="viewstyle:list"]');
+  step('een projectbeschrijving met opmaak en een klikbare link onder de titel; de kalender gekleurd per project en weer per prioriteit');
+
   // ---- opruimen ----
   await as([['project_delete', { id: P }], ['label_delete', { id: 'e2elijstlabel001' }]]);
   await nav(startView);

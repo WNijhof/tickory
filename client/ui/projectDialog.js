@@ -22,7 +22,7 @@ const INDENT = String.fromCharCode(160, 160);
 /**
  * @param {{ view: object, project?: object | null, parentId?: string | null }} options
  *   `project`: een bestaand project bewerken; anders een nieuw project, eventueel als subproject van `parentId`.
- * @returns {Promise<{ name: string, color: string, is_favorite: boolean, parent_id: string | null } | null>} null bij annuleren
+ * @returns {Promise<{ name: string, color: string, is_favorite: boolean, parent_id: string | null, description: string } | null>} null bij annuleren
  */
 export function openProjectDialog({ view, project = null, parentId = null }) {
   return openDialog((finish) => {
@@ -33,6 +33,8 @@ export function openProjectDialog({ view, project = null, parentId = null }) {
       h('input', { type: 'radio', name: 'project-color', value: c, checked: c === color, 'aria-label': colorLabel(c), onchange: () => { color = c; } }),
       h('span', { class: 'swatch-dot' }, icon('check'))));
     const favorite = h('input', { type: 'checkbox', checked: Boolean(project?.is_favorite) });
+    // een beschrijving (Markdown, zoals bij een taak): staat met opmaak onder de titel van het project
+    const description = h('textarea', { class: 'field', rows: 3, maxLength: 16000, value: project?.description ?? '', placeholder: t('project.descriptionPlaceholder'), dataset: { fk: 'project-description' } });
     // Een nieuw project kan een subproject worden; een bestaand project verhuizen doet alleen de eigenaar en hoort hier niet bij.
     const parent = h('select', { class: 'field' },
       h('option', { value: '' }, t('project.noParent')),
@@ -42,11 +44,12 @@ export function openProjectDialog({ view, project = null, parentId = null }) {
       onsubmit: (e) => {
         e.preventDefault();
         const text = name.value.trim();
-        if (text) finish({ name: text, color, is_favorite: favorite.checked, parent_id: editing ? null : parent.value || null });
+        if (text) finish({ name: text, color, is_favorite: favorite.checked, parent_id: editing ? null : parent.value || null, description: description.value });
       },
     },
     h('h2', {}, editing ? t('project.edit') : parentId ? t('project.newSub') : t('project.new')),
     h('label', { class: 'field-label' }, t('common.name'), name),
+    h('label', { class: 'field-label' }, t('project.description'), description),
     h('fieldset', { class: 'color-field' }, h('legend', {}, t('project.color')), h('div', { class: 'swatches' }, swatches)),
     h('label', { class: 'check-row' }, favorite, t('project.favorite')),
     !editing && h('label', { class: 'field-label' }, t('project.parent'), parent),

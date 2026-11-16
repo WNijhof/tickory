@@ -42,6 +42,7 @@ description: A project as a list, as a board with a column per section or as a c
 <p>The calendar shows a <strong>month</strong> or a <strong>week</strong> (choose <x-ui k="calendar.month"></x-ui> or <x-ui k="calendar.week"></x-ui> at the top right; the app remembers what you chose). The week starts on <strong>Monday</strong>. On the left of every row is the <strong>week number</strong> by the ISO rule: week 1 is the week with the first Thursday of the year, so 1 January can still fall in week 52 or 53 of the previous year. The names of days and months follow the language of the app. You browse with the arrows next to <x-ui k="calendar.today"></x-ui>; that button takes you back to today.</p>
 <ul>
   <li><strong>Tasks sit on their date.</strong> A task with a time shows that time and sits at the top of the day in order of time; tasks without a time come first. Today has a colored day number.</li>
+  <li><strong>Colour.</strong> At the top you choose what the colour of a task is based on: <x-ui k="calendar.colorPriority"></x-ui> (the default), <x-ui k="calendar.colorProject"></x-ui> or <x-ui k="calendar.colorLabel"></x-ui> (the first label with a colour). The app remembers your choice on this device.</li>
   <li><strong>Overdue is separate.</strong> Tasks whose date has passed are not on their old day but in an <x-ui k="view.overdue"></x-ui> block above the calendar, with their date. Move them or complete them and they leave the block.</li>
   <li><strong>Repeating tasks</strong> also sit on their coming occurrences in the range shown, with a dashed edge and a repeat icon. That is only a preview: nothing is stored, and an occurrence that is not due yet cannot be completed or dragged. Complete the task itself (on its first date) and it moves on to the next time.</li>
   <li><strong>Completing and opening:</strong> the circle on the left of the bar completes, a click on the name opens the task window.</li>
@@ -81,6 +82,9 @@ description: A project as a list, as a board with a column per section or as a c
 
 <h2 id="upcoming-as-a-calendar">Upcoming as a calendar</h2>
 <p>In <x-ui k="nav.upcoming"></x-ui> choose <x-ui k="viewStyle.calendar"></x-ui> at the top right: you see the tasks of all your projects in the calendar, with the name of the project next to them. Everything above applies there too; a task you add goes into your Inbox. <x-ui k="nav.today"></x-ui> has no calendar: a single day has no use for one.</p>
+
+<h2 id="subtasks-in-overviews">Subtasks in Today and Upcoming</h2>
+<p>When a task in Today, Upcoming or the list of a label or filter has open subtasks, there is an arrow next to the number of subtasks. Click it and the subtasks appear below; another click folds them away. That only applies here: in the project itself the task stays as it was.</p>
 
 <h2 id="sorting-and-grouping">Sorting and grouping</h2>
 <p>With the <x-ui k="listopt.button"></x-ui> button at the top right of a project (as a list), in <x-ui k="nav.today"></x-ui> and in <x-ui k="nav.upcoming"></x-ui> you choose how the tasks are arranged:</p>
