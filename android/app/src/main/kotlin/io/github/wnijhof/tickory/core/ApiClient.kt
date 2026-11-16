@@ -140,7 +140,8 @@ class ApiClient(
         // Een oudere server kent een van die bronnen niet en weigert het verzoek (400): dan steeds met minder.
         // "notes": herinneringen op notities (zie NoteReminders). Een server zonder notities noemt "notes" in zijn weigering: dan
         // eerst hetzelfde zonder notities, en pas daarna met minder.
-        val attempts = ArrayDeque(listOf(types + listOf("places", "notifications", "settings", "comments", "notes"), types + "places", types))
+        // "filters": opgeslagen filters voor een widget (zie FilterLang).
+        val attempts = ArrayDeque(listOf(types + listOf("places", "notifications", "settings", "comments", "notes", "filters"), types + "places", types))
         var response: Response? = null
         while (attempts.isNotEmpty()) {
             val attempt = attempts.removeFirst()

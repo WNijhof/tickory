@@ -1,6 +1,10 @@
 package io.github.wnijhof.tickory.core
 
-/** Een open taak zoals de widgets die nodig hebben. [due] is de datum zoals de server die geeft ("2026-11-13" of "2026-11-13T14:00"). */
+/**
+ * Een open taak zoals de widgets die nodig hebben. [due] is de datum zoals de server die geeft ("2026-11-13" of "2026-11-13T14:00").
+ * De laatste vier velden zijn voor opgeslagen filters (zie [FilterLang]): [search] is de titel en de beschrijving, gevouwen zoals
+ * de web-app zoekt; [hasReminder] zegt of er een eigen herinnering is die kan afgaan.
+ */
 data class WidgetTask(
     val id: String,
     val projectId: String,
@@ -14,6 +18,10 @@ data class WidgetTask(
     val priority: Int,
     val labelIds: List<String>,
     val orderKey: String,
+    val search: String = "",
+    val deadline: Boolean = false,
+    val assigneeId: String? = null,
+    val hasReminder: Boolean = false,
 )
 
 /** @property readOnly de gebruiker is in dit project lezer (alleen lezen): de widget toont dan geen cirkel om af te vinken */
@@ -36,6 +44,12 @@ data class WidgetSection(
 
 data class WidgetLabel(val id: String, val name: String)
 
+/** Een opgeslagen filter van de gebruiker (de zoekopdracht in de filtertaal, zie [FilterLang]). */
+data class WidgetFilter(val id: String, val name: String, val query: String, val orderKey: String)
+
+/** Iemand met wie de gebruiker samenwerkt (of de gebruiker zelf), voor "toegewezen aan: naam" in een filter. */
+data class WidgetUser(val id: String, val name: String, val username: String)
+
 /**
  * Wat de widgets van de gegevens van de gebruiker weten: de open taken, de projecten, de secties en de labels van de
  * laatste geslaagde verversing. Alleen wat de server aan deze gebruiker liet zien (gedeelde projecten: alleen die waar
@@ -44,6 +58,8 @@ data class WidgetLabel(val id: String, val name: String)
  * @property accountId het id van de gebruiker van wie dit is; wisselt dat, dan gaat alles weg (zie WidgetStore)
  * @property inboxId het project dat de Inbox van deze gebruiker is
  * @property notes de notities voor de notitiewidget (eigen en met de gebruiker gedeelde), in de volgorde van [WidgetNotes.order]
+ * @property filters de opgeslagen filters, in hun eigen volgorde
+ * @property users de mensen uit het sync-antwoord (`users`), voor filters op toewijzing
  */
 data class WidgetSnapshot(
     val accountId: String,
@@ -53,6 +69,8 @@ data class WidgetSnapshot(
     val sections: List<WidgetSection>,
     val labels: List<WidgetLabel>,
     val notes: List<WidgetNote> = emptyList(),
+    val filters: List<WidgetFilter> = emptyList(),
+    val users: List<WidgetUser> = emptyList(),
 ) {
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
@@ -61,6 +79,40 @@ data class WidgetSnapshot(
 object WidgetParser {
     /** Meer open taken bewaren we niet voor de widgets: een lijst op een scherm van een telefoon is al lang ingekort. */
     const val MAX_TASKS = 5000
+
+    /** Zoveel tekens van een beschrijving tellen mee voor "zoek:" in een filter (de rest zou de opslag onnodig groot maken). */
+    const val MAX_SEARCH_DESCRIPTION = 4000
+
+    /** Zoveel filters en mensen bewaren we hooguit. */
+    const val MAX_FILTERS = 500
+    const val MAX_USERS = 1000
+
+    private val FLOATING = Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?$")
+
+    /**
+     * De taken met een eigen herinnering die kan afgaan, zoals "heeft herinnering" in de web-app (reminderMoment en
+     * isLocationActive in shared/reminders.js): absoluut met een tijdstip, relatief bij een taak met een tijdstip, of op een plek.
+     * Herinneringen van een ander tellen niet.
+     */
+    private fun withReminder(raw: List<Any?>?, accountId: String, dueOf: Map<String, String?>): Set<String> {
+        val out = HashSet<String>()
+        for (entry in raw ?: emptyList()) {
+            val r = Json.asObject(entry) ?: continue
+            if (r.flag("is_deleted")) continue
+            val owner = r.text("owner_id")
+            if (!owner.isNullOrEmpty() && owner != accountId) continue
+            val taskId = r.text("task_id") ?: continue
+            if (taskId !in dueOf) continue
+            val active = when (r.text("type")) {
+                "absolute" -> r.obj("due")?.text("date")?.let { FLOATING.matches(it) } == true
+                "relative" -> dueOf[taskId]?.let { FLOATING.matches(it) } == true && (r.whole("minute_offset") ?: -1) >= 0
+                "location" -> true
+                else -> false
+            }
+            if (active) out.add(taskId)
+        }
+        return out
+    }
 
     /**
      * @return null als het antwoord onbruikbaar is (geen JSON-object, geen gebruiker, geen lijst met taken of projecten);
@@ -74,12 +126,24 @@ object WidgetParser {
         val rawProjects = root.list("projects") ?: return null
 
         val tasks = ArrayList<WidgetTask>()
+        val openDue = HashMap<String, String?>()
+        for (entry in rawTasks) {
+            val o = Json.asObject(entry) ?: continue
+            if (o.flag("is_deleted") || o.flag("checked")) continue
+            val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: continue
+            if (o.text("project_id")?.takeIf { Ids.isSafeId(it) } == null) continue
+            openDue[id] = o.obj("due")?.text("date")
+            if (openDue.size >= MAX_TASKS) break
+        }
+        val reminded = withReminder(root.list("reminders"), accountId, openDue)
         for (entry in rawTasks) {
             val o = Json.asObject(entry) ?: continue
             if (o.flag("is_deleted") || o.flag("checked")) continue
             val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: continue
             val projectId = o.text("project_id")?.takeIf { Ids.isSafeId(it) } ?: continue
             val due = o.obj("due")
+            val content = o.text("content") ?: ""
+            val description = (o.text("description") ?: "").take(MAX_SEARCH_DESCRIPTION)
             tasks.add(
                 WidgetTask(
                     id = id,
@@ -92,6 +156,10 @@ object WidgetParser {
                     priority = o.whole("priority")?.toInt()?.takeIf { it in 1..4 } ?: 4,
                     labelIds = o.list("labels")?.mapNotNull { (it as? String)?.takeIf { l -> Ids.isSafeId(l) } } ?: emptyList(),
                     orderKey = o.text("order_key") ?: "",
+                    search = FilterText.fold(FilterText.nfc(content)) + "\n" + FilterText.fold(FilterText.nfc(description)),
+                    deadline = !o.text("deadline").isNullOrEmpty(),
+                    assigneeId = o.text("assignee_id")?.takeIf { it.isNotEmpty() },
+                    hasReminder = id in reminded,
                 ),
             )
             if (tasks.size >= MAX_TASKS) break
@@ -123,7 +191,20 @@ object WidgetParser {
         }
         // de notities (een server zonder notities stuurt de lijst niet mee: dan geen notities)
         val notes = WidgetNotes.parse(root.list("notes"), accountId)
-        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes)
+        // de opgeslagen filters (een server die ze niet meestuurt: geen filters) en de mensen voor "toegewezen aan: naam"
+        val filters = (root.list("filters") ?: emptyList()).mapNotNull { entry ->
+            val o = Json.asObject(entry) ?: return@mapNotNull null
+            if (o.flag("is_deleted")) return@mapNotNull null
+            val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
+            val query = o.text("query")?.takeIf { it.length <= FilterLang.MAX_QUERY_LENGTH } ?: return@mapNotNull null
+            WidgetFilter(id, SyncParser.cleanTitle(o.text("name")), query, o.text("order_key") ?: "")
+        }.sortedWith(compareBy({ it.orderKey }, { it.id })).take(MAX_FILTERS)
+        val users = (root.list("users") ?: emptyList()).mapNotNull { entry ->
+            val o = Json.asObject(entry) ?: return@mapNotNull null
+            val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
+            WidgetUser(id, o.text("name") ?: "", o.text("username") ?: "")
+        }.take(MAX_USERS)
+        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users)
     }
 }
 
@@ -140,6 +221,7 @@ object WidgetCodec {
                 mapOf(
                     "id" to it.id, "project" to it.projectId, "section" to it.sectionId, "parent" to it.parentId, "content" to it.content,
                     "due" to it.due, "recurring" to it.recurring, "priority" to it.priority.toLong(), "labels" to it.labelIds, "order" to it.orderKey,
+                    "search" to it.search, "deadline" to it.deadline, "assignee" to it.assigneeId, "reminder" to it.hasReminder,
                 )
             },
             "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey, "readOnly" to it.readOnly) },
@@ -151,6 +233,8 @@ object WidgetCodec {
                     "updated" to it.updatedAt, "done" to it.done.toLong(), "total" to it.total.toLong(), "shared" to it.shared,
                 )
             },
+            "filters" to s.filters.map { mapOf("id" to it.id, "name" to it.name, "query" to it.query, "order" to it.orderKey) },
+            "users" to s.users.map { mapOf("id" to it.id, "name" to it.name, "username" to it.username) },
         ),
     )
 
@@ -166,6 +250,8 @@ object WidgetCodec {
                 sectionId = o.text("section"), parentId = o.text("parent"), content = o.text("content") ?: "", due = o.text("due"),
                 recurring = o.flag("recurring"), priority = o.whole("priority")?.toInt()?.takeIf { it in 1..4 } ?: 4,
                 labelIds = o.list("labels")?.mapNotNull { it as? String } ?: emptyList(), orderKey = o.text("order") ?: "",
+                // bewaard door een oudere versie: zonder deze velden (tot de volgende verversing vindt een filter dan minder)
+                search = o.text("search") ?: "", deadline = o.flag("deadline"), assigneeId = o.text("assignee"), hasReminder = o.flag("reminder"),
             )
         }
         val projects = objects("projects").mapNotNull { o ->
@@ -188,6 +274,10 @@ object WidgetCodec {
                 shared = o.flag("shared"),
             )
         }
-        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes)
+        val filters = objects("filters").mapNotNull { o ->
+            WidgetFilter(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("query") ?: return@mapNotNull null, o.text("order") ?: "")
+        }
+        val users = objects("users").mapNotNull { o -> WidgetUser(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("username") ?: "") }
+        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users)
     }
 }

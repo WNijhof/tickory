@@ -148,7 +148,7 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `een project dat weg is, en een filter dat nog niet kan, geven een uitleg`() {
+    fun `een project of filter dat weg is geeft een uitleg`() {
         signIn(withData = data)
         val id = place(ProjectWidgetProvider::class.java)
         WidgetConfigStore.set(app, id, "project:bestaat-niet")
@@ -158,7 +158,7 @@ class WidgetUiTest : WidgetTestBase() {
 
         WidgetConfigStore.set(app, id, "filter:f-1")
         WidgetUpdater.updateAll(app)
-        assertEquals("Filters kunnen nog niet in een widget. Kies een project.", text(view(id), R.id.message))
+        assertEquals("Dit filter bestaat niet meer. Kies een ander voor deze widget.", text(view(id), R.id.message))
     }
 
     @Test

@@ -18,7 +18,7 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
     </thead>
     <tbody>
       <tr><td><strong>Vandaag</strong></td><td class="wrap-ok">Wat te laat is en wat vandaag moet, in dezelfde volgorde als in de app: eerst op tijdstip, dan op prioriteit. Bovenaan staan de datum en het aantal taken. Is er niets te doen, dan zegt hij dat.</td></tr>
-      <tr><td><strong>Project of lijst</strong></td><td class="wrap-ok">De open taken van één plek die je zelf kiest als je de widget plaatst: de Inbox, een project (met de secties en subtaken), Vandaag of Aankomend. Je kunt er meer plaatsen, elk met een eigen keuze. Opgeslagen filters kunnen hier nog niet in; de keuzelijst is er wel op voorbereid.</td></tr>
+      <tr><td><strong>Project of lijst</strong></td><td class="wrap-ok">De open taken van één plek die je zelf kiest als je de widget plaatst: de Inbox, een project (met de secties en subtaken), Vandaag, Aankomend of een <a href="#filters">opgeslagen filter</a>. Je kunt er meer plaatsen, elk met een eigen keuze.</td></tr>
       <tr><td><strong>Aankomend</strong></td><td class="wrap-ok">De komende twee weken vanaf morgen, per dag met een kopje. Wat te laat is, staat in Vandaag.</td></tr>
       <tr><td><strong>Notities</strong></td><td class="wrap-ok">Je <a href="notities.html">notities</a> als kaartjes in hun eigen kleur: vastgepinde eerst, dan de laatst gewijzigde. Op elk kaartje de titel, een paar regels tekst (een checklist met ○ en ✓) en bijvoorbeeld "1 van 3 gedaan". Tik op een kaartje om de notitie te openen, op + voor een nieuwe notitie. Gearchiveerde notities en de prullenbak staan er niet in; notities die iemand met je deelde wel.</td></tr>
       <tr><td><strong>Taak toevoegen</strong></td><td class="wrap-ok">Een knop (klein, 1×1 of breder) die het <a href="#klein-venster">kleine venster Taak toevoegen</a> opent, boven je startscherm, in het project dat je de vorige keer koos (eerst de Inbox).</td></tr>
@@ -48,6 +48,15 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
   </figure>
 </div>
 <p>Dit zijn <strong>nagebootste voorbeelden in HTML</strong>, geen schermafbeeldingen van een telefoon. Op een echt toestel kunnen de kleuren, de hoeken en de lettergrootte anders uitvallen, omdat de launcher en het thema van je telefoon daar invloed op hebben.</p>
+
+<h2 id="filters">Een filter in een widget</h2>
+<p>Kies bij <strong>Project of lijst</strong> een van je <a href="filters.html">opgeslagen filters</a> (onderaan de keuzelijst, met <em>(filter)</em> achter de naam). De widget toont dan dezelfde taken als het filter in de app, in dezelfde volgorde. Heeft het filter meer lijsten (met komma's, bijvoorbeeld <code>Werk: #Werk, Thuis: #Thuis</code>), dan krijgt elke lijst een kopje. De telefoon rekent het filter zelf uit, dus ook zonder internet en vlak na middernacht klopt <em>vandaag</em>.</p>
+<p>Bijna alles uit de filtertaal werkt: <code>vandaag</code>, <code>te laat</code>, <code>7 dagen</code>, <code>deze week</code>, een datum als <code>31-12</code> of <code>31 december</code>, <code>vóór:</code> en <code>na:</code>, <code>p1</code>, <code>#project</code>, <code>@label</code>, <code>/sectie</code>, <code>toegewezen aan</code>, <code>zoek:</code> en de haakjes en tekens <code>&amp;</code>, <code>|</code> en <code>!</code>. Twee dingen niet:</p>
+<ul>
+  <li><strong>Datums in gewone taal</strong>, zoals <em>donderdag</em>, <em>volgende week donderdag</em> of <em>eind januari</em>. Die kent alleen de app. De widget zegt dan welk deel hij niet kan lezen; gebruik in zo'n filter liever <code>7 dagen</code>, <code>deze week</code> of een datum als <code>31 dec</code>.</li>
+  <li><strong>Afgevinkte taken.</strong> Een widget bewaart alleen open taken, dus <code>afgevinkt</code> levert in een widget niets op.</li>
+</ul>
+<p>Bij <code>zoek:</code> telt van een lange beschrijving alleen het begin mee (de eerste 4000 tekens).</p>
 
 <h2>Een widget plaatsen</h2>
 <ol>
@@ -126,7 +135,7 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
 
 <h2>Wat nog niet kan</h2>
 <ul>
-  <li>Opgeslagen filters in een widget. De keuzelijst is voorbereid; filters komen later.</li>
+  <li>In een filter: datums in gewone taal, zoals <em>donderdag</em> of <em>eind januari</em> (zie <a href="#filters">Een filter in een widget</a>), en afgevinkte taken.</li>
   <li>Een taak in de widget bewerken, uitstellen of een datum geven; daarvoor open je de taak.</li>
   <li>Een notitie in de widget bewerken of een punt van een checklist afvinken; daarvoor open je de notitie.</li>
   <li>In het kleine venster een sectie, label, herinnering of een andere dag dan vandaag of morgen <em>kiezen</em>: typ het (<code>/sectie</code>, <code>@label</code>, <code>!30m</code>, <em>vrijdag</em>), of tik op <em>Openen in de app</em>.</li>

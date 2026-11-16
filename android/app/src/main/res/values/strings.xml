@@ -123,7 +123,12 @@
     <string name="widget_empty_upcoming">Niets gepland de komende twee weken</string>
     <string name="widget_empty_project">Geen open taken</string>
     <string name="widget_project_missing">Dit project is er niet meer. Kies een ander project.</string>
-    <string name="widget_filter_unsupported">Filters kunnen nog niet in een widget. Kies een project.</string>
+    <string name="widget_title_filter_fallback">Filter</string>
+    <string name="widget_choice_filter">%1$s (filter)</string>
+    <string name="widget_filter_missing">Dit filter bestaat niet meer. Kies een ander voor deze widget.</string>
+    <string name="widget_empty_filter">Niets in dit filter</string>
+    <string name="widget_filter_unknown_name">Dit filter noemt iets wat niet (meer) bestaat: %1$s</string>
+    <string name="widget_filter_unreadable">De widget kan dit deel van het filter niet lezen: %1$s. Datums in gewone taal, zoals donderdag, kent alleen de app; gebruik in een widget bijvoorbeeld 7 dagen, deze week of 31 dec.</string>
     <string name="widget_config_title">Wat moet de widget tonen?</string>
     <string name="widget_config_hint_signed_out">Log in in de app om je projecten hier te zien. Vandaag, Aankomend en Inbox kun je al kiezen.</string>
     <string name="widget_config_open_app">Tickory openen</string>

@@ -2,8 +2,7 @@ package io.github.wnijhof.tickory.core
 
 /**
  * Wat een lijstwidget toont. De keuze wordt per widget bewaard als tekst ([key]); nieuwe soorten komen erbij zonder dat
- * bewaarde keuzes veranderen. [Filter] is er voor later (opgeslagen filters van de web-app): de sleutel wordt al herkend
- * en bewaard, maar de widget kan er nog niets mee en toont dan een uitleg.
+ * bewaarde keuzes veranderen. [Filter] is een opgeslagen filter van de web-app (gelezen met [FilterLang]).
  */
 sealed class WidgetSource {
     abstract val key: String
@@ -47,14 +46,14 @@ sealed class WidgetSource {
 
 /** Eén regel in de keuzelijst van het configuratiescherm. */
 data class WidgetChoice(val source: WidgetSource, val kind: Kind, val label: String, val depth: Int) {
-    enum class Kind { TODAY, UPCOMING, INBOX, PROJECT }
+    enum class Kind { TODAY, UPCOMING, INBOX, PROJECT, FILTER }
 }
 
-/** Welke keuzes het configuratiescherm toont: de vaste lijsten en daarna de projecten van de gebruiker, als boom. */
+/** Welke keuzes het configuratiescherm toont: de vaste lijsten, de projecten van de gebruiker als boom, en de opgeslagen filters. */
 object WidgetChoices {
     /**
      * Vandaag, Binnenkort, Inbox, daarna alle niet-gearchiveerde projecten (zonder de Inbox) in de volgorde van de
-     * projectenboom. Filters komen hier later bij (zie [WidgetSource.Filter]).
+     * projectenboom, en tot slot de opgeslagen filters in hun eigen volgorde.
      */
     fun list(snapshot: WidgetSnapshot?): List<WidgetChoice> {
         val out = arrayListOf(
@@ -74,6 +73,9 @@ object WidgetChoices {
             }
         }
         walk(null, 0, emptySet())
+        for (f in snapshot.filters.sortedWith(compareBy({ it.orderKey }, { it.id }))) {
+            out.add(WidgetChoice(WidgetSource.Filter(f.id), WidgetChoice.Kind.FILTER, f.name, 0))
+        }
         return out
     }
 

@@ -76,6 +76,7 @@ class WidgetConfigActivity : ComponentActivity() {
         WidgetChoice.Kind.UPCOMING -> getString(R.string.widget_title_upcoming)
         WidgetChoice.Kind.INBOX -> getString(R.string.widget_title_inbox)
         WidgetChoice.Kind.PROJECT -> choice.label.ifBlank { getString(R.string.widget_title_project_fallback) }
+        WidgetChoice.Kind.FILTER -> getString(R.string.widget_choice_filter, choice.label.ifBlank { getString(R.string.widget_title_filter_fallback) })
     }
 
     private inner class ChoiceAdapter(private val choices: List<WidgetChoice>) : BaseAdapter() {

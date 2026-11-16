@@ -113,14 +113,20 @@ export function addContextFromHash(hash, knowsProject = () => true) {
 
 /**
  * Een vingerafdruk van alles wat in de widgets van de Android-app staat: van elke open taak de titel, datum, prioriteit,
- * plek en volgorde, de namen van de projecten, en van de notities (de widget Notities) wat op een kaartje staat. Verandert hij,
- * dan moet de Android-app de widgets verversen.
+ * plek, volgorde en labels, de namen van de projecten en labels, van de notities (de widget Notities) wat op een kaartje staat,
+ * en wat een opgeslagen filter in een widget kan veranderen (de filters zelf, toewijzing, deadline, beschrijving en de
+ * herinneringen). Verandert hij, dan moet de Android-app de widgets verversen.
  */
 export function widgetFingerprint(view) {
+  // de beschrijving telt alleen als een filter erin zoekt (zoek:/search:); anders verandert ze niets in een widget
+  const searching = [...(view.filters?.values() ?? [])].some((f) => !f.is_deleted && /(?:zoek|zoeken|search)\s*:/iu.test(f.query ?? ''));
   const lines = [];
   for (const t of view.tasks.values()) {
     if (t.checked) continue;
-    lines.push([t.id, t.content, t.due?.date ?? '', t.due?.recurrence ? 1 : 0, t.priority, t.project_id, t.section_id ?? '', t.parent_id ?? '', t.order_key].join(''));
+    lines.push([
+      t.id, t.content, t.due?.date ?? '', t.due?.recurrence ? 1 : 0, t.priority, t.project_id, t.section_id ?? '', t.parent_id ?? '', t.order_key,
+      (t.labels ?? []).join(' '), t.assignee_id ?? '', t.deadline ?? '', searching ? `${(t.description ?? '').length}:${(t.description ?? '').slice(0, 64)}` : '',
+    ].join(''));
   }
   const projects = [];
   for (const p of view.projects.values()) projects.push([p.id, p.name, p.parent_id ?? '', p.is_archived ? 1 : 0, p.order_key].join(''));
@@ -132,7 +138,14 @@ export function widgetFingerprint(view) {
   for (const n of view.notes?.values() ?? []) {
     notes.push([n.id, n.title ?? '', (n.content ?? '').length, n.updated_at ?? '', n.is_pinned ? 1 : 0, n.is_archived ? 1 : 0, n.trashed_at ?? '', n.background ?? ''].join(''));
   }
-  return [lines.sort().join(''), projects.sort().join(''), sections.sort().join(''), notes.sort().join('')].join('');
+  // filters in een widget: de filters zelf, de namen van de labels en de herinneringen ("heeft herinnering")
+  const filters = [];
+  for (const f of view.filters?.values() ?? []) filters.push([f.id, f.name, f.query, f.order_key].join(''));
+  const labels = [];
+  for (const l of view.labels?.values() ?? []) labels.push([l.id, l.name].join(''));
+  const reminders = [];
+  for (const r of view.reminders?.values() ?? []) reminders.push([r.id, r.task_id, r.type, r.due?.date ?? '', r.minute_offset ?? '', r.is_deleted ? 1 : 0].join(''));
+  return [lines, projects, sections, notes, filters, labels, reminders].map((list) => list.sort().join('')).join('');
 }
 
 /**

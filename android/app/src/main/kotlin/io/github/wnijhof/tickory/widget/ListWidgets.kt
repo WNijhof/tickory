@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.RemoteViews
 import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.ContentKind
+import io.github.wnijhof.tickory.core.WidgetContent
 import io.github.wnijhof.tickory.core.DueText
 import io.github.wnijhof.tickory.core.WidgetSize
 import io.github.wnijhof.tickory.core.WidgetSource
@@ -47,6 +48,18 @@ object ListWidgets {
     }
 
     @Suppress("DEPRECATION") // zie update()
+    /**
+     * Waarom een filter hier niets toont. Een naam die niet (meer) bestaat zegt de app ook; al het andere kan de app wel lezen
+     * (anders was het filter niet bewaard), dus dan gaat het om een datum in gewone taal, die alleen de app kent.
+     */
+    fun filterProblem(context: Context, c: WidgetContent): String {
+        val part = c.problem ?: ""
+        return when (c.filterError?.code) {
+            "unknown_project", "unknown_section", "unknown_label", "unknown_user" -> context.getString(R.string.widget_filter_unknown_name, part)
+            else -> context.getString(R.string.widget_filter_unreadable, part)
+        }
+    }
+
     fun render(context: Context, manager: AppWidgetManager, appWidgetId: Int, source: WidgetSource): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_list)
         val size = sizeOf(manager, appWidgetId)
@@ -71,18 +84,20 @@ object ListWidgets {
                 description = "$title, $count"
                 subtitle = if (c.kind == ContentKind.TODAY) "${todayLabel(context)} · $count" else count
                 message = when {
-                    c.kind == ContentKind.UNSUPPORTED -> context.getString(R.string.widget_filter_unsupported)
+                    c.kind == ContentKind.FILTER && c.missing -> context.getString(R.string.widget_filter_missing)
+                    c.filterError != null -> filterProblem(context, c)
                     c.missing -> context.getString(R.string.widget_project_missing)
                     c.count == 0 -> context.getString(
                         when (c.kind) {
                             ContentKind.TODAY -> R.string.widget_empty_today
                             ContentKind.UPCOMING -> R.string.widget_empty_upcoming
+                            ContentKind.FILTER -> R.string.widget_empty_filter
                             else -> R.string.widget_empty_project
                         },
                     )
                     else -> null
                 }
-                if (c.missing || c.kind == ContentKind.UNSUPPORTED) subtitle = null
+                if (c.missing || c.filterError != null) subtitle = null
             }
         }
 

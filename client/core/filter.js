@@ -178,7 +178,9 @@ function parseDay(text, env, tok) {
     if (!day) failAt('invalid_date', tok, { term: text });
     return day;
   }
-  // de Nederlandse datumherkenner; een herhaling ("elke dag") is geen datum
+  // de Nederlandse datumherkenner; een herhaling ("elke dag") is geen datum. Zonder (`naturalDates: false`, zoals de
+  // Android-app, die alleen de vaste vormen hierboven kent) is de rest geen datum.
+  if (!env.naturalDates) return null;
   const due = parseDateText(text, env.now);
   if (due && !due.recurrence && typeof due.date === 'string') return due.date.slice(0, 10);
   return null;
@@ -402,6 +404,7 @@ function makeEnv(ctx) {
   const env = {
     now,
     query: ctx.query,
+    naturalDates: ctx.naturalDates !== false,
     today: todayString(now),
     nowStr: nowString(now),
     userId,
@@ -527,7 +530,8 @@ function parse(q, tokens, env) {
 
 /**
  * @param {string} query
- * @param {{ now?: Date, userId?: string | null, view: object, users?: { id: string, username?: string, name?: string }[] }} ctx
+ * @param {{ now?: Date, userId?: string | null, view: object, users?: { id: string, username?: string, name?: string }[], naturalDates?: boolean }} ctx
+ *   `naturalDates: false`: alleen de vaste datumvormen (zoals de widgets van de Android-app), geen datums in gewone taal.
  * @returns {{
  *   ok: true,
  *   match: (task: object) => boolean,          // voldoet de taak (de hele filtertekst: alle lijsten samen)

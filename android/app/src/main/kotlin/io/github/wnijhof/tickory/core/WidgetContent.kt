@@ -28,13 +28,15 @@ sealed class WidgetRow {
     ) : WidgetRow()
 }
 
-enum class ContentKind { TODAY, UPCOMING, PROJECT, UNSUPPORTED }
+enum class ContentKind { TODAY, UPCOMING, PROJECT, FILTER }
 
 /**
  * Wat een widget toont.
  * @property count het aantal taken (niet het aantal regels, en vóór het inkorten)
- * @property projectName de naam van het project bij [ContentKind.PROJECT]
- * @property missing het project bestaat niet (meer) voor deze gebruiker: verwijderd, of geen lid meer
+ * @property projectName de naam van het project bij [ContentKind.PROJECT], of van het filter bij [ContentKind.FILTER]
+ * @property missing het project of filter bestaat niet (meer) voor deze gebruiker: verwijderd, of geen lid meer
+ * @property filterError het filter is hier niet te lezen (zie [FilterLang]); [problem] is het stuk van de zoekopdracht waar het
+ *   om gaat, zoals de web-app het aanwijst
  */
 data class WidgetContent(
     val kind: ContentKind,
@@ -42,6 +44,8 @@ data class WidgetContent(
     val rows: List<WidgetRow>,
     val count: Int,
     val missing: Boolean = false,
+    val filterError: FilterLang.Error? = null,
+    val problem: String? = null,
 )
 
 /**
@@ -80,7 +84,7 @@ object WidgetContentBuilder {
             WidgetSource.Upcoming -> upcoming(ctx, open, maxRows)
             WidgetSource.Inbox -> project(ctx, open, snapshot.inboxId, maxRows)
             is WidgetSource.Project -> project(ctx, open, source.id, maxRows)
-            is WidgetSource.Filter -> WidgetContent(ContentKind.UNSUPPORTED, null, emptyList(), 0)
+            is WidgetSource.Filter -> filter(ctx, open, source.id, maxRows)
         }
     }
 
@@ -167,6 +171,35 @@ object WidgetContentBuilder {
             group(inSection)
         }
         return WidgetContent(ContentKind.PROJECT, project.name, capped(rows, maxRows), count)
+    }
+
+    /**
+     * Een opgeslagen filter: de taken in de volgorde van de web-app; bij meer lijsten (komma's) een kop per lijst, lege lijsten
+     * weggelaten. Kan de widget het filter niet lezen (een datum in gewone taal), dan geen taken maar de fout.
+     */
+    private fun filter(ctx: Ctx, open: List<WidgetTask>, filterId: String, maxRows: Int): WidgetContent {
+        val filter = ctx.snapshot.filters.firstOrNull { it.id == filterId }
+            ?: return WidgetContent(ContentKind.FILTER, null, emptyList(), 0, missing = true)
+        return when (val outcome = FilterLang.evaluate(filter.query, ctx.snapshot, open, ctx.nowMs, ctx.zone)) {
+            is FilterLang.Outcome.Failed -> {
+                val e = outcome.error
+                val problem = filter.query.substring(e.position.coerceIn(0, filter.query.length), (e.position + e.length).coerceIn(0, filter.query.length))
+                WidgetContent(ContentKind.FILTER, filter.name, emptyList(), 0, filterError = e, problem = problem.trim().ifEmpty { null })
+            }
+            is FilterLang.Outcome.Ok -> {
+                val rows = ArrayList<WidgetRow>()
+                if (outcome.groups.size == 1) {
+                    for (t in outcome.tasks) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = false))
+                } else {
+                    for (group in outcome.groups) {
+                        if (group.tasks.isEmpty()) continue
+                        rows.add(WidgetRow.Header(group.name))
+                        for (t in group.tasks) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = false))
+                    }
+                }
+                WidgetContent(ContentKind.FILTER, filter.name, capped(rows, maxRows), outcome.tasks.size)
+            }
+        }
     }
 
     /** Taken als boom, platgeslagen met inspringniveau. Een taak zonder ouder in dezelfde lijst staat op het hoogste niveau. */

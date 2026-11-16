@@ -118,7 +118,12 @@
     <string name="widget_empty_upcoming">Nothing planned for the next two weeks</string>
     <string name="widget_empty_project">No open tasks</string>
     <string name="widget_project_missing">This project is gone. Choose another project.</string>
-    <string name="widget_filter_unsupported">Filters cannot be shown in a widget yet. Choose a project.</string>
+    <string name="widget_title_filter_fallback">Filter</string>
+    <string name="widget_choice_filter">%1$s (filter)</string>
+    <string name="widget_filter_missing">This filter no longer exists. Choose another one for this widget.</string>
+    <string name="widget_empty_filter">Nothing in this filter</string>
+    <string name="widget_filter_unknown_name">This filter mentions something that does not exist (any more): %1$s</string>
+    <string name="widget_filter_unreadable">The widget cannot read this part of the filter: %1$s. Dates in everyday words, such as Thursday, are only understood by the app; in a widget use, for example, 7 days, this week or 31 dec.</string>
     <string name="widget_config_title">What should the widget show?</string>
     <string name="widget_config_hint_signed_out">Sign in via the app to see your projects here. You can already choose Today, Upcoming and Inbox.</string>
     <string name="widget_config_open_app">Open Tickory</string>

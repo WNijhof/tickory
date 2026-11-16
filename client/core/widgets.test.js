@@ -87,6 +87,28 @@ test('widgetFingerprint verandert bij alles wat in de widgets staat en niet bij 
     await c.sync.syncNow();
     assert.notEqual(widgetFingerprint(c.store.view), before, name);
   }
+  // filters in een widget: een filter, een andere zoekopdracht, een deadline, een beschrijving en een herinnering veranderen hem
+  before = widgetFingerprint(c.store.view);
+  const filter = await c.actions.addFilter({ name: 'Belangrijk', query: 'p1' });
+  await c.sync.syncNow();
+  assert.notEqual(widgetFingerprint(c.store.view), before, 'een nieuw filter');
+  before = widgetFingerprint(c.store.view);
+  await c.actions.updateFilter(filter, { query: 'p1 | vandaag' });
+  await c.sync.syncNow();
+  assert.notEqual(widgetFingerprint(c.store.view), before, 'een andere zoekopdracht');
+  const task = await c.actions.addTask({ content: 'Offerte', project_id: c.inbox, due: { date: '2026-12-03T10:00' } });
+  await c.sync.syncNow();
+  for (const [name, change] of [
+    ['deadline', () => c.actions.updateTask(task, { deadline: '2026-12-10' })],
+    ['een filter dat zoekt', () => c.actions.updateFilter(filter, { query: 'zoek: klant' })],
+    ['beschrijving (er is een filter dat zoekt)', () => c.actions.updateTask(task, { description: 'voor de klant' })],
+    ['herinnering', () => c.actions.addReminder(task, { type: 'relative', minute_offset: 10 })],
+  ]) {
+    before = widgetFingerprint(c.store.view);
+    await change();
+    await c.sync.syncNow();
+    assert.notEqual(widgetFingerprint(c.store.view), before, name);
+  }
 });
 
 test('Android hoort een wijziging voor de widgets één keer per reeks, en niet buiten de app', async () => {

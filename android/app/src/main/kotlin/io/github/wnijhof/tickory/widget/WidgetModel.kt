@@ -54,7 +54,7 @@ object WidgetModel {
         WidgetSource.Upcoming -> context.getString(R.string.widget_title_upcoming)
         WidgetSource.Inbox -> content?.projectName ?: context.getString(R.string.widget_title_inbox)
         is WidgetSource.Project -> content?.projectName ?: context.getString(R.string.widget_title_project_fallback)
-        is WidgetSource.Filter -> context.getString(R.string.widget_title_project_fallback)
+        is WidgetSource.Filter -> content?.projectName?.ifBlank { null } ?: context.getString(R.string.widget_title_filter_fallback)
     }
 
     /** Waar "+" in de widget een taak laat toevoegen: Vandaag met vandaag als datum, een project in dat project. */

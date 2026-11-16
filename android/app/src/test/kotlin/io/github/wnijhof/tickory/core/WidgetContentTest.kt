@@ -215,9 +215,10 @@ class WidgetContentTest {
     }
 
     @Test
-    fun `een filter wordt herkend maar kan nog niet`() {
+    fun `een filter dat niet (meer) bestaat - geen taken en de melding dat het weg is`() {
         val content = build(snapshot(listOf(task("a", "2026-11-13"))), WidgetSource.Filter("f1"))
-        assertEquals(ContentKind.UNSUPPORTED, content.kind)
+        assertEquals(ContentKind.FILTER, content.kind)
+        assertTrue(content.missing)
         assertTrue(content.rows.isEmpty())
     }
 

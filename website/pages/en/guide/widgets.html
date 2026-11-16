@@ -18,7 +18,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
     </thead>
     <tbody>
       <tr><td><strong>Today</strong></td><td class="wrap-ok">What is overdue and what is due today, in the same order as in the app: by time first, then by priority. The date and the number of tasks are at the top. If there is nothing to do, it says so.</td></tr>
-      <tr><td><strong>Project or list</strong></td><td class="wrap-ok">The open tasks of one place that you choose when you place the widget: the Inbox, a project (with its sections and subtasks), Today or Upcoming. You can place more of them, each with its own choice. Saved filters cannot be shown yet; the list of choices is prepared for them.</td></tr>
+      <tr><td><strong>Project or list</strong></td><td class="wrap-ok">The open tasks of one place that you choose when you place the widget: the Inbox, a project (with its sections and subtasks), Today, Upcoming or a <a href="#filters">saved filter</a>. You can place more of them, each with its own choice.</td></tr>
       <tr><td><strong>Upcoming</strong></td><td class="wrap-ok">The next two weeks starting tomorrow, by day with a heading. What is overdue is in Today.</td></tr>
       <tr><td><strong>Notes</strong></td><td class="wrap-ok">Your <a href="notes.html">notes</a> as cards in their own colour: pinned ones first, then the most recently changed. Each card shows the title, a few lines of text (a checklist with ○ and ✓) and, for example, "1 of 3 done". Tap a card to open the note, or + for a new note. Archived notes and the bin are not included; notes someone shared with you are.</td></tr>
       <tr><td><strong>Add task</strong></td><td class="wrap-ok">A button (small, 1×1 or wider) that opens the <a href="#small-window">small Add task window</a> over your home screen, in the project you chose last time (at first the Inbox).</td></tr>
@@ -48,6 +48,15 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   </figure>
 </div>
 <p>These are <strong>simulated examples made in HTML</strong>, not screenshots of a phone. On a real device the colours, the corners and the text size can turn out differently, because your launcher and the theme of your phone influence them.</p>
+
+<h2 id="filters">A filter in a widget</h2>
+<p>With <strong>Project or list</strong>, choose one of your <a href="filters.html">saved filters</a> (at the bottom of the list, with <em>(filter)</em> after the name). The widget then shows the same tasks as the filter in the app, in the same order. If the filter has more lists (with commas, for example <code>Work: #Work, Home: #Home</code>), each list gets a heading. The phone works out the filter itself, so <em>today</em> is right even without internet and just after midnight.</p>
+<p>Almost everything in the filter language works: <code>today</code>, <code>overdue</code>, <code>7 days</code>, <code>this week</code>, a date such as <code>31-12</code> or <code>31 december</code>, <code>before:</code> and <code>after:</code>, <code>p1</code>, <code>#project</code>, <code>@label</code>, <code>/section</code>, <code>assigned to</code>, <code>search:</code> and the brackets and the signs <code>&amp;</code>, <code>|</code> and <code>!</code>. Two things do not:</p>
+<ul>
+  <li><strong>Dates in everyday words</strong>, such as the Dutch <em>donderdag</em> (Thursday) or <em>eind januari</em> (end of January). Only the app understands those. The widget then says which part it cannot read; in such a filter, use <code>7 days</code>, <code>this week</code> or a date such as <code>31 dec</code> instead.</li>
+  <li><strong>Completed tasks.</strong> A widget only keeps open tasks, so <code>completed</code> gives nothing in a widget.</li>
+</ul>
+<p>With <code>search:</code>, only the start of a long description counts (the first 4000 characters).</p>
 
 <h2>Placing a widget</h2>
 <ol>
@@ -126,7 +135,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 
 <h2>What does not work yet</h2>
 <ul>
-  <li>Saved filters in a widget. The list of choices is prepared; filters come later.</li>
+  <li>In a filter: dates in everyday (Dutch) words, such as <em>donderdag</em> (Thursday) or <em>eind januari</em> (end of January) (see <a href="#filters">A filter in a widget</a>), and completed tasks.</li>
   <li>Editing a task in the widget, postponing it or giving it a date; open the task for that.</li>
   <li>Editing a note in the widget or ticking off an item of a checklist; open the note for that.</li>
   <li>In the small window, <em>choosing</em> a section, label, reminder or a day other than today or tomorrow: type it (<code>/section</code>, <code>@label</code>, <code>!30m</code>), or tap <em>Open in the app</em>.</li>
