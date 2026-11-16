@@ -29,7 +29,7 @@ const daysLeft = (iso) => Math.max(1, Math.ceil((Date.parse(iso) - Date.now()) /
 export function inviteSection({ api, project }) {
   const list = h('ul', { class: 'device-list invite-list' });
   const note = h('p', { class: 'hint', role: 'status' });
-  const role = h('select', { class: 'field share-role', 'aria-label': t('invite.roleLabel'), dataset: { fk: 'invite-role' } },
+  const role = h('select', { class: 'field invite-role', 'aria-label': t('invite.roleLabel'), dataset: { fk: 'invite-role' } },
     SHARE_ROLES.map((r) => h('option', { value: r, selected: r === DEFAULT_SHARE_ROLE }, ROLE_LABEL[r]?.() ?? r)));
   const days = h('select', { class: 'field', 'aria-label': t('invite.daysLabel'), dataset: { fk: 'invite-days' } },
     DAYS.map((d) => h('option', { value: String(d), selected: d === 7 }, DAY_LABEL[d]())));
