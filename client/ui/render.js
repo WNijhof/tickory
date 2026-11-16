@@ -17,8 +17,10 @@
 import { isInboxId } from '../../shared/schema.js';
 import {
   archivedList, attachmentCounts, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
-  roleIn, subtaskCounts, tasksWithReminder, todayView, upcomingView,
+  mySettings, roleIn, subtaskCounts, tasksWithReminder, todayView, upcomingView,
 } from '../core/selectors.js';
+import { comparator, groupRows, sortTasks } from '../core/listOptions.js';
+import { isDefaultOptions, optionsFor, viewKey } from '../../shared/viewOptions.js';
 import { formatDayHeading } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
 import { rowModel } from '../core/rowModel.js';
@@ -370,6 +372,15 @@ function sharedWith(view, projectId, me, userName) {
 const addInline = (handlers, target, label = t('quick.addTask')) =>
   h('button', { class: 'add-inline', type: 'button', onclick: () => handlers.quickAdd(target) }, icon('plus'), label);
 
+/** De knop "Sorteren" bovenaan een lijst: opent de keuze voor sorteren en groeperen; ze is gemarkeerd zolang er een eigen keuze geldt. */
+const optionsButton = (handlers, route, options) => h('button', {
+  class: `button button-small button-ghost btn-options${options.sort === 'manual' && options.group === 'default' ? '' : ' active'}`, type: 'button',
+  'aria-haspopup': 'dialog', dataset: { fk: 'list-options' }, onclick: () => handlers.viewOptions(route),
+}, icon('sliders'), h('span', { class: 'btn-label' }, t('listopt.button')));
+
+/** Groepen van een eigen indeling (`groupRows`) als blokken met een kop en het aantal; zonder plek om te slepen of toe te voegen. */
+const optionGroups = (groups, make) => groups.map((g) => group({ title: g.title, rows: make(g), total: g.tasks }));
+
 /**
  * @returns {{ title: string, count: number | null, lead: Node | null, actions: Node[], nodes: Node[] }}
  */
@@ -389,19 +400,25 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   if (route.type === 'today') {
     const list = todayView(view, today);
     const total = list.overdue.length + list.today.length;
+    const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
+    const lctx = { view, today, me, userName };
+    const sort = (tasks) => sortTasks(tasks, opts, lctx).map((task) => ({ task }));
+    const grouped = groupRows(sort([...list.overdue, ...list.today]), opts.group, lctx);
     return finish({
       title: t('nav.today'),
       count: total,
       lead: icon('today'),
-      actions: [],
-      nodes: [
-        list.overdue.length > 0 && group({ title: t('view.overdue'), rows: rows(list.overdue.map((task) => ({ task })), true), total: list.overdue.length }),
-        group({
-          title: formatDayHeading(today, today), rows: rows(list.today.map((task) => ({ task })), true), total: list.today.length,
-          footer: addInline(handlers, { due: 'today' }),
-        }),
-        total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }),
-      ],
+      actions: [optionsButton(handlers, route, opts)],
+      nodes: grouped
+        ? [...optionGroups(grouped, (g) => rows(g.rows, true)), total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }), addInline(handlers, { due: 'today' })]
+        : [
+          list.overdue.length > 0 && group({ title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length }),
+          group({
+            title: formatDayHeading(today, today), rows: rows(sort(list.today), true), total: list.today.length,
+            footer: addInline(handlers, { due: 'today' }),
+          }),
+          total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }),
+        ],
     });
   }
 
@@ -415,18 +432,25 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       });
     }
     const days = upcomingView(view, today);
+    const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
+    const lctx = { view, today, me, userName };
+    const grouped = groupRows(sortTasks(days.flatMap((d) => d.tasks), opts, lctx).map((task) => ({ task })), opts.group, lctx);
     return finish({
       title: t('nav.upcoming'),
       count: days.reduce((sum, d) => sum + d.tasks.length, 0),
       lead: icon('upcoming'),
-      actions: [switcher],
-      nodes: days.length > 0
-        ? days.map((d) => group({ title: formatDayHeading(d.date, today), rows: rows(d.tasks.map((task) => ({ task })), true), total: d.tasks.length }))
-        : [emptyState({ title: t('view.upcomingEmptyTitle'), text: t('view.upcomingEmpty') })],
+      actions: [optionsButton(handlers, route, opts), switcher],
+      nodes: days.length === 0
+        ? [emptyState({ title: t('view.upcomingEmptyTitle'), text: t('view.upcomingEmpty') })]
+        : grouped
+          ? optionGroups(grouped, (g) => rows(g.rows, true))
+          : days.map((d) => group({ title: formatDayHeading(d.date, today), rows: rows(sortTasks(d.tasks, opts, lctx).map((task) => ({ task })), true), total: d.tasks.length })),
     });
   }
 
-  const pv = projectView(view, route.id, { showCompleted });
+  const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
+  const lctx = { view, today, me, userName };
+  const pv = projectView(view, route.id, { showCompleted, compare: comparator(opts, lctx) });
   if (!pv) return finish({ title: t('view.projectTitle'), count: null, lead: null, actions: [], nodes: [emptyState({ title: t('view.projectGone') })] });
   const project = pv.project;
   const inbox = isInboxId(project.id);
@@ -439,6 +463,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   // een project dat je alleen leest: niets toevoegen, slepen of indelen; de weergave kiest wie kan bewerken (ze geldt voor iedereen)
   const readOnly = !canEditProject(view, project.id, me?.id);
   const actions = [
+    style === 'list' && optionsButton(handlers, route, opts),
     !readOnly && viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
     headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
     !inbox && headButton('btn-share', readOnly ? 'eye' : 'users', readOnly ? t('project.members') : isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
@@ -475,12 +500,18 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       ],
     });
   }
-  const sectionGroups = pv.groups.map((g) => {
+  // een eigen sortering of indeling: de plekken om te slepen vervallen (de volgorde is dan niet de eigen volgorde)
+  const grouped = groupRows(pv.groups.flatMap((g) => g.tasks), opts.group, lctx);
+  const dropHere = (target) => (archived || !isDefaultOptions(opts) ? null : target);
+  const sectionGroups = grouped ? grouped.map((g) => group({
+    title: g.title, total: g.tasks,
+    rows: rows(readOnly ? g.rows.map((r, i) => ({ ...r, hasChildren: (g.rows[i + 1]?.depth ?? 0) > r.depth, collapsed: false })) : foldRows(g.rows), false),
+  })) : pv.groups.map((g) => {
     // een lezer klapt niets in of uit (dat hoort bij de taak, voor iedereen): hij ziet alles uitgeklapt
     const folded = readOnly ? g.tasks.map((r, i) => ({ ...r, hasChildren: (g.tasks[i + 1]?.depth ?? 0) > r.depth, collapsed: false })) : foldRows(g.tasks);
     const items = rows(folded, false);
     if (!g.section) {
-      return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)), drop: archived ? null : { projectId: project.id } });
+      return (folded.length > 0 || pv.groups.length > 1) && group({ title: null, rows: items, total: g.tasks.length, footer: !archived && addInline(handlers, addTarget(null)), drop: dropHere({ projectId: project.id }) });
     }
     const section = g.section;
     return group({
@@ -488,7 +519,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       collapsible: readOnly ? null : { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
       extra: !readOnly && h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
       footer: !archived && addInline(handlers, addTarget(section)),
-      drop: archived ? null : { projectId: project.id, sectionId: section.id },
+      drop: dropHere({ projectId: project.id, sectionId: section.id }),
     });
   });
   return finish({

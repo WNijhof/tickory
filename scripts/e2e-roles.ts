@@ -41,7 +41,7 @@ export async function rolesScenario(c: any) {
   assert.equal(await evaluate(`document.querySelectorAll('#content .add-inline').length`), 0, 'geen "Taak toevoegen"');
   assert.equal(await evaluate(`[...document.querySelectorAll('#content button')].some((b) => b.textContent.includes('Sectie toevoegen'))`), false, 'geen "Sectie toevoegen"');
   assert.equal(await evaluate(`document.querySelectorAll('#content .group-more, #content .group-toggle, #content .drag-handle, #content .sel-box').length`), 0, 'geen sectiemenu, inklappen, handvat of keuzevakje');
-  assert.deepEqual(await buttons('.view-actions'), ['Opmerkingen', 'Leden bekijken', 'Project…'], 'geen keuze van de weergave');
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Opmerkingen', 'Leden bekijken', 'Project…'], 'geen keuze van Lijst, Bord of Kalender (wel van de eigen sortering)');
   assert.ok(await evaluate(`[...document.querySelectorAll('#content li.task')].every((li) => li.classList.contains('task-readonly') && li.querySelector('.check').getAttribute('aria-disabled') === 'true')`));
   assert.equal(await evaluate(`[...document.querySelectorAll('#content .task-title')].map((e) => e.textContent).includes('Aanbetaling doen')`), true, 'subtaken staan uitgeklapt');
   // aanwijzen geeft geen snelle knoppen; het rondje zegt dat afvinken niet kan, en er verandert niets

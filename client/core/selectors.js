@@ -101,7 +101,7 @@ export function navProjects(view) {
 export const favoriteProjects = (view) => projectList(view).map((x) => x.project).filter((p) => p.is_favorite && !isInboxId(p.id));
 
 /** Taken als boom, platgeslagen met inspringniveau. Een taak zonder zichtbare ouder in de lijst staat op het hoogste niveau. */
-function tree(tasks) {
+function tree(tasks, compare = byOrder) {
   const ids = new Set(tasks.map((t) => t.id));
   const children = new Map();
   for (const t of tasks) {
@@ -111,7 +111,7 @@ function tree(tasks) {
   }
   const out = [];
   const walk = (parentId, depth) => {
-    for (const t of (children.get(parentId) ?? []).sort(byOrder)) {
+    for (const t of (children.get(parentId) ?? []).sort(compare)) {
       out.push({ task: t, depth });
       walk(t.id, depth + 1);
     }
@@ -124,7 +124,7 @@ function tree(tasks) {
  * Eén project: de taken zonder sectie, gevolgd door elke sectie met haar taken.
  * @returns {{ project: object, groups: { section: object | null, tasks: { task: object, depth: number }[] }[], completedCount: number } | null}
  */
-export function projectView(view, projectId, { showCompleted = false } = {}) {
+export function projectView(view, projectId, { showCompleted = false, compare = byOrder } = {}) {
   const project = view.projects.get(projectId);
   if (!project) return null;
   const all = [...view.tasks.values()].filter((t) => t.project_id === projectId);
@@ -132,7 +132,7 @@ export function projectView(view, projectId, { showCompleted = false } = {}) {
   const sections = [...view.sections.values()].filter((s) => s.project_id === projectId && !s.is_archived).sort(byOrder);
   const known = new Set(sections.map((s) => s.id));
   const inSection = (id) => visible.filter((t) => (known.has(t.section_id) ? t.section_id : null) === id);
-  const groups = [{ section: null, tasks: tree(inSection(null)) }, ...sections.map((s) => ({ section: s, tasks: tree(inSection(s.id)) }))];
+  const groups = [{ section: null, tasks: tree(inSection(null), compare) }, ...sections.map((s) => ({ section: s, tasks: tree(inSection(s.id), compare) }))];
   return { project, groups, completedCount: all.filter((t) => t.checked).length };
 }
 

@@ -43,6 +43,7 @@ import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installBottomNav } from './bottomNav.js';
+import { listOptionsDialog } from './listOptionsDialog.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
 import { installProductivity, isProductivityRoute } from './productivity.js';
@@ -276,6 +277,9 @@ const handlers = {
     const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: reschedule(task.due, picked.date) }));
     undoToast(picked.date ? t('undo.taskDated', { name: task.content, date: formatDue({ date: picked.date }, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
   },
+
+  /** Sorteren en groeperen van de lijst waar je nu in staat: bewaard bij je instellingen, dus op al je apparaten. */
+  viewOptions: (route) => listOptionsDialog({ route, view: store.view, userId: store.userId, update: (view_options) => actions.updateSettings({ view_options }) }),
 
   /** Lijst, bord of kalender voor een project; bewaard in het project zelf (`view_style`), dus ook op andere apparaten en voor de leden. */
   setViewStyle: (project, style) => actions.updateProject(project.id, { view_style: style }),

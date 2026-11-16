@@ -573,6 +573,8 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .dialog-buttons-start { justify-content: flex-start; }
 
 /* ---------- weergaven: keuze, bord en kalender (ui/viewSwitch.js, ui/board.js, ui/calendar.js) ---------- */
+.btn-options.active { color: var(--text); background: var(--accent-soft); }
+.options-grid { display: grid; gap: 14px; }
 .view-switch { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 9px; overflow: hidden; margin-right: 6px; background: var(--bg); }
 .view-switch-button { border: 0; border-radius: 0; background: none; color: var(--text-soft); min-height: 34px; padding: 4px 11px; }
 .view-switch-button + .view-switch-button { border-left: 1px solid var(--line); }

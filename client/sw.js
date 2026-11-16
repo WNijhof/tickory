@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v100';
+const CACHE = 'tickory-v101';
 const SHELL = [
   '/',
   '/app.css',
@@ -25,6 +25,7 @@ const SHELL = [
   '/icon-512.png',
   '/ui/app.js',
   '/ui/activity.js',
+  '/ui/listOptionsDialog.js',
   '/ui/exportDialog.js',
   '/ui/importDialog.js',
   '/ui/appearance.js',
@@ -115,6 +116,7 @@ const SHELL = [
   '/core/voice.js',
   '/core/searchKeys.js',
   '/core/selection.js',
+  '/core/listOptions.js',
   '/core/selectors.js',
   '/core/shortcuts.js',
   '/core/sso.js',
@@ -144,6 +146,7 @@ const SHELL = [
   '/shared/stats.js',
   '/shared/template.js',
   '/shared/text.js',
+  '/shared/viewOptions.js',
 ];
 
 self.addEventListener('install', (event) => {

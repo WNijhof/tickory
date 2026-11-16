@@ -11,6 +11,7 @@ import { TEMPLATE_KINDS, TEMPLATE_LIMITS, contentCheck } from './template.js';
 import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notifications.js';
 import { ROLES } from './roles.js';
 import { GOALS, daysOffCheck } from './stats.js';
+import { viewOptionsCheck } from './viewOptions.js';
 
 /**
  * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification'} EntityName
@@ -225,6 +226,9 @@ export const ENTITIES = {
       { name: 'goal_daily', type: 'int', nullable: true, default: null, min: GOALS.daily.min, max: GOALS.daily.max },
       { name: 'goal_weekly', type: 'int', nullable: true, default: null, min: GOALS.weekly.min, max: GOALS.weekly.max },
       { name: 'days_off', type: 'json', nullable: true, default: null, check: daysOffCheck },
+      // Hoe de lijsten gesorteerd en gegroepeerd worden: { 'project:<id>' | 'today' | 'upcoming': { sort, dir, group } } (shared/viewOptions.js).
+      // null = overal de standaard.
+      { name: 'view_options', type: 'json', nullable: true, default: null, check: viewOptionsCheck },
       owner(),
     ],
   },

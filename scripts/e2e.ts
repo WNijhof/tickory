@@ -38,6 +38,7 @@ import { notifyScenario } from './e2e-notify.ts';
 import { accountScenario } from './e2e-account.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
+import { listsScenario } from './e2e-lists.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
@@ -718,7 +719,7 @@ try {
     ['Navigation', 'Views', 'Main menu', 'Add project', 'Shared project', 'Click to sync now']);
   assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent]`),
     [en['quick.placeholder'], 'Add task', 'Add']);
-  assert.deepEqual(await buttons('.view-actions'), ['List', 'Board', 'Calendar', 'Comments', 'Shared', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Sort', 'List', 'Board', 'Calendar', 'Comments', 'Shared', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Add section']);
   assert.equal(await evaluate(`document.querySelector('.shared-with').textContent`), 'Shared with Bob');
   assert.equal(await evaluate(`document.title`), 'Thuis · Tickory');
@@ -1027,7 +1028,7 @@ try {
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), 'nl');
   assert.deepEqual(await texts('.nav-item .nav-label'), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Thuis', 'Alice']);
   assert.deepEqual(await texts('.nav-heading span, .sidebar-footer .nav-count'), ['Projecten', 'Instellingen']);
-  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Gedeeld', 'Project…']);
   assert.deepEqual(await buttons('.toolbar'), ['Sectie toevoegen']);
   assert.deepEqual(await evaluate(`[document.getElementById('quick-input').placeholder, document.getElementById('quick-input').getAttribute('aria-label'), document.querySelector('#quick-add button[type=submit]').textContent, document.getElementById('sync-status').title, document.getElementById('sidebar').getAttribute('aria-label')]`),
     ['Nieuwe taak, bv. Bellen morgen p1', 'Taak toevoegen', 'Toevoegen', 'Klik om nu bij te werken', 'Navigatie']);
@@ -1334,7 +1335,7 @@ try {
   assert.equal(projectOnServer('Schuur').is_archived, true);
   assert.ok(!(await labelsOfNav()).includes('Schuur'), 'een gearchiveerd project staat niet in de zijbalk');
   assert.ok(await evaluate(`[...document.querySelectorAll('.nav-link')].some((b) => b.textContent.trim() === 'Gearchiveerde projecten')`), 'de regel "Gearchiveerde projecten" verschijnt');
-  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen'], 'de Inbox heeft geen menu, delen of archiveren');
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen'], 'de Inbox heeft geen menu, delen of archiveren');
   await closeToasts();
   await click('.nav-link');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Gearchiveerde projecten'`, 'archief');
@@ -1508,7 +1509,7 @@ try {
   assert.equal((serverState().comments as any[]).filter((c) => c.project_id === thuisId).length, 1);
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
-  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   step('opmerkingen: toevoegen (ook met Ctrl+Enter), regeleinden en webadressen als gewone link, HTML blijft tekst, bewerken en verwijderen alleen van jezelf, een opmerking van Bob verschijnt vanzelf, teller in de lijst, opmerkingen bij een project');
 
   // ---- 8g1. meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts) ----
@@ -1520,6 +1521,9 @@ try {
 
   // ---- 8g1c. het productiviteitsoverzicht (scripts/e2e-productivity.ts) ----
   await productivityScenario({ ...notifyCtx(), startServer, stopServer });
+
+  // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
+  await listsScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
@@ -1695,7 +1699,7 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (Engels)');
   assert.deepEqual(await texts('.nav-heading span'), ['Favorites', 'Projects']);
   assert.equal(await evaluate(`document.querySelector('.sidebar-add').textContent`), 'Add task');
-  assert.deepEqual(await buttons('.view-actions'), ['List', 'Board', 'Calendar', 'Comments (1)', 'Shared', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Sort', 'List', 'Board', 'Calendar', 'Comments (1)', 'Shared', 'Project…']);
   assert.equal(await evaluate(`document.querySelector('#view-count').textContent`), `${(serverState().tasks as any[]).filter((x) => x.project_id === thuisId && !x.checked).length} tasks`, 'het aantal open taken in de kop');
   assert.equal(await evaluate(`document.querySelector('button.nav-toggle').getAttribute('aria-label')`), 'Hide subprojects of Thuis');
   assert.equal(await evaluate(`${row('Afwasmachine uitruimen')}.querySelector('.chip-toggle').getAttribute('aria-label')`), 'Subtasks: 0/1 done');
@@ -3020,7 +3024,7 @@ try {
   assert.deepEqual(await buttons(), ['Bewerken…', 'Subproject toevoegen', 'Taak uit sjabloon…', 'Opslaan als sjabloon…', 'Aan favorieten toevoegen', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten', 'Sluiten'], 'een lid ziet geen "Archiveren" en geen "Project verwijderen", zoals de server het ook weigert');
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await noDialog();
-  assert.deepEqual(await buttons('.view-actions'), ['Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen (1)', 'Gedeeld', 'Project…']);
   await openTask('Afwasmachine uitruimen');
   assert.deepEqual(await texts('#task-dialog .comment-author'), ['Alice', 'Bob']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .comment')].map((c) => c.querySelectorAll('.comment-tools button').length)`), [0, 2], 'Bob kan alleen zijn eigen opmerking wijzigen of verwijderen');
