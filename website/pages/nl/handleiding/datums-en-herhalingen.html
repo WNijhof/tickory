@@ -281,6 +281,18 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
 <p>Klik op een taak en je vindt het veld <x-ui k="task.due"></x-ui>. Daar typ je dezelfde taal als hierboven. Onder het veld staat meteen wat de app ervan maakt (“Wordt: do 26 nov”), zodat je bij een aanduiding als “volgende week donderdag” ziet welke dag het wordt. Herkent de app de tekst niet, dan staat dat er en wordt de taak niet opgeslagen tot je het verbetert. Maak het veld leeg om de datum weg te halen. Heeft de taak al een datum, dan staat die in het veld als <code>17-11-2026 om 17:30</code> (een herhaling zoals je ze typte).</p>
 <p>Onder het veld staan ook snelle keuzes (<x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui>, <x-ui k="task.quickNone"></x-ui>); zie <a href="taakvenster.html">Het taakvenster</a>. De <strong>deadline</strong> kies je met de datumkiezer van je browser.</p>
 
+<h3 id="herhalen-met-knoppen">Herhalen met knoppen</h3>
+<p>Liever klikken dan typen? Kies <x-ui k="task.quickRepeat"></x-ui> onder het datumveld. Bovenaan staan vaste keuzes die passen bij de datum in het veld (of vandaag): <em>Elke dag</em>, <em>Elke werkdag (ma–vr)</em>, <em>Elke week op dinsdag</em>, <em>Elke maand op de 17e</em> en <em>Elk jaar op 17 november</em>. Herhaalt de taak al, dan staat er ook <x-ui k="repeat.none"></x-ui>: de datum blijft, de herhaling gaat eraf.</p>
+<p>Onder <x-ui k="repeat.custom"></x-ui> stel je zelf in:</p>
+<ul>
+  <li><strong>Hoe vaak:</strong> elke zoveel dagen, weken, maanden of jaren (tot 999).</li>
+  <li><strong>Bij weken:</strong> op welke dagen, bijvoorbeeld maandag en donderdag.</li>
+  <li><strong>Bij maanden:</strong> een dag (de 15e), de laatste dag, of bijvoorbeeld de tweede dinsdag of de laatste vrijdag van de maand.</li>
+  <li><strong>Bij jaren:</strong> de datum.</li>
+  <li><strong>Een tijd</strong> (niet verplicht), en <x-ui k="repeat.fromCompletion"></x-ui>: dan telt de volgende keer vanaf het moment dat je de taak afvinkt.</li>
+</ul>
+<p>Eronder staat wat het wordt en wanneer de eerste keer is (<em>Wordt: Om de 2 weken op maandag en donderdag om 9:00, voor het eerst do 19 nov 09:00</em>). Met <x-ui k="repeat.apply"></x-ui> (of Enter in een van de velden) komt de herhaling als tekst in het datumveld, bijvoorbeeld <code>elke 2 ma en do om 9:00</code>; je ziet dus ook hoe je hem de volgende keer zelf typt. Bewaard wordt pas met <x-ui k="common.save"></x-ui>. Escape sluit alleen het paneel.</p>
+
 <h2>Hoe datums in de lijst staan</h2>
 <ul>
   <li><strong>vandaag</strong>, <strong>morgen</strong> en <strong>gisteren</strong> staan er als woord; een dag binnen een week als weekdag (“vrijdag”); verder weg als “do 26 nov”, en in een ander jaar met het jaartal erbij.</li>

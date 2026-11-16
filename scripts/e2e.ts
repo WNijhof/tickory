@@ -43,6 +43,7 @@ import { listsScenario } from './e2e-lists.ts';
 import { quickScenario } from './e2e-quick.ts';
 import { timelineScenario } from './e2e-timeline.ts';
 import { swipeScenario } from './e2e-swipe.ts';
+import { repeatScenario } from './e2e-repeat.ts';
 import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
@@ -435,6 +436,13 @@ try {
   // de tijdlijn (scripts/e2e-timeline.ts); met E2E_TIMELINE_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_TIMELINE_ONLY) {
     try { await timelineScenario({ ...notifyCtx(), startServer, stopServer }); await swipeScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN TIJDLIJN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-tijdlijn'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // herhalen met knoppen (scripts/e2e-repeat.ts); met E2E_REPEAT_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_REPEAT_ONLY) {
+    try { await repeatScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN HERHALEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-herhalen'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -1579,6 +1587,7 @@ try {
   await quickScenario({ ...notifyCtx(), startServer, stopServer });
   await timelineScenario({ ...notifyCtx(), startServer, stopServer });
   await swipeScenario({ ...notifyCtx(), startServer, stopServer });
+  await repeatScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
   await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });

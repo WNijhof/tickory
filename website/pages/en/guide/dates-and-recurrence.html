@@ -281,6 +281,18 @@ description: All dates and recurrences Tickory understands in plain Dutch, with 
 <p>Click a task and you find the field <x-ui k="task.due"></x-ui>. There you type the same language as above. Right below the field the app shows what it makes of it (<em>Will be: Thu 26 Nov</em>), so that with a phrase like “volgende week donderdag” you can see which day it will be. If the app does not recognise the text, it says so and the task is not saved until you correct it. Empty the field to remove the date. If the task already has a date, the English interface shows it in the field as <code>2026-11-17T17:30</code> (a recurrence as you typed it); the Dutch interface shows <code>17-11-2026 om 17:30</code>.</p>
 <p>Below the field are quick choices too (<x-ui k="task.quickToday"></x-ui>, <x-ui k="task.quickTomorrow"></x-ui>, <x-ui k="task.quickWeekend"></x-ui>, <x-ui k="task.quickNextWeek"></x-ui>, <x-ui k="task.quickNone"></x-ui>); see <a href="task-window.html">The task window</a>. The <strong>deadline</strong> is chosen with your browser's date picker.</p>
 
+<h3 id="repeat-with-buttons">Repeating with buttons</h3>
+<p>Rather click than type? Choose <x-ui k="task.quickRepeat"></x-ui> below the date field. At the top are fixed choices that fit the date in the field (or today): <em>Every day</em>, <em>Every weekday (Mon–Fri)</em>, <em>Every week on Tuesday</em>, <em>Every month on day 17</em> and <em>Every year on 17 November</em>. If the task already repeats, there is also <x-ui k="repeat.none"></x-ui>: the date stays, the recurrence goes.</p>
+<p>Under <x-ui k="repeat.custom"></x-ui> you set it yourself:</p>
+<ul>
+  <li><strong>How often:</strong> every so many days, weeks, months or years (up to 999).</li>
+  <li><strong>With weeks:</strong> on which days, for example Monday and Thursday.</li>
+  <li><strong>With months:</strong> a day (the 15th), the last day, or for example the second Tuesday or the last Friday of the month.</li>
+  <li><strong>With years:</strong> the date.</li>
+  <li><strong>A time</strong> (optional), and <x-ui k="repeat.fromCompletion"></x-ui>: the next time then counts from the moment you complete the task.</li>
+</ul>
+<p>Below it you see what it will be and when the first time is (<em>Will be: Every 2 weeks on Monday and Thursday at 9:00, first on Thu 19 Nov 09:00</em>). With <x-ui k="repeat.apply"></x-ui> (or Enter in one of the fields) the recurrence goes into the date field as Dutch text, for example <code>elke 2 ma en do om 9:00</code>, the date language the app reads; so you also see how to type it yourself next time. It is only saved with <x-ui k="common.save"></x-ui>. Escape only closes the panel.</p>
+
 <h2>How dates are shown in the list</h2>
 <ul>
   <li><strong>today</strong>, <strong>tomorrow</strong> and <strong>yesterday</strong> are shown as words; a day within a week as a weekday (“Friday”); further away as “Thu 26 Nov”, and with the year added in another year. (In the Dutch interface: vandaag, morgen, gisteren, “vrijdag”, “do 26 nov”.)</li>

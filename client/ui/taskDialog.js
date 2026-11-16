@@ -17,6 +17,7 @@ import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './do
 import { taskLink } from '../core/duplicate.js';
 import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
+import { repeatPicker } from './repeatPicker.js';
 import { attachmentsSection } from './attachments.js';
 import { renderMarkdown } from './markdown.js';
 import { toggleTask } from '../core/markdown.js';
@@ -89,7 +90,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     };
 
     // ---- datum ----
-    const due = h('input', { class: 'field', type: 'text', value: initialDue, readOnly, placeholder: t('task.duePlaceholder'), autocomplete: 'off' });
+    const due = h('input', { class: 'field', type: 'text', value: initialDue, readOnly, placeholder: t('task.duePlaceholder'), autocomplete: 'off', dataset: { fk: 'task-due' } });
     const dueHint = h('p', { class: 'hint', 'aria-live': 'polite' });
     const deadline = h('input', { class: 'field', type: 'date', value: task.deadline ?? '', readOnly });
     // duur: een keuze uit de gewone lengtes, plus de huidige als die er niet bij hoort (bijvoorbeeld =1u20 in snel toevoegen)
@@ -106,9 +107,11 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       },
     }, label);
     const dates = quickDates(today());
+    // "Herhalen" opent onder de snelle keuzes een paneel met herhalingen (ui/repeatPicker.js); de keuze komt als tekst in het veld
+    const repeat = repeatPicker({ field: due, today });
     const quickRow = h('div', { class: 'quick-dates', role: 'group', 'aria-label': t('task.quickDates'), hidden: readOnly },
       quick(t('task.quickToday'), dates.today), quick(t('task.quickTomorrow'), dates.tomorrow), quick(t('task.quickWeekend'), dates.weekend),
-      quick(t('task.quickNextWeek'), dates.nextWeek), quick(t('task.quickNone'), null));
+      quick(t('task.quickNextWeek'), dates.nextWeek), repeat.button, quick(t('task.quickNone'), null));
 
     // ---- prioriteit ----
     let priorityValue = task.priority;
@@ -386,6 +389,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
             !parent && field(t('task.section'), section),
             field(t('task.due'), due, dueHint),
             quickRow,
+            !readOnly && repeat.panel,
             h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.priority')), priorityGroup),
             h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.labels')), h('div', { class: 'label-field' }, labelBox, labelOptions)),
             assigneeField,

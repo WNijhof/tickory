@@ -81,7 +81,7 @@ test('de Engelse teksten zijn ook echt vertaald (alleen bewust gelijke teksten z
   const same = new Set([
     'bottomNav.inbox', 'sync.offline', 'task.deadlineChip', 'task.deadline', 'task.labels', 'activity.field.labels', 'activity.field.deadline', 'bulk.labels', 'task.project', 'completed.project', 'completed.projectOption', 'project.menu', 'view.projectTitle',
     'settings.language', 'account.title', 'admin.accounts', 'command.noun.project', 'command.noun.label', 'command.noun.filter',
-    'reminder.line', 'color.magenta', 'calendar.week', 'calendar.weekNumber', 'calendar.weekShort',
+    'reminder.line', 'color.magenta', 'calendar.week', 'calendar.weekNumber', 'calendar.weekShort', 'repeat.unitWeek',
     'duration.min', 'duration.days', 'export.projectLabel', 'appearance.accent.indigo', 'search.kind.project', 'search.kind.label', 'search.kind.filter', 'filters.title', 'labels.title', 'filter.queryLabel', 'attachment.meta',
     'admin.ssoBadge',
     'import.count.labels',
