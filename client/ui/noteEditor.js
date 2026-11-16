@@ -9,7 +9,9 @@ import { NOTE_LIMITS } from '../../shared/schema.js';
 import { notePrefsOf } from '../../shared/notes.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
-import { editedText, noteTitle, trashDaysLeft } from '../core/notes.js';
+import { editedText, noteReminderInfo, noteTitle, reminderPresets, trashDaysLeft } from '../core/notes.js';
+import { NOTE_REPEATS } from '../../shared/notes.js';
+import { formatDue, todayString } from '../core/format.js';
 import { labelList, mySettings } from '../core/selectors.js';
 import { confirmDialog, h, menuDialog, openDialog, promptDialog, toast } from './dom.js';
 import { icon } from './icons.js';
@@ -18,6 +20,11 @@ import { backgroundPicker, bgClass } from './noteLook.js';
 import { saveTextFile } from './exportDialog.js';
 
 const SAVE_DELAY_MS = 600;
+// letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
+const REPEAT_LABEL = {
+  none: () => t('note.repeatNone'), daily: () => t('note.repeatDaily'), weekly: () => t('note.repeatWeekly'),
+  monthly: () => t('note.repeatMonthly'), yearly: () => t('note.repeatYearly'),
+};
 
 /**
  * @param {{ store: import('../core/store.js').Store, actions: object, noteId: string, created?: boolean }} options
@@ -110,8 +117,10 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
           h('button', { type: 'button', class: 'button button-small', dataset: { fk: 'note:restore' }, onclick: async () => { await actions.restoreNote(noteId); toast(t('note.restored')); } }, icon('undo'), t('note.restore')),
           h('button', { type: 'button', class: 'button button-small button-danger', dataset: { fk: 'note:delete' }, onclick: removeForever }, icon('trash'), t('note.deleteForever')));
       } else {
+        const reminder = noteReminderInfo(n);
         right.replaceChildren(
           iconButton('note:background', 'palette', t('note.background'), (e) => openBackground(e.currentTarget), { popup: true }),
+          iconButton('note:reminder', 'bell', reminder ? t('note.reminderAt', { when: reminder.text }) : t('note.reminderAdd'), (e) => openReminder(e.currentTarget), { popup: true, cls: reminder ? (reminder.past ? 'is-late' : 'is-on') : '' }),
           iconButton('note:pin', 'pin', n.is_pinned ? t('note.unpin') : t('note.pin'), () => actions.updateNote(noteId, { is_pinned: !n.is_pinned }), { pressed: Boolean(n.is_pinned), cls: n.is_pinned ? 'is-on' : '' }),
           iconButton('note:more', 'more', t('note.more'), (e) => openMenu(e.currentTarget), { popup: true }));
       }
@@ -125,14 +134,21 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
       if (!n) return;
       const chosen = (n.labels ?? []).map((id) => store.view.labels.get(id)).filter(Boolean)
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-      tags.replaceChildren(
+      const reminder = trashed() ? null : noteReminderInfo(n);
+      // replaceChildren zet false als tekst neer: alleen echte knooppunten doorgeven
+      tags.replaceChildren(...[
+        reminder && h('button', {
+          type: 'button', class: `note-reminder-chip${reminder.past ? ' is-late' : ''}`, dataset: { fk: 'note-reminder-chip' },
+          'aria-label': t('note.reminderAt', { when: reminder.text }), 'aria-haspopup': 'true', onclick: (e) => openReminder(e.currentTarget),
+        }, icon(reminder.repeat ? 'repeat' : 'bell'), h('span', {}, reminder.text), reminder.repeat && h('span', { class: 'note-reminder-repeat' }, `· ${REPEAT_LABEL[reminder.repeat]()}`)),
         ...chosen.map((label) => h('span', { class: 'note-tag' },
           h('span', { class: `note-tag-hash ${colorClass(label.color)}`, 'aria-hidden': 'true' }, '#'), h('span', {}, label.name),
           !trashed() && h('button', {
             type: 'button', class: 'note-tag-remove', 'aria-label': t('note.removeLabel', { name: label.name }), title: t('note.removeLabel', { name: label.name }),
             dataset: { fk: `note-tag-remove:${label.id}` }, onclick: () => actions.updateNote(noteId, { labels: (note()?.labels ?? []).filter((x) => x !== label.id) }),
           }, '×'))),
-        !trashed() && h('button', { type: 'button', class: 'note-tag-add', dataset: { fk: 'note-tag-add' }, 'aria-haspopup': 'true', onclick: (e) => openTags(e.currentTarget) }, icon('plus'), t('note.addLabel')));
+        !trashed() && h('button', { type: 'button', class: 'note-tag-add', dataset: { fk: 'note-tag-add' }, 'aria-haspopup': 'true', onclick: (e) => openTags(e.currentTarget) }, icon('plus'), t('note.addLabel')),
+      ].filter(Boolean));
     }
 
     // ---------- bewerkt, woorden ----------
@@ -185,6 +201,36 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
       }), 'background');
     }
 
+    function openReminder(anchor) {
+      const n = note();
+      const current = n.remind_at ?? null;
+      const when = h('input', { class: 'field', type: 'datetime-local', value: current ?? '', 'aria-label': t('note.reminderCustom'), dataset: { fk: 'note-reminder-when' } });
+      const repeat = h('select', { class: 'field', 'aria-label': t('note.repeat'), dataset: { fk: 'note-reminder-repeat' } },
+        h('option', { value: '', selected: !n.remind_repeat }, REPEAT_LABEL.none()),
+        NOTE_REPEATS.map((r) => h('option', { value: r, selected: n.remind_repeat === r }, REPEAT_LABEL[r]())));
+      const hint = h('p', { class: 'hint', 'aria-live': 'polite' });
+      const save = (at) => {
+        if (!at || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(at)) { hint.textContent = t('note.reminderInvalid'); when.focus(); return; }
+        actions.updateNote(noteId, { remind_at: at, remind_repeat: repeat.value || null });
+        toast(t('note.reminderSaved', { when: formatDue({ date: at }, todayString()) }));
+        closePop();
+      };
+      const PRESET_LABEL = { later: () => t('note.reminderLater'), tomorrow: () => t('note.reminderTomorrow'), nextWeek: () => t('note.reminderNextWeek') };
+      openPop(anchor, [
+        h('p', { class: 'note-pop-title' }, t('note.reminder')),
+        ...reminderPresets().map((p) => h('button', {
+          type: 'button', class: 'note-menu-item', dataset: { fk: `note-reminder:${p.id}` }, onclick: () => save(p.at),
+        }, icon('clock'), h('span', { class: 'note-menu-label' }, PRESET_LABEL[p.id]()), h('span', { class: 'note-menu-hint' }, formatDue({ date: p.at }, todayString())))),
+        h('hr', { class: 'note-menu-sep' }),
+        h('label', { class: 'field-label' }, t('note.reminderCustom'), when),
+        h('label', { class: 'field-label' }, t('note.repeat'), repeat),
+        hint,
+        h('div', { class: 'note-pop-buttons' },
+          current && h('button', { type: 'button', class: 'button button-small button-ghost', dataset: { fk: 'note-reminder-remove' }, onclick: () => { actions.updateNote(noteId, { remind_at: null, remind_repeat: null }); toast(t('note.reminderRemoved')); closePop(); } }, t('note.reminderRemove')),
+          h('button', { type: 'button', class: 'button button-small button-primary', dataset: { fk: 'note-reminder-save' }, onclick: () => save(when.value) }, t('common.save'))),
+      ], 'reminder');
+    }
+
     function openMenu(anchor) {
       const n = note();
       const counts = editor.counts();
@@ -224,7 +270,7 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
         const own = all.filter((l) => !q || fold(l.name).includes(fold(q)));
         const chosen = new Set(note()?.labels ?? []);
         const exact = all.some((l) => fold(l.name) === fold(q));
-        list.replaceChildren(
+        list.replaceChildren(...[ // replaceChildren zet false als tekst neer: alleen echte knooppunten
           ...own.map((label) => h('label', { class: 'note-label-option' },
             h('input', {
               type: 'checkbox', checked: chosen.has(label.id), dataset: { fk: `note-label:${label.id}` },
@@ -241,7 +287,8 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
               search.focus();
             },
           }, icon('plus'), t('note.createLabel', { name: q })),
-          all.length === 0 && !q && h('p', { class: 'hint' }, t('note.noLabels')));
+          all.length === 0 && !q && h('p', { class: 'hint' }, t('note.noLabels')),
+        ].filter(Boolean));
       };
       search.addEventListener('input', draw);
       search.addEventListener('keydown', (e) => {

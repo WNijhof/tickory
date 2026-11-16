@@ -10,7 +10,7 @@ import { NOTE_LAYOUTS, NOTE_SORTS, notePrefsOf } from '../../shared/notes.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { markSegments } from '../core/search.js';
-import { NOTE_TRASH_DAYS, cardDate, expiredNotes, noteCounts, noteGroups, noteLabels, noteList, noteSnippet, trashDaysLeft } from '../core/notes.js';
+import { NOTE_TRASH_DAYS, cardDate, expiredNotes, noteCounts, noteGroups, noteLabels, noteList, noteReminderInfo, noteSnippet, trashDaysLeft } from '../core/notes.js';
 import { cardRows, fromMarkdown, runsText } from '../core/noteDoc.js';
 import { mySettings } from '../core/selectors.js';
 import { isTyping } from '../core/shortcuts.js';
@@ -21,6 +21,12 @@ import { bgClass } from './noteLook.js';
 import { sidebarHooks, viewHooks } from './render.js';
 
 export const isNotesRoute = (route) => Boolean(route) && route.type === 'notes';
+
+/** `#note=<id>` (een melding van een herinnering, of de Android-app): het id, of null. */
+export function noteIdFromHash(hash) {
+  const m = /^#note=([A-Za-z0-9_-]{8,40})$/.exec(hash ?? '');
+  return m ? m[1] : null;
+}
 
 /** De route `{ type: 'notes', id }` als keuze voor de lijst. Een onbekende id is "alle notities". */
 export function scopeOfRoute(route) {
@@ -264,6 +270,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
       ? (snippet.text ? h('p', { class: 'nc-p nc-snippet' }, markSegments(snippet.text, snippet.marks).map((p) => (p.mark ? h('mark', { class: 'nc-hit' }, p.text) : p.text))) : null)
       : cardBody(note, ROW_LIMIT[layout]);
     const label = title || t('note.untitled');
+    const reminder = noteReminderInfo(note);
     return h('article', { class: `nc ${bgClass(note.background)}${note.is_pinned ? ' nc-pinned' : ''}${picked ? ' picked' : ''}`, dataset: { id: note.id } },
       h('button', {
         class: 'nc-open', type: 'button', dataset: { fk: `note:${note.id}` }, 'aria-label': `${label}${note.is_pinned ? `, ${t('note.pinnedMark')}` : ''}`,
@@ -282,6 +289,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         labels.length > 0 && h('div', { class: 'nc-tags' }, labels.slice(0, 3).map((l) => h('span', { class: 'nc-tag' }, h('span', { class: `note-tag-hash ${colorClass(l.color)}`, 'aria-hidden': 'true' }, '#'), l.name)),
           labels.length > 3 && h('span', { class: 'nc-tag nc-more' }, `+${labels.length - 3}`)),
         h('div', { class: 'nc-foot' },
+          reminder && scope !== 'trash' && h('span', { class: `nc-reminder${reminder.past ? ' is-late' : ''}`, title: t('note.reminderAt', { when: reminder.text }) }, icon(reminder.repeat ? 'repeat' : 'bell'), reminder.text),
           note.is_archived && scope === 'all' && h('span', { class: 'nc-flag' }, icon('archive'), t('note.archivedFlag')),
           h('span', { class: 'nc-date' }, scope === 'trash' ? t('note.daysLeft', { count: trashDaysLeft(note) }) : cardDate(note.updated_at)))),
       scope === 'trash' && !state.picking && h('button', {
@@ -358,5 +366,22 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     };
   };
 
-  return { newNote };
+  // Een notitie openen vanuit een melding: zodra de gegevens er zijn (de eerste sync kan nog lopen), hooguit 30 seconden wachten.
+  let pendingNote = null;
+  const tryPending = () => {
+    if (!pendingNote) return;
+    if (Date.now() - pendingNote.since > 30_000) { pendingNote = null; return; }
+    if (!store.ready || !store.view.notes.has(pendingNote.id) || document.querySelector('dialog[open]')) return;
+    const id = pendingNote.id;
+    pendingNote = null;
+    handlers.navigate({ type: 'notes' });
+    openNoteEditor({ store, actions, noteId: id });
+  };
+  store.subscribe(tryPending);
+  function openNote(id) {
+    pendingNote = { id, since: Date.now() };
+    tryPending();
+  }
+
+  return { newNote, openNote };
 }

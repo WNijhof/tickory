@@ -57,7 +57,7 @@ object SyncParser {
      * de lijsten "tasks" en "reminders" ontbreken). Bij null moet de aanroeper het bestaande plan laten staan.
      * Losse onderdelen met een fout (geen id, verkeerd soort veld) worden overgeslagen.
      */
-    fun parseSnapshot(body: String?): SyncSnapshot? {
+    fun parseSnapshot(body: String?, now: java.time.LocalDateTime = java.time.LocalDateTime.now()): SyncSnapshot? {
         val root = Json.parseObject(body) ?: return null
         val rawTasks = root.list("tasks") ?: return null
         val rawReminders = root.list("reminders") ?: return null
@@ -100,7 +100,25 @@ object SyncParser {
             val radius = o.whole("radius")?.takeIf { it in 1..100_000 }?.toInt() ?: return@mapNotNull null
             PlaceInfo(id, cleanTitle(o.text("name")), lat, lon, radius)
         }
-        return SyncSnapshot(tasks, reminders, places)
+        // Herinneringen op notities (optioneel: een oudere server kent geen notities). Een notitie wordt een "taak" zonder datum
+        // (note_<id>) met per komende keer een herinnering van het type "absolute"; zie NoteReminders.
+        val noteTasks = ArrayList<TaskInfo>()
+        val noteReminders = ArrayList<ReminderInfo>()
+        for (entry in root.list("notes") ?: emptyList()) {
+            val o = Json.asObject(entry) ?: continue
+            val id = o.text("id")?.takeIf { Ids.isSafeId(NoteReminders.reminderIdFor(it, "2000-01-01T00:00")) } ?: continue
+            if (o.flag("is_deleted") || o.text("trashed_at") != null) continue
+            // vanaf een uur geleden, net als bij taken: een herinnering die net gemist is (toestel uit) komt nog
+            val times = NoteReminders.upcoming(o.text("remind_at"), o.text("remind_repeat"), now.minusHours(1))
+            if (times.isEmpty()) continue
+            val taskId = NoteReminders.taskIdFor(id)
+            noteTasks.add(TaskInfo(taskId, cleanTitle(NoteReminders.headline(o.text("title"), o.text("content"))), due = null))
+            for (at in times) {
+                val floating = NoteReminders.format(at)
+                noteReminders.add(ReminderInfo(NoteReminders.reminderIdFor(id, floating), taskId, "absolute", null, floating))
+            }
+        }
+        return SyncSnapshot(tasks + noteTasks, reminders + noteReminders, places)
     }
 
     /** De uitkomst van het commando met dit [uuid]. */

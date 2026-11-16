@@ -12,7 +12,7 @@ import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notificati
 import { ROLES } from './roles.js';
 import { GOALS, daysOffCheck } from './stats.js';
 import { viewOptionsCheck } from './viewOptions.js';
-import { NOTE_BACKGROUNDS, notePrefsCheck } from './notes.js';
+import { NOTE_BACKGROUNDS, NOTE_REPEATS, notePrefsCheck, noteRemindCheck } from './notes.js';
 
 /**
  * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'notification'} EntityName
@@ -223,6 +223,9 @@ export const ENTITIES = {
       { name: 'is_pinned', type: 'bool', default: false },
       { name: 'is_archived', type: 'bool', default: false },
       { name: 'trashed_at', type: 'text', nullable: true, default: null, maxLen: 40, check: (v) => (Number.isNaN(Date.parse(v)) ? 'moet een tijdstip zijn' : null) },
+      // een herinnering (shared/notes.js): zwevend tijdstip in de tijdzone van de gebruiker, eenmalig of herhaald
+      { name: 'remind_at', type: 'text', nullable: true, default: null, maxLen: 16, check: noteRemindCheck },
+      { name: 'remind_repeat', type: 'text', nullable: true, default: null, oneOf: NOTE_REPEATS },
       owner(),
     ],
   },

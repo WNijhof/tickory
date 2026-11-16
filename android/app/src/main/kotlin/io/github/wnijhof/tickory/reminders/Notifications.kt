@@ -19,6 +19,7 @@ import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.DueText
 import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.Lang
+import io.github.wnijhof.tickory.core.NoteReminders
 import io.github.wnijhof.tickory.core.PlannedReminder
 import java.time.ZoneId
 
@@ -97,7 +98,8 @@ object Notifications {
             .setContentIntent(openTaskIntent(context, reminder.taskId))
             .addExtras(Bundle().apply { putString(EXTRA_TASK_ID, reminder.taskId) })
 
-        if (actions == Actions.BOTH) {
+        // een notitie vink je niet af: bij een herinnering op een notitie alleen uitstellen
+        if (actions == Actions.BOTH && !NoteReminders.isNote(reminder.taskId)) {
             builder.addAction(0, context.getString(R.string.action_complete), actionIntent(context, ACTION_COMPLETE, reminder))
         }
         if (actions != Actions.NONE) {

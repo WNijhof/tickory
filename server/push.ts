@@ -25,6 +25,7 @@ import type { Row } from './rows.ts';
 import { handleSync } from './sync.ts';
 import { pushChoices } from '../shared/notifications.js';
 import { canEditRole } from '../shared/roles.js';
+import { lastNoteReminder, noteHeadline } from '../shared/notes.js';
 
 /** Hoe lang na het tijdstip een herinnering nog verstuurd wordt (bijvoorbeeld na een herstart van de server). */
 export const LATE_WINDOW_MS = 60 * 60_000;
@@ -351,6 +352,12 @@ export function createPush(cfg: PushConfig) {
            AND NOT EXISTS (SELECT 1 FROM reminder_deliveries d WHERE d.reminder_id = c.id AND d.moment = c.moment)
          ORDER BY c.moment DESC LIMIT ?`,
       );
+      // notities met een herinnering die op of vóór nu ligt (een herhaling kan lang geleden begonnen zijn); de precieze keer in JavaScript
+      const pickNotes = db.prepare(
+        `SELECT id, title, content, remind_at, remind_repeat FROM notes
+         WHERE owner_id = ? AND is_deleted = 0 AND trashed_at IS NULL AND remind_at IS NOT NULL AND remind_at <= ?
+         ORDER BY remind_at DESC LIMIT ${MAX_DUE_PER_OWNER_PER_ROUND}`,
+      );
       for (const owner of owners) {
         if (Date.now() - started > TICK_BUDGET_MS) break;
         const zone = zoneOf(owner);
@@ -385,6 +392,27 @@ export function createPush(cfg: PushConfig) {
           // proberen we het de volgende ronde nog eens, tot het venster voorbij is.
           if (results.some((x) => x.ok) || !results.some((x) => x.retryable)) {
             db.prepare('INSERT OR IGNORE INTO reminder_deliveries (reminder_id, moment, user_id, sent_at) VALUES (?, ?, ?, ?)').run(r.id as string, moment, owner, new Date(at).toISOString());
+          }
+        }
+        // Herinneringen op notities (shared/notes.js): de laatste keer die nu aan de beurt is (bij een herhaling), één keer per
+        // tijdstip. Alleen "Openen": een notitie vink je niet af. Het afgeleverde tijdstip staat onder "note:<id>".
+        const notesDue = pickNotes.all(owner, hi) as Row[];
+        for (const n of notesDue) {
+          if (Date.now() - started > TICK_BUDGET_MS) break;
+          const moment = lastNoteReminder(n.remind_at as string, (n.remind_repeat as string | null) ?? null, hi);
+          if (!moment || moment < lo) continue;
+          const epoch = floatingToEpoch(moment, zone);
+          if (epoch === null || epoch > at || at - epoch > LATE_WINDOW_MS) continue;
+          const key = `note:${n.id as string}`;
+          if (db.prepare('SELECT 1 FROM reminder_deliveries WHERE reminder_id = ? AND moment = ?').get(key, moment)) continue;
+          out.due += 1;
+          const payload = { v: 1, type: 'note-reminder', id: key, note_id: n.id, title: noteHeadline(n, 300), moment };
+          const topic = createHash('sha256').update(`${key}|${moment}`).digest('base64url').slice(0, 32);
+          const results = await Promise.all(subscriptionsOf(owner).map((s) => deliver(s, payload, topic)));
+          out.sent += results.filter((x) => x.ok).length;
+          out.failed += results.filter((x) => !x.ok).length;
+          if (results.some((x) => x.ok) || !results.some((x) => x.retryable)) {
+            db.prepare('INSERT OR IGNORE INTO reminder_deliveries (reminder_id, moment, user_id, sent_at) VALUES (?, ?, ?, ?)').run(key, moment, owner, new Date(at).toISOString());
           }
         }
       }

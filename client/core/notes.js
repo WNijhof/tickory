@@ -10,6 +10,33 @@
 import { foldMap, foldText, foldWords, occurrences } from './fold.js';
 import { plainText } from './markdown.js';
 import { getLocale, t } from './i18n.js';
+import { addDays, formatDue, nowString, todayString } from './format.js';
+import { nextNoteReminder } from '../../shared/notes.js';
+
+/**
+ * De herinnering van een notitie om te tonen: de volgende keer (bij een herhaling), of de eenmalige die al voorbij is (`past`).
+ * @returns {{ at: string, past: boolean, repeat: string | null, text: string } | null}
+ */
+export function noteReminderInfo(note, now = new Date()) {
+  if (!note?.remind_at) return null;
+  const next = nextNoteReminder(note.remind_at, note.remind_repeat ?? null, nowString(now));
+  const at = next ?? note.remind_at;
+  return { at, past: !next, repeat: note.remind_repeat ?? null, text: formatDue({ date: at }, todayString(now)) };
+}
+
+/** De snelle keuzes voor een herinnering: later vandaag (18:00, of over drie uur als het al laat is), morgen 9:00, maandag 9:00. */
+export function reminderPresets(now = new Date()) {
+  const today = todayString(now);
+  const out = [];
+  const hour = now.getHours();
+  if (hour < 17) out.push({ id: 'later', at: `${today}T18:00` });
+  else if (hour < 21) out.push({ id: 'later', at: `${today}T${String(hour + 3).padStart(2, '0')}:00` });
+  out.push({ id: 'tomorrow', at: `${addDays(today, 1)}T09:00` });
+  const weekday = new Date(`${today}T00:00:00Z`).getUTCDay(); // 0 = zondag
+  const monday = `${addDays(today, ((8 - weekday) % 7) || 7)}T09:00`;
+  if (!out.some((p) => p.at === monday)) out.push({ id: 'nextWeek', at: monday }); // op zondag is dat al "morgen"
+  return out;
+}
 
 /** Zoveel dagen blijft een notitie in de prullenbak; daarna ruimt de app haar op (definitief verwijderen). */
 export const NOTE_TRASH_DAYS = 30;

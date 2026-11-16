@@ -43,7 +43,7 @@ import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installBottomNav } from './bottomNav.js';
-import { installNotes, isNotesRoute } from './notes.js';
+import { installNotes, isNotesRoute, noteIdFromHash } from './notes.js';
 import { listOptionsDialog } from './listOptionsDialog.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
@@ -87,6 +87,8 @@ let activityUi = null;
 /** De stappen die "Ongedaan maken" kan terugdraaien (core/undo.js), en de selectie van meerdere taken (ui/selection.js). */
 const undo = createUndo();
 let selection;
+/** Notities (ui/notes.js): om een notitie te openen vanuit een melding. */
+let notesUi = null;
 /** De menubalk onderaan op een telefoon (ui/bottomNav.js). */
 let bottomNav = null;
 /** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
@@ -641,6 +643,12 @@ function openPendingTask() {
 
 function openTaskFromHash() {
   if (openShareFromHash()) return;
+  const noteId = noteIdFromHash(location.hash);
+  if (noteId) {
+    history.replaceState(null, '', `${location.pathname}${location.search}`); // het adres weer schoon
+    notesUi?.openNote(noteId);
+    return;
+  }
   const id = taskIdFromHash(location.hash);
   if (!id) {
     openAddFromHash();
@@ -800,7 +808,7 @@ async function boot() {
   const productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
   installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
-  installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo }); // notities (ui/notes.js), onder Meldingen
+  notesUi = installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo }); // notities (ui/notes.js), onder Meldingen
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
@@ -851,6 +859,7 @@ async function boot() {
   window.addEventListener('hashchange', openTaskFromHash);
   navigator.serviceWorker?.addEventListener('message', (e) => {
     if (e.data?.type === 'open-task' && typeof e.data.id === 'string') openTaskById(e.data.id);
+    if (e.data?.type === 'open-note' && typeof e.data.id === 'string') notesUi?.openNote(e.data.id);
   });
 
   if ('serviceWorker' in navigator && !backend.demo) {

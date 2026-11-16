@@ -157,6 +157,41 @@ export async function notesScenario(c: any) {
   assert.match(await evaluate<string>(`document.querySelector('dialog[open] .note-meta').textContent`), /^Bewerkt vandaag om \d\d:\d\d · \d+ woorden$/);
   step('notities: achtergrond Golven (19 keuzes), vastpinnen en een nieuw label als chip; Escape sluit eerst het keuzevenster; "Bewerkt vandaag om … · N woorden"');
 
+  // ---- een herinnering: snelle keuze, eigen tijd met herhaling, weghalen ----
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const tomorrow = ymd(new Date(Date.now() + 86_400_000));
+  await click('dialog[open] [data-fk="note:reminder"]');
+  await waitFor(`document.querySelector('dialog[open] .note-pop-reminder')`, 'het keuzevenster voor een herinnering');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .note-pop-title').textContent`), 'Herinnering');
+  assert.ok((await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .note-pop-reminder .note-menu-label')].map((e) => e.textContent)`)).includes('Morgen'));
+  await click('dialog[open] [data-fk="note-reminder:tomorrow"]');
+  await waitFor(`!document.querySelector('dialog[open] .note-pop')`, 'het keuzevenster sluit');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-reminder-chip"]')?.textContent === 'morgen 09:00'`, 'de herinnering als chip onder de titel', 10_000);
+  await synced();
+  assert.deepEqual([notes().find((n) => n.id === made.id).remind_at, notes().find((n) => n.id === made.id).remind_repeat], [`${tomorrow}T09:00`, null]);
+  assert.match(await evaluate<string>(`document.querySelector('dialog[open] [data-fk="note:reminder"]').getAttribute('aria-label')`), /^Herinnering: morgen 09:00$/);
+  // eigen datum en tijd, elke week (via de chip)
+  await click('dialog[open] [data-fk="note-reminder-chip"]');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-reminder-when"]')`, 'datum en tijd');
+  await evaluate(`(() => { const p = document.querySelector('dialog[open] .note-pop-reminder');
+    const w = p.querySelector('[data-fk="note-reminder-when"]'); w.value = ${js(`${tomorrow}T07:45`)}; w.dispatchEvent(new Event('input'));
+    const r = p.querySelector('[data-fk="note-reminder-repeat"]'); r.value = 'weekly'; r.dispatchEvent(new Event('change')); })()`);
+  await shot('notitie-herinnering');
+  await click('dialog[open] [data-fk="note-reminder-save"]');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-reminder-chip"]')?.textContent === 'morgen 07:45· Elke week'`, 'de chip met de herhaling', 10_000);
+  await synced();
+  assert.deepEqual([notes().find((n) => n.id === made.id).remind_at, notes().find((n) => n.id === made.id).remind_repeat], [`${tomorrow}T07:45`, 'weekly']);
+  // een lege tijd: een melding, niets bewaard
+  await click('dialog[open] [data-fk="note-reminder-chip"]');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-reminder-when"]')`, 'datum en tijd');
+  await evaluate(`(() => { const w = document.querySelector('dialog[open] [data-fk="note-reminder-when"]'); w.value = ''; w.dispatchEvent(new Event('input')); })()`);
+  await click('dialog[open] [data-fk="note-reminder-save"]');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] .note-pop-reminder .hint').textContent`), 'Kies een datum en een tijd.');
+  await key('Escape', { vk: 27 });
+  await waitFor(`!document.querySelector('dialog[open] .note-pop')`, 'Escape sluit het keuzevenster');
+  await closeToasts();
+  step('notities: een herinnering met het belletje: "Morgen" (morgen 09:00) als chip onder de titel, een eigen tijd met "Elke week", een lege tijd geeft uitleg; zo op de server');
+
   // ---- sluiten: de kaart ----
   await click('dialog[open] [data-fk="note-close"]');
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
@@ -171,7 +206,23 @@ export async function notesScenario(c: any) {
   assert.equal(await evaluate(`${card}.querySelector('.nc-tag').textContent`), '#Boodschappen');
   assert.equal(await evaluate(`${card}.querySelector('.nc-date').textContent`), 'Vandaag');
   assert.equal(await evaluate(`${card}.querySelectorAll('a').length`), 0, 'op een kaart is een link geen link');
-  step('notities: de kaart bij Vastgepind met achtergrond, opmaak, "1 gedaan", het label en "Vandaag"');
+  assert.equal(await evaluate(`${card}.querySelector('.nc-reminder').textContent`), 'morgen 07:45', 'de herinnering op de kaart');
+  step('notities: de kaart bij Vastgepind met achtergrond, opmaak, "1 gedaan", het label, de herinnering en "Vandaag"');
+
+  // ---- een melding aangetikt: #note=<id> opent de notitie; daarna de herinnering weghalen ----
+  await evaluate(`location.hash = ${js(`#note=${made.id}`)}`);
+  await waitFor(`document.querySelector('dialog[open] .note-title')?.value === 'Boodschappen & ideeën'`, '#note= opent de notitie');
+  assert.equal(await evaluate(`location.hash`), '', 'het adres weer schoon');
+  await click('dialog[open] [data-fk="note-reminder-chip"]');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-reminder-remove"]')`, 'weghalen');
+  await click('dialog[open] [data-fk="note-reminder-remove"]');
+  await waitFor(`!document.querySelector('dialog[open] [data-fk="note-reminder-chip"]')`, 'geen chip meer');
+  await synced();
+  assert.deepEqual([notes().find((n) => n.id === made.id).remind_at, notes().find((n) => n.id === made.id).remind_repeat], [null, null]);
+  await click('dialog[open] [data-fk="note-close"]');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await closeToasts();
+  step('notities: een melding aangetikt (#note=…) opent de notitie, het adres wordt weer schoon; de herinnering weghalen');
 
   // ---- meer notities van een ander apparaat: Overige, zoeken (ook in het archief), indeling ----
   await as(aliceToken, [

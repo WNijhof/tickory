@@ -21,7 +21,10 @@ object DeepLink {
     /** Mag dit fragment in een webadres en in een stukje JavaScript? Alleen letters, cijfers, "-", "_" en "=" (base64url past daarin). */
     fun isSafe(fragment: String?): Boolean = fragment != null && SAFE.matches(fragment)
 
-    fun task(id: String?): String? = id?.takeIf(Ids::isSafeId)?.let { "task=$it" }
+    /** Een taak opent met `task=<id>`; de "taak" van een herinnering op een notitie (note_<id>, zie NoteReminders) met `note=<id>`. */
+    fun task(id: String?): String? = id?.takeIf(Ids::isSafeId)?.let {
+        if (NoteReminders.isNote(it)) "note=${NoteReminders.noteId(it)}" else "task=$it"
+    }
 
     /** Een melding bij samenwerken: de web-app zet hem op gelezen en opent de taak of het project (zie client/ui/inbox.js). */
     fun notification(id: String?): String? = id?.takeIf(Ids::isSafeId)?.let { "notification=$it" }

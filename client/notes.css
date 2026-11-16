@@ -236,6 +236,22 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .note-tag { min-height: 30px; padding: 2px 6px 2px 11px; }
 .note-tag-remove { border: 0; background: transparent; color: var(--text-soft); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; }
 .note-tag-remove:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+.note-reminder-chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 2px 11px; border: 0; border-radius: 999px; cursor: pointer; font: inherit;
+  font-size: 0.85rem; background: var(--accent-soft); color: var(--text);
+}
+.note-reminder-chip .icon { width: 14px; height: 14px; color: var(--accent); }
+.note-reminder-chip.is-late, .nc-reminder.is-late { color: var(--danger); }
+.note-reminder-chip.is-late .icon { color: var(--danger); }
+.note-reminder-repeat { color: var(--text-soft); }
+.note-bar-button.is-late { color: var(--danger); }
+.nc-reminder { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--text) 7%, transparent); }
+.nc-reminder .icon { width: 12px; height: 12px; }
+.note-pop-title { margin: 2px 6px 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-soft); }
+.note-menu-label { flex: 1; }
+.note-menu-hint { color: var(--text-soft); font-size: 0.82rem; }
+.note-pop-buttons { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }
+.note-pop .field-label { margin: 0 4px; }
 .note-tag-add { display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 2px 10px; border: 0; border-radius: 999px; background: transparent; color: var(--text-soft); cursor: pointer; font: inherit; font-size: 0.85rem; }
 .note-tag-add:hover { background: color-mix(in srgb, var(--text) 7%, transparent); color: var(--text); }
 .note-tag-add .icon { width: 14px; height: 14px; }
@@ -387,7 +403,8 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
   .note-page { padding: 0 18px 40px; }
   .note-title { font-size: 1.6rem; }
   .note-tag-remove { width: 32px; height: 32px; }
-  .note-tag, .note-tag-add { min-height: 44px; }
+  .note-tag, .note-tag-add, .note-reminder-chip { min-height: 44px; }
+  .note-pop-buttons .button { min-height: 44px; }
   .ned { font-size: 16px; }
   /* de werkbalk onderaan, boven het toetsenbord, en zijwaarts te scrollen */
   .ned-toolbar {

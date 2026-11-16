@@ -138,15 +138,20 @@ class ApiClient(
         // "places": de plaatsen voor herinneringen op een locatie (van de gebruiker zelf, privé); "notifications" met "settings"
         // (welke soorten als melding) en "comments" (het begin van een opmerking in de melding): de meldingen bij samenwerken.
         // Een oudere server kent een van die bronnen niet en weigert het verzoek (400): dan steeds met minder.
-        val attempts = listOf(types + listOf("places", "notifications", "settings", "comments"), types + "places", types)
+        // "notes": herinneringen op notities (zie NoteReminders). Een server zonder notities noemt "notes" in zijn weigering: dan
+        // eerst hetzelfde zonder notities, en pas daarna met minder.
+        val attempts = ArrayDeque(listOf(types + listOf("places", "notifications", "settings", "comments", "notes"), types + "places", types))
         var response: Response? = null
-        for (attempt in attempts) {
+        while (attempts.isNotEmpty()) {
+            val attempt = attempts.removeFirst()
             response = try {
                 request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to attempt)))
             } catch (e: Exception) {
                 return FetchResult.Failed(classify(e), 0)
             }
             if (response.status != 400) break
+            val refusedNotes = Json.parseObject(response.body)?.text("error")?.contains("\"notes\"") == true
+            if ("notes" in attempt && refusedNotes) attempts.addFirst(attempt - "notes")
         }
         if (response == null) return FetchResult.Failed(null, 0)
         if (response.status == 401) return FetchResult.Unauthorized

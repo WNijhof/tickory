@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v104';
+const CACHE = 'tickory-v105';
 const SHELL = [
   '/',
   '/app.css',
@@ -245,13 +245,13 @@ self.addEventListener('fetch', (event) => {
 
 const PUSH_TEXT = {
   nl: {
-    reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen',
+    reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen', note: 'Notitie',
     assigned: '{actor} heeft je een taak toegewezen', comment: '{actor} reageerde op een taak', commentProject: '{actor} schreef een opmerking bij het project',
     mention: '{actor} noemde je in een opmerking', completed: '{actor} heeft je taak afgevinkt', shared: '{actor} heeft je toegevoegd aan een project',
     other: '{actor} deed iets in een gedeeld project', someone: 'Iemand',
   },
   en: {
-    reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open',
+    reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open', note: 'Note',
     assigned: '{actor} assigned you a task', comment: '{actor} commented on a task', commentProject: '{actor} commented on the project',
     mention: '{actor} mentioned you in a comment', completed: '{actor} completed your task', shared: '{actor} added you to a project',
     other: '{actor} did something in a shared project', someone: 'Someone',
@@ -288,6 +288,21 @@ function notificationFor(data) {
   const text = PUSH_TEXT[data && data.lang] || PUSH_TEXT.nl;
   const base = { icon: '/icon-192.png', badge: '/icon-192.png', lang: data && data.lang === 'en' ? 'en' : 'nl' };
   if (data && data.type === 'activity') return activityNotification(data, text, base);
+  if (data && data.type === 'note-reminder' && typeof data.note_id === 'string' && SAFE_ID.test(data.note_id)) {
+    // een herinnering op een notitie: alleen openen (een notitie vink je niet af)
+    const time = typeof data.moment === 'string' && data.moment.length >= 16 ? data.moment.slice(11, 16) : '';
+    return {
+      title: typeof data.title === 'string' && data.title ? data.title : text.note,
+      options: {
+        ...base,
+        body: time ? `${text.reminder} · ${time}` : text.reminder,
+        tag: `tickory-note-${data.note_id}-${data.moment}`,
+        requireInteraction: true,
+        data: { noteId: data.note_id },
+        actions: [{ action: 'open', title: text.open }],
+      },
+    };
+  }
   if (!data || data.type !== 'reminder' || typeof data.title !== 'string') {
     return { title: text.test, options: { ...base, body: text.testBody, tag: 'tickory-test' } };
   }
@@ -338,9 +353,10 @@ self.addEventListener('notificationclick', (event) => {
     if (open) {
       await open.focus();
       if (d.notificationId) open.postMessage({ type: 'open-notification', id: d.notificationId });
+      else if (d.noteId) open.postMessage({ type: 'open-note', id: d.noteId });
       else if (d.taskId) open.postMessage({ type: 'open-task', id: d.taskId });
       return;
     }
-    await self.clients.openWindow(d.notificationId ? `/#notification=${d.notificationId}` : d.taskId ? `/#task=${d.taskId}` : '/');
+    await self.clients.openWindow(d.notificationId ? `/#notification=${d.notificationId}` : d.noteId ? `/#note=${d.noteId}` : d.taskId ? `/#task=${d.taskId}` : '/');
   })());
 });

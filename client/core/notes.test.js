@@ -170,3 +170,42 @@ test('groepen en zoeken: vastgepind apart, zoeken in "alle" vindt ook het archie
   assert.deepEqual(titles(noteList(v, { query: 'archief' })), ['oud archief'], 'zoeken vindt ook wat in het archief staat');
   assert.deepEqual(noteGroups(noteList(v, { query: 'archief' })).pinned, [], 'een vastgepinde notitie in het archief staat niet bij Vastgepind');
 });
+
+import { noteReminderInfo, reminderPresets } from './notes.js';
+
+test('de herinnering van een notitie om te tonen: de volgende keer, of de voorbije eenmalige als "te laat"', () => {
+  const now = new Date(2026, 10, 16, 10, 0); // maandag 16 november, 10:00 (tijd van het toestel)
+  assert.equal(noteReminderInfo({ remind_at: null }, now), null);
+  assert.deepEqual(noteReminderInfo({ remind_at: '2026-11-16T18:00' }, now), { at: '2026-11-16T18:00', past: false, repeat: null, text: 'vandaag 18:00' });
+  assert.deepEqual(noteReminderInfo({ remind_at: '2026-11-16T09:00' }, now), { at: '2026-11-16T09:00', past: true, repeat: null, text: 'vandaag 09:00' });
+  const weekly = noteReminderInfo({ remind_at: '2026-11-02T09:00', remind_repeat: 'weekly' }, now);
+  assert.deepEqual([weekly.at, weekly.past, weekly.repeat], ['2026-11-23T09:00', false, 'weekly']);
+  assert.equal(noteReminderInfo({ remind_at: '2026-11-16T08:00', remind_repeat: 'daily' }, now).text, 'morgen 08:00');
+});
+
+test('snelle keuzes: later vandaag (18:00, of drie uur later), morgen 9:00, volgende maandag 9:00', () => {
+  const at = (d) => reminderPresets(d).map((p) => `${p.id}=${p.at}`);
+  assert.deepEqual(at(new Date(2026, 10, 16, 10, 0)), ['later=2026-11-16T18:00', 'tomorrow=2026-11-17T09:00', 'nextWeek=2026-11-23T09:00']);
+  assert.deepEqual(at(new Date(2026, 10, 18, 19, 30)), ['later=2026-11-18T22:00', 'tomorrow=2026-11-19T09:00', 'nextWeek=2026-11-23T09:00']);
+  assert.deepEqual(at(new Date(2026, 10, 22, 22, 0)), ['tomorrow=2026-11-23T09:00'], 'zondagavond: geen "later vandaag", en maandag staat er maar één keer');
+  assert.deepEqual(at(new Date(2026, 11, 31, 12, 0)).slice(1), ['tomorrow=2027-01-01T09:00', 'nextWeek=2027-01-04T09:00']);
+});
+
+import { reminderFingerprint } from './android.js';
+
+test('de vingerafdruk voor de Android-app verandert met de herinnering van een notitie, niet met een notitie zonder', () => {
+  const s = emptyState();
+  s.notes.set('note-fp-0001', { id: 'note-fp-0001', title: 'Plan', content: 'x', remind_at: null, remind_repeat: null, trashed_at: null });
+  const empty = reminderFingerprint(s, ME);
+  s.notes.set('note-fp-0002', { id: 'note-fp-0002', title: 'Geen', content: 'y', remind_at: null });
+  assert.equal(reminderFingerprint(s, ME), empty, 'zonder herinnering telt een notitie niet');
+  const changes = [{ remind_at: '2026-11-20T09:00' }, { remind_repeat: 'weekly' }, { title: 'Plan B' }, { trashed_at: '2026-11-16T10:00:00.000Z' }, { remind_at: null }];
+  let last = empty;
+  for (const change of changes) {
+    s.notes.set('note-fp-0001', { ...s.notes.get('note-fp-0001'), ...change });
+    const now = reminderFingerprint(s, ME);
+    assert.notEqual(now, last, JSON.stringify(change));
+    last = now;
+  }
+  assert.equal(last, empty);
+});

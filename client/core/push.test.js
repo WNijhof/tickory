@@ -269,3 +269,24 @@ test('service worker: tikken op een melding bij samenwerken (of op Openen) opent
   await closed.dispatch('notificationclick', { action: 'open', notification: { data: sw.shown[0].options.data, close() {} } });
   assert.deepEqual(closed.calls, ['open /#notification=notif-aaaa11111']);
 });
+
+// ---------- herinneringen op notities ----------
+
+test('service worker: een herinnering op een notitie wordt een melding met alleen Openen; tikken opent de notitie', async () => {
+  const NOTE = { v: 1, type: 'note-reminder', id: 'note:note-aaaa11111', note_id: 'note-aaaa11111', title: 'Boodschappenlijst', moment: '2026-12-01T09:00', lang: 'nl' };
+  const messages = [];
+  const win = { url: 'https://taken.example.nl/', focus: async () => {}, postMessage: (m) => messages.push(m) };
+  const sw = serviceWorker({ windows: [win] });
+  await sw.dispatch('push', pushEvent(NOTE));
+  await sw.dispatch('push', pushEvent({ ...NOTE, title: '', lang: 'en' }));
+  await sw.dispatch('push', pushEvent({ ...NOTE, note_id: '../x' }));
+  assert.deepEqual(sw.shown.map((n) => n.title), ['Boodschappenlijst', 'Note', 'Meldingen werken'], 'zonder titel "Note"; een vreemd id: de neutrale melding');
+  assert.equal(sw.shown[0].options.body, 'Herinnering · 09:00');
+  assert.equal(sw.shown[0].options.tag, 'tickory-note-note-aaaa11111-2026-12-01T09:00');
+  assert.deepEqual(JSON.parse(JSON.stringify(sw.shown[0].options.actions)), [{ action: 'open', title: 'Openen' }]);
+  await sw.dispatch('notificationclick', { action: '', notification: { data: sw.shown[0].options.data, close() {} } });
+  assert.deepEqual(JSON.parse(JSON.stringify(messages)), [{ type: 'open-note', id: 'note-aaaa11111' }]);
+  const closed = serviceWorker({ windows: [] });
+  await closed.dispatch('notificationclick', { action: 'open', notification: { data: sw.shown[0].options.data, close() {} } });
+  assert.deepEqual(closed.calls, ['open /#note=note-aaaa11111']);
+});

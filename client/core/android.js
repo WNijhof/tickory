@@ -138,6 +138,11 @@ export function reminderFingerprint(view, userId) {
     if (p.owner_id && userId && p.owner_id !== userId) continue;
     lines.push(['place', p.id, p.name, p.lat, p.lon, p.radius].join('\u0001'));
   }
+  // herinneringen op notities (de app plant ze zelf, zie NoteReminders.kt): het tijdstip, de herhaling, de prullenbak en de kop
+  for (const n of view.notes?.values() ?? []) {
+    if (!n.remind_at) continue;
+    lines.push(['note', n.id, n.remind_at, n.remind_repeat ?? '', n.trashed_at ? 1 : 0, n.title ?? '', (n.content ?? '').slice(0, 80)].join('\u0001'));
+  }
   // meldingen bij samenwerken: de app toont nieuwe als melding op het toestel en haalt gelezen weg (zie android/README.md)
   for (const n of view.notifications?.values() ?? []) {
     if (n.owner_id && userId && n.owner_id !== userId) continue;
