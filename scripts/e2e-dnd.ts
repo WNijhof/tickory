@@ -324,25 +324,35 @@ async function scenario(c: any): Promise<void> {
     step('projecten in de zijbalk: volgorde met een streep, op een project laten vallen maakt een subproject (kader), op de kop "Projecten" haalt hem eruit; niet op een eigen subproject');
   }
 
-  // ---------- 9. een lid ziet slepen van een project niet als mogelijkheid ----------
+  // ---------- 9. een project waar Alice lid van is: verschuiven in haar eigen volgorde wel, ergens onder hangen niet ----------
   {
+    // op een ander project laten vallen (een subproject maken) verandert het project voor iedereen: dat mag alleen de eigenaar
     const bobs = await navRect('Van Bob');
     const target = await navRect('Sleepproef');
     const p = { x: Math.round(bobs.x + 80), y: Math.round(bobs.y + bobs.h / 2) };
     await mouse('mouseMoved', p.x, p.y, 0);
     await mouse('mousePressed', p.x, p.y, 1);
-    for (let i = 1; i <= 8; i++) await mouse('mouseMoved', p.x, Math.round(p.y + ((target.y - p.y) * i) / 8), 1);
-    assert.equal((await dragState()).ghost, false, `geen sleep begonnen: ${JSON.stringify(await dragState())}`);
-    await mouse('mouseReleased', p.x, target.y, 0);
+    for (let i = 1; i <= 8; i++) await mouse('mouseMoved', p.x, Math.round(p.y + ((target.y + target.h / 2 - p.y) * i) / 8), 1);
+    assert.equal(await evaluate(`document.querySelector('.dnd-ghost')?.classList.contains('dnd-nodrop') ?? true`), true, `niet onder een ander project: ${JSON.stringify(await dragState())}`);
+    await mouse('mouseReleased', p.x, Math.round(target.y + target.h / 2), 0);
     await sleep(300);
-    // het toetsenbord doet ook niets: geen aankondiging, geen wijziging
+    assert.equal(projectOnServer('dnd-bobs-project').parent_id, null, 'nergens onder gehangen');
+    // met het toetsenbord een plek omhoog: alleen in de volgorde van Alice (server/projectPrefs.ts), niet bij Bob
+    const bobsOrder = () => (handleSync(db, { sync_token: '*' }, bob.id).projects as any[]).find((x) => x.id === 'dnd-bobs-project').order_key;
+    const bobsKey = bobsOrder();
     const orderBefore = projectOrder(null);
+    const at0 = orderBefore.indexOf('Van Bob');
+    assert.ok(at0 > 0, `Van Bob staat niet bovenaan: ${JSON.stringify(orderBefore)}`);
     await evaluate(`${navRowExpr('Van Bob')}.querySelector('.nav-item').focus()`);
     await evaluate(`document.getElementById('dnd-live').textContent = ''`);
     await alt('ArrowUp');
-    await sleep(300);
-    assert.equal(await live(), '');
-    assert.deepEqual(projectOrder(null), orderBefore);
+    await waitFor(`document.getElementById('dnd-live').textContent !== ''`, 'een aankondiging');
+    await waitFor(SYNCED, 'gesynchroniseerd');
+    assert.equal(projectOrder(null).indexOf('Van Bob'), at0 - 1, 'een plek hoger bij Alice');
+    assert.equal(bobsOrder(), bobsKey, 'bij Bob niet veranderd');
+    await alt('ArrowDown');
+    await waitFor(SYNCED, 'gesynchroniseerd');
+    assert.deepEqual(projectOrder(null), orderBefore, 'en weer terug');
     // wel: een taak slepen naar dat project mag (iedereen kan in een gedeeld project schrijven)
     await nav('Sleepproef');
     await evaluate(`(${navRowExpr('Van Bob')}).scrollIntoView({ block: 'center' })`); // het doel in beeld, niet vlak bij de rand
@@ -355,7 +365,7 @@ async function scenario(c: any): Promise<void> {
     await evaluate(`[...document.querySelectorAll('.toast-text')].find((e) => e.textContent === '"Alfa" verplaatst naar "Van Bob".').parentElement.querySelector('.toast-action').click()`);
     await settle();
     assert.equal(tasksOnServer().find((t) => t.content === 'Alfa').project_id, P);
-    step('een project waar Alice alleen lid van is: niet te slepen en Alt+pijl doet niets, een taak ernaartoe slepen mag wel');
+    step('een project waar Alice alleen lid van is: niet onder een ander project, wel verschuiven in haar eigen volgorde (Bob merkt niets), en een taak ernaartoe slepen mag');
   }
 
   // ---------- 10. automatisch scrollen aan de rand ----------
