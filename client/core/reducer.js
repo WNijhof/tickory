@@ -301,6 +301,7 @@ function remove(state, e, args, now, userId) {
       if (userId && state.notes.get(id).owner_id && state.notes.get(id).owner_id !== userId) return;
       removeWhere(state, 'note_files', (f) => f.note_id === id);
       removeWhere(state, 'note_shares', (s) => s.note_id === id);
+      removeWhere(state, 'notifications', (n) => n.note_id === id); // zoals de server (notify.forgetNote)
       state.notes.delete(id);
       break;
     case 'note_share': {
@@ -309,6 +310,7 @@ function remove(state, e, args, now, userId) {
       state.note_shares.delete(id);
       if (userId && share.user_id === userId) {
         removeWhere(state, 'note_files', (f) => f.note_id === share.note_id);
+        removeWhere(state, 'notifications', (n) => n.note_id === share.note_id);
         state.notes.delete(share.note_id);
       }
       break;

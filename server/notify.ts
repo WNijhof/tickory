@@ -16,9 +16,10 @@ import { ENTITIES } from './schema.ts';
 import { bumpRev, chunked, insertRow, mark, newId, placeholders } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { MAX_NOTIFICATIONS_PER_USER, NOTIFICATION_RETENTION_DAYS, newMentions } from '../shared/notifications.js';
+import { noteRole } from './noteAccess.ts';
 
 export type NotificationKind = 'assigned' | 'comment' | 'mention' | 'completed' | 'shared';
-interface Target { task_id?: string | null; project_id?: string | null; comment_id?: string | null }
+interface Target { task_id?: string | null; project_id?: string | null; comment_id?: string | null; note_id?: string | null }
 
 /** Hoe lang een verwijderde melding nog als {id, is_deleted} in de database blijft, zodat apparaten de verwijdering horen. */
 export const NOTIFICATION_TOMBSTONE_DAYS = 30;
@@ -40,12 +41,14 @@ function projectOf(db: DatabaseSync, target: Target): string | null {
 /** Eén melding voor `userId`, als die het mag zien en het niet zelf deed. */
 function send(ctx: Ctx, userId: unknown, kind: NotificationKind, target: Target): void {
   if (typeof userId !== 'string' || userId === ctx.userId) return;
-  const project = projectOf(ctx.db, target);
-  if (!project || !isMember(ctx.db, userId, project) || !isActive(ctx.db, userId)) return;
+  const note = target.note_id ?? null;
+  const project = note ? null : projectOf(ctx.db, target);
+  if (note ? noteRole(ctx.db, userId, note) === null : (!project || !isMember(ctx.db, userId, project))) return;
+  if (!isActive(ctx.db, userId)) return;
   const id = newId();
   insertRow(ctx, ENTITIES.notification, id, {
-    kind, actor_id: ctx.userId, task_id: target.task_id ?? null, project_id: target.task_id ? null : project,
-    comment_id: target.comment_id ?? null, is_read: false, owner_id: userId,
+    kind, actor_id: ctx.userId, task_id: note ? null : target.task_id ?? null, project_id: note || target.task_id ? null : project,
+    comment_id: target.comment_id ?? null, note_id: note, is_read: false, owner_id: userId,
   });
   // De grens per gebruiker: wat er boven valt (de oudste), gaat weg zoals elke verwijderde rij (de apparaten horen het).
   ctx.db.prepare(
@@ -69,6 +72,17 @@ export function taskCompleted(ctx: Ctx, task: Row): void {
 }
 
 /** Iemand werd lid van een project (alleen het project dat gedeeld werd, niet elk subproject apart). */
+/** Iemand deelde een notitie met `userId` (note_share). Bij een andere rol daarna komt er geen nieuwe melding. */
+export function noteShared(ctx: Ctx, noteId: string, userId: string): void {
+  send(ctx, userId, 'shared', { note_id: noteId });
+}
+
+/** De meldingen over een notitie weg: van iedereen (de notitie is verwijderd) of van één ontvanger (niet meer gedeeld). */
+export function forgetNote(ctx: Ctx, noteId: string, userId: string | null = null): void {
+  if (userId) mark(ctx, 'notifications', 'note_id = ? AND owner_id = ?', [noteId, userId]);
+  else mark(ctx, 'notifications', 'note_id = ?', [noteId]);
+}
+
 export function projectShared(ctx: Ctx, projectId: string, userId: string): void {
   send(ctx, userId, 'shared', { project_id: projectId });
 }

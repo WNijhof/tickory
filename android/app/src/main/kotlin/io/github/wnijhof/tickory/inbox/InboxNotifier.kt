@@ -85,7 +85,7 @@ object InboxNotifier {
             "comment" -> if (item.taskId == null) R.string.inbox_comment_project else R.string.inbox_comment
             "mention" -> R.string.inbox_mention
             "completed" -> R.string.inbox_completed
-            "shared" -> R.string.inbox_shared
+            "shared" -> if (item.noteId != null) R.string.inbox_shared_note else R.string.inbox_shared
             else -> R.string.inbox_other
         }
         return context.getString(res, actor)

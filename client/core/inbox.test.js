@@ -167,3 +167,20 @@ test('met de server: wie uit het project gaat, houdt geen meldingen erover over 
   await again.init();
   assert.equal(again.base.notifications.size, 0, 'ook niet na een herstart');
 });
+
+test('een gedeelde notitie: met de kop van de notitie, opent de notitie; weg als de notitie weg of in de prullenbak is', () => {
+  setLanguage('nl');
+  const s = state();
+  s.notes.set('note-0001', { id: 'note-0001', title: '', content: 'Kerstcadeaus\n- [ ] boek', owner_id: 'user-bram', trashed_at: null });
+  s.notes.set('note-0002', { id: 'note-0002', title: 'Oud', content: '', owner_id: 'user-bram', trashed_at: '2026-11-13T10:00:00Z' });
+  const n = (id, note, minutes) => s.notifications.set(id, { id, kind: 'shared', actor_id: 'user-bram', owner_id: 'user-anna', task_id: null, project_id: null, comment_id: null, note_id: note, is_read: false, created_at: at(minutes) });
+  n('n-note', 'note-0001', 2);
+  n('n-note-trash', 'note-0002', 3);
+  n('n-note-gone', 'note-weg', 4);
+  const items = inboxItems(s, { userId: 'user-anna', userName, now: NOW });
+  const note = items.find((x) => x.id === 'n-note');
+  assert.deepEqual([note.title, note.project, note.target], ['Kerstcadeaus', null, { type: 'note', id: 'note-0001' }]);
+  assert.equal(inboxSentence(note), 'Bram heeft een notitie met je gedeeld');
+  assert.ok(!items.some((x) => x.id === 'n-note-trash' || x.id === 'n-note-gone'));
+  assert.equal(inboxSentence(items.find((x) => x.id === 'n-shared')), 'Bram heeft je toegevoegd aan een project', 'een project blijft de oude zin');
+});

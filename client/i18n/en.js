@@ -1709,6 +1709,7 @@ export default {
   'inbox.commentProject': '{actor} commented on the project',
   'inbox.mention': '{actor} mentioned you in a comment',
   'inbox.completed': '{actor} completed your task',
+  'inbox.sharedNote': '{actor} shared a note with you',
   'inbox.shared': '{actor} added you to a project',
   'inbox.other': '{actor} did something in a shared project',
   'inbox.kind.assigned': 'A task assigned to me',

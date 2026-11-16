@@ -53,7 +53,7 @@ test('een toewijzing komt versleuteld bij de apparaten van de ontvanger, in hun 
   const r = await w.push.flushNotifications();
   assert.deepEqual(r, { sent: 2, failed: 0 });
   const [msg] = phone.received();
-  assert.deepEqual(Object.keys(msg.body).sort(), ['actor', 'id', 'kind', 'lang', 'project', 'project_id', 'task_id', 'text', 'title', 'type', 'v']);
+  assert.deepEqual(Object.keys(msg.body).sort(), ['actor', 'id', 'kind', 'lang', 'note_id', 'project', 'project_id', 'task_id', 'text', 'title', 'type', 'v']);
   assert.deepEqual([msg.body.type, msg.body.kind, msg.body.actor, msg.body.title, msg.body.project, msg.body.task_id, msg.body.text, msg.body.lang], ['activity', 'assigned', 'Anna', 'Tegels kiezen', 'Verbouwing', T, null, 'nl']);
   assert.equal(laptop.received()[0].body.lang, 'en');
   assert.equal(own.received().length, 0, 'wie het deed, krijgt niets');
@@ -132,4 +132,23 @@ test('twee rondes tegelijk sturen een bericht niet twee keer', async () => {
   w.run(w.anna, [cmd('task_update', { id: T, assignee_id: w.bram.id })]);
   await Promise.all([w.push.flushNotifications(), w.push.flushNotifications(), w.push.flushNotifications()]);
   assert.equal(phone.received().length, 1);
+});
+
+test('een gedeelde notitie: pushbericht met de kop van de notitie en note_id; weggehaald voor het versturen: niets', async () => {
+  const w = world();
+  const phone = w.device(w.bram, 'telefoon');
+  w.run(w.anna, [
+    cmd('note_add', { id: 'note-push-00001', title: '', content: 'Kerstcadeaus\n- [ ] boek voor oma' }),
+    cmd('note_share', { note_id: 'note-push-00001', username: 'bram', role: 'viewer' }),
+  ]);
+  assert.deepEqual(await w.push.flushNotifications(), { sent: 1, failed: 0 });
+  const [msg] = phone.received();
+  assert.deepEqual([msg.body.kind, msg.body.actor, msg.body.title, msg.body.project, msg.body.note_id, msg.body.task_id, msg.body.project_id], ['shared', 'Anna', 'Kerstcadeaus', null, 'note-push-00001', null, null]);
+
+  // gedeeld en meteen weer weggehaald: het bericht gaat niet meer
+  w.run(w.anna, [cmd('note_add', { id: 'note-push-00002', title: 'Geheim', content: 'x' }), cmd('note_share', { note_id: 'note-push-00002', username: 'bram', role: 'viewer' })]);
+  const share = (w.db.prepare("SELECT id FROM note_shares WHERE note_id = 'note-push-00002' AND is_deleted = 0").get() as Row).id;
+  w.run(w.anna, [cmd('note_share_delete', { id: share })]);
+  await w.push.flushNotifications();
+  assert.equal(phone.received().length, 1, 'geen tweede bericht');
 });

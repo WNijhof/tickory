@@ -141,6 +141,7 @@
     <string name="inbox_mention">%1$s noemde je in een opmerking</string>
     <string name="inbox_completed">%1$s heeft je taak afgevinkt</string>
     <string name="inbox_shared">%1$s heeft je toegevoegd aan een project</string>
+    <string name="inbox_shared_note">%1$s heeft een notitie met je gedeeld</string>
     <string name="inbox_other">%1$s deed iets in een gedeeld project</string>
     <string name="inbox_someone">Iemand</string>
     <string name="inbox_open">Openen</string>

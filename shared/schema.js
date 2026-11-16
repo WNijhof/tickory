@@ -299,6 +299,8 @@ export const ENTITIES = {
       { name: 'task_id', type: 'text', nullable: true, default: null, serverManaged: true },
       { name: 'project_id', type: 'text', nullable: true, default: null, serverManaged: true },
       { name: 'comment_id', type: 'text', nullable: true, default: null, serverManaged: true },
+      // een notitie die met je is gedeeld (soort 'shared'); dan zijn task_id en project_id leeg
+      { name: 'note_id', type: 'text', nullable: true, default: null, serverManaged: true },
       { name: 'is_read', type: 'bool', default: false },
       owner(),
     ],

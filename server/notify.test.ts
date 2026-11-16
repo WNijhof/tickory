@@ -56,7 +56,7 @@ test('toevoegen aan een project: de nieuwe persoon krijgt één melding (ook met
   ok(run(db, anna, [again]), again);
   assert.equal(mine(db, bram).length, 1, 'al lid: geen tweede melding');
   const n0 = mine(db, bram)[0];
-  assert.deepEqual(Object.keys(n0).sort(), ['actor_id', 'comment_id', 'created_at', 'id', 'is_deleted', 'is_read', 'kind', 'owner_id', 'project_id', 'task_id', 'updated_at']);
+  assert.deepEqual(Object.keys(n0).sort(), ['actor_id', 'comment_id', 'created_at', 'id', 'is_deleted', 'is_read', 'kind', 'note_id', 'owner_id', 'project_id', 'task_id', 'updated_at']);
   assert.equal(n0.owner_id, bram.id);
   assert.equal(n0.is_read, false);
 });

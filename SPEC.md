@@ -43,7 +43,7 @@ Alle entiteiten hebben: `id`, `is_deleted` (bool), `created_at`, `updated_at` (I
 | `note_file` | `note_id`* (een eigen notitie, vast), `name`*, `size`*, `mime`* (een afbeelding: png, jpeg, gif, webp; of geluid: webm, ogg, mpeg, mp4, x-m4a, aac, wav, x-wav, flac), `sha256`*, `owner_id`. Een foto of geluidsfragment bij een notitie: privé zoals de notitie, het bestand zelf zoals een bijlage (4b, met `note_id`). Alleen `_add` en `_delete` (zie 5k). |
 | `note_share` | `note_id`* (vast), `user_id`* (vast), `role`* (`viewer` of `editor`), `owner_id` (de eigenaar van de notitie). Gemaakt met het commando `note_share { note_id, username, role }`; alleen `_update` (de rol, door de eigenaar) en `_delete` (de eigenaar, of de ander zelf). Zie 5k. |
 | `settings` | `auto_reminder` (minuten vooraf; standaard 30; -1 = geen), `timezone` (IANA-naam of `null`), `notify_push` (per soort melding bij samenwerken of die ook als pushmelding komt, zie 5d; `null` = de standaard), `goal_daily` (0-100, `null` = 5), `goal_weekly` (0-700, `null` = 25) en `days_off` (lijst van hooguit zes verschillende ISO-weekdagen 1-7, `null` = `[6, 7]`) voor het productiviteitsoverzicht (5g; 0 = geen doel), `view_options` (hoe je lijsten gesorteerd en gegroepeerd zijn, zie 5j; `null` = overal de standaard), `note_prefs` (`{ layout, sort, order, checked_bottom }` voor de notities, zie 5k; `null` = de standaard), `owner_id`. Eén rij per gebruiker met het vaste id `settings-<gebruikers-id>`; de server maakt hem zelf aan. Alleen `settings_update` bestaat. |
-| `notification` | Server-beheerd: `kind` (`assigned` \| `comment` \| `mention` \| `completed` \| `shared`), `actor_id`, precies één van `task_id` / `project_id`, `comment_id`, `owner_id` (de ontvanger); de ontvanger wijzigt alleen `is_read`. Alleen `notification_update` en `notification_read_all`; zie 5d |
+| `notification` | Server-beheerd: `kind` (`assigned` \| `comment` \| `mention` \| `completed` \| `shared`), `actor_id`, precies één van `task_id` / `project_id` / `note_id` (een gedeelde notitie), `comment_id`, `owner_id` (de ontvanger); de ontvanger wijzigt alleen `is_read`. Alleen `notification_update` en `notification_read_all`; zie 5d |
 
 Taken hebben daarnaast `assignee_id` (een lid van het project, of `null`) en `creator_id`. De velden `owner_id`, `creator_id` en `author_id` vult de **server** in met de gebruiker die het commando uitvoert; meesturen geeft `READONLY`.
 
@@ -335,7 +335,7 @@ Zoals bij Todoist hoor je wat anderen in een gedeeld project doen dat jou aangaa
 | `comment` | `comment_add` bij een project | alle leden |
 | `mention` | `comment_add` met `mentions`, of `comment_update` die iemand nieuw in `mentions` zet | wie genoemd is; gaat voor `comment` (iedereen hooguit één melding per opmerking), en bij bewerken alleen de nieuwe |
 | `completed` | `task_complete` die iets deed (ook een terugkerende taak die doorschuift) | de toegewezene |
-| `shared` | `project_share` die iemand lid maakt (één melding voor het project, niet per subproject) | wie is toegevoegd |
+| `shared` | `project_share` die iemand lid maakt (één melding voor het project, niet per subproject), of `note_share` die een notitie met iemand deelt (`note_id`; een andere rol daarna geeft geen nieuwe melding; weg bij niet meer delen of verwijderen) | wie is toegevoegd |
 
 Een lezer (hoofdstuk 5) kan geen taak toegewezen krijgen en niets afvinken, dus `assigned` en `completed` krijgt of veroorzaakt hij niet; een opmerking van een lezer geeft gewoon meldingen.
 

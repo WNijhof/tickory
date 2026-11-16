@@ -26,7 +26,7 @@ export const notificationIdFromHash = (hash) => HASH.exec(hash ?? '')?.[1] ?? nu
  *   navigate: (route: object) => void, getRoute: () => object,
  * }} options
  */
-export function installInbox({ store, actions, handlers, navigate, getRoute }) {
+export function installInbox({ store, actions, handlers, navigate, getRoute, openNote = () => {} }) {
   const items = () => (store.me ? inboxItems(store.view, { userId: store.userId, userName: (id) => store.userName(id) }) : []);
   /** Alleen tonen voor wie samenwerkt: een gedeeld project, of al eens een melding. */
   const relevant = () => {
@@ -67,6 +67,10 @@ export function installInbox({ store, actions, handlers, navigate, getRoute }) {
   /** Een melding openen: gelezen, en naar de taak (het taakvenster) of het project (bij een opmerking: de opmerkingen erbij). */
   async function open(item) {
     await markRead(item);
+    if (item.target.type === 'note') {
+      openNote(item.target.id);
+      return;
+    }
     if (item.target.type === 'task') {
       const task = store.view.tasks.get(item.target.id);
       if (task) handlers.open(task);

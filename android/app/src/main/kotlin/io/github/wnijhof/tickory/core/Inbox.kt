@@ -21,6 +21,8 @@ data class InboxItem(
     val projectId: String?,
     val isRead: Boolean,
     val createdAtMs: Long,
+    /** Een notitie die met je is gedeeld (soort "shared"); dan zijn taak en project leeg. */
+    val noteId: String? = null,
 )
 
 /**
@@ -65,6 +67,14 @@ object InboxParser {
             val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: continue
             projects[id] = SyncParser.cleanTitle(o.text("name"))
         }
+        // Notities (voor "heeft een notitie met je gedeeld"): de kop zoals in de app; zonder lijst geen meldingen over notities.
+        val notes = HashMap<String, String>()
+        for (n in root.list("notes") ?: emptyList()) {
+            val o = Json.asObject(n) ?: continue
+            if (o.flag("is_deleted") || o.text("trashed_at") != null) continue
+            val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: continue
+            notes[id] = SyncParser.cleanTitle(NoteReminders.headline(o.text("title"), o.text("content")))
+        }
         // De opmerkingen zijn optioneel: zonder komt er geen tekst in de melding.
         val rawComments = root.list("comments")
         val comments = HashMap<String, String>()
@@ -86,9 +96,13 @@ object InboxParser {
             val taskId = o.text("task_id")?.takeIf { Ids.isSafeId(it) }
             val projectId = o.text("project_id")?.takeIf { Ids.isSafeId(it) }
             val commentId = o.text("comment_id")?.takeIf { Ids.isSafeId(it) }
+            val noteId = o.text("note_id")?.takeIf { Ids.isSafeId(it) }
             val title: String
             val project: String?
-            if (taskId != null) {
+            if (noteId != null) {
+                title = notes[noteId] ?: return@mapNotNull null // de notitie is weg of niet meer gedeeld
+                project = null
+            } else if (taskId != null) {
                 val (content, inProject) = tasks[taskId] ?: return@mapNotNull null
                 title = content
                 project = projects[inProject] ?: return@mapNotNull null
@@ -107,7 +121,8 @@ object InboxParser {
             }
             InboxItem(
                 id = id, kind = o.text("kind") ?: "", actor = names[o.text("actor_id")] ?: "", title = title, project = project, text = text,
-                taskId = taskId, projectId = if (taskId == null) projectId else null, isRead = o.flag("is_read"), createdAtMs = created,
+                taskId = if (noteId == null) taskId else null, projectId = if (taskId == null && noteId == null) projectId else null,
+                isRead = o.flag("is_read"), createdAtMs = created, noteId = noteId,
             )
         }
         return InboxSnapshot(accountId, items, push)

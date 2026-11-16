@@ -52,6 +52,24 @@ class InboxTest {
     }
 
     @Test
+    fun `lezen - een gedeelde notitie heeft de kop van de notitie, zonder project, en weg of in de prullenbak - niet`() {
+        val notes = """[{"id":"note-0001","title":"","content":"Kerstcadeaus
+- [ ] boek","is_deleted":false,"trashed_at":null},""" +
+            """{"id":"note-0002","title":"Oud","content":"","is_deleted":false,"trashed_at":"2026-11-13T10:00:00Z"}]"""
+        fun shared(id: String, note: String) =
+            """{"id":"$id","kind":"shared","actor_id":"user-bram","task_id":null,"project_id":null,"comment_id":null,"note_id":"$note","is_read":false,"owner_id":"user-anna","created_at":"${at(2)}","is_deleted":false}"""
+        val raw = body(listOf(shared("n-note-1", "note-0001"), shared("n-note-2", "note-0002"), shared("n-note-3", "note-weg")))
+        val snap = InboxParser.parse(raw.replace("\"reminders\":[],", "\"reminders\":[],\"notes\":$notes,"))!!
+        val item = snap.items.single()
+        assertEquals("n-note-1", item.id)
+        assertEquals("Kerstcadeaus", item.title)
+        assertNull(item.project)
+        assertEquals("note-0001", item.noteId)
+        assertNull(item.taskId)
+        assertNull(item.projectId)
+    }
+
+    @Test
     fun `lezen - eigen keuze per soort, zonder opmerkingen geen tekst, en een oudere server zonder meldingen geeft null`() {
         val snap = InboxParser.parse(body(listOf(notification("n-mention", "mention", comment = "comm-0001")), push = """{"completed":true,"comment":false,"onbekend":true,"mention":"ja"}""", comments = null))!!
         assertEquals(mapOf("assigned" to true, "comment" to false, "mention" to true, "completed" to true, "shared" to true), snap.push)

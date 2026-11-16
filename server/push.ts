@@ -26,6 +26,7 @@ import { handleSync } from './sync.ts';
 import { pushChoices } from '../shared/notifications.js';
 import { canEditRole } from '../shared/roles.js';
 import { lastNoteReminder, noteHeadline } from '../shared/notes.js';
+import { noteRole } from './noteAccess.ts';
 
 /** Hoe lang na het tijdstip een herinnering nog verstuurd wordt (bijvoorbeeld na een herstart van de server). */
 export const LATE_WINDOW_MS = 60 * 60_000;
@@ -242,7 +243,7 @@ export function createPush(cfg: PushConfig) {
    */
   function activityMessage(notificationId: string, userId: string): { payload: object; topic: string } | null {
     const n = db.prepare(
-      `SELECT n.id, n.kind, n.task_id, n.project_id, n.comment_id, u.name AS actor FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
+      `SELECT n.id, n.kind, n.task_id, n.project_id, n.comment_id, n.note_id, u.name AS actor FROM notifications n LEFT JOIN users u ON u.id = n.actor_id
        WHERE n.id = ? AND n.owner_id = ? AND n.is_deleted = 0 AND n.is_read = 0`,
     ).get(notificationId, userId) as Row | undefined;
     if (!n) return null;
@@ -252,7 +253,12 @@ export function createPush(cfg: PushConfig) {
     const member = (projectId: unknown): boolean => db.prepare('SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(projectId as string, userId) !== undefined;
     let title: string;
     let project: string | null = null;
-    if (n.task_id) {
+    if (n.note_id) {
+      // een gedeelde notitie: alleen zolang de ontvanger hem nog ziet; de kop zoals in de app
+      const note = db.prepare('SELECT title, content FROM notes WHERE id = ? AND is_deleted = 0').get(n.note_id as string) as Row | undefined;
+      if (!note || noteRole(db, userId, n.note_id as string) === null) return null;
+      title = noteHeadline({ title: note.title as string, content: note.content as string }, 300);
+    } else if (n.task_id) {
       const t = db.prepare('SELECT t.content, t.project_id, p.name FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = ? AND t.is_deleted = 0').get(n.task_id as string) as Row | undefined;
       if (!t || !member(t.project_id)) return null;
       title = t.content as string;
@@ -267,7 +273,8 @@ export function createPush(cfg: PushConfig) {
     return {
       payload: {
         v: 1, type: 'activity', id: n.id, kind: n.kind, actor: oneLine(n.actor, 100), title: oneLine(title, 300), project: project === null ? null : oneLine(project, 200),
-        text: comment ? oneLine(comment.content, EXCERPT) : null, task_id: n.task_id ?? null, project_id: n.task_id ? null : n.project_id,
+        text: comment ? oneLine(comment.content, EXCERPT) : null, task_id: n.task_id ?? null, project_id: n.task_id || n.note_id ? null : n.project_id,
+        note_id: n.note_id ?? null,
       },
       topic: createHash('sha256').update(`n|${n.id as string}`).digest('base64url').slice(0, 32),
     };

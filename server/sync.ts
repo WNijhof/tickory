@@ -84,6 +84,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
     }
     case 'notification': {
       if (row.owner_id !== userId) return false;
+      if (row.note_id) return noteRole(db, userId, row.note_id as string) !== null;
       if (!row.task_id) return isMember(db, userId, row.project_id);
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
       return t !== undefined && isMember(db, userId, t.project_id);
@@ -596,6 +597,11 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       mark(ctx, 'note_files', 'note_id = ?', [id]);
       mark(ctx, 'notes', 'id = ?', [id]);
       forgetNoteRevisions(ctx.db, id);
+      notify.forgetNote(ctx, id);
+      break;
+    case 'note_share':
+      mark(ctx, 'note_shares', 'id = ?', [id]);
+      notify.forgetNote(ctx, row.note_id as string, row.user_id as string); // de melding "gedeeld" van die ontvanger gaat mee
       break;
     case 'place':
       // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
@@ -894,6 +900,7 @@ function noteShare(ctx: Ctx, args: Args): void {
   }
   quota(ctx, `note_shares:${note.id as string}`, LIMITS.sharesPerNote, 'delingen per notitie', () => countOf(ctx.db, 'SELECT COUNT(*) AS n FROM note_shares WHERE note_id = ? AND is_deleted = 0', note.id as string));
   insertRow(ctx, ENTITIES.note_share, newId(), { note_id: note.id, user_id: target.id, role, owner_id: ctx.userId });
+  notify.noteShared(ctx, note.id as string, target.id);
 }
 
 function noteRestore(ctx: Ctx, args: Args): void {
@@ -1076,7 +1083,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
     case 'note_file': return { sql: `note_id IN (${NOTES_I_SEE})`, params: [uid, uid] };
     case 'note_share': return { sql: '(owner_id = ? OR user_id = ?)', params: [uid, uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
-    case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine})))`, params: [uid, uid, uid] };
+    case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine}) OR note_id IN (${NOTES_I_SEE})))`, params: [uid, uid, uid, uid, uid] };
   }
 }
 

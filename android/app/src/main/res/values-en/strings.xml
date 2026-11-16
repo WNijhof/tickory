@@ -136,6 +136,7 @@
     <string name="inbox_mention">%1$s mentioned you in a comment</string>
     <string name="inbox_completed">%1$s completed your task</string>
     <string name="inbox_shared">%1$s added you to a project</string>
+    <string name="inbox_shared_note">%1$s shared a note with you</string>
     <string name="inbox_other">%1$s did something in a shared project</string>
     <string name="inbox_someone">Someone</string>
     <string name="inbox_open">Open</string>

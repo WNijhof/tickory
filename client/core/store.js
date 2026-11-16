@@ -222,9 +222,10 @@ export class Store {
     drop('reminders', (r) => !base.tasks.has(r.task_id));
     // een locatieherinnering zonder plaats (de plaats is weg) doet niets meer
     drop('reminders', (r) => Boolean(r.place_id) && !base.places.has(r.place_id));
-    // een melding over iets wat er niet (meer) is: de taak, het project of de opmerking (zie server/notify.ts)
+    // een melding over iets wat er niet (meer) is: de taak, het project, de opmerking of de gedeelde notitie (zie server/notify.ts)
     if (base.notifications) {
-      drop('notifications', (n) => (n.task_id ? !base.tasks.has(n.task_id) : !projectsLeft.has(n.project_id)) || (Boolean(n.comment_id) && !base.comments.has(n.comment_id)));
+      drop('notifications', (n) => (n.note_id ? !base.notes?.has(n.note_id)
+        : (n.task_id ? !base.tasks.has(n.task_id) : !projectsLeft.has(n.project_id)) || (Boolean(n.comment_id) && !base.comments.has(n.comment_id))));
     }
   }
 

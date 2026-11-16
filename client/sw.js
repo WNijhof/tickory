@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v120';
+const CACHE = 'tickory-v121';
 const SHELL = [
   '/',
   '/app.css',
@@ -259,13 +259,13 @@ const PUSH_TEXT = {
     reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen', note: 'Notitie',
     assigned: '{actor} heeft je een taak toegewezen', comment: '{actor} reageerde op een taak', commentProject: '{actor} schreef een opmerking bij het project',
     mention: '{actor} noemde je in een opmerking', completed: '{actor} heeft je taak afgevinkt', shared: '{actor} heeft je toegevoegd aan een project',
-    other: '{actor} deed iets in een gedeeld project', someone: 'Iemand',
+    sharedNote: '{actor} heeft een notitie met je gedeeld', other: '{actor} deed iets in een gedeeld project', someone: 'Iemand',
   },
   en: {
     reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open', note: 'Note',
     assigned: '{actor} assigned you a task', comment: '{actor} commented on a task', commentProject: '{actor} commented on the project',
     mention: '{actor} mentioned you in a comment', completed: '{actor} completed your task', shared: '{actor} added you to a project',
-    other: '{actor} did something in a shared project', someone: 'Someone',
+    sharedNote: '{actor} shared a note with you', other: '{actor} did something in a shared project', someone: 'Someone',
   },
 };
 const ACTIVITY_KINDS = ['assigned', 'comment', 'mention', 'completed', 'shared'];
@@ -277,7 +277,8 @@ const SAFE_ID = /^[A-Za-z0-9_-]{8,40}$/;
  */
 function activityNotification(data, text, base) {
   const kind = ACTIVITY_KINDS.includes(data.kind) ? data.kind : 'other';
-  const key = kind === 'comment' && !data.task_id ? 'commentProject' : kind;
+  const note = typeof data.note_id === 'string' && SAFE_ID.test(data.note_id) ? data.note_id : null;
+  const key = kind === 'comment' && !data.task_id ? 'commentProject' : kind === 'shared' && note ? 'sharedNote' : kind;
   const actor = typeof data.actor === 'string' && data.actor ? data.actor : text.someone;
   const title = typeof data.title === 'string' ? data.title : '';
   const lines = [title + (typeof data.project === 'string' && data.project ? ` · ${data.project}` : ''), typeof data.text === 'string' ? data.text : ''].filter(Boolean);

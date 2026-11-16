@@ -1706,6 +1706,7 @@ export default {
   'inbox.commentProject': '{actor} schreef een opmerking bij het project',
   'inbox.mention': '{actor} noemde je in een opmerking',
   'inbox.completed': '{actor} heeft je taak afgevinkt',
+  'inbox.sharedNote': '{actor} heeft een notitie met je gedeeld',
   'inbox.shared': '{actor} heeft je toegevoegd aan een project',
   'inbox.other': '{actor} deed iets in een gedeeld project',
   'inbox.kind.assigned': 'Een taak aan mij toegewezen',

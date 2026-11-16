@@ -550,8 +550,15 @@ export async function notesScenario(c: any) {
   await as(bobToken, [['note_add', { id: 'e2enotitiebob001', title: 'Van Bob', content: 'Lees mee' }], ['note_share', { note_id: 'e2enotitiebob001', username: 'alice', role: 'viewer' }]]);
   const bobCard = `document.querySelector('.nc[data-id="e2enotitiebob001"]')`;
   await waitFor(`${bobCard}?.querySelector('.nc-shared')?.textContent === ${js(bobName)}`, 'de kaart van Bob met zijn naam', 10_000);
-  await evaluate(`${bobCard}.querySelector('.nc-open').click()`);
-  await waitFor(`document.querySelector('dialog[open] [data-fk="note-shared-by"]')`, 'de notitie van Bob open');
+  // en een melding: "Bob heeft een notitie met je gedeeld"; die opent de notitie
+  const noteNotice = `[...document.querySelectorAll('.inbox-item[data-kind="shared"]')].find((li) => li.querySelector('.inbox-title')?.textContent === 'Van Bob')`;
+  await waitFor(`document.querySelector('[data-fk="nav-notifications"] .nav-count')?.textContent === '1'`, 'een ongelezen melding in de zijbalk', 10_000);
+  await nav('Meldingen');
+  await waitFor(`${noteNotice}`, 'de melding over de gedeelde notitie', 10_000);
+  assert.equal(await evaluate(`${noteNotice}.querySelector('.inbox-sentence').textContent.replace('Ongelezen: ', '')`), `${bobName} heeft een notitie met je gedeeld`);
+  await evaluate(`${noteNotice}.querySelector('.inbox-open').click()`);
+  await waitFor(`document.querySelector('dialog[open] [data-fk="note-shared-by"]')`, 'de notitie van Bob open (via de melding)');
+  assert.equal(await evaluate(`${noteNotice}?.classList.contains('unread') ?? false`), false, 'de melding is gelezen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="note-shared-by"]').textContent`), `Gedeeld door ${bobName} · Alleen lezen`);
   assert.equal(await evaluate(`document.querySelector('dialog[open] .note-title').readOnly`), true, 'alleen lezen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] .ned').getAttribute('contenteditable')`), 'false');
@@ -560,13 +567,16 @@ export async function notesScenario(c: any) {
   await click('dialog[open] [data-fk="note-menu:leave"]');
   await waitFor(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].some((b) => b.textContent === 'Weghalen')`, 'de vraag');
   await evaluate(`[...document.querySelectorAll('dialog[open] .dialog-buttons .button-danger')].find((b) => b.textContent === 'Weghalen').click()`);
-  await waitFor(`!document.querySelector('dialog[open]') && !${bobCard}`, 'weg uit de notities van Alice', 10_000);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'de vraag en de notitie dicht', 10_000);
+  await nav('Notities');
+  await waitFor(`!${bobCard}`, 'weg uit de notities van Alice', 10_000);
   await synced();
+  assert.equal(((serverState().notifications as any[]) ?? []).some((x) => x.note_id === 'e2enotitiebob001' && !x.is_deleted), false, 'de melding is mee weg');
   assert.equal(((serverState(bob.id).notes as any[]) ?? []).some((x) => x.id === 'e2enotitiebob001'), true, 'bij Bob bestaat ze nog');
   assert.equal(((serverState().note_shares as any[]) ?? []).some((s) => s.note_id === 'e2enotitiebob001' && !s.is_deleted), false);
   await as(bobToken, [['note_delete', { id: 'e2enotitiebob001' }]]);
   await closeToasts();
-  step('notities: delen op gebruikersnaam (bewerker, lezer), een wijziging van de ander komt live binnen, "Gedeeld met 1 persoon"; een notitie van een ander alleen lezen en "Uit mijn notities halen"');
+  step('notities: delen op gebruikersnaam (bewerker, lezer), een wijziging van de ander komt live binnen, "Gedeeld met 1 persoon"; een notitie van een ander alleen lezen (geopend via de melding "heeft een notitie met je gedeeld") en "Uit mijn notities halen"');
 
   // ---- opruimen ----
   const boeken = (serverState().labels as any[]).filter((l) => ['Vakantie', 'boeken'].includes(l.name) && l.owner_id === alice.id).map((l) => ['label_delete', { id: l.id }] as [string, object]);

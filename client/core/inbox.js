@@ -5,13 +5,14 @@
 
 import { NOTIFICATION_RETENTION_DAYS } from '../../shared/notifications.js';
 import { t } from './i18n.js';
+import { noteHeadline } from '../../shared/notes.js';
 
 const EXCERPT = 160;
 
 /**
  * @typedef {{
  *   id: string, kind: string, read: boolean, at: string, actor: string, title: string, project: string | null,
- *   excerpt: string | null, target: { type: 'task' | 'project', id: string }, onProject: boolean, comment: object | null,
+ *   excerpt: string | null, target: { type: 'task' | 'project' | 'note', id: string }, onProject: boolean, comment: object | null,
  * }} InboxItem
  */
 
@@ -33,6 +34,18 @@ export function inboxItems(view, { userId, userName, now = Date.now() }) {
   for (const n of view.notifications?.values() ?? []) {
     if (userId && n.owner_id && n.owner_id !== userId) continue;
     if (n.created_at < oldest) continue;
+    if (n.note_id) {
+      // een gedeelde notitie (alleen zolang je hem nog ziet, en niet in de prullenbak)
+      const note = view.notes?.get(n.note_id);
+      if (!note || note.trashed_at) continue;
+      out.push({
+        id: n.id, kind: n.kind, read: Boolean(n.is_read), at: n.created_at,
+        actor: (n.actor_id && userName(n.actor_id)) || t('common.someone'),
+        title: noteHeadline(note, 200) || t('note.untitled'), project: null, excerpt: null,
+        target: { type: 'note', id: note.id }, onProject: false, comment: null,
+      });
+      continue;
+    }
     const task = n.task_id ? view.tasks.get(n.task_id) : null;
     const project = view.projects.get(task ? task.project_id : n.project_id);
     if ((n.task_id && !task) || !project) continue;
@@ -64,7 +77,7 @@ export function inboxSentence(item) {
     case 'comment': return item.onProject ? t('inbox.commentProject', { actor }) : t('inbox.comment', { actor });
     case 'mention': return t('inbox.mention', { actor });
     case 'completed': return t('inbox.completed', { actor });
-    case 'shared': return t('inbox.shared', { actor });
+    case 'shared': return item.target?.type === 'note' ? t('inbox.sharedNote', { actor }) : t('inbox.shared', { actor });
     default: return t('inbox.other', { actor }); // een soort van een nieuwere server
   }
 }

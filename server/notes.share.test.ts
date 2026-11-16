@@ -141,3 +141,25 @@ test('hooguit vijftig delingen per notitie', () => {
   w.ok('anna', cmds);
   assert.equal(w.code('anna', cmd('note_share', { note_id: 'note-anna-0001', username: 'bram' })), 'LIMIT_REACHED');
 });
+
+test('een melding bij delen: de ander krijgt er één (een andere rol daarna niet), weg bij niet meer delen of verwijderen', () => {
+  const { db, users, ok } = world();
+  const notes = (as: string) => ((handleSync(db, { sync_token: '*' }, users[as].id) as any).notifications as Row[]).filter((x) => x.note_id === 'note-anna-0001' && !x.is_deleted);
+  ok('anna', [cmd('note_share', { note_id: 'note-anna-0001', username: 'bram', role: 'viewer' })]);
+  const mine = notes('bram');
+  assert.equal(mine.length, 1);
+  assert.deepEqual([mine[0].kind, mine[0].actor_id, mine[0].task_id, mine[0].project_id], ['shared', users.anna.id, null, null]);
+  assert.equal(notes('anna').length, 0, 'de eigenaar krijgt niets');
+  assert.equal(notes('cas').length, 0, 'een derde ziet niets');
+  ok('anna', [cmd('note_share', { note_id: 'note-anna-0001', username: 'bram', role: 'editor' })]);
+  assert.equal(notes('bram').length, 1, 'een andere rol geeft geen tweede melding');
+  // niet meer delen: de melding gaat mee
+  const share = (handleSync(db, { sync_token: '*' }, users.anna.id) as any).note_shares.find((s: Row) => s.user_id === users.bram.id && !s.is_deleted);
+  ok('anna', [cmd('note_share_delete', { id: share.id })]);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM notifications WHERE note_id = 'note-anna-0001' AND is_deleted = 0").get()!.n, 0);
+  // opnieuw delen, dan verwijdert de eigenaar de notitie
+  ok('anna', [cmd('note_share', { note_id: 'note-anna-0001', username: 'cas', role: 'viewer' })]);
+  assert.equal(notes('cas').length, 1);
+  ok('anna', [cmd('note_delete', { id: 'note-anna-0001' })]);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM notifications WHERE note_id = 'note-anna-0001' AND is_deleted = 0").get()!.n, 0);
+});
