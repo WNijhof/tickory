@@ -53,10 +53,10 @@
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit; background: var(--nbg-ink);
   -webkit-mask-size: 64px 64px; mask-size: 64px 64px;
 }
-.nbg-groceries::before { -webkit-mask-image: url('/patterns/groceries.svg'); mask-image: url('/patterns/groceries.svg'); }
-.nbg-music::before { -webkit-mask-image: url('/patterns/music.svg'); mask-image: url('/patterns/music.svg'); }
-.nbg-travel::before { -webkit-mask-image: url('/patterns/travel.svg'); mask-image: url('/patterns/travel.svg'); }
-.nbg-code::before { -webkit-mask-image: url('/patterns/code.svg'); mask-image: url('/patterns/code.svg'); }
+.nbg-groceries::before { -webkit-mask-image: url('patterns/groceries.svg'); mask-image: url('patterns/groceries.svg'); }
+.nbg-music::before { -webkit-mask-image: url('patterns/music.svg'); mask-image: url('patterns/music.svg'); }
+.nbg-travel::before { -webkit-mask-image: url('patterns/travel.svg'); mask-image: url('patterns/travel.svg'); }
+.nbg-code::before { -webkit-mask-image: url('patterns/code.svg'); mask-image: url('patterns/code.svg'); }
 
 /* ---------- Markdown (ui/markdown.js) ---------- */
 .md { overflow-wrap: anywhere; line-height: 1.55; }
