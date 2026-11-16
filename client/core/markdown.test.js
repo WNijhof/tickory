@@ -203,3 +203,14 @@ test('markeren en onderstrepen: ==geel==, een kleur, ++onderstreept++, en niet b
   assert.deepEqual(parseInline('a == b en C++ of i++ ++'), [text('a == b en C++ of i++ ++')]);
   assert.deepEqual(parseInline(String.raw`\==geen\==`), [text('==geen==')], 'een backslash zet = letterlijk');
 });
+
+import { hasInlineMarkup, inlinePlain } from './markdown.js';
+
+test('inlinePlain: de tekst van een titel zonder opmaaktekens; gewone tekst blijft precies gelijk', () => {
+  assert.equal(inlinePlain('**Melk** halen bij _de_ ~~Jumbo~~ `nu`'), 'Melk halen bij de Jumbo nu');
+  assert.equal(inlinePlain('Lees [het recept](https://example.org/recept)'), 'Lees het recept');
+  assert.equal(inlinePlain('Bel IJsbrand om 9:30 - snel!'), 'Bel IJsbrand om 9:30 - snel!');
+  assert.equal(inlinePlain('2 * 3 = 6'), '2 * 3 = 6', 'een los sterretje is geen opmaak');
+  assert.equal(hasInlineMarkup('Gewone taak @label #project'), false);
+  assert.equal(hasInlineMarkup('zie https://example.org'), true);
+});

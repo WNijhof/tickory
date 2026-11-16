@@ -552,7 +552,7 @@ export async function notesScenario(c: any) {
   await waitFor(`${bobCard}?.querySelector('.nc-shared')?.textContent === ${js(bobName)}`, 'de kaart van Bob met zijn naam', 10_000);
   await evaluate(`${bobCard}.querySelector('.nc-open').click()`);
   await waitFor(`document.querySelector('dialog[open] [data-fk="note-shared-by"]')`, 'de notitie van Bob open');
-  assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="note-shared-by"]').textContent`), `Van ${bobName} · Alleen lezen`);
+  assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="note-shared-by"]').textContent`), `Gedeeld door ${bobName} · Alleen lezen`);
   assert.equal(await evaluate(`document.querySelector('dialog[open] .note-title').readOnly`), true, 'alleen lezen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] .ned').getAttribute('contenteditable')`), 'false');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .note-bar-right [data-fk]')].map((b) => b.dataset.fk)`), ['note:more'], 'geen kleur, belletje of punaise');

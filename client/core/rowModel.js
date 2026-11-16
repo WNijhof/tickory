@@ -7,13 +7,16 @@ import { dueStatus, formatDate, formatDue } from './format.js';
 import { t } from './i18n.js';
 import { colorName } from './colors.js';
 import { completedTime } from './completed.js';
+import { inlinePlain, plainText } from './markdown.js';
 
 /** Hoeveel tekens van de beschrijving onder de titel staan; CSS kapt daarna nog af op de breedte. */
 export const DESCRIPTION_CHARS = 160;
 
 /** De eerste regel met tekst van een beschrijving, met samengevouwen witruimte en zo nodig afgekapt met een beletselteken. */
 export function descriptionLine(text) {
-  const line = String(text ?? '').split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).find(Boolean) ?? '';
+  // de eerste regel met inhoud, zonder Markdown-tekens ("- [ ] **melk**" wordt "melk")
+  const first = String(text ?? '').split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).find(Boolean) ?? '';
+  const line = first ? plainText(first) || first : '';
   return line.length > DESCRIPTION_CHARS ? `${line.slice(0, DESCRIPTION_CHARS - 1).trimEnd()}…` : line;
 }
 
@@ -59,6 +62,8 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
   return {
     id: task.id,
     content: task.content,
+    /** de titel zonder opmaaktekens, voor schermlezers en knoppen */
+    title: inlinePlain(task.content),
     description: descriptionLine(task.description),
     priority: task.priority,
     done: Boolean(task.checked),

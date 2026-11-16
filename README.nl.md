@@ -3,369 +3,76 @@
 </p>
 <h1 align="center">Tickory</h1>
 <p align="center">
-  De takenlijst die je zelf host: voor jezelf, je gezin of een klein team.<br>
+  De takenlijst en notitie-app die je zelf host: voor jezelf, je gezin of een klein team.<br>
   <a href="https://wnijhof.github.io/tickory/nl/">Website</a> ·
   <a href="https://wnijhof.github.io/tickory/demo/?lang=nl">Demo</a> ·
   <a href="https://wnijhof.github.io/tickory/nl/handleiding/">Handleiding</a> ·
   <a href="README.md">English</a>
 </p>
 
-Zelf te hosten, offline-first takenapp voor jezelf, je gezin of een klein team: een sync-server en een installeerbare web-app (PWA) in één Docker-container. Meerdere gebruikers, gedeelde projecten, taken toewijzen, herinneringen met meldingen. De app is er in het Nederlands en het Engels. Het protocol staat in [SPEC.md](SPEC.md); het is een eigen ontwerp, gebouwd op de bevindingen van een eerder onderzoek naar de werking van Todoist (niet onderdeel van deze repo).
-
-Geen npm-pakketten en geen build-stap: Node 26 voert de TypeScript zelf uit en SQLite zit in Node. De image is daardoor klein en heeft vrijwel niets om te onderhouden.
+Tickory is een zelf te hosten, offline-first app voor taken en notities: een sync-server en een installeerbare web-app in één Docker-container, plus een Android-app en een browserextensie. Je gegevens blijven op je eigen server. Geen npm-pakketten en geen build-stap: Node 26 voert de TypeScript zelf uit en SQLite zit in Node.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/assets/shots/project-dark.webp">
   <img src="website/assets/shots/project-light.webp" alt="Tickory met een gedeeld project Huishouden: secties, subtaken, terugkerende taken en taken die aan anderen zijn toegewezen." width="1120">
 </picture>
 
+## Wat het kan
+
+- **Taken:** projecten, secties, subtaken, labels, prioriteiten, deadlines, duur, opmerkingen, bijlagen, Markdown.
+- **Snel toevoegen** in gewoon Nederlands: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, herhalingen als "elke tweede dinsdag", feestdagen.
+- **Weergaven:** lijst, bord en kalender; Vandaag, Aankomend, sorteren en groeperen, Voltooid, productiviteit.
+- **Notities**, zoals Google Keep en Anchor: opmaak, checklists, kleuren, labels, foto's en geluid, herinneringen, versiegeschiedenis, delen, importeren uit Keep en Markdown.
+- **Samen:** gedeelde projecten (bewerken of alleen lezen), toewijzen, @-vermeldingen, meldingen, activiteitenlogboek.
+- **Herinneringen:** in de browser (Web Push) en als alarm in de Android-app, ook op een plek.
+- **Zoeken, filters, sjablonen, ongedaan maken, meerdere taken tegelijk, sneltoetsen.**
+- **Offline** op meerdere apparaten tegelijk; wijzigingen van anderen zijn er binnen seconden.
+- **Apps:** installeerbare web-app (PWA), Android-app met widgets, browserextensie.
+- **Accounts:** meerdere gebruikers, tweestapsverificatie, SSO (OpenID Connect), back-ups vanuit de app.
+- **Importeren** uit Todoist (back-up-zip of CSV) en Google Keep; exporteren als CSV of JSON.
+- **Talen:** Nederlands en Engels; datums typ je voorlopig in het Nederlands.
+
 ## Proberen
 
-De [demo](https://wnijhof.github.io/tickory/demo/?lang=nl) is de echte app met voorbeeldgegevens, helemaal in je browser: geen server, geen account, er wordt niets bewaard. Herinneringen kun je erin uitproberen (het belletje bij een taak, het deel Herinneringen in het venster van een taak, Instellingen, "Herinneringen en meldingen"), maar **meldingen werken niet in de demo**: die komen van een server, dus alleen op je eigen. Dezelfde demo draai je ook lokaal:
+De [demo](https://wnijhof.github.io/tickory/demo/?lang=nl) is de echte app met voorbeeldgegevens, helemaal in je browser: geen server, geen account, er wordt niets bewaard (en geen meldingen).
+
+## Snel starten met Docker
 
 ```sh
-node scripts/build-site.ts && node scripts/serve-site.ts     # http://127.0.0.1:8798/tickory/demo/
+git clone https://github.com/WNijhof/tickory.git && cd tickory
+cp .env.example .env      # vul TODO_ADMIN_USER en TODO_ADMIN_PASSWORD in (minstens 10 tekens)
+docker compose up -d      # http://127.0.0.1:8787
 ```
 
-De uitgebreide [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) staat op de website, voor gebruikers en voor beheerders.
+Het eerste account is beheerder; de andere accounts maak je in de app. Haal daarna het wachtwoord uit `.env` en draai `docker compose up -d --force-recreate`. Zet HTTPS ervoor (Tailscale, Caddy, Cloudflare Tunnel) voor offline gebruik, installeren als app en meldingen op je telefoon. Er zijn images voor `amd64` en `arm64`.
 
-## Draaien op je home server (Docker)
+Bijwerken: `docker compose pull && docker compose up -d`.
 
-Je hebt Docker met `docker compose` nodig. De image is er voor `amd64` (gewone pc, mini-pc, NAS) en `arm64` (Raspberry Pi met 64-bit systeem; 32-bit wordt niet ondersteund).
+## Documentatie
+
+De [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) beschrijft alles, in het Nederlands en het Engels:
+
+- **Gebruiken:** [taken toevoegen](https://wnijhof.github.io/tickory/nl/handleiding/taken-toevoegen.html), [datums en herhalingen](https://wnijhof.github.io/tickory/nl/handleiding/datums-en-herhalingen.html), [notities](https://wnijhof.github.io/tickory/nl/handleiding/notities.html), [herinneringen](https://wnijhof.github.io/tickory/nl/handleiding/herinneringen.html), [delen](https://wnijhof.github.io/tickory/nl/handleiding/delen.html), [de Android-app](https://wnijhof.github.io/tickory/nl/handleiding/android-app.html), [overstappen van Todoist](https://wnijhof.github.io/tickory/nl/handleiding/overstappen-van-todoist.html).
+- **Een server draaien:** [installeren](https://wnijhof.github.io/tickory/nl/handleiding/installeren.html), [HTTPS](https://wnijhof.github.io/tickory/nl/handleiding/https.html), [gebruikers beheren](https://wnijhof.github.io/tickory/nl/handleiding/gebruikers-beheren.html), [SSO](https://wnijhof.github.io/tickory/nl/handleiding/inloggen-met-sso.html), [bijlagen](https://wnijhof.github.io/tickory/nl/handleiding/bijlagen.html), [bijwerken](https://wnijhof.github.io/tickory/nl/handleiding/bijwerken.html), [back-up en terugzetten](https://wnijhof.github.io/tickory/nl/handleiding/back-up.html), [problemen oplossen](https://wnijhof.github.io/tickory/nl/handleiding/problemen-oplossen.html).
+- **Voor ontwikkelaars:** het protocol en datamodel in [SPEC.md](SPEC.md), de Android-app in [android/README.md](android/README.md), de extensie in [extension/README.md](extension/README.md). Alle instellingen staan in [.env.example](.env.example).
+
+## Stand van zaken
+
+Versie 0.3. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels. Engelse datumzinnen ("tomorrow") worden nog niet herkend.
+
+## Ontwikkelen
+
+Vraagt Node 26.
 
 ```sh
-git clone https://github.com/WNijhof/tickory.git
-cd tickory
-cp .env.example .env
+TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.ts   # http://127.0.0.1:8787 (Windows: start.cmd)
+npm test                  # unit- en integratietests
+npm run e2e               # de hele app in een echte browser (Edge of Chrome, zonder venster)
+npm run site:check        # de website en de demo
 ```
 
-1. **Eerste account.** Zet in `.env` de gebruikersnaam en het wachtwoord (minimaal 10 tekens) van het eerste account, `TODO_ADMIN_USER` en `TODO_ADMIN_PASSWORD`. Dat account wordt bij de allereerste start aangemaakt en is **beheerder**: daarmee maak je daarna in de app de andere accounts aan. Zet `.env` nooit in git (het staat al in `.gitignore`). Haal het wachtwoord na de eerste start uit `.env` **en maak de container opnieuw aan** (`docker compose up -d --force-recreate`): anders blijft het in de configuratie van de container staan, waar `docker inspect` het toont. Wil je het helemaal niet in de omgeving hebben, gebruik dan `TODO_ADMIN_PASSWORD_FILE` (het pad van een bestand met het wachtwoord, bijvoorbeeld een Docker-secret onder `/run/secrets/`). Het wachtwoord mag niet makkelijk te raden zijn (een veelgebruikt woord of wachtwoord, te weinig verschillende tekens).
-2. **Image.** `docker-compose.yml` haalt `ghcr.io/wnijhof/tickory:latest` op. Liever zelf bouwen op de server? Haal dan de regel `image:` weg en zet `build: .` terug.
-3. **Starten.**
-
-   ```sh
-   docker compose up -d
-   docker compose ps          # na enkele seconden: (healthy)
-   docker compose logs -f
-   ```
-
-De container is standaard alleen bereikbaar vanaf de server zelf (`127.0.0.1:8787`). Daarvoor staat er **HTTPS**, zie hieronder. Wil je het alleen op je thuisnetwerk gebruiken en zonder HTTPS (dan werkt alleen de computer-browser, zie de opmerking bij HTTPS), maak er dan `"8787:8787"` van en open `http://<ip-van-de-server>:8787`.
-
-Open de app en log in met het eerste account.
-
-### Accounts en gebruikers
-
-- **In de app:** Instellingen, "Account, wachtwoord en apparaten". Daar wijzig je je wachtwoord, zie je op welke apparaten je bent aangemeld (soort apparaat, laatst gebruikt, aangemeld sinds; meld er een af, of alle andere tegelijk) en zet je **tweestapsverificatie** aan (een code uit een authenticator-app zoals Aegis, FreeOTP of Google Authenticator, plus tien eenmalige herstelcodes). Als beheerder staat daar ook "Gebruikersbeheer": accounts aanmaken, blokkeren, beheerder maken, wachtwoorden herstellen, tweestapsverificatie van iemand uitzetten (die telefoon én herstelcodes kwijt is) en **een back-up downloaden**.
-- **Vanaf de server**, bijvoorbeeld als je je wachtwoord kwijt bent:
-
-  ```sh
-  docker compose exec tickory node server/main.ts user list
-  docker compose exec -e TODO_PASSWORD='een-goed-wachtwoord' tickory node server/main.ts user add anna --name "Anna de Vries"
-  docker compose exec -it tickory node server/main.ts user passwd anna        # vraagt om het wachtwoord, ongezien
-  docker compose exec tickory node server/main.ts user disable anna           # of: enable, logout-all
-  docker compose exec tickory node server/main.ts user reset-2fa anna         # tweestapsverificatie uitzetten
-  ```
-
-  Met `--admin` achter `user add` maak je een beheerder. Zonder `TODO_PASSWORD` en zonder terminal (`-it`) kan er geen wachtwoord worden gevraagd.
-- Er is geen open registratie en geen wachtwoordherstel per e-mail: een beheerder maakt accounts aan en herstelt wachtwoorden. Er blijft altijd minstens één actieve beheerder.
-- Elk apparaat krijgt bij het inloggen een eigen sessie die je kunt intrekken. Een sessie verloopt na 90 dagen zonder gebruik en hoe dan ook 365 dagen na het inloggen (`SESSION_IDLE_DAYS` en `SESSION_MAX_DAYS` in `.env`; 0 zet een grens uit); de app vraagt dan gewoon opnieuw om in te loggen. Inloggen is per kwartier begrensd: na acht mislukte pogingen op één account vanaf één adres, na veertig vanaf één adres (een IPv6-netwerk telt als één adres) of na zestig op één account in totaal, wordt inloggen geweigerd tot dat kwartier voorbij is. Pogingen worden geteld vóórdat het wachtwoord wordt gecontroleerd, dus een stroom gelijktijdige pogingen komt er niet doorheen. Omdat de teller van het account per adres is, kan een ander je vanaf zijn adres niet buitensluiten van je eigen account. De grenzen staan in `server/limits.ts` en in de SPEC; ook kan elke gebruiker maar een redelijke hoeveelheid opslaan (taken, labels, herinneringen, apparaten).
-- Een beheerder beheert accounts, niet andermans taken: ook een beheerder ziet alleen projecten waar die zelf lid van is.
-- **Tweestapsverificatie** bewaart de geheimen versleuteld in de database, met een sleutel uit het bestand `/data/secret.key` (maakt de server bij de eerste start; `SECRET_KEY_FILE` wijst een ander bestand aan). Dat bestand zit bewust niet in een back-up: een gestolen back-up geeft zo de tweede stap niet weg. **Bewaar zelf een kopie van `secret.key`**, apart van je back-ups (bijvoorbeeld in je wachtwoordbeheerder). Terugzetten op een nieuwe server zonder dat bestand kan, maar gebruikers met tweestapsverificatie hebben dan `user reset-2fa` nodig.
-
-### Inloggen met SSO (OpenID Connect)
-
-Tickory kan mensen laten inloggen met je eigen identiteitsprovider (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, of Google en Microsoft), naast een wachtwoord of in plaats daarvan. Tickory is zelf de OIDC-client (Authorization Code Flow met PKCE, `state` en `nonce`, het ID-token zonder bibliotheken gecontroleerd); er hoeft niets bij geïnstalleerd te worden.
-
-1. Maak bij de provider een OIDC-applicatie ("client") voor Tickory: vertrouwelijk (met een clientgeheim) of publiek (alleen PKCE), redirect-URI `https://taken.voorbeeld.nl/api/v1/auth/oidc/callback`, scopes `openid profile email` (en `groups` als je groepen wilt gebruiken).
-2. In `.env`:
-
-   ```sh
-   PUBLIC_URL=https://taken.voorbeeld.nl
-   OIDC_ISSUER=https://auth.voorbeeld.nl/application/o/tickory/
-   OIDC_CLIENT_ID=tickory
-   OIDC_CLIENT_SECRET=het-geheim-van-de-provider   # of OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc
-   OIDC_BUTTON_NAME=Authentik                      # de knop heet dan "Inloggen met Authentik"
-   ```
-
-3. `docker compose up -d`. Op het inlogscherm staat nu een knop. Bestaande gebruikers koppelen hun account één keer: Instellingen, Account, "Inloggen met …" (na hun wachtwoord, en hun code als ze tweestapsverificatie gebruiken). Tickory koppelt nooit vanzelf op e-mailadres of naam: dan zou wie dat adres of die naam bij de provider kan kiezen, het account overnemen.
-
-Optioneel: `OIDC_AUTO_CREATE=1` maakt bij de eerste keer inloggen van een onbekende identiteit een account (gebruikersnaam uit `preferred_username` of het e-mailadres, opgeschoond en uniek; zonder wachtwoord). `OIDC_ALLOWED_GROUPS=tickory` laat alleen leden van die groepen binnen; `OIDC_ADMIN_GROUPS=tickory-admins` maakt leden beheerder (en neemt het anderen bij hun volgende keer inloggen via SSO af; er blijft altijd minstens één actieve beheerder). `OIDC_GROUPS_CLAIM` is de claim met de groepen (standaard `groups`), `OIDC_SCOPES` de scopes (standaard `openid profile email`). `OIDC_ONLY=1` zet inloggen met een wachtwoord uit; de noodroute is dan `docker compose exec tickory node server/main.ts user signin-code <naam>` (een eenmalige link, een kwartier geldig).
-
-| Provider | `OIDC_ISSUER` | Let op |
-|---|---|---|
-| Authentik | `https://auth.voorbeeld.nl/application/o/<slug>/` | Providertype OAuth2/OpenID; groepen komen mee met de scope `profile`. |
-| Authelia | `https://auth.voorbeeld.nl` | Client met `redirect_uris`, `scopes: [openid, profile, email, groups]`, `token_endpoint_auth_method: client_secret_basic`. Authelia zet naam en groepen in userinfo; Tickory leest ze daar. |
-| Keycloak | `https://keycloak.voorbeeld.nl/realms/<realm>` | Client authentication aan. Voor groepen een mapper "Group Membership" met claimnaam `groups` en "Full group path" uit. |
-| Pocket ID | `https://id.voorbeeld.nl` | Voeg voor groepen de scope `groups` toe. |
-| Zitadel | `https://<instantie>.zitadel.cloud` | Rollen staan in `urn:zitadel:iam:org:project:roles`: zet dat als `OIDC_GROUPS_CLAIM`. |
-| Google | `https://accounts.google.com` | Geen groepen. Gebruik hier nooit `OIDC_AUTO_CREATE`: dan komt iedereen met een Google-account binnen. |
-| Microsoft Entra ID | `https://login.microsoftonline.com/<tenant-id>/v2.0` | Gebruik je eigen tenant-id, niet `common`. |
-
-Goed om te weten: wie via de provider inlogt, krijgt de tweestapsverificatie van Tickory niet nog eens (de regels en de 2FA van de provider gelden). Afmelden bij Tickory meldt je niet af bij de provider, en iemand blokkeren bij de provider beëindigt diens bestaande sessies in Tickory niet: blokkeer het account ook in Tickory. De Android-app opent de provider in de browser van de telefoon en komt terug via `tickory://oidc`. Meer in hoofdstuk 9 van [SPEC.md](SPEC.md) en in de handleiding ("Inloggen met SSO").
-
-### Delen en samenwerken
-
-- Open een project, kies **Delen**, en typ de gebruikersnaam van iemand anders van deze server. Die persoon ziet het project met alles erin (ook wat er al stond), en iedereen werkt in dezelfde taken, secties en subprojecten. Wie het project maakte is **eigenaar**; de anderen krijgen een **rol**: **kan bewerken** (de standaard) of **alleen lezen**. Een lezer ziet alles, reageert en zet eigen herinneringen, maar wijzigt niets (geen taken toevoegen, wijzigen, afvinken of verplaatsen, geen bijlagen); de eigenaar kiest en wijzigt de rol in het venster Delen.
-- De eigenaar kan delen, mensen eruit halen, het project verplaatsen en verwijderen. Een lid kan in het project werken, een lezer alleen meekijken en reageren; allebei kunnen ze er zelf uit gaan ("Project verlaten"). Een eigenaar kan niet weg zonder het project te verwijderen.
-- Taken kun je **toewijzen** aan een lid dat kan bewerken ("voor Bob"). Verlaat of verdwijnt iemand, of wordt hij lezer, dan vervalt de toewijzing.
-- **Productiviteit.** Boven **Voltooid** staat hoeveel je vandaag en deze week afvinkte; de knop **Productiviteit** (ook in Instellingen) opent het hele overzicht: vandaag en deze week tegenover je doelen (standaard 5 per dag en 25 per week, 0 = geen doel), je reeks dagen en weken waarin je het doel haalde (vrije dagen, standaard het weekend, breken die niet), de laatste 7 dagen en de laatste 4 of 12 weken als staafdiagram, en deze week per project. Elke afvinking telt, ook elke keer van een terugkerende taak; alleen die van jezelf, in de projecten die je nu ziet, tot 180 dagen terug. Geen punten, niveaus of beloningen. De doelen staan in je instellingen en gelden dus op al je apparaten; zonder verbinding zie je het laatste overzicht. Zie [de handleiding](https://wnijhof.github.io/tickory/nl/handleiding/productiviteit.html).
-- **Activiteit.** In het projectmenu staat per project wie wat deed en wanneer: taken toegevoegd, gewijzigd, afgevinkt, verplaatst of verwijderd, secties, opmerkingen, bijlagen en leden, per dag, met "Meer laden" en een filter. Het logboek staat op de server (180 dagen, hooguit 10.000 regels per project) en is alleen te zien voor wie nu lid is; zonder verbinding zie je wat al geladen was. Zie [de handleiding](https://wnijhof.github.io/tickory/nl/handleiding/activiteit.html).
-- **Meldingen en vermeldingen.** Toewijzen, opmerkingen, iemand noemen met `@`, het afvinken van iemands taak en iemand aan een project toevoegen geven de ander een melding (nooit jezelf, en alleen wie het project ziet). Ze staan onder **Meldingen** (met het aantal ongelezen in de zijbalk en een belletje op een telefoon); per soort kies je of ze ook als pushmelding komen (Instellingen, "Herinneringen en meldingen"; standaard alles behalve "afgevinkt"). Typ je `@` in een opmerking, dan krijg je een lijst met de leden. De Android-app haalt de meldingen zelf op bij het verversen, zonder Google-diensten, dus tot een kwartier later. Zie [Meldingen en vermeldingen](https://wnijhof.github.io/tickory/nl/handleiding/meldingen.html).
-- Je **Inbox** is van jou alleen en kan niet worden gedeeld.
-- **Persoonlijk blijft:** herinneringen, filters en labels. Labels die iemand anders op een taak in een gedeeld project zet, zie je wel (als `@label`), maar je kunt ze niet wijzigen of verwijderen.
-- Subprojecten van een gedeeld project worden mee gedeeld. Verwijder je een project, dan blijft een subproject waar je geen eigenaar van bent staan, op het hoogste niveau. (In de app maak je er een met "Subproject toevoegen" in het projectmenu; een project verplaatsen kan nog niet.)
-- Bekende beperking: de **volgorde in de zijbalk** en het markeren als favoriet horen bij het project en zijn dus niet per persoon.
-
-### Herinneringen en meldingen
-
-- **Instellen.** In het venster van een taak, het deel Herinneringen: kies "30 minuten vooraf", "1 dag vooraf", "Op het tijdstip van de taak" enzovoort, of kies een datum en tijd. Een herinnering *vooraf* werkt alleen bij een taak met een tijd. Op één regel typ je `!30m` (minuten vooraf), `!1u` (uren), `!2d` (dagen), `!0` (op het tijdstip van de taak) of een zin tussen haakjes voor een vast moment, bijvoorbeeld `!(vandaag om 20:00)`. Een belletje bij een taak betekent dat er een herinnering is.
-- **Automatische herinnering.** Elke taak met een tijd krijgt vanzelf een herinnering, standaard 30 minuten vooraf (Instellingen, "Herinneringen en meldingen"; "Geen automatische herinnering" zet dat uit). Daar zie en stel je ook je **tijdzone** in; herinneringen gaan af op die tijd. Herinneringen zijn persoonlijk: in een gedeeld project ziet of krijgt niemand anders de jouwe.
-- **In de browser** (Web Push, van de server via de pushdienst van je browser): vraagt HTTPS of `localhost`; op een iPhone of iPad alleen voor een app op het beginscherm. Zet het per apparaat aan onder Instellingen, "Herinneringen en meldingen", "Meldingen aanzetten", en controleer het met "Testmelding versturen". De melding heeft de knoppen Voltooien en Over 10 minuten. De server kijkt elke 20 seconden; een herinnering die hooguit een uur te laat is, wordt nog verstuurd, een oudere vervalt.
-- **Op de server:** er is niets te installeren. De server maakt zelf sleutels voor de meldingen (VAPID) en bewaart ze in de database, dus een back-up bevat ze. Optioneel in `.env`: `VAPID_SUBJECT` (jouw contactadres, `mailto:jij@voorbeeld.nl` of een https-adres; de pushdienst van Apple vraagt erom) en `DEFAULT_TIMEZONE` (voor gebruikers die nog geen tijdzone hebben ingesteld; `Europe/Amsterdam`). De server zelf moet via https bij de pushdiensten van Google, Mozilla, Microsoft en Apple kunnen komen.
-- **Het werkt niet?** Zie [Meldingen komen niet aan](https://wnijhof.github.io/tickory/nl/handleiding/problemen-oplossen.html#meldingen-komen-niet-aan). De meldingen in de browser zijn getest met een nagebootste pushdienst; of er een bij jou aankomt, hangt af van je browser, besturingssysteem en hun pushdienst.
-
-- **Op een plek (Android-app).** "Herinner me als ik bij Thuis aankom of vertrek." Je legt **plaatsen** vast onder Instellingen, "Plaatsen" (een naam, een positie en een straal van 100 tot 5000 meter; standaard 150) en kiest in het deel Herinneringen van een taak "Op een plek…". De Android-app let **op de telefoon zelf** op je positie: die gaat nooit naar de server, naar Google of naar iemand anders, en er worden geen Google-diensten gebruikt. Plaatsen zijn privé, ook in een gedeeld project. De app vraagt pas om toestemming voor locatie als je de eerste zo'n herinnering maakt, met eerst uitleg. Hij is zuinig (geen continue GPS: hij vraagt Android af en toe om een positie, minder vaak naarmate je verder van een plaats bent) en meldt één keer per aankomst en één keer per vertrek, met dezelfde knoppen als andere herinneringen. In de browser gaat zo'n herinnering niet af; de interface zegt dat, en de plaatsen en herinneringen worden wel gesynchroniseerd. Nog niet op een telefoon geprobeerd: nauwkeurigheid, batterijgebruik en de strenge batterijbesparing van sommige merken. Zie [de handleiding](https://wnijhof.github.io/tickory/nl/handleiding/plaatsen.html) en [android/README.md](android/README.md), met een testlijst voor een echt toestel.
-
-Meer in de handleiding: [Herinneringen](https://wnijhof.github.io/tickory/nl/handleiding/herinneringen.html).
-
-### De Android-app
-
-Een eigen app (Kotlin, in [`android/`](android/README.md)) die de web-app van je server toont en je herinneringen als **alarmen op de telefoon zelf** inplant, zodat ze ook afgaan als de app dicht is en zonder internet. Geen Google-diensten, geen Firebase, geen trackers; de app praat alleen met de server die je invult.
-
-- **Downloaden.** De APK staat vanaf versie 0.3.0 als bijlage bij elke versie op de [releasepagina](https://github.com/WNijhof/tickory/releases), ondertekend met de eigen sleutel van het project. Je kunt de app ook zelf bouwen: zie [android/README.md](android/README.md) (JDK 21 en de Android SDK).
-- **Installeren** (als er een APK is): download hem op de telefoon, open hem en sta "onbekende apps installeren" toe voor de app waarmee je hem opent, vul dan het adres van je server in en log in. Bijwerken: installeer de nieuwe APK over de oude heen; dat kan alleen als beide met dezelfde sleutel zijn ondertekend (een debug-APK kan niet bijwerken, verwijder die eerst).
-- **Beperkingen:** zonder verbinding openen werkt alleen als je server op `https` staat (de herinneringen gaan wel af); de app vertrouwt alleen certificaten die Android zelf vertrouwt, geen zelfgemaakte; een inlogpagina vóór de server (Authelia, Cloudflare Access) werkt niet. Android 8 of nieuwer.
-- **Bijlagen en delen.** Bestanden kiezen (galerij, bestanden, camera) werkt zonder extra toestemming: de app vraagt geen toegang tot foto's of camera, de kiezer en de camera-app van Android doen het werk. Een bijlage openen of opslaan haalt de app zelf op, met het token dat al op het toestel staat. In het deelmenu van andere apps staat Tickory ook voor **bestanden**: ze worden bijlagen van een nieuwe taak in de Inbox, na bevestiging in Taak toevoegen. Hoe de kiezer, de camera en het deelmenu zich op een echt toestel gedragen, is nog niet geprobeerd.
-- **Niet op een telefoon getest.** De app is getest op een computer (rekenregels, een nagebootste Android en één test tegen een echte server), maar de maker heeft hem nog niet op een echt toestel geprobeerd. Meld gerust wat je tegenkomt.
-- **Widgets.** Vier widgets voor het startscherm: **Vandaag** (te laat en vandaag), **Project of lijst** (je kiest bij het plaatsen de Inbox, een project, Vandaag of Aankomend; opgeslagen filters komen later), **Aankomend** (de komende twee weken, per dag) en een knop **Taak toevoegen**. Tik op de cirkel om af te vinken, ook zonder internet (de taak wacht in een wachtrij op de telefoon en gaat mee zodra er verbinding is; een terugkerende taak komt terug met de nieuwe datum van de server), tik op de titel om de taak te openen, tik op + om er een toe te voegen in een **klein venster boven het startscherm** (zoals bij Todoist: niet de volledige app, het toetsenbord komt meteen omhoog; knoppen voor project, Vandaag, Morgen en prioriteit, Nog een toevoegen, Openen in de app; ook zonder internet, en je server herkent datums, `#project`, `@label` en `p1` met dezelfde regels als de web-app, via `POST /api/v1/quick-add`). De tegel in de snelle instellingen opent hetzelfde venster. Formaat aanpasbaar, licht en donker, Material You-kleuren op Android 12 en nieuwer, beschrijvingen voor TalkBack, Nederlands en Engels. Ze lezen de gegevens op het toestel, niet de ingebouwde browser; afmelden of van account wisselen wist alles. Nog niet op een telefoon geprobeerd: het uiterlijk per launcher, het formaat aanpassen en stroombesparing. Zie [de handleiding](https://wnijhof.github.io/tickory/nl/handleiding/widgets.html) en [android/README.md](android/README.md).
-
-Meer in de handleiding: [de Android-app](https://wnijhof.github.io/tickory/nl/handleiding/android-app.html).
-
-### De browserextensie
-
-"Tickory: pagina als taak opslaan" (in [`extension/`](extension/README.md)) voor Chrome, Edge en Firefox: klik op het pictogram, druk op `Alt+Shift+K` of klik met rechts op een pagina, link of selectie, en de pagina wordt een taak. De paginatitel is de taak, het adres komt in de beschrijving en geselecteerde tekst als citaat; de titel kent de snelle invoer (`morgen p1 #Werk @lezen !30m`) met dezelfde herkenner als de app, zonder de paginatitel zelf als datum te lezen. Je kiest het project (standaard de Inbox, het laatste wordt onthouden).
-
-- **Downloaden.** `tickory-extension-<versie>.zip` (Chrome, Edge) en `tickory-extension-<versie>-firefox.zip` staan bij elke versie op de [releasepagina](https://github.com/WNijhof/tickory/releases), of bouw ze met `node scripts/build-extension.ts` (in `dist/`). Uitgepakt laden (Chrome/Edge: ontwikkelaarsmodus) of tijdelijk (Firefox: `about:debugging`); publiceren in de winkels vraagt een eigen account, zie [extension/README.md](extension/README.md).
-- **Verbinden.** Vul het adres van je server in (https; gewoon http alleen op je eigen netwerk, dezelfde regel als de Android-app), sta toegang tot dat ene adres toe, en log in met je wachtwoord (en de code van tweestapsverificatie), of met een **koppelcode** die je in de app maakt onder Account, "Aangemelde apparaten": dat werkt ook op een server waar je alleen via SSO inlogt. De extensie krijgt een eigen sessie, in de apparatenlijst als "Browserextensie (Chrome)"; uitloggen trekt die in.
-- **Privacy.** Ze praat alleen met je eigen server, alleen als je op Opslaan klikt, met het token in een kop (geen cookies, geen CORS nodig); rechten: actief tabblad, scripts (om de selectie te lezen), contextmenu en opslag. Geen toegang tot alle websites.
-
-Meer in de handleiding: [de browserextensie](https://wnijhof.github.io/tickory/nl/handleiding/browserextensie.html).
-
-### Bijlagen
-
-Bij een taak kun je bestanden bijvoegen (foto's, pdf's, wat dan ook). De bestanden staan **in het datavolume**, in `attachments/` naast de database (`/data/attachments` in Docker), niet in de database zelf, onder willekeurige namen. Wie de taak ziet, ziet de bijlagen; verwijderen kan de maker of de eigenaar van het project. Een bestand kiezen werkt ook zonder verbinding: het wordt op het apparaat bewaard en geüpload zodra het kan.
-
-Twee instellingen in `.env` (zie `.env.example`):
-
-| Instelling | Standaard | Betekenis |
-|---|---|---|
-| `MAX_UPLOAD_MB` | `25` | Het grootste bestand, in megabytes. |
-| `ATTACHMENT_QUOTA_MB` | `1024` | De opslagruimte per gebruiker, in megabytes (de som van wat die zelf heeft geüpload). Een taak heeft hooguit 20 bijlagen. |
-
-**Staat er een reverse proxy voor, zet de grens daar dan minstens even hoog.** Nginx laat standaard maar 1 MB toe en geeft dan `413`: gebruik `client_max_body_size 30m;` (en zet bij het proxy-pad `proxy_request_buffering off;` om grote bestanden niet eerst bij nginx te laten wachten). Caddy en Traefik hebben standaard geen grens. Een upload mag langer duren dan 30 seconden zolang er voortgang is.
-
-De server ruimt zelf op: bestanden van verwijderde bijlagen (ook als hun taak of project is verwijderd), uploads die nooit aan een bijlage zijn gekoppeld (na een uur), en bij het opstarten een eenmalige controle van de map tegen de database. **Neem de map `attachments/` mee in je back-up** (zie hieronder). Meer: [Bijlagen in SPEC.md](SPEC.md) (hoofdstuk 4b).
-
-### Upgraden vanaf versie 0.1
-
-Versie 0.1 had één token voor één persoon. Zet in `.env` `TODO_ADMIN_USER` en `TODO_ADMIN_PASSWORD` (je mag `TODO_TOKEN` weghalen), en start de nieuwe versie. Bij de eerste start wordt dat account aangemaakt en **neemt het alle bestaande gegevens over** (projecten, labels, filters, herinneringen), inclusief je Inbox. Daarna moet je op elk apparaat opnieuw inloggen. Maak vooraf een back-up (zie hieronder).
-
-### HTTPS (nodig voor je telefoon)
-
-Browsers staan **offline gebruik** (service worker), **installeren als app** en **meldingen in de browser** alleen toe via HTTPS; alleen `localhost` is een uitzondering. Zonder HTTPS werkt de app op je telefoon dus wel in de browser, maar niet offline, niet als geïnstalleerde app en zonder meldingen (de Android-app heeft voor haar alarmen geen HTTPS nodig). Kies wat bij je netwerk past:
-
-- **Tailscale** (het eenvoudigst, niets openbaar): installeer Tailscale op server en telefoon, schakel HTTPS in je tailnet in en draai op de server `tailscale serve --bg 8787`. Je krijgt een `https://…ts.net`-adres dat alleen je eigen apparaten bereiken.
-- **Reverse proxy met een eigen domein** (Caddy, Traefik, Nginx Proxy Manager): laat de proxy naar `127.0.0.1:8787` wijzen en het certificaat regelen. Met Caddy is de hele configuratie:
-
-  ```
-  taken.voorbeeld.nl {
-      reverse_proxy 127.0.0.1:8787
-  }
-  ```
-
-  Zet daarbij in `.env` `TRUST_PROXY=1`, zodat het adres van de bezoeker (en niet dat van de proxy) telt bij het beperken van inlogpogingen. Zet dit **alleen** aan als er echt een proxy voor staat: anders kan een bezoeker zijn eigen adres opgeven.
-- **Cloudflare Tunnel**: handig als je geen poorten wilt openzetten.
-
-Zet de app niet zonder HTTPS op het open internet: wachtwoord en sessie reizen dan onversleuteld.
-
-### Bijwerken
-
-Zet je als beheerder een nieuwe versie-tag (zie hieronder), dan bouwt GitHub een nieuwe image. Op de server:
-
-```sh
-docker compose pull && docker compose up -d
-```
-
-Je gegevens staan in een Docker-volume en blijven behouden. Bouw je zelf: `git pull && docker compose up -d --build --pull always`. Let op: een nieuwe versie van de onderliggende Node-image (beveiligingsupdates) komt pas binnen als er een nieuwe image wordt gebouwd.
-
-### Back-up en terugzetten
-
-**Vanuit de app (beheerders):** Instellingen, "Account, wachtwoord en apparaten", "Gebruikersbeheer", "Back-up". Na opnieuw je wachtwoord (en een code, als je tweestapsverificatie gebruikt) downloadt de browser één bestand, `tickory-backup-<datum>.tar`, met een consistente kopie van de database (`tickory.db`) en alle bijlagen (`attachments/`), plus een korte `LEESMIJ.txt` met de stappen om terug te zetten. De server streamt het (niets staat in het geheugen), hooguit vijf keer per uur, en schrijft in het log wie het downloadde. In de Android-app kan het niet; gebruik daarvoor een browser. Terugzetten:
-
-```sh
-docker compose down
-mkdir herstel && tar -xf tickory-backup-2026-11-14.tar -C herstel
-docker run --rm -v tickory_tickory-data:/data -v "$PWD/herstel":/herstel:ro alpine sh -c   "rm -f /data/todo.db-wal /data/todo.db-shm && cp /herstel/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /herstel/attachments /data/attachments && chown -R 1000:1000 /data/todo.db /data/attachments"
-docker compose up -d
-```
-
-`tar` zit in Linux, macOS en Windows 10 en nieuwer (7-Zip opent het ook). Het archief bevat dezelfde gevoelige gegevens als de kopieën hieronder: de wachtwoord-hashes en de sleutels van de server voor meldingen. Bewaar het net zo zorgvuldig als de server zelf. `secret.key` zit er niet in (zie "Accounts en gebruikers").
-
-**Vanaf de opdrachtregel:** de database is één SQLite-bestand in het volume. Maak een consistente kopie terwijl de app draait:
-
-```sh
-docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
-```
-
-Dit overschrijft nooit een bestaande kopie. De kopieën staan in het volume zelf; haal ze regelmatig ook van de server af, bijvoorbeeld met `docker cp tickory:/data/backups ./backups`, en plan het commando in met `cron`. Oude kopieën ruim je zelf op. **Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) sessies en de sleutels van de server voor meldingen (de VAPID-privésleutel en het geheim dat de knoppen in een melding ondertekent)**: wie hem heeft, kan bewijzen voor die knoppen maken voor elke taak van elke gebruiker. Bewaar hem zoals je de database zelf bewaart, en houd ook de map met kopieën dicht voor anderen.
-
-**De bijlagen gaan mee:** bestaat de map `attachments/`, dan kopieert hetzelfde commando de bestanden van de bijlagen die in de kopie staan naar `<doel>.attachments/` (bij het voorbeeld hierboven `/data/backups/todo-2026-11-14.attachments/`). Zo horen database en bestanden bij elkaar; een bestand dat tussen de twee stappen werd verwijderd, wordt overgeslagen en gemeld. Terugzetten: zet de database terug zoals hierboven en kopieer de map terug naar `/data/attachments` (in het voorbeeld: `cp -r /backup/todo.attachments/. /data/attachments/`, met `chown -R 1000:1000`). De server controleert bij het opstarten of beide bij elkaar passen en meldt bijlagen waarvan het bestand ontbreekt. Een back-up bevat dus ook alles wat gebruikers hebben geüpload: bewaar hem net zo zorgvuldig als de database. Het kost opslag: reken op de grootte van je bijlagen erbij.
-
-Terugzetten van een kopie (de app moet stilstaan; vervang `backup.db` door je bestand):
-
-```sh
-docker compose down
-docker run --rm -v tickory_tickory-data:/data -v "$PWD":/backup alpine sh -c \
-  "rm -f /data/todo.db-wal /data/todo.db-shm && cp /backup/backup.db /data/todo.db && chown 1000:1000 /data/todo.db"
-docker compose up -d
-```
-
-De volumenaam begint met de naam van de map waarin je `docker compose` draait (hier `tickory`); controleer hem met `docker volume ls`. **Meld daarna op elk apparaat af en weer aan** (Instellingen, "Afmelden en lokale gegevens wissen"). Een apparaat dat nog nieuwere wijzigingen kende dan de back-up merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij zijn stand is gegroeid; opnieuw aanmelden is de zekere weg en kost niets, omdat alles op de server staat.
-
-### Privé image
-
-De repo is openbaar. Een pakket op ghcr.io begint bij de eerste publicatie als privé en de eigenaar moet het eenmalig openbaar maken (GitHub: je profiel, Packages, `tickory`, Package settings, Change visibility). Tot die tijd moet een server eenmalig inloggen om het te kunnen ophalen:
-
-```sh
-docker login ghcr.io -u <jouw-github-naam>     # wachtwoord: een token met alleen "read:packages"
-```
-
-Is het pakket openbaar, dan is inloggen niet nodig. Er staat niets geheims in de image (wachtwoorden en accounts zitten alleen in je eigen `.env` en database).
-
-## Een nieuwe versie publiceren (beheerder)
-
-```sh
-git tag v0.3.0 && git push origin v0.3.0
-```
-
-De workflow `Image publiceren` draait de tests, bouwt de image, **start hem met de beveiligingsinstellingen uit `docker-compose.yml` en controleert zijn gedrag** (gezond, juiste gebruiker, alleen `/data` beschrijfbaar, het eerste account en een tweede account, gescheiden gegevens, gegevens overleven een herstart, netjes stoppen, back-up werkt), en publiceert daarna `ghcr.io/WNijhof/tickory` met de tags `0.2.0`, `0.2` en `latest`. Slaagt één controle niet, dan wordt er niets gepubliceerd.
-
-## Snel toevoegen
-
-Typ één regel in het invoerveld; onder het veld zie je wat er herkend is.
-
-```
-Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1
-Oud papier elke tweede dinsdag
-Verjaardag Jan elk jaar op 5 december
-Cadeau kopen voor Sinterklaas
-Belasting regelen eind januari
-Hardlopen elke ochtend om 7 uur
-Aangifte doen {31-12} !!2
-Tandarts bellen morgen om 9 uur !1u !(vandaag om 20:00)       (herinneringen: 1 uur vooraf, en vanavond om 20:00)
-~Mei bellen          (het ~ zet de datumherkenning voor de hele regel uit)
-```
-
-`#project`, `/sectie` (binnen dat project), `@label` (onbekende labels worden aangemaakt), `p1` tot `p4` of `!!1` tot `!!4` (1 is de hoogste), `{deadline}`, `!30m` `!1u` `!2d` `!0` `!(…)` voor herinneringen (zie hierboven), en een datum of herhaling in gewone taal.
-
-## Nederlands
-
-Nederlands is de hoofdtaal van de app. De interface en de meldingen zijn er in het Nederlands en het Engels (de app volgt je browser, en onder Instellingen, "Taal / Language" kies je zelf); de **datumtaal**, wat je intypt, is voorlopig alleen Nederlands. Engelse zinnen als `tomorrow` worden nog niet herkend, en de app zegt dat als je er een typt. Wat in elke taal werkt: `31-12` en `31-12-2026`, en in het datumveld van een taak `2026-12-31` en `2026-12-31T14:30`. Wat werkt:
-
-- **Datums:** `morgen`, `overmorgen`, `vanavond`, `volgende week donderdag`, `aanstaande vrijdag`, `over twee weken`, `eind van de week`, `deze week` (= vrijdag), `25 december`, `3 maart 2027`, `begin december`, `midden mei`, `eind januari`, en tijden als `om 9 uur`, `om half 3`, `kwart over 2`, `14u30`, `2 uur 's middags`, `over een kwartier`.
-- **Herhalingen:** `elke dag`, `elke maandag`, `elke ma en do`, `elke werkdag`, `doordeweeks`, `elke 2 weken`, `om de week`, `elke ochtend/middag/avond` (met een standaardtijd van 9, 15 en 20 uur, tenzij je er een tijd bij zet), `elke maand op de 15e`, `elke laatste dag van de maand`, `elk jaar op 5 december`, en de **n-de weekdag van de maand**: `elke eerste maandag`, `elke tweede dinsdag`, `elke laatste vrijdag` (eerste tot en met vierde, en laatste).
-- **Feestdagen**, met een voorzetsel (`voor`, `tegen`, `op`, `uiterlijk`, `per`): Kerst en de eerste en tweede kerstdag, Oud en nieuw, Nieuwjaar, Sinterklaas en pakjesavond, Koningsdag, Bevrijdingsdag, Dodenherdenking, Goede Vrijdag, Pasen en tweede paasdag, Hemelvaart, Pinksteren en tweede pinksterdag. De datum van Pasen wordt voor elk jaar berekend.
-- **Letters:** `é`, `ë`, `ï`, `ö` en dergelijke werken overal, hoofdletterongevoelig (`@ÉÉN` is het label `één`) en ook als een toetsenbord ze als losse tekens aflevert. Alle tekst wordt in dezelfde Unicode-vorm (NFC) bewaard, ook gebruikersnamen en wachtwoorden. Na het weghalen van een datum wordt `ijs` correct `IJs` (in het Nederlands is IJ één letter).
-- **Meldingen** als de server een wijziging weigert, zijn begrijpelijk, met wat je probeerde te doen (ook in de Engelse interface).
-
-Bewust niet aangeraakt, om geen verkeerde datum te raden: een titel met **twee** datums, een feestdag zonder voorzetsel (`Kerst inkopen doen` blijft een gewone taak), `Mei bellen`, `Zo snel mogelijk`, `Hoofdstuk 3`. Typ `~` voor een woord om de herkenning daar uit te zetten. Niet ondersteund: `elke vijfde dinsdag` (een vijfde bestaat niet altijd; gebruik `elke laatste dinsdag`) en `elke tweede week van de maand`.
-
-Goed om te weten: een heel uur van 1 tot en met 7 zonder dagdeel wordt als middag of avond gelezen (`om 7 uur` is 19:00); typ `om 07:00` of `7 uur 's ochtends` voor de vroege ochtend. Alle vormen, met voorbeelden die tegen de herkenner zelf zijn nagerekend, staan in de handleiding: [datums en herhalingen](https://wnijhof.github.io/tickory/nl/handleiding/datums-en-herhalingen.html).
-
-## Lokaal draaien zonder Docker
-
-Vereist Node 26. Handig om te proberen of te ontwikkelen.
-
-```sh
-TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='een-goed-wachtwoord' node server/main.ts      # bash; http://127.0.0.1:8787
-```
-
-Op Windows: dubbelklik op `start.cmd`, of draai `.\start.cmd` in PowerShell. Bij de eerste keer vraagt dat om een gebruikersnaam en een wachtwoord (ongezien getypt) voor het eerste account, en daarna start de server; het scriptbeleid van Windows blijft ongewijzigd (zie `start.cmd`).
-
-Omgevingsvariabelen: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (of `TODO_ADMIN_PASSWORD_FILE`, het pad van een bestand met het wachtwoord) en `TODO_ADMIN_NAME` (alleen bij de allereerste start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` achter een eigen reverse proxy), `CORS_ORIGIN` (optioneel, één exacte oorsprong), `VAPID_SUBJECT` (contactadres voor meldingen, optioneel), `DEFAULT_TIMEZONE` (`Europe/Amsterdam`), en `PUBLIC_URL` met `OIDC_ISSUER` en de andere `OIDC_*`-instellingen voor inloggen met SSO (zie "Inloggen met SSO" hierboven). Zie `.env.example`.
-
-## Testen
-
-```sh
-npm test            # protocol, rechten, accounts, server, client, datumtaal, herinneringen en meldingen, filters en zoeken, talen, overzichten, back-up, offline-bestanden
-npm run e2e         # de hele app in een echte browser (Edge of Chrome, zonder venster), 81 stappen
-npm run e2e:extension   # de browserextensie in een echte browser (uitgepakt geladen via het DevTools-protocol), 12 stappen
-node scripts/build-extension.ts    # de extensie: dist/tickory-extension-<versie>.zip en -firefox.zip
-node scripts/docker-smoke.ts tickory:ci    # test van de image (vereist Docker, na: docker build -t tickory:ci .)
-node scripts/build-site.ts && node scripts/site-check.ts    # de website en de demo (vereist Edge of Chrome)
-```
-
-De tests omvatten onder meer een eigenschappentest voor de volgordesleutels en een **differentiële test**: honderden willekeurige handelingen worden zowel optimistisch in de client als door de echte server-engine uitgevoerd, en beide moeten op exact dezelfde toestand uitkomen. Voor meerdere gebruikers zijn er aparte tests van wie wat mag zien en doen (twee echte clients op één server), en de toegangsregels zijn gecontroleerd met opzettelijk gebroken code: elke gebroken regel moet een test laten falen. Ze slagen in elke tijdzone. De browsertest legt schermafbeeldingen vast in `.e2e/shots/`.
-
-## De website
-
-De website (startpagina, handleiding en demo) is gewone HTML, CSS en JavaScript in `website/`, gebouwd zonder afhankelijkheden:
-
-```sh
-node scripts/build-site.ts      # bouwt _site/: de pagina's, en demo/ met de app en een backend in de browser
-node scripts/serve-site.ts      # serveert het op http://127.0.0.1:8798/tickory/, hetzelfde pad als op GitHub Pages
-node scripts/site-check.ts      # controleert links, de datumvoorbeelden uit de handleiding, en de demo in een browser zonder venster
-node scripts/site-shots.ts      # maakt de schermafbeeldingen en het voorbeeldplaatje opnieuw, vanuit de demo
-node scripts/make-icons.js      # tekent de PNG-pictogrammen opnieuw, met dezelfde maten als client/icon.svg
-```
-
-- Een pagina is een stuk HTML in `website/pages/nl/` of `website/pages/en/`; het menu en de vaste teksten staan in `website/site.json`, de opmaak in `website/layout.html`. Elke Nederlandse pagina heeft een Engelse tegenhanger met dezelfde opbouw; de controle bewaakt dat.
-- De demo is de echte app waarin alleen `client/core/backend.js` is vervangen door `website/demo/backend.js`: een "server in de browser" met voorbeeldgegevens (`website/demo/seed.js`). De controle vergelijkt die met de echte server.
-- De workflow `Website` (`.github/workflows/pages.yml`) bouwt, controleert en publiceert de site op GitHub Pages bij elke push naar `main`. Zet daarvoor eenmalig in de repo Settings, Pages, Source op "GitHub Actions".
-
-## Indeling
-
-```
-shared/    orderKey.js, recurrence.js, reminders.js, schema.js, template.js, text.js, attachments.js   gedeeld door server en client
-server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, attachments.ts, restore.ts, main.ts, backup.ts
-           tabellen, rijen, sync-engine met rechten, accounts en sessies, meldingen (Web Push), HTTP + SSE + bestanden, back-up
-client/    index.html, app.css, search.css, dnd.css, attachments.css, templates.css, bulk.css, sw.js, manifest   de web-app
-client/core/starters/   nl.js, en.js, build.js               de meegeleverde sjablonen, per taal
-client/core/   reducer, store, idb, syncClient, inverse, undo, selection, bulk, completed, attachments, attachmentsApi, imageResize, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
-client/ui/     app, render, selection, bulkDialogs, completed, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
-client/i18n/   nl.js, en.js                                  de teksten van de interface, in het Nederlands en het Engels
-android/       de Android-app (Kotlin, WebView, lokale alarmen)
-extension/     de browserextensie (Manifest V3; venster, instellingen, achtergrond, core/ met de geteste logica, _locales nl en en)
-client/vendor/ nlDatum.generated.js                         Nederlandse datumherkenner (met chrono-node, zie THIRD_PARTY_NOTICES.md)
-website/       pages (nl, en), assets, layout.html, site.json, demo/   de website, de handleiding en de backend van de demo
-scripts/       e2e.ts (met e2e-templates.ts), docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
-               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts, build-extension.ts, e2e-extension.ts
-```
-
-## Status
-
-Versie 0.2: meerdere gebruikers, gedeelde projecten, herinneringen met meldingen en een interface in het Nederlands en het Engels. De kern werkt en is getest; veel functies uit apps als Todoist ontbreken nog.
-
-**Wat de app kan:** meerdere accounts met een eigen Inbox, projecten delen met anderen (met de rol kan bewerken of **alleen lezen**) en taken toewijzen, per project de **activiteit** (wie deed wat en wanneer), taken met subtaken, projecten met een kleur, subprojecten, favorieten en archiveren, secties, labels (via snel toevoegen en het taakvenster, met een eigen scherm per label en beheer), **zoeken** (`/` of Ctrl+K, ook in opmerkingen, hoofdletter- en accentongevoelig, met markering), **filters** (een eigen filtertaal in Nederlands en Engels door elkaar, met controle tijdens het typen en uitleg), **opmerkingen** bij taken en projecten, **sjablonen** (een project, of een taak met subtaken, als sjabloon bewaren en er een nieuw project of nieuwe taken van maken, met relatieve datums vanaf een startdatum die je kiest, een voorbeeld van wat je krijgt, ongedaan maken, ook zonder verbinding; zes sjablonen worden meegeleverd, in het Nederlands en het Engels; delen als bestand, en CSV-sjablonen van Todoist importeren zonder datums), **overstappen van Todoist** (de back-up van Todoist of losse CSV-bestanden importeren: projecten, secties, taken met subtaken, labels, opmerkingen, datums in het Nederlands en Engels, deadlines en duur, met eerst een voorbeeld per project en ongedaan maken; een datum die niet herkend wordt, komt in de beschrijving; ook de eigen export is zo weer in te lezen), **bijlagen** bij taken (foto's en bestanden, ook offline te kiezen, met voorbeeld van afbeeldingen), prioriteiten P1 tot P4, datum en tijd, deadlines, herhalingen, **herinneringen** (meer per taak, relatief of op een vast tijdstip, een automatische herinnering, een eigen tijdzone) met **meldingen** in de browser (Web Push, vraagt HTTPS) en als alarm in de Android-app, de interface in het Nederlands en het Engels, een zijbalk met Inbox, Vandaag, Aankomend, favorieten en projecten (op een telefoon een **balk onderaan** met Inbox, Vandaag, Aankomend en Bladeren en een ronde knop **+**, zoals in de app van Todoist), een taakvenster met alle details, sneltoetsen (`q`, `g` dan `t`, `u` of `i`, `?`), **meerdere taken selecteren en tegelijk bewerken** (Ctrl- of Shift-klik, de knop Selecteren, `x`, Ctrl+A, lang indrukken op een telefoon; afvinken, verplaatsen, datum, prioriteit, labels, toewijzen en verwijderen in één keer, met één melding als de server een deel weigert), **ongedaan maken** na elke bewuste wijziging (de knop in de melding of Ctrl+Z; ook een verwijderde taak of sectie komt vijf minuten lang terug, met subtaken, opmerkingen, bijlagen en herinneringen), het overzicht **Voltooid** (per dag van afvinken, zoeken, per project, terugzetten), **Productiviteit** (hoeveel je vandaag en deze week afvinkte tegenover een dag- en weekdoel, reeksen van dagen en weken, de laatste 7 dagen en 4 of 12 weken als staafdiagram, per project; zonder punten of niveaus), voltooide taken tonen of verbergen, **slepen** van taken en projecten (volgorde, andere sectie, subtaak maken of eruit halen, naar een project in de zijbalk; in de zijbalk volgorde en subprojecten, alleen door de eigenaar; met de muis, met je vinger door lang in te drukken of via het handvat, of met `Alt` + pijltjestoetsen met aankondiging voor schermlezers; Vandaag en Aankomend staan op datum en prioriteit, daar kun je een taak alleen naar een project slepen), per project een **lijst, bord of kalender** (de keuze staat in het project en geldt op al je apparaten; het bord heeft kolommen per sectie, een menu "Verplaats naar…" en slepen tussen kolommen; de kalender een maand of week met herhalingen op de komende datums, te late taken apart, een plus per dag en slepen naar een andere dag; Aankomend kan ook als kalender), offline werken met synchronisatie, meerdere apparaten tegelijk, installeren als app, en apparaten en wachtwoorden beheren.
-
-**Komt eraan (gebouwd of half gebouwd, nog niet te gebruiken):**
-- **De Android-app op een echte telefoon.** De APK (met de **widgets voor het startscherm**) staat vanaf versie 0.3.0 op de [releasepagina](https://github.com/WNijhof/tickory/releases), maar is alleen op een computer en een nagebootst Android getest; de maker heeft hem nog niet op een echte telefoon geprobeerd. Meld wat je tegenkomt op GitHub.
-- **Herinneringen op een plek.** Gebouwd en getest zonder telefoon (afstand, de regels voor binnenkomen en weggaan met ruis in de positie, aanvragen bij een nagebootst Android, meldingen, het scherm Plaatsen en het taakvenster in een echte browser met een nagebootste locatie); hoe nauwkeurig en zuinig het op een echte telefoon is, is nog niet geprobeerd. Zit in de Android-app vanaf versie 0.3.0.
-- **De browserextensie in de winkels.** De extensie voor Chrome, Edge en Firefox (zie hieronder) staat vanaf versie 0.3.0 als zips bij elke versie op de releasepagina, maar nog niet in de Chrome Web Store, bij Edge Add-ons of Firefox Add-ons; in Firefox laad je haar alleen tijdelijk, tot Mozilla haar heeft ondertekend. Getest in Edge, nog niet in Firefox en Chrome zelf.
-- **Engelse datumtaal.** De interface is Engels, maar wat je als datum intypt, wordt alleen in het Nederlands herkend.
-
-**Staat wel op de server, maar de app heeft er nog geen scherm of knop voor** (je kunt het dus niet gebruiken):
-- De **duur** van een taak.
-
-**Ontbreekt helemaal:**
-- Statistieken, herinneringen, bijlagen en afgevinkte taken uit Todoist importeren (projecten, taken, labels, opmerkingen en datums komen wel mee), een iCal-feed, widgets, een eigen volgorde voor Vandaag, uitnodigen via een link of e-mail, overdragen van de eigenaar van een project, en rollen buiten de drie vaste (eigenaar, kan bewerken, alleen lezen).
-
-Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo. SPEC.md hoofdstuk 10 is ouder dan deze lijst en niet bijgewerkt; deze lijst klopt.
-
-## Bijdragen en beveiliging
-
-Zie [CONTRIBUTING.md](CONTRIBUTING.md) voor hoe je test en wat de uitgangspunten zijn (zero dependencies, Nederlands als hoofdtaal, tests die echt kunnen falen). Een kwetsbaarheid meld je niet openbaar; zie [SECURITY.md](SECURITY.md).
+Zie [CONTRIBUTING.md](CONTRIBUTING.md) voor de spelregels (geen afhankelijkheden, Nederlands eerst, tests die echt kunnen falen) en [SECURITY.md](SECURITY.md) om een kwetsbaarheid te melden.
 
 ## Licentie
 
-Tickory is vrije software onder de [GNU Affero General Public License, versie 3](LICENSE) (AGPL-3.0). Je mag het gebruiken, aanpassen en verspreiden; wie een aangepaste versie als dienst aan anderen aanbiedt, moet de broncode daarvan beschikbaar stellen. Voor de meegebundelde datumherkenning geldt de MIT-licentie van chrono-node, zie [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Vrije software onder de [GNU Affero General Public License, versie 3](LICENSE) (AGPL-3.0). De meegeleverde datumherkenning valt onder de MIT-licentie van chrono-node, zie [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

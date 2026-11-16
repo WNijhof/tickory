@@ -35,6 +35,10 @@ The calendar tests (`client/core/calendar.test.js`) run every calculation in sev
 - Security problems are not reported in a public issue; see [SECURITY.md](SECURITY.md).
 - By contributing you agree that your contribution is licensed under the [AGPL-3.0](LICENSE), like the rest of the project.
 
+## Publishing a new version (maintainer)
+
+`git tag v0.4.0 && git push origin v0.4.0`. The workflow `Image publiceren` runs the tests, builds the image, starts it with the security settings from `docker-compose.yml` and checks its behaviour, and only then publishes `ghcr.io/wnijhof/tickory` with the version tags and `latest`. If one check fails, nothing is published. The website is published by the workflow `Website` on every push to `main`.
+
 ## Nederlands
 
 Fijn dat je wilt helpen. Wat erbij komt en in welke volgorde, bepaalt de eigenaar van de repo; open voor alles wat groter is dan een reparatie eerst een melding (issue) met wat je wilt veranderen en waarom.

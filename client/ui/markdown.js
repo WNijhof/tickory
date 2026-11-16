@@ -1,24 +1,37 @@
 // Markdown (core/markdown.js) als knooppunten in de pagina. Alles gaat met createElement en tekst; nooit als HTML. Links openen in een
 // nieuw tabblad zonder dat de pagina erachter iets over de app te weten komt.
 
-import { parseMarkdown } from '../core/markdown.js';
+import { hasInlineMarkup, parseInline, parseMarkdown } from '../core/markdown.js';
 import { t } from '../core/i18n.js';
 import { h } from './dom.js';
 
-const inline = (nodes) => nodes.map((n) => {
+const inline = (nodes, links = true) => nodes.map((n) => {
   switch (n.t) {
     case 'text': return document.createTextNode(n.v);
     case 'br': return h('br');
     case 'code': return h('code', { class: 'md-code' }, n.v);
-    case 'strong': return h('strong', {}, inline(n.c));
-    case 'em': return h('em', {}, inline(n.c));
-    case 'del': return h('del', {}, inline(n.c));
-    case 'u': return h('u', {}, inline(n.c));
-    case 'mark': return h('mark', { class: `md-mark hl-${n.color ?? 'yellow'}` }, inline(n.c));
-    case 'link': return h('a', { href: n.href, target: '_blank', rel: 'noopener noreferrer nofollow' }, inline(n.c));
+    case 'strong': return h('strong', {}, inline(n.c, links));
+    case 'em': return h('em', {}, inline(n.c, links));
+    case 'del': return h('del', {}, inline(n.c, links));
+    case 'u': return h('u', {}, inline(n.c, links));
+    case 'mark': return h('mark', { class: `md-mark hl-${n.color ?? 'yellow'}` }, inline(n.c, links));
+    // in een rij die zelf een knop is, kan een link geen link zijn (geen klikbaar element in een klikbaar element)
+    case 'link': return links ? h('a', { href: n.href, target: '_blank', rel: 'noopener noreferrer nofollow' }, inline(n.c, links)) : h('span', { class: 'md-link' }, inline(n.c, links));
     default: return null;
   }
 });
+
+/**
+ * Eén regel met opmaak (vet, cursief, doorgestreept, code, markeren, links), zoals de titel van een taak.
+ * @param {string} source
+ * @param {{ links?: boolean }} [options] `links: false`: een link als gewone tekst (in een rij die zelf een knop is)
+ * @returns {(Node | null)[]}
+ */
+export function renderInline(source, { links = true } = {}) {
+  const text = String(source ?? '');
+  if (!hasInlineMarkup(text)) return [document.createTextNode(text)];
+  return inline(parseInline(text), links);
+}
 
 /**
  * @param {string} source

@@ -349,6 +349,18 @@ function blockText(b) {
 }
 
 /** De tekst zonder opmaaktekens, op één regel (voor zoeken en voorbeelden). */
+/** Tekens die opmaak kunnen zijn; zonder één ervan is een regel gewoon tekst (snel pad voor lange lijsten). */
+const MARKUP = /[*_~=`[\\+<]|https?:\/\/|mailto:/i;
+export const hasInlineMarkup = (source) => MARKUP.test(String(source ?? ''));
+
+/** De tekst van één regel zonder opmaaktekens: "**Melk** halen" wordt "Melk halen" (voor schermlezers, titels van meldingen). */
+export function inlinePlain(source) {
+  const text = String(source ?? '');
+  if (!hasInlineMarkup(text)) return text;
+  const walk = (nodes) => nodes.map((n) => (n.t === 'text' || n.t === 'code' ? n.v : n.t === 'br' ? ' ' : n.c ? walk(n.c) : '')).join('');
+  return walk(parseInline(text.slice(0, MAX_INLINE)));
+}
+
 export const plainText = (source) => parseMarkdown(source).map(blockText).filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 
 // ---------- taken afvinken in de tekst ----------

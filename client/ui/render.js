@@ -27,6 +27,7 @@ import { rowModel } from '../core/rowModel.js';
 import { t } from '../core/i18n.js';
 import { VIEW_STYLES, boardColumns, viewStyleOf } from '../core/projectViews.js';
 import { h } from './dom.js';
+import { renderInline } from './markdown.js';
 import { emptyArt, icon } from './icons.js';
 import { boardView } from './board.js';
 import { calendarView } from './calendar.js';
@@ -156,16 +157,16 @@ function buildRow(m, variant = '') {
   const selBox = rowButton('sel-box', 'select');
   selBox.setAttribute('role', 'checkbox');
   selBox.setAttribute('aria-checked', 'false');
-  selBox.setAttribute('aria-label', t('bulk.rowLabel', { name: m.content }));
+  selBox.setAttribute('aria-label', t('bulk.rowLabel', { name: m.title ?? m.content }));
   selBox.dataset.fk = `sel:${m.id}`;
 
   const check = rowButton('check', 'check');
   check.dataset.fk = `check:${m.id}`;
   check.setAttribute('aria-pressed', String(m.done));
-  check.setAttribute('aria-label', m.done ? t('task.reopenLabel', { name: m.content }) : t('task.completeLabel', { name: m.content }));
+  check.setAttribute('aria-label', m.done ? t('task.reopenLabel', { name: m.title ?? m.content }) : t('task.completeLabel', { name: m.title ?? m.content }));
   if (m.readOnly) {
     check.setAttribute('aria-disabled', 'true');
-    check.setAttribute('aria-label', t('readonly.checkLabel', { name: m.content }));
+    check.setAttribute('aria-label', t('readonly.checkLabel', { name: m.title ?? m.content }));
     check.title = t('readonly.cannotComplete');
   }
 
@@ -221,7 +222,7 @@ function buildRow(m, variant = '') {
     chips.push(who);
   }
 
-  const body = rowButton('task-body', 'open', mk('span', 'task-title', m.content), m.description ? mk('span', 'task-desc', m.description) : null);
+  const body = rowButton('task-body', 'open', mk('span', 'task-title', ...renderInline(m.content, { links: false })), m.description ? mk('span', 'task-desc', m.description) : null);
   body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
   li.append(...(m.readOnly ? [] : [selBox]), check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null)); // een taak die je alleen leest, kies je niet
   if (!m.readOnly) li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
@@ -230,14 +231,14 @@ function buildRow(m, variant = '') {
     // in het overzicht Voltooid: een duidelijke knop om de taak terug te zetten (ui/completed.js)
     const back = rowButton('completed-restore', 'restore', t('completed.restore'));
     back.dataset.fk = `restore:${m.id}`;
-    back.setAttribute('aria-label', t('completed.restoreLabel', { name: m.content }));
+    back.setAttribute('aria-label', t('completed.restoreLabel', { name: m.title ?? m.content }));
     li.append(back);
   }
   if (card && !m.readOnly) {
     // Op een telefoon verdwijnen de snelle knoppen (er is geen aanwijzer); dit menu blijft dus altijd zichtbaar.
     const move = rowButton('icon-button card-move', 'move', icon('move'));
     move.dataset.fk = `move:${m.id}`;
-    move.setAttribute('aria-label', t('board.moveLabel', { name: m.content }));
+    move.setAttribute('aria-label', t('board.moveLabel', { name: m.title ?? m.content }));
     move.title = t('board.move');
     li.append(move);
   }

@@ -863,3 +863,12 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
   .accent-dot-green { background: #6ee7a0; }
   .accent-dot-graphite { background: #cbd5e1; }
 }
+
+/* de beschrijving van een taak met opmaak (Markdown); een klik maakt er weer tekst van */
+.task-desc-view { padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; cursor: text; min-height: 2.5em; overflow-wrap: anywhere; }
+.task-desc-view[role="button"]:hover { border-color: var(--line); }
+.task-desc-view:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.task-desc-view .md > :first-child { margin-top: 0; }
+.task-desc-view .md > :last-child { margin-bottom: 0; }
+.task-title .md-link { text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); }
+.task-title .md-code { font-size: 0.9em; }

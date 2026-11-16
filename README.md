@@ -3,393 +3,76 @@
 </p>
 <h1 align="center">Tickory</h1>
 <p align="center">
-  The to-do list you host yourself: for you, your family or a small team.<br>
+  The to-do list and notes app you host yourself: for you, your family or a small team.<br>
   <a href="https://wnijhof.github.io/tickory/en/">Website</a> ·
   <a href="https://wnijhof.github.io/tickory/demo/?lang=en">Demo</a> ·
   <a href="https://wnijhof.github.io/tickory/en/guide/">Guide</a> ·
   <a href="README.nl.md">Nederlands</a>
 </p>
 
-Tickory is a self-hosted, offline-first to-do app: a sync server and an installable web app (PWA) in a single Docker container. Multiple users, shared projects, task assignment, reminders with notifications, and dates and recurrences typed in plain language. The app is in Dutch and English. Your data stays on your own server.
-
-No npm packages and no build step: Node 26 runs the TypeScript directly and SQLite is part of Node. That keeps the image small and leaves almost nothing to maintain.
+Tickory is a self-hosted, offline-first task and notes app: a sync server and an installable web app in a single Docker container, plus an Android app and a browser extension. Your data stays on your own server. No npm packages and no build step: Node 26 runs the TypeScript directly and SQLite is part of Node.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/assets/shots/project-dark.webp">
   <img src="website/assets/shots/project-light.webp" alt="Tickory showing a shared household project with sections, subtasks, recurring tasks and tasks assigned to other members." width="1120">
 </picture>
 
-> **The app is bilingual; the date language you type is Dutch for now.** The interface and its messages are available in English and Dutch. It follows your browser (Dutch if one of your browser's languages is Dutch, otherwise English), and you can choose under Settings, "Taal / Language". The language you *type* dates in, such as `morgen om 9 uur` or `elke tweede dinsdag`, is Dutch only; English phrases such as `tomorrow` are not recognised yet (the app says so when you type one). What works in any language: `31-12` and `31-12-2026`, and in the date field of a task `2026-12-31` and `2026-12-31T14:30`. The [guide](https://wnijhof.github.io/tickory/en/guide/) is available in English and uses the English names of the buttons and screens.
+## Features
+
+- **Tasks:** projects, sections, subtasks, labels, priorities, deadlines, durations, comments, attachments, Markdown.
+- **Quick add** in plain Dutch: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, recurrences like "elke tweede dinsdag".
+- **Views:** list, board and calendar; Today, Upcoming, sorting and grouping, Completed, productivity.
+- **Notes**, like Google Keep and Anchor: formatting, checklists, colours, labels, pictures and audio, reminders, version history, sharing, import from Keep and Markdown.
+- **Together:** shared projects (can edit or view only), assigning, @-mentions, notifications, activity log.
+- **Reminders:** in the browser (Web Push) and as alarms in the Android app, also at a place.
+- **Search, filters, templates, undo, selecting several tasks, keyboard shortcuts.**
+- **Offline** on several devices at once; changes from others arrive within seconds.
+- **Apps:** installable web app (PWA), Android app with widgets, browser extension.
+- **Accounts:** multiple users, two-step verification, SSO (OpenID Connect), backups from the app.
+- **Import** from Todoist (backup zip or CSV) and Google Keep; export as CSV or JSON.
+- **Languages:** English and Dutch interface; dates are typed in Dutch for now.
 
 ## Try it
 
-The [demo](https://wnijhof.github.io/tickory/demo/?lang=en) is the real app with sample data, running entirely in your browser: no server, no account, nothing is saved. You can try reminders in it (the bell on a task, the Reminders section of a task, Settings, "Reminders and notifications"), but **notifications do not work in the demo**: they come from a server, so they only work on your own. To run the same demo locally:
-
-```sh
-node scripts/build-site.ts && node scripts/serve-site.ts     # http://127.0.0.1:8798/tickory/demo/
-```
+The [demo](https://wnijhof.github.io/tickory/demo/?lang=en) is the real app with sample data, running in your browser: no server, no account, nothing is saved (and no notifications).
 
 ## Quick start with Docker
 
-You need Docker with `docker compose`. The image exists for `amd64` (ordinary PC, mini PC, NAS) and `arm64` (Raspberry Pi with a 64-bit system; 32-bit is not supported).
-
 ```sh
-git clone https://github.com/WNijhof/tickory.git
-cd tickory
-cp .env.example .env
+git clone https://github.com/WNijhof/tickory.git && cd tickory
+cp .env.example .env      # set TODO_ADMIN_USER and TODO_ADMIN_PASSWORD (at least 10 characters)
+docker compose up -d      # http://127.0.0.1:8787
 ```
 
-1. **First account.** Put the username and password (at least 10 characters) of the first account in `.env`: `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD`. That account is created on the very first start and is an **administrator**: you use it to create the other accounts in the app. Never commit `.env` (it is already in `.gitignore`). After the first start, remove the password from `.env` **and recreate the container** (`docker compose up -d --force-recreate`): the password otherwise stays in the container's configuration, where `docker inspect` shows it. If you would rather not have it in the environment at all, use `TODO_ADMIN_PASSWORD_FILE` instead (the path of a file with the password, for example a Docker secret mounted under `/run/secrets/`). The password cannot be an easily guessed one (a common word or password, too few different characters).
-2. **Image.** `docker-compose.yml` pulls `ghcr.io/wnijhof/tickory:latest`. Would you rather build on the server yourself? Remove the `image:` line and put `build: .` back.
-3. **Start.**
+The first account is an administrator; you create the other accounts in the app. Remove the password from `.env` afterwards and run `docker compose up -d --force-recreate`. Put HTTPS in front (Tailscale, Caddy, Cloudflare Tunnel) for offline use, installing as an app and notifications on your phone. Images exist for `amd64` and `arm64`.
 
-   ```sh
-   docker compose up -d
-   docker compose ps          # after a few seconds: (healthy)
-   docker compose logs -f
-   ```
-
-By default the container is only reachable from the server itself (`127.0.0.1:8787`); it is meant to sit behind **HTTPS**, see below. If you only want to use it on your home network without HTTPS (then only desktop browsers work fully, see the note under HTTPS), change the port line to `"8787:8787"` and open `http://<ip-of-the-server>:8787`.
-
-Open the app and sign in with the first account.
-
-The image is published with the first release. If pulling it asks for a sign-in, the package on ghcr.io is still private; see [Private image](#private-image).
-
-## What it does
-
-- Multiple accounts, each with their own Inbox; an administrator creates accounts and resets passwords.
-- Sharing a project with other users of the same server with a **role**: can edit (the default) or **view only** (sees everything, comments and sets their own reminders, changes nothing), and assigning tasks to members who can edit. The owner chooses and changes the role in the Share window.
-- **Activity** per project (in the project menu): who did what and when, per day, with "Load more" and a filter; stored on the server (180 days, at most 10,000 entries per project), only for current members.
-- **Collaboration notifications and @-mentions**: when someone assigns you a task, comments on your task or project, mentions you with `@` in a comment, completes your task or adds you to a project, it shows up under Notifications (unread count in the sidebar, a bell on a phone), and if you like as a push notification in the browser or a notification of the Android app. Typing `@` in a comment lists the project's members.
-- Tasks with subtasks, projects with a color, sub-projects, favourites and archiving, sections, labels, priorities P1 to P4, date and time, deadlines, **comments** on tasks and projects, and **attachments** on tasks (photos and files, also choosable offline, with a preview of images).
-- Dates and recurrences in plain Dutch, including "every second Tuesday of the month" and Dutch holidays.
-- Quick add on one line: `#project`, `/section`, `@label`, `p1` to `p4`, `{deadline}`, a date, and reminders with `!`. You can also speak a task (microphone button), share text or a link to Tickory from other Android apps, and add one from a quick settings tile or a widget, in a small window over the home screen. Light, dark or system theme and eight accent colours, chosen per device.
-- **Search** (`/` or Ctrl+K): tasks (title, description, labels), comments, projects, sections, labels and filters, with the words you typed highlighted. Capitals and accents do not matter ("cafe" finds "Café").
-- **Filters**: saved searches in a language of their own, in Dutch and English mixed (`(vandaag | morgen) & @bellen`, `p1 & !subtask`, `Work: #Work, Home: #Home`). The app checks a filter while you type and points at what is wrong, in your language; the filter window has help with examples. Filters can have a colour and be favourites.
-- **Labels**: the list in the sidebar with the number of open tasks, a screen with all tasks of a label (also by clicking a label on a task), and managing them (add, rename, colour, favourite, delete). A label with spaces in its name works in quick add too (`@Going out with Zoë`).
-- **Templates**: save a project, or a task with its subtasks, as a template, and create a new project or tasks from one. Dates in a template are relative ("day 0", "+3 days", "+1 week") from a start date you choose, or you pick "no dates"; recurrences are kept. You see what you get first (number of sections and tasks, the first lines), and the whole thing is one undoable step that also works offline. Six templates come with the app, in Dutch and English (moving house, a holiday packing list, weekly menu and groceries, a child's birthday party, onboarding a new employee, a renovation), plus two for tasks. A template is private to you; you share one as a JSON file (or copy and paste it), and Todoist CSV templates can be imported (tasks, sections, subtasks and priority, without dates).
-- **Switching from Todoist**: choose the Todoist backup (a zip with a CSV per project) or a few CSV files under Settings › Import from Todoist, see per project what comes along (sections, tasks with sub-tasks, descriptions, priority, labels, comments, dates in English and Dutch, deadlines, durations) and what does not, pick the projects, and import them in one undoable step, also offline. Dates that are not recognised end up in the description instead of disappearing. Your own export (CSV or JSON) can be read back the same way.
-- **Reminders**: several per task, relative to the time of the task (10 minutes before, 1 day before, ...) or at a fixed time; an automatic reminder for every task with a time (30 minutes before unless you change it); your own time zone. They are personal, also in shared projects.
-- **Notifications** for reminders: Web Push in the browser (needs HTTPS; on an iPhone or iPad only from the home screen), with buttons to complete the task or be reminded again in 10 minutes, and local alarms in the Android app (buttons Complete, In 10 minutes and In 1 hour).
-- The interface in English and Dutch.
-- A sidebar with Inbox, Today (with overdue tasks), Upcoming (the next two weeks), favourites and projects, a task window with all the details, and keyboard shortcuts (`q`, `g` then `t`, `u` or `i`, `?`).
-- **Board and calendar** per project, next to the list (the choice is saved in the project and is the same on all your devices): a board with a column per section and cards you can complete and open, adding a task per column, and a "Move to…" menu to put a card in another column; a calendar by month or week (weeks start on Monday, ISO week numbers) with tasks on their day, repeating tasks on their coming dates, overdue tasks apart, a "+" per day, and keyboard control. Upcoming can also be shown as a calendar. Cards can be dragged to another column and tasks to another day in the calendar (the time and repeat stay; for a repeating task only the current date moves), also with `Alt` + arrow keys.
-- **Selecting several tasks** (Ctrl or Shift click, the Select button, `x`, `Ctrl+A`, press and hold on a phone) and changing them together: complete, move, date, priority, labels, assign, delete, with one message if the server refuses part of it. Dragging a picked task takes the other picked ones along.
-- **Undo** after every deliberate change (the button in the message, or `Ctrl+Z`): moving, a new date, priority, labels, completing, deleting a task or section (the server restores it, with subtasks, comments, attachments and reminders, for five minutes) and every action on several tasks. Not for deleting a project or a label.
-- **Completed**: everything you ticked off, per day with the newest first, searchable, per project, with Restore; showing or hiding completed tasks per project stays as well.
-- **Productivity** (from Completed or Settings): how many tasks you completed today and this week against a daily and a weekly goal (5 and 25 unless you change them), your streak of days and weeks in which you reached the goal (days off, the weekend by default, do not break it), the last 7 days and the last 4 or 12 weeks as bar charts, and this week by project. Every completion counts, also each time you complete a recurring task; only your own, in the projects you see now, going back 180 days. No points, levels or badges. The goals are part of your settings, so they apply on all your devices; offline you see the last overview with when it was updated.
-- **Dragging**: change the order of tasks, move them to another section, make a task a subtask of another (and back), or drop it on a project in the sidebar; in the sidebar, change the order of projects and make or undo sub-projects (owner only; favourites can be reordered among each other). With the mouse or a pen, with a finger (press and hold, or use the handle), or from the keyboard with `Alt` + arrow keys, announced to screen readers. It works offline like every other change. Today and Upcoming are sorted by date and priority, so tasks there can only be dragged to a project.
-- Working offline with sync, on several devices at once, with changes from others arriving within seconds.
-- Installable as an app (PWA) on phone and computer, and an Android app of its own (see below). On a phone the menu is a **bar at the bottom** (Inbox, Today, Upcoming, Browse) with a round **+** button, as in the Todoist app.
-- Managing your password and the devices you are signed in on.
-
-## Status
-
-Version 0.2: multiple users, shared projects, reminders with notifications, and an interface in English and Dutch. The core works and is tested; many features of apps such as Todoist are still missing.
-
-**Coming (built or partly built, not usable yet):**
-
-- **The Android app on a real phone.** The APK (with the **home screen widgets**) is attached to each version on the [releases page](https://github.com/WNijhof/tickory/releases) from 0.3.0 on, but it has only been tested on a computer and a simulated Android; the maker has not tried it on a real phone yet. Report what you run into on GitHub.
-- **Reminders at a place.** Built and tested without a phone (distance, the rules for entering and leaving with noise in the position, requests to a simulated Android, notifications, the settings screen and the task window in a real browser with a simulated location); how accurate and frugal it is on a real phone has not been tried. It is in the Android app from version 0.3.0 on.
-- **The browser extension in the stores.** The extension for Chrome, Edge and Firefox (see below) is attached as zips to each version on the releases page from 0.3.0 on, but it is not in the Chrome Web Store, Edge Add-ons or Firefox Add-ons yet; in Firefox you can only load it temporarily until Mozilla has signed it. Tested in Edge, not yet in Firefox and Chrome themselves.
-- **English date language.** The interface is English, but what you type as a date is only recognised in Dutch.
-
-**Stored on the server, but the app has no screen or button for it yet** (so you cannot use it):
-
-- The **duration** of a task.
-
-**Missing entirely:**
-
-- Statistics, importing reminders, attachments and completed tasks from Todoist (projects, tasks, labels, comments and dates do come along), an iCal feed, widgets, a custom order for Today, inviting by link or e-mail, transferring ownership of a project, and roles beyond the three fixed ones (owner, can edit, view only).
-
-What gets added, and in which order, is up to the owner of the repository. Chapter 10 of [SPEC.md](SPEC.md) (in Dutch) is older than this list and not up to date; this section is.
+Updating: `docker compose pull && docker compose up -d`.
 
 ## Documentation
 
-The [guide](https://wnijhof.github.io/tickory/en/guide/) on the website covers everything below in more detail, in English and Dutch:
+The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in English and Dutch:
 
-- For users: [adding tasks](https://wnijhof.github.io/tickory/en/guide/adding-tasks.html), [dates and recurrences](https://wnijhof.github.io/tickory/en/guide/dates-and-recurrence.html), [projects](https://wnijhof.github.io/tickory/en/guide/projects.html), [reminders and notifications](https://wnijhof.github.io/tickory/en/guide/reminders.html), [sharing](https://wnijhof.github.io/tickory/en/guide/sharing.html), [offline](https://wnijhof.github.io/tickory/en/guide/offline.html), [install as an app](https://wnijhof.github.io/tickory/en/guide/install-as-app.html), [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html), [account](https://wnijhof.github.io/tickory/en/guide/account.html).
-- For administrators: [installing](https://wnijhof.github.io/tickory/en/guide/installing.html), [managing users](https://wnijhof.github.io/tickory/en/guide/managing-users.html), [HTTPS](https://wnijhof.github.io/tickory/en/guide/https.html), [updating](https://wnijhof.github.io/tickory/en/guide/updating.html), [backup and restore](https://wnijhof.github.io/tickory/en/guide/backup.html), [troubleshooting](https://wnijhof.github.io/tickory/en/guide/troubleshooting.html).
+- **Using it:** [adding tasks](https://wnijhof.github.io/tickory/en/guide/adding-tasks.html), [dates and recurrences](https://wnijhof.github.io/tickory/en/guide/dates-and-recurrence.html), [notes](https://wnijhof.github.io/tickory/en/guide/notes.html), [reminders](https://wnijhof.github.io/tickory/en/guide/reminders.html), [sharing](https://wnijhof.github.io/tickory/en/guide/sharing.html), [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html), [switching from Todoist](https://wnijhof.github.io/tickory/en/guide/switching-from-todoist.html).
+- **Running a server:** [installing](https://wnijhof.github.io/tickory/en/guide/installing.html), [HTTPS](https://wnijhof.github.io/tickory/en/guide/https.html), [managing users](https://wnijhof.github.io/tickory/en/guide/managing-users.html), [SSO](https://wnijhof.github.io/tickory/en/guide/sign-in-with-sso.html), [attachments](https://wnijhof.github.io/tickory/en/guide/attachments.html), [updating](https://wnijhof.github.io/tickory/en/guide/updating.html), [backup and restore](https://wnijhof.github.io/tickory/en/guide/backup.html), [troubleshooting](https://wnijhof.github.io/tickory/en/guide/troubleshooting.html).
+- **For developers:** the protocol and data model in [SPEC.md](SPEC.md) (in Dutch), the Android app in [android/README.md](android/README.md), the extension in [extension/README.md](extension/README.md). All settings are in [.env.example](.env.example).
 
-The protocol and data model are described in [SPEC.md](SPEC.md) (in Dutch). It is an original design, built on the findings of an earlier study of how Todoist works (not part of this repository).
+## Status
 
-## Running a server
+Version 0.3. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet. English date phrases ("tomorrow") are not recognised yet.
 
-### Accounts and users
+## Development
 
-- **In the app:** Settings, "Account, password and devices". There you change your password, see which devices you are signed in on (what kind of device, last used, signed in since; sign one out, or all others at once) and turn on **two-step verification** (a code from an authenticator app such as Aegis, FreeOTP or Google Authenticator, plus ten one-time recovery codes). Administrators also find "User management" there: creating and blocking accounts, making someone an administrator, resetting passwords, turning off someone's two-step verification (when they lost both phone and recovery codes) and **downloading a backup**.
-- **From the server**, for example when you have lost your password:
-
-  ```sh
-  docker compose exec tickory node server/main.ts user list
-  docker compose exec -e TODO_PASSWORD='a-good-password' tickory node server/main.ts user add anna --name "Anna de Vries"
-  docker compose exec -it tickory node server/main.ts user passwd anna        # asks for the password, hidden
-  docker compose exec tickory node server/main.ts user disable anna           # or: enable, logout-all
-  docker compose exec tickory node server/main.ts user reset-2fa anna         # turn off two-step verification
-  ```
-
-  `--admin` after `user add` creates an administrator. Without `TODO_PASSWORD` and without a terminal (`-it`) no password can be asked for.
-- There is no open sign-up and no password reset by e-mail: an administrator creates accounts and resets passwords. There is always at least one active administrator.
-- Every device gets its own session when signing in, which you can revoke. A session expires after 90 days without use and, in any case, 365 days after signing in (`SESSION_IDLE_DAYS` and `SESSION_MAX_DAYS` in `.env`; 0 turns a limit off); the app then simply asks you to sign in again. Signing in is limited per fifteen minutes: after eight failed attempts on one account from one address, after forty from one address (an IPv6 network counts as one address), or after sixty on one account in total, further attempts are refused until those fifteen minutes have passed. Attempts are counted before the password is checked, so a burst of simultaneous attempts does not get through. Because the account counter is per address, someone else cannot lock you out of your own account from their address. The limits are in `server/limits.ts` and in the SPEC; each user can also store only a reasonable amount (tasks, labels, reminders, devices).
-- An administrator manages accounts, not other people's tasks: an administrator, too, only sees the projects they are a member of.
-- **Two-step verification** keeps its secrets encrypted in the database with a key from the file `/data/secret.key` (made by the server on first start; `SECRET_KEY_FILE` points elsewhere). That file is deliberately not part of a backup, so a stolen backup does not give away the second factor. **Keep a copy of `secret.key` separately** (for example in your password manager). Restoring onto a new server without it works, but users with two-step verification then need `user reset-2fa`.
-
-### Signing in with SSO (OpenID Connect)
-
-Tickory can let people sign in with your own identity provider (Authentik, Authelia, Keycloak, Pocket ID, Zitadel, or Google and Microsoft), next to a password or instead of it. Tickory itself is the OIDC client (authorization code flow with PKCE, `state` and `nonce`, the ID token checked without libraries); there is nothing extra to install.
-
-1. At the provider, create an OIDC application ("client") for Tickory: confidential (with a client secret) or public (PKCE only), redirect URI `https://tasks.example.com/api/v1/auth/oidc/callback`, scopes `openid profile email` (and `groups` if you want to use groups).
-2. In `.env`:
-
-   ```sh
-   PUBLIC_URL=https://tasks.example.com
-   OIDC_ISSUER=https://auth.example.com/application/o/tickory/
-   OIDC_CLIENT_ID=tickory
-   OIDC_CLIENT_SECRET=the-secret-from-the-provider   # or OIDC_CLIENT_SECRET_FILE=/run/secrets/oidc
-   OIDC_BUTTON_NAME=Authentik                        # the button reads "Sign in with Authentik"
-   ```
-
-3. `docker compose up -d`. The sign-in screen now has a button. Existing users link their account once: Settings, Account, "Sign in with …" (after their password, and their code if they use two-step verification). Tickory never links an account by e-mail address or name on its own: that would let anyone who can pick that address or name at the provider take over the account.
-
-Optional: `OIDC_AUTO_CREATE=1` creates an account at the first sign-in of an unknown identity (username from `preferred_username` or the e-mail address, cleaned up and made unique; no password). `OIDC_ALLOWED_GROUPS=tickory` only lets members of those groups in; `OIDC_ADMIN_GROUPS=tickory-admins` makes members administrators (and takes it away from others at their next SSO sign-in; there is always at least one active administrator). `OIDC_GROUPS_CLAIM` names the claim with the groups (default `groups`), `OIDC_SCOPES` the scopes (default `openid profile email`). `OIDC_ONLY=1` turns signing in with a password off; the emergency route is then `docker compose exec tickory node server/main.ts user signin-code <name>` (a one-time link, valid for fifteen minutes).
-
-| Provider | `OIDC_ISSUER` | Notes |
-|---|---|---|
-| Authentik | `https://auth.example.com/application/o/<slug>/` | Provider type OAuth2/OpenID; groups come with the `profile` scope. |
-| Authelia | `https://auth.example.com` | Client with `redirect_uris`, `scopes: [openid, profile, email, groups]`, `token_endpoint_auth_method: client_secret_basic`. Authelia puts name and groups in userinfo; Tickory reads them there. |
-| Keycloak | `https://keycloak.example.com/realms/<realm>` | Client authentication on. Groups need a "Group Membership" mapper with claim name `groups` and "Full group path" off. |
-| Pocket ID | `https://id.example.com` | Add the scope `groups` for groups. |
-| Zitadel | `https://<instance>.zitadel.cloud` | Roles are in `urn:zitadel:iam:org:project:roles`: set that as `OIDC_GROUPS_CLAIM`. |
-| Google | `https://accounts.google.com` | No groups. Never use `OIDC_AUTO_CREATE` here: anyone with a Google account would get in. |
-| Microsoft Entra ID | `https://login.microsoftonline.com/<tenant-id>/v2.0` | Use your own tenant id, not `common`. |
-
-Good to know: signing in through the provider skips Tickory's own two-step verification (the provider's rules and 2FA apply). Signing out of Tickory does not sign you out at the provider, and blocking someone at the provider does not end their existing Tickory sessions: block the account in Tickory too. The Android app opens the provider in the phone's browser and comes back through `tickory://oidc`. Details are in chapter 9 of [SPEC.md](SPEC.md) and in the guide ("Signing in with SSO").
-
-### Sharing and working together
-
-- Open a project, choose **Share**, and type the username of someone else on this server. That person sees the project with everything in it (including what was already there), and everyone works in the same tasks and sections. Whoever created the project is the **owner**; the others are **members**.
-- The owner can share, remove people, and move or delete the project. A member can work in the project and leave it ("Leave project"). An owner cannot leave without deleting the project.
-- Tasks can be **assigned** to a member ("for Bob"). When someone leaves or is removed, the assignment lapses.
-- **Notifications and mentions.** Assigning, comments, `@`-mentions, completing someone's task and adding someone to a project give the other person a notification (never yourself, and only people who can see the project). They are listed under **Notifications**; per kind you choose whether they also arrive as a push notification (Settings, "Reminders and notifications"; by default everything except "completed"). The Android app fetches them itself when it refreshes, without Google services, so up to fifteen minutes late. See [Notifications and mentions](https://wnijhof.github.io/tickory/en/guide/notifications.html).
-- Your **Inbox** is yours alone and cannot be shared.
-- **Personal:** reminders, filters and labels. Labels that someone else puts on a task in a shared project are visible to you (as `@label`), but you cannot rename or delete them.
-- Sub-projects of a shared project are shared along with it. If you delete a project, a sub-project you do not own stays, at the top level. (In the app you make one with "Add subproject" in the project menu.)
-- Known limitation: the **order in the sidebar** and the favourite mark belong to the project and are therefore not per person.
-
-### Reminders and notifications
-
-- **Setting them.** In the window of a task, the section Reminders: choose "30 minutes before", "1 day before", "At the time of the task" and so on, or pick a date and time. A reminder *before* the task only works for a task with a time. On one line you can type `!30m` (minutes before), `!1u` (hours, Dutch "uur"), `!2d` (days), `!0` (at the time of the task) or a Dutch phrase in parentheses for a fixed moment, for example `!(vandaag om 20:00)`. A bell on a task means it has a reminder.
-- **Automatic reminder.** Every task with a time gets a reminder by itself, 30 minutes before unless you choose otherwise (Settings, "Reminders and notifications"; "No automatic reminder" turns it off). There you also see and set your **time zone**; reminders go off in that zone. Reminders are personal: in a shared project nobody else sees or gets yours.
-- **In the browser** (Web Push, from the server through the push service of your browser): needs HTTPS or `localhost`; on an iPhone or iPad only for an app on the home screen. Turn it on per device under Settings, "Reminders and notifications", "Turn on notifications", and check it with "Send a test notification". The notification has the buttons Complete and In 10 minutes. The server checks every 20 seconds; a reminder that is at most an hour late is still sent, an older one lapses.
-- **On the server:** there is nothing to install. The server makes its own keys for the notifications (VAPID) and keeps them in the database, so a backup contains them. Optional in `.env`: `VAPID_SUBJECT` (your contact address, `mailto:you@example.org` or an https address; Apple's push service asks for one) and `DEFAULT_TIMEZONE` (for users who have not set a time zone; `Europe/Amsterdam`). The server itself must be able to reach the push services of Google, Mozilla, Microsoft and Apple over https.
-- **Not working?** See [Notifications do not arrive](https://wnijhof.github.io/tickory/en/guide/troubleshooting.html#notifications-do-not-arrive). The browser notifications were tested against a simulated push service; whether one arrives on your device depends on your browser, operating system and its push service.
-
-- **At a place (Android app).** "Remind me when I arrive at or leave Home." You save **places** under Settings, "Places" (a name, a position and a radius of 100 to 5000 metres; 150 by default) and choose "At a place…" in the Reminders section of a task. The Android app watches your location **on the phone itself**: your position is never sent to the server, to Google or to anyone else, and no Google services are used. Places are private to you, also in a shared project. The app asks for location permission only when you create your first such reminder, with an explanation first. It is frugal (no continuous GPS: it asks Android now and then, less often the further you are from a place) and notifies once per arrival and once per departure, with the same buttons as other reminders. In the browser such a reminder does not go off; the interface says so, and the places and reminders are still synced. Not tried on a phone yet: accuracy, battery use and the strict battery saving of some brands. See [the guide](https://wnijhof.github.io/tickory/en/guide/places.html) and [android/README.md](android/README.md), which has a test list for a real device.
-
-More in the guide: [Reminders](https://wnijhof.github.io/tickory/en/guide/reminders.html).
-
-### The Android app
-
-An app of its own (Kotlin, in [`android/`](android/README.md)) that shows the web app of your server and sets your reminders as **alarms on the phone itself**, so they also go off when the app is closed and without internet. No Google services, no Firebase, no trackers; it only talks to the server you enter.
-
-- **Download.** The APK is attached to each version on the [releases page](https://github.com/WNijhof/tickory/releases) (from 0.3.0 on), signed with the project's own key. You can also build it yourself: see [android/README.md](android/README.md) (JDK 21 and the Android SDK).
-- **Installing** (when there is an APK): download it on the phone, open it and allow "install unknown apps" for the app you opened it with, then enter the address of your server and sign in. Updating: install the new APK over the old one; that only works when both are signed with the same key (a debug APK cannot update, uninstall it first).
-- **Limitations:** it opens without a connection only when your server is on `https` (reminders go off anyway); it trusts only certificates that Android itself trusts, not self-made ones; a login page in front of the server (Authelia, Cloudflare Access) does not work. Android 8 or newer.
-- **Attachments and sharing.** Choosing files (gallery, files, camera) needs no extra permission: the app does not ask for access to photos or the camera, Android's own picker and camera app do the work. Opening or saving an attachment is fetched by the app itself, with the token that is already on the device. Tickory also shows up in other apps' share menu for **files**: they become attachments of a new task in the Inbox, after you confirm in Add task. How the picker, the camera and the share menu behave on a real device has not been tried yet.
-- **Not tested on a phone.** It has been tested on a computer (calculation rules, a simulated Android and one test against a real server), but the maker has not tried it on a real device yet. Please report what you notice.
-- **Widgets.** Four home screen widgets: **Today** (overdue and due today), **Project or list** (you choose the Inbox, a project, Today or Upcoming when you place it; saved filters come later), **Upcoming** (the next two weeks, by day) and an **Add task** button. Tap the circle to complete a task, also without internet (it waits in a queue on the phone and is sent when there is a connection; a recurring task comes back with the new date from the server), tap the title to open the task, tap + to add one in a **small window over the home screen** (as with Todoist: no full app, the keyboard comes up straight away; project, Today, Tomorrow and priority buttons, Add another, Open in the app; also without internet, and your server recognises dates, `#project`, `@label` and `p1` with the same rules as the web app, through `POST /api/v1/quick-add`). The quick settings tile opens the same window. Resizable, light and dark, Material You colours on Android 12 and newer, TalkBack descriptions, Dutch and English. They read the data on the device, not the web view; signing out or switching account clears everything. Not tried on a phone yet: how they look per launcher, resizing and battery saving. See [the guide](https://wnijhof.github.io/tickory/en/guide/widgets.html) and [android/README.md](android/README.md).
-
-More in the guide: [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html).
-
-### The browser extension
-
-"Tickory: save page as task" (in [`extension/`](extension/README.md)) for Chrome, Edge and Firefox: click the icon, press `Alt+Shift+K` or right-click a page, link or selection, and the page becomes a task. The page title is the task, the address goes into the description and selected text is added as a quote; the title understands quick add (`morgen p1 #Work @reading !30m`) with the same parser as the app, without reading the page title itself as a date. You choose the project (the Inbox by default, the last one is remembered).
-
-- **Download.** `tickory-extension-<version>.zip` (Chrome, Edge) and `tickory-extension-<version>-firefox.zip` are attached to each version on the [releases page](https://github.com/WNijhof/tickory/releases), or build them with `node scripts/build-extension.ts` (into `dist/`). Load it unpacked (Chrome/Edge: developer mode) or temporarily (Firefox: `about:debugging`); publishing in the stores needs an account of your own, see [extension/README.md](extension/README.md).
-- **Connecting.** Enter the address of your server (https; plain http only on your own network, the same rule as the Android app), allow access to that one address, and sign in with your password (and two-step code), or with a **pairing code** that you create in the app under Account, "Signed-in devices": that also works on a server where you only sign in with SSO. The extension gets its own session, shown as "Browser extension (Chrome)" in the device list; signing out revokes it.
-- **Privacy.** It only talks to your own server, only when you click Save, with the token in a header (no cookies, no CORS needed); permissions: active tab, scripting (to read the selection), context menu and storage. No access to all websites.
-
-More in the guide: [the browser extension](https://wnijhof.github.io/tickory/en/guide/browser-extension.html).
-
-### HTTPS (needed for your phone)
-
-Browsers only allow **offline use** (service worker), **installing as an app** and **notifications in the browser** over HTTPS; only `localhost` is an exception. So without HTTPS the app does work in your phone's browser, but not offline, not as an installed app and without notifications (the Android app does not need HTTPS for its alarms). Choose what fits your network:
-
-- **Tailscale** (the simplest, nothing public): install Tailscale on the server and the phone, enable HTTPS in your tailnet and run `tailscale serve --bg 8787` on the server. You get an `https://…ts.net` address that only your own devices can reach.
-- **Reverse proxy with your own domain** (Caddy, Traefik, Nginx Proxy Manager): point the proxy at `127.0.0.1:8787` and let it handle the certificate. With Caddy this is the whole configuration:
-
-  ```
-  tasks.example.org {
-      reverse_proxy 127.0.0.1:8787
-  }
-  ```
-
-  Also set `TRUST_PROXY=1` in `.env`, so that the visitor's address (and not that of the proxy) counts when limiting sign-in attempts. **Only** switch this on when there really is a proxy in front: otherwise a visitor can supply their own address.
-- **Cloudflare Tunnel**: useful when you do not want to open ports.
-
-Do not put the app on the open internet without HTTPS: the password and the session would travel unencrypted.
-
-### Updating
-
-When the maintainer tags a new version (see below), GitHub builds a new image. On the server:
+Requires Node 26.
 
 ```sh
-docker compose pull && docker compose up -d
+TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='a-good-password' node server/main.ts   # http://127.0.0.1:8787 (Windows: start.cmd)
+npm test                  # unit and integration tests
+npm run e2e               # the whole app in a real browser (Edge or Chrome, headless)
+npm run site:check        # the website and the demo
 ```
 
-Your data is in a Docker volume and is kept. If you build yourself: `git pull && docker compose up -d --build --pull always`. Note: a new version of the underlying Node image (security updates) only comes in when a new image is built.
-
-### Attachments
-
-A task can have files attached (photos, PDFs, anything). The files are stored **in the data volume**, in `attachments/` next to the database (`/data/attachments` in Docker), not in the database itself, under random names. Whoever sees the task sees the attachments; the person who added one, or the owner of the project, can delete it. Choosing a file also works without a connection: it is kept on the device and uploaded as soon as it can be.
-
-Two settings in `.env` (see `.env.example`):
-
-| Setting | Default | Meaning |
-|---|---|---|
-| `MAX_UPLOAD_MB` | `25` | The largest file, in megabytes. |
-| `ATTACHMENT_QUOTA_MB` | `1024` | The storage per user, in megabytes (the total of what that user uploaded). A task has at most 20 attachments. |
-
-**If a reverse proxy sits in front, set its limit at least as high.** Nginx only allows 1 MB by default and then answers `413`: use `client_max_body_size 30m;` (and `proxy_request_buffering off;` on the proxied path so large files do not wait in nginx first). Caddy and Traefik have no limit by default. An upload may take longer than 30 seconds as long as it makes progress.
-
-The server cleans up by itself: files of deleted attachments (also when their task or project was deleted), uploads that were never attached (after an hour), and a one-time check of the folder against the database at start-up. **Include the `attachments/` folder in your backup** (see below). More: [Attachments in SPEC.md](SPEC.md) (chapter 4b, in Dutch).
-
-### Upgrading from version 0.1
-
-Version 0.1 had one token for one person. Put `TODO_ADMIN_USER` and `TODO_ADMIN_PASSWORD` in `.env` (you can remove `TODO_TOKEN`) and start the new version. On the first start that account is created and **takes over all existing data** (projects, labels, filters, reminders), including your Inbox. After that you have to sign in again on every device. Make a backup first (see below).
-
-### Backup and restore
-
-**From the app (administrators):** Settings, "Account, password and devices", "User management", "Backup". After entering your password again (and a code, if you use two-step verification) the browser downloads one file, `tickory-backup-<date>.tar`, with a consistent copy of the database (`tickory.db`) and all attachments (`attachments/`), plus a short `LEESMIJ.txt` with the restore steps. The server streams it (nothing is held in memory), at most five per hour, and logs who downloaded it. It does not work inside the Android app; use a browser. To restore it:
-
-```sh
-docker compose down
-mkdir restore && tar -xf tickory-backup-2026-11-14.tar -C restore
-docker run --rm -v tickory_tickory-data:/data -v "$PWD/restore":/restore:ro alpine sh -c   "rm -f /data/todo.db-wal /data/todo.db-shm && cp /restore/tickory.db /data/todo.db && rm -rf /data/attachments && cp -R /restore/attachments /data/attachments && chown -R 1000:1000 /data/todo.db /data/attachments"
-docker compose up -d
-```
-
-`tar` is built into Linux, macOS and Windows 10 and later (7-Zip opens it too). The archive holds the same sensitive data as the copies below: the password hashes and the server's keys for notifications. Keep it as carefully as the server itself. `secret.key` is not in it (see "Accounts and users").
-
-**From the command line:** the database is a single SQLite file in the volume. Make a consistent copy while the app is running:
-
-```sh
-docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +%F).db
-```
-
-This never overwrites an existing copy. The copies are stored in the volume itself; regularly get them off the server as well, for example with `docker cp tickory:/data/backups ./backups`, and schedule the command with `cron`. You clean up old copies yourself. **A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons)**: whoever has it can sign button tokens for any task of any user. Keep it the way you keep the database itself, and keep the folder with copies closed to others.
-
-**Attachments are included:** if the `attachments/` folder exists, the same command copies the files of the attachments that are in the copy to `<target>.attachments/` (in the example above `/data/backups/todo-2026-11-14.attachments/`). That way the database and the files belong together; a file that was deleted between the two steps is skipped and reported. Restoring: put the database back as above and copy the folder back to `/data/attachments` (in the example: `cp -r /backup/todo.attachments/. /data/attachments/`, with `chown -R 1000:1000`). The server checks at start-up that both fit together and reports attachments whose file is missing. A backup therefore also contains everything users have uploaded: keep it as carefully as the database. It takes storage: count the size of your attachments on top.
-
-Restoring a copy (the app has to be stopped; replace `backup.db` with your file):
-
-```sh
-docker compose down
-docker run --rm -v tickory_tickory-data:/data -v "$PWD":/backup alpine sh -c \
-  "rm -f /data/todo.db-wal /data/todo.db-shm && cp /backup/backup.db /data/todo.db && chown 1000:1000 /data/todo.db"
-docker compose up -d
-```
-
-The volume name starts with the name of the directory in which you run `docker compose` (here `tickory`); check it with `docker volume ls`. **After that, sign out and in again on every device** (Settings, "Sign out and clear local data"). A device that knew newer changes than the backup only notices the restored file by itself as long as the server has not yet grown past its state; signing in again is the sure way and costs nothing, because everything is on the server.
-
-### Private image
-
-The repository is public. A package on ghcr.io is created private by the first publication, and the owner has to make it public once (GitHub: your profile, Packages, `tickory`, Package settings, Change visibility). Until then, a server has to sign in once to pull it:
-
-```sh
-docker login ghcr.io -u <your-github-name>     # password: a token with only "read:packages"
-```
-
-Once the package is public, no sign-in is needed. Nothing secret is in the image (passwords and accounts are only in your own `.env` and database).
-
-## Quick add and Dutch dates
-
-Type one line in the input field; below the field you see what was recognised.
-
-```
-Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1
-Oud papier elke tweede dinsdag
-Verjaardag Jan elk jaar op 5 december
-Cadeau kopen voor Sinterklaas
-Belasting regelen eind januari
-Hardlopen elke ochtend om 7 uur
-Aangifte doen {31-12} !!2
-Tandarts bellen morgen om 9 uur !1u !(vandaag om 20:00)       (reminders: 1 hour before, and tonight at 20:00)
-~Mei bellen          (the ~ switches date recognition off for the whole line)
-```
-
-`#project`, `/section` (within that project), `@label` (unknown labels are created), `p1` to `p4` or `!!1` to `!!4` (1 is the highest), `{deadline}`, `!30m` `!1u` `!2d` `!0` `!(…)` for reminders (see above), and a date or recurrence in plain language. All supported forms, with examples that are checked against the parser, are in the guide: [dates and recurrences](https://wnijhof.github.io/tickory/en/guide/dates-and-recurrence.html). The full Dutch description is in [README.nl.md](README.nl.md#nederlands).
-
-## Running locally without Docker
-
-Requires Node 26. Handy for trying it out or for development.
-
-```sh
-TODO_ADMIN_USER=anna TODO_ADMIN_PASSWORD='a-good-password' node server/main.ts      # bash; http://127.0.0.1:8787
-```
-
-On Windows: double-click `start.cmd`, or run `.\start.cmd` in PowerShell. The first time it asks for a username and a password (typed hidden) for the first account, and then the server starts; the Windows script policy stays unchanged (see `start.cmd`).
-
-Environment variables: `TODO_ADMIN_USER`, `TODO_ADMIN_PASSWORD` (or `TODO_ADMIN_PASSWORD_FILE`, the path of a file with the password) and `TODO_ADMIN_NAME` (only on the very first start), `PORT` (8787), `HOST` (127.0.0.1; in Docker 0.0.0.0), `DB_PATH` (`./data/todo.db`; in Docker `/data/todo.db`), `TRUST_PROXY` (`1` behind your own reverse proxy), `CORS_ORIGIN` (optional, one exact origin), `VAPID_SUBJECT` (contact address for notifications, optional), `DEFAULT_TIMEZONE` (`Europe/Amsterdam`), and `PUBLIC_URL` with `OIDC_ISSUER` and the other `OIDC_*` settings for signing in with SSO (see "Signing in with SSO" above). See `.env.example`.
-
-## Tests
-
-```sh
-npm test            # protocol, permissions, accounts, server, client, date language, reminders and notifications, filters and search, languages, views, backup, offline files
-npm run e2e         # the whole app in a real browser (Edge or Chrome, headless), 81 steps
-npm run e2e:extension   # the browser extension in a real browser (loaded unpacked over the DevTools protocol), 12 steps
-node scripts/build-extension.ts    # the extension: dist/tickory-extension-<version>.zip and -firefox.zip
-node scripts/docker-smoke.ts tickory:ci    # test of the image (needs Docker, after: docker build -t tickory:ci .)
-node scripts/build-site.ts && node scripts/site-check.ts    # the website and the demo (needs Edge or Chrome)
-```
-
-The tests include a property test for the order keys and a **differential test**: hundreds of random actions are executed both optimistically in the client and by the real server engine, and both must end up in exactly the same state. For multiple users there are separate tests of who may see and do what (two real clients on one server), and the access rules were checked with deliberately broken code: every broken rule must make a test fail. They pass in every time zone. The browser test saves screenshots in `.e2e/shots/`.
-
-## Layout
-
-```
-shared/    orderKey.js, recurrence.js, reminders.js, schema.js, template.js, text.js, attachments.js   shared by server and client
-server/    schema.ts, rows.ts, sync.ts, users.ts, push.ts, webpush.ts, attachments.ts, restore.ts, main.ts, backup.ts
-           tables, rows, sync engine with permissions, accounts and sessions, notifications (Web Push), HTTP + SSE + files, backup
-client/    index.html, app.css, search.css, dnd.css, attachments.css, templates.css, bulk.css, sw.js, manifest   the web app
-client/core/starters/   nl.js, en.js, build.js               the built-in templates, per language
-client/core/   reducer, store, idb, syncClient, inverse, undo, selection, bulk, completed, attachments, attachmentsApi, imageResize, events, actions, auth, backend, i18n, dateNl, quickadd, quickDates, rowModel, colors, commentText, timeAgo, shortcuts, reminderText, push, filter, filterText, filterViews, labelManage, search, searchKeys, selectors, format, messages
-client/ui/     app, render, selection, bulkDialogs, completed, find, searchDialog, filterDialog, filterHelp, labelDialog, findViews, taskDialog, projectDialog, quickAdd, comments, attachments, miscDialogs, reminderUi, shareDialog, accountDialogs, icons, dom
-client/i18n/   nl.js, en.js                                  the texts of the interface, in Dutch and English
-android/       the Android app (Kotlin, WebView, local alarms)
-extension/     the browser extension (Manifest V3; popup, options, background, core/ with the tested logic, _locales nl and en)
-client/vendor/ nlDatum.generated.js                         Dutch date parser (with chrono-node, see THIRD_PARTY_NOTICES.md)
-website/       pages (nl, en), assets, layout.html, site.json, demo/   the website, the guide and the demo backend
-scripts/       e2e.ts (with e2e-templates.ts), docker-smoke.ts, smoke.ts, make-icons.js, start.ps1,
-               build-site.ts, serve-site.ts, site-check.ts, site-shots.ts, site-browser.ts, build-extension.ts, e2e-extension.ts
-```
-
-## The website
-
-The website (home page, guide and demo) is plain HTML, CSS and JavaScript in `website/`, built without dependencies:
-
-```sh
-node scripts/build-site.ts      # builds _site/: the pages, and demo/ with the app and an in-browser backend
-node scripts/serve-site.ts      # serves it on http://127.0.0.1:8798/tickory/, the same path as on GitHub Pages
-node scripts/site-check.ts      # checks links, the date examples in the guide, and the demo in a headless browser
-node scripts/site-shots.ts      # regenerates the screenshots and the social preview from the demo
-node scripts/make-icons.js      # regenerates the PNG icons from the same geometry as client/icon.svg
-```
-
-The workflow `Website` (`.github/workflows/pages.yml`) builds, checks and publishes it to GitHub Pages on every push to `main`.
-
-## Publishing a new version (maintainer)
-
-```sh
-git tag v0.3.0 && git push origin v0.3.0
-```
-
-The workflow `Image publiceren` runs the tests, builds the image, **starts it with the security settings from `docker-compose.yml` and checks its behaviour** (healthy, correct user, only `/data` writable, the first account and a second account, separated data, data survives a restart, clean shutdown, backup works), and then publishes `ghcr.io/WNijhof/tickory` with the tags `0.2.0`, `0.2` and `latest`. If a single check fails, nothing is published.
-
-## Contributing and security
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how to test and what the ground rules are (zero dependencies, Dutch first, tests that can really fail). Report vulnerabilities privately; see [SECURITY.md](SECURITY.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (zero dependencies, Dutch first, tests that can really fail) and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## License
 
-Tickory is free software under the [GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0). You may use, modify and distribute it; if you offer a modified version to others as a service, you must make its source code available. The bundled date parser falls under the MIT license of chrono-node, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Free software under the [GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0). The bundled date parser falls under the MIT license of chrono-node, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

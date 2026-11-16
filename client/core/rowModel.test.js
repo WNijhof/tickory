@@ -46,7 +46,7 @@ test('initials: eerste letter van de eerste en de laatste naam, ook met accenten
 test('rowModel: een kale taak', () => {
   const m = model();
   assert.deepEqual(m, {
-    id: 't1', content: 'Taak', description: '', priority: 4, done: false, depth: 0, hasChildren: false, collapsed: false,
+    id: 't1', content: 'Taak', title: 'Taak', description: '', priority: 4, done: false, depth: 0, hasChildren: false, collapsed: false,
     due: null, duration: null, deadline: null, subtasks: null, comments: null, attachments: null, labels: [], bell: false, assignee: null, project: null,
   });
 });
@@ -132,4 +132,9 @@ test('tasksWithReminder geeft precies de taken waar hasReminder ja op zegt', () 
   for (const id of ['a', 'b', 'c', 'd']) assert.equal(set.has(id), hasReminder(view, id, 'u1'), id);
   assert.deepEqual([...tasksWithReminder(view, 'u2')], ['d']);
   assert.deepEqual([...tasksWithReminder(emptyState(), 'u1')], []);
+});
+
+test('rowModel: een titel met Markdown krijgt een platte versie; de beschrijving zonder opmaaktekens', () => {
+  const m = model({ content: '**Melk** halen', description: '\n- [ ] _volle_ melk\nmeer' });
+  assert.deepEqual([m.content, m.title, m.description], ['**Melk** halen', 'Melk halen', 'volle melk']);
 });

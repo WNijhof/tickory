@@ -17,6 +17,8 @@ import { confirmDialog, h, replace } from './dom.js';
 import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
 import { attachmentsSection } from './attachments.js';
+import { renderMarkdown } from './markdown.js';
+import { toggleTask } from '../core/markdown.js';
 import { canEditProject, canBeAssigned, editableProjectList } from '../core/access.js';
 
 const priorityLabel = (p) => (p === 1 ? t('task.priorityHighest') : p === 4 ? t('task.priorityNone') : `P${p}`);
@@ -47,6 +49,36 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const content = h('textarea', { class: 'field task-title-input', rows: 1, required: true, maxLength: 4000, value: task.content, readOnly, 'aria-label': t('task.contentLabel'), autofocus: !readOnly && (globalThis.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? true) });
     const grow = (el) => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; };
     const description = h('textarea', { class: 'field task-description', rows: 3, maxLength: 16000, value: task.description ?? '', readOnly, placeholder: readOnly ? '' : t('task.description'), 'aria-label': t('task.descriptionLabel') });
+    // De beschrijving met opmaak (Markdown, zoals Todoist): een klik of Enter maakt er weer tekst van om te bewerken. Links openen
+    // in een nieuw tabblad en een vinkje in een lijst werkt meteen (wordt bewaard met de rest).
+    const descView = h('div', {
+      class: 'task-desc-view', tabIndex: readOnly ? -1 : 0, role: readOnly ? null : 'button', 'aria-label': readOnly ? t('task.descriptionLabel') : t('task.descriptionEdit'),
+      dataset: { fk: 'task-desc-view' },
+    });
+    const showDescView = () => {
+      const text = description.value;
+      if (!text.trim() || (!readOnly && document.activeElement === description)) {
+        descView.hidden = true;
+        description.hidden = false;
+        return;
+      }
+      descView.replaceChildren(renderMarkdown(text, {
+        onToggleTask: readOnly ? null : (index) => { description.value = toggleTask(description.value, index); showDescView(); },
+      }));
+      descView.hidden = false;
+      description.hidden = true;
+    };
+    const editDesc = () => {
+      if (readOnly) return;
+      descView.hidden = true;
+      description.hidden = false;
+      grow(description);
+      description.focus();
+    };
+    descView.addEventListener('click', (e) => { if (!e.target.closest('a, input')) editDesc(); });
+    descView.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === descView) { e.preventDefault(); editDesc(); } });
+    description.addEventListener('blur', () => showDescView());
+    description.addEventListener('input', () => grow(description));
     const check = h('button', { class: `check check-large prio-${task.priority}`, type: 'button', disabled: readOnly, title: readOnly ? t('readonly.cannotComplete') : null, onclick: () => completeFromDialog() });
     const drawCheck = () => {
       const done = Boolean(current().checked);
@@ -319,7 +351,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
           h('div', { class: 'task-col task-col-main' },
             readOnly && h('p', { class: 'banner banner-readonly', role: 'note', dataset: { fk: 'task-readonly' } }, icon('eye'), h('span', {}, t('readonly.taskBanner'))),
             h('div', { class: 'task-title-row' }, check, content),
-            description),
+            descView, description),
           h('aside', { class: 'task-col task-col-side', 'aria-label': t('task.properties') },
             !parent && field(t('task.project'), project),
             !parent && field(t('task.section'), section),
@@ -375,6 +407,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     });
     drawCheck();
     drawSubtasks();
+    showDescView();
     document.body.append(dialog);
     dialog.showModal();
     grow(content);
