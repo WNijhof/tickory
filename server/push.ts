@@ -22,7 +22,7 @@ import { b64u, fromB64u, generateVapidKeys, isAllowedEndpoint, isValidVapid, sen
 import type { SendResult, VapidKeys } from './webpush.ts';
 import { currentRev, fail, newId } from './rows.ts';
 import type { Row } from './rows.ts';
-import { handleSync } from './sync.ts';
+import { handleSync, tokenFor } from './sync.ts';
 import { pushChoices } from '../shared/notifications.js';
 import { canEditRole } from '../shared/roles.js';
 import { lastNoteReminder, noteHeadline } from '../shared/notes.js';
@@ -220,7 +220,7 @@ export function createPush(cfg: PushConfig) {
         : null;
     if (!command) return { ok: false, userId: null, error: 'onbekende handeling' };
     try {
-      const res = handleSync(db, { sync_token: String(currentRev(db)), resource_types: ['settings'], commands: [command] }, data.u);
+      const res = handleSync(db, { sync_token: tokenFor(db), resource_types: ['settings'], commands: [command] }, data.u);
       const status = res.sync_status[uuid];
       return status === 'ok' ? { ok: true, userId: data.u } : { ok: false, userId: data.u, error: status.error };
     } catch {

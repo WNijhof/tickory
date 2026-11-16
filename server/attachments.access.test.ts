@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
-import { audienceSince, currentRev, handleSync } from './sync.ts';
+import { audienceSince, currentRev, handleSync, tokenFor } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { addUser, freshDb } from './testutil.ts';
 import type { UserRow } from './users.ts';
@@ -44,7 +44,7 @@ test('wie geen lid is, krijgt de bijlagen van een project nooit, ook niet als ve
   const del = cmd('attachment_delete', { id: 'bijlage-twee-002' });
   assert.equal(run(db, alice, [del]).sync_status[del.uuid], 'ok');
   assert.deepEqual((run(db, bob, []).attachments as Row[]), [], 'volledige sync');
-  assert.deepEqual((run(db, bob, [], '0').attachments as Row[]), [], 'delta vanaf het begin');
+  assert.deepEqual((run(db, bob, [], tokenFor(db, 0)).attachments as Row[]), [], 'delta vanaf het begin');
   assert.deepEqual((run(db, alice, []).attachments as Row[]).map((a) => a.id), ['bijlage-een-001']);
   assert.deepEqual((run(db, alice, [], start).attachments as Row[]).map((a) => [a.id, a.is_deleted === true]).sort(), [['bijlage-een-001', false], ['bijlage-twee-002', true]]);
 });

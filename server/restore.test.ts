@@ -167,7 +167,7 @@ test('een taak die al terug is of nooit weg was: geen wijziging en geen fout; he
   const state = JSON.stringify(rows(run(w.db, w.alice, []), 'tasks'));
   ok(run(w.db, w.alice, [cmd('task_restore', { id: T })]));
   assert.equal(JSON.stringify(rows(run(w.db, w.alice, []), 'tasks')), state);
-  assert.ok(Number(revAfter) > 0);
+  assert.ok(Number(revAfter.split('-').pop()) > 0);
   // en verwijderen kan daarna gewoon weer, en terugzetten ook
   const del2 = cmd('task_delete', { id: T }), back2 = cmd('task_restore', { id: T });
   ok(run(w.db, w.alice, [del2, back2]), del2, back2);

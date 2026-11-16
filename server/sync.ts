@@ -4,8 +4,9 @@
 // en breekt de rest niet af. Elk commando-uuid wordt per gebruiker hooguit één keer uitgevoerd (idempotent), zodat
 // een client na een verbroken verbinding veilig kan herhalen.
 //
-// sync_token = het hoogste versienummer (rev) dat de client kent. Elke wijziging krijgt een hoger rev; een delta is
-// alles met rev > token dat de gebruiker mag zien. Verwijderingen blijven als rijen met is_deleted=true bestaan, zodat
+// sync_token = "<epoch>-<rev>": de epoch van de database en het hoogste versienummer (rev) dat de client kent. Elke wijziging krijgt
+// een hoger rev; een delta is alles met rev > token dat de gebruiker mag zien. Een andere epoch (een andere of teruggezette database)
+// of een token van vóór de epoch (alleen een getal) geeft een volledige sync. Verwijderingen blijven als rijen met is_deleted=true bestaan, zodat
 // ze in de delta meekomen.
 //
 // Persoonlijk in een gedeeld project (projectPrefs.ts): favoriet, ingeklapt, weergave en volgorde van een lid dat geen eigenaar is,
@@ -26,7 +27,7 @@ import { isValidDate, nextDue, nextOccurrence } from '../shared/recurrence.js';
 import { epochToFloating } from '../shared/reminders.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
 import { templateStats } from '../shared/template.js';
-import { bumpRev, chunked, currentRev, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
+import { bumpRev, chunked, currentRev, epochOf, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
 import type { Ctx, Row } from './rows.ts';
 import { ensureSettings, getUserById, getUserByName, peersOf, publicMe } from './users.ts';
 import { LIMITS } from './limits.ts';
@@ -40,6 +41,20 @@ import { changedTaskFields } from '../shared/activity.js';
 import { forgetPrefs, personalize, prefsOf, PREFS_CHANGED, savePrefs, splitPersonal } from './projectPrefs.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
+
+/** Het sync-token bij een versienummer: de epoch van de database en het nummer. */
+export const tokenFor = (db: DatabaseSync, rev: number = currentRev(db)): string => `${epochOf(db)}-${rev}`;
+
+/**
+ * Wat de client kent volgens zijn token: `null` als hij opnieuw moet beginnen ("*", een andere epoch, of een token van vóór de
+ * epoch), anders het versienummer.
+ */
+export function sinceOf(db: DatabaseSync, token: string): number | null {
+  if (token === '*') return null;
+  const m = /^([0-9a-f]{1,32})-(\d{1,15})$/.exec(token);
+  if (!m || m[1] !== epochOf(db)) return null;
+  return Number(m[2]);
+}
 
 type Recurrence = { freq: 'daily' | 'weekly' | 'monthly' | 'yearly'; interval?: number; byweekday?: number[]; bymonthday?: number };
 type Args = Record<string, unknown>;
@@ -1258,7 +1273,7 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string, optio
   if (!req || typeof req !== 'object' || Array.isArray(req)) fail('INVALID_REQUEST', 'verzoek moet een JSON-object zijn');
   const r = req as SyncRequest;
   const token = r.sync_token ?? '*';
-  if (typeof token !== 'string' || !/^(\*|\d{1,15})$/.test(token)) fail('INVALID_REQUEST', 'sync_token moet "*" of een getal zijn');
+  if (typeof token !== 'string' || !/^(\*|\d{1,15}|[0-9a-f]{1,32}-\d{1,15})$/.test(token)) fail('INVALID_REQUEST', 'sync_token moet "*" of een token van de server zijn');
   const commands = r.commands ?? [];
   if (!Array.isArray(commands) || commands.length > MAX_COMMANDS) fail('INVALID_REQUEST', `commands moet een lijst van maximaal ${MAX_COMMANDS} zijn`);
   const { include, partial } = resolveResources(r.resource_types);
@@ -1320,13 +1335,14 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string, optio
 
     activity.capProjects(db, touched);
     const cur = currentRev(db);
-    let since = token === '*' ? 0 : Number(token);
-    let full = token === '*';
+    const known = sinceOf(db, token);
+    let since = known ?? 0;
+    let full = known === null; // nieuw, een andere database, of een teruggezette back-up: opnieuw beginnen
     if (since > cur) { since = 0; full = true; } // de server is teruggezet: de client moet opnieuw beginnen
     // Een token van vóór het opgeruimde deel van het verhuis-logboek: de server weet niet meer welke taken er sindsdien
     // uit zijn projecten zijn verhuisd, dus de client moet opnieuw beginnen.
     if (!full && since < taskMovesFloor(db)) { since = 0; full = true; }
-    const response: SyncResponse = { sync_token: String(cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
+    const response: SyncResponse = { sync_token: tokenFor(db, cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
     collectResources(db, userId, include, since, full, response);
     db.exec('COMMIT');
     return response;

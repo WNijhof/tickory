@@ -318,7 +318,7 @@ test('hetzelfde commando twee keer (zelfde uuid) maakt één plaats', () => {
 
 test('het live-signaal gaat alleen naar de eigenaar van een gewijzigde plaats', () => {
   const { db, anna, bram } = world();
-  const rev = Number(run(db, anna, []).sync_token);
+  const rev = Number(run(db, anna, []).sync_token.split('-').pop());
   ok(run(db, anna, [cmd('place_add', HOME)]));
   const who = audienceSince(db, rev, anna.id);
   assert.ok(who.has(anna.id));

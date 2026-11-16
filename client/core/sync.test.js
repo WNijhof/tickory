@@ -64,14 +64,14 @@ test('eerste sync: de Inbox komt binnen en het token wordt bewaard', async () =>
   assert.equal(c.store.token, '*');
   assert.equal(await c.sync.syncNow(), true);
   assert.equal(c.store.view.projects.get(INBOX_ID).name, 'Inbox');
-  assert.equal(c.store.token, '2');
+  assert.match(c.store.token, /^[0-9a-f]+-2$/, 'epoch en versienummer (server/sync.ts tokenFor)');
   assert.equal(c.store.me.username, 'tester', 'de server meldt wie je bent');
   assert.equal(c.store.userId, c.store.me.id);
   assert.equal(c.store.userName(c.store.userId), 'Tester');
   assert.equal(c.store.view.members.size, 1);
   const again = new Store(c.adapter);
   await again.init();
-  assert.equal(again.token, '2');
+  assert.equal(again.token, c.store.token);
   assert.equal(again.me.username, 'tester', 'ook na een herstart bekend, zonder verbinding');
   assert.equal(again.view.projects.size, 1);
 });
@@ -228,7 +228,7 @@ test('server teruggezet (token loopt vooruit): volledige sync vervangt de lokale
   await c.actions.addTask({ content: 'Oud', project_id: INBOX_ID });
   await c.actions.addProject({ name: 'Oud project' });
   await c.sync.syncNow();
-  assert.equal(c.store.token, '4');
+  assert.match(c.store.token, /^[0-9a-f]+-4$/);
 
   c.net.db = makeServer(); // verse server
   c.net.online = false;

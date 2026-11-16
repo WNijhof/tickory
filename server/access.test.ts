@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { createSchema } from './schema.ts';
-import { handleSync } from './sync.ts';
+import { handleSync, tokenFor } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { addUser, freshDb, mkdb, firstUser } from './testutil.ts';
 import { keyAfter } from '../shared/orderKey.js';
@@ -404,8 +404,8 @@ test('een taak naar een project verplaatsen waar je geen lid van bent kan niet',
   err(res, mv, 'NOT_FOUND');
   ok(res, mine);
   assert.equal(find(run(db, bob, []), 'tasks', T)!.project_id, bob.inbox_project_id);
-  assert.deepEqual(dead(run(db, alice, [], '0'), 'tasks'), [T], 'alice hoort dat de taak uit haar project is verdwenen');
-  assert.deepEqual(live(run(db, alice, [], '0'), 'tasks'), []);
+  assert.deepEqual(dead(run(db, alice, [], tokenFor(db, 0)), 'tasks'), [T], 'alice hoort dat de taak uit haar project is verdwenen');
+  assert.deepEqual(live(run(db, alice, [], tokenFor(db, 0)), 'tasks'), []);
   assert.ok(!live(run(db, alice, []), 'tasks').includes(T));
 });
 

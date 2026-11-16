@@ -1,9 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { backupTo } from './backup.ts';
 import { createSchema } from './schema.ts';
 import { addUser, firstUser, mkdb } from './testutil.ts';
-import { COMMAND_TYPES, currentRev, handleSync, newId } from './sync.ts';
+import { COMMAND_TYPES, currentRev, handleSync, newId, tokenFor } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 
 type Row = Record<string, any>;
@@ -32,7 +36,7 @@ test('een nieuwe database bevat alleen de Inbox van de gebruiker; de rest is lee
   const db = mkdb();
   const res = run(db, []);
   assert.equal(res.full_sync, true);
-  assert.equal(res.sync_token, '2'); // versie 1: de Inbox uit "versie 0.1"; versie 2: het account dat die overneemt
+  assert.equal(res.sync_token, tokenFor(db, 2)); // versie 1: de Inbox uit "versie 0.1"; versie 2: het account dat die overneemt
   assert.deepEqual(rows(res, 'projects').map((p) => [p.id, p.name]), [['inbox-project', 'Inbox']]);
   assert.deepEqual(rows(res, 'members').map((m) => [m.project_id, m.user_id, m.role]), [['inbox-project', firstUser(db).id, 'owner']]);
   for (const k of ['sections', 'tasks', 'labels', 'comments', 'reminders', 'filters']) assert.deepEqual(res[k], []);
@@ -423,9 +427,50 @@ test('resource_types beperkt de delta en markeert hem als gedeeltelijk', () => {
 test('een token vooruit op de server (database teruggezet) dwingt een volledige sync af', () => {
   const db = mkdb();
   seed(db);
-  const res = run(db, [], '99999');
+  const res = run(db, [], tokenFor(db, 99999));
   assert.equal(res.full_sync, true);
   assert.equal(rows(res, 'tasks').length, 1);
+});
+
+test('het token hoort bij de database (epoch): een oud token (alleen een getal) of een andere database geeft een volledige sync', () => {
+  const db = mkdb();
+  const { token } = seed(db);
+  assert.match(token, /^[0-9a-f]{12}-\d+$/);
+  const n = token.split('-')[1];
+  assert.equal(run(db, [], token).full_sync, false, 'het eigen token: een delta');
+  assert.equal(run(db, [], n).full_sync, true, 'een token van vóór de epoch');
+  assert.equal(run(db, [], `abcdef012345-${n}`).full_sync, true, 'een andere database');
+  assert.throws(() => run(db, [], 'xyz-1'), /sync_token/, 'onzin is een fout, geen sync');
+});
+
+test('een teruggezette back-up: ook als het versienummer daarna weer voorbij dat van het apparaat groeit, begint het apparaat opnieuw', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'tickory-epoch-'));
+  // Windows laat de bestanden soms nog even vast; opruimen na afloop, en een mislukte poging is geen fout van de test
+  t.after(() => { try { rmSync(dir, { recursive: true, force: true, maxRetries: 5 }); } catch { /* blijft in de tijdelijke map */ } });
+  {
+    const file = join(dir, 'todo.db');
+    const live = new DatabaseSync(file);
+    createSchema(live);
+    const anna = addUser(live, 'anna', 'Anna');
+    const as = anna.id;
+    const inbox = anna.inbox_project_id;
+    handleSync(live, { sync_token: '*', commands: [{ type: 'task_add', uuid: 'epoch-0000000001', args: { id: 'task-voor-backup', project_id: inbox, content: 'Voor de back-up' } }] }, as);
+    backupTo(file, join(dir, 'kopie.db'));
+    // na de back-up gaat het leven door: het apparaat kent een taak die straks weg is
+    const after = handleSync(live, { sync_token: '*', commands: [{ type: 'task_add', uuid: 'epoch-0000000002', args: { id: 'task-na-backup1', project_id: inbox, content: 'Na de back-up' } }] }, as);
+    const deviceToken = after.sync_token;
+    live.close();
+    // de beheerder zet de kopie terug; daarna komt er van alles bij, tot voorbij het nummer van het apparaat
+    const restored = new DatabaseSync(join(dir, 'kopie.db'));
+    createSchema(restored);
+    for (let i = 0; i < 5; i++) handleSync(restored, { sync_token: '*', commands: [{ type: 'task_add', uuid: `epoch-x${String(i).padStart(9, '0')}`, args: { project_id: inbox, content: `Nieuw ${i}` } }] }, as);
+    assert.ok(currentRev(restored) > Number(deviceToken.split('-')[1]), 'het nummer is weer voorbij dat van het apparaat');
+    const res = handleSync(restored, { sync_token: deviceToken, commands: [] }, as);
+    assert.equal(res.full_sync, true, 'toch een volledige sync: de epoch is anders');
+    assert.ok(!(res.tasks as any[]).some((t) => t.id === 'task-na-backup1'), 'de taak van na de back-up bestaat niet meer');
+    assert.notEqual(res.sync_token.split('-')[0], deviceToken.split('-')[0]);
+    restored.close();
+  }
 });
 
 test('twee clients: wijzigingen van de een komen via de delta bij de ander (laatste schrijver wint per veld-set)', () => {

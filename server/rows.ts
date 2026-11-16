@@ -52,6 +52,22 @@ export function currentRev(db: DatabaseSync): number {
   return Number((db.prepare("SELECT value FROM meta WHERE key = 'rev'").get() as Row).value);
 }
 
+/**
+ * De epoch van de database: een willekeurige waarde die bij het sync-token hoort (zie tokenFor in sync.ts). Een andere database, of
+ * een teruggezette back-up (elke back-upkopie krijgt een nieuwe, zie renewEpoch), heeft een andere epoch: dan beginnen de apparaten
+ * opnieuw met een volledige sync, ook als het versienummer toevallig weer voorbij hun stand is gegroeid.
+ */
+export function epochOf(db: DatabaseSync): string {
+  return String((db.prepare("SELECT value FROM meta WHERE key = 'epoch'").get() as Row | undefined)?.value ?? '');
+}
+
+/** Een nieuwe epoch (voor een back-upkopie): wie de kopie terugzet, dwingt zo op elk apparaat een volledige sync af. */
+export function renewEpoch(db: DatabaseSync): void {
+  db.prepare("INSERT INTO meta (key, value) VALUES ('epoch', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(newEpoch());
+}
+
+export const newEpoch = (): string => randomBytes(6).toString('hex');
+
 export function bumpRev(db: DatabaseSync): number {
   const r = currentRev(db) + 1;
   db.prepare("UPDATE meta SET value = ? WHERE key = 'rev'").run(String(r));

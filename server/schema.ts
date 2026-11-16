@@ -1,6 +1,7 @@
 // De SQL-kant van het datamodel. De entiteitsdefinities zelf staan in ../shared/schema.js (gedeeld met de client).
 // Alle tabel- en kolomnamen in SQL komen uitsluitend uit die definities, nooit uit invoer van buiten.
 
+import { randomBytes } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
@@ -58,6 +59,8 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('PRAGMA busy_timeout = 5000'); // de beheeropdrachten (user add) kunnen naast een draaiende server schrijven
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   db.exec("INSERT OR IGNORE INTO meta (key, value) VALUES ('rev', '0')");
+  // de epoch van deze database (zie epochOf in rows.ts): een database zonder krijgt er een, en alle apparaten beginnen één keer opnieuw
+  db.prepare("INSERT OR IGNORE INTO meta (key, value) VALUES ('epoch', ?)").run(randomBytes(6).toString('hex'));
 
   db.exec(`CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

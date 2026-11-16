@@ -20,6 +20,7 @@ import { randomBytes } from 'node:crypto';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { DatabaseSync as Db } from 'node:sqlite';
+import { renewEpoch } from './rows.ts';
 
 const BLOCK = 512;
 const CHUNK = 64 * 1024;
@@ -163,6 +164,9 @@ export function createBackupArchive(
   let keys: string[] = [];
   try {
     db.prepare('VACUUM INTO ?').run(temp);
+    // een nieuwe epoch in de kopie: wie haar terugzet, laat alle apparaten opnieuw beginnen (zie epochOf in rows.ts)
+    const writable = new DatabaseSync(temp);
+    try { renewEpoch(writable); } finally { writable.close(); }
     // Welke bestanden bij de kopie horen, volgens de kopie zelf (niet volgens de database die intussen doorloopt).
     const copy = new DatabaseSync(temp, { readOnly: true });
     try {

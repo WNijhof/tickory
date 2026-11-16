@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
 import { createSchema, SCHEMA_VERSION } from './schema.ts';
-import { audienceSince, currentRev, handleSync } from './sync.ts';
+import { audienceSince, currentRev, handleSync, tokenFor } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { pruneNotifications } from './notify.ts';
 import { addUser, freshDb } from './testutil.ts';
@@ -213,7 +213,7 @@ test('alleen de ontvanger ziet een melding en wijzigt alleen is_read; aanmaken o
   }
   const before = currentRev(db);
   const read = cmd('notification_update', { id, is_read: true });
-  const res = run(db, bram, [read], String(before));
+  const res = run(db, bram, [read], tokenFor(db, before));
   ok(res, read);
   assert.deepEqual((res.notifications as Row[]).map((x) => [x.id, x.is_read]), [[id, true]], 'de delta bevat de gelezen melding');
   assert.deepEqual([...audienceSince(db, before, bram.id)].sort(), [bram.id].sort(), 'alleen Bram krijgt het signaal');

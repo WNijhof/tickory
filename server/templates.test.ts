@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { DatabaseSync } from 'node:sqlite';
 import { createSchema, SCHEMA_VERSION } from './schema.ts';
-import { audienceSince, handleSync } from './sync.ts';
+import { audienceSince, handleSync, tokenFor } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { LIMITS } from './limits.ts';
 import { addUser, freshDb } from './testutil.ts';
@@ -83,7 +83,7 @@ test('privé: een ander ziet het sjabloon niet, kan het niet wijzigen of verwijd
   const { db, anna, bram } = world();
   const mine = add();
   ok(run(db, anna, [mine]), mine);
-  const since = Number(run(db, anna, []).sync_token);
+  const since = Number(run(db, anna, []).sync_token.split('-').pop());
   assert.deepEqual(rows(run(db, bram, [])), [], 'Bram ziet het niet');
   const steal = [cmd('template_update', { id: TPL.id, name: 'Van Bram' }), cmd('template_delete', { id: TPL.id }), add({ id: TPL.id })];
   const res = run(db, bram, steal);
@@ -95,7 +95,7 @@ test('privé: een ander ziet het sjabloon niet, kan het niet wijzigen of verwijd
   ok(run(db, anna, [change]), change);
   const audience = audienceSince(db, since, anna.id);
   assert.deepEqual([...audience], [anna.id], 'alleen de eigenaar hoort dat er iets veranderde');
-  assert.deepEqual(rows(run(db, bram, [], '0')), [], 'ook niet in een delta');
+  assert.deepEqual(rows(run(db, bram, [], tokenFor(db, 0))), [], 'ook niet in een delta');
 });
 
 test('twee gebruikers kunnen allebei een sjabloon met dezelfde naam hebben', () => {

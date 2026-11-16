@@ -72,8 +72,9 @@ docker run --rm -v tickory_tickory-data:/data -v "$PWD/herstel":/herstel:ro alpi
 docker compose up -d</code></pre>
 <p>Dit vervangt de database én de map met bijlagen door die uit de back-up. Het sleutelbestand <code>secret.key</code> in het volume blijft staan. Zet je terug op een <strong>nieuwe</strong> server, kopieer dan ook je bewaarde <code>secret.key</code> naar <code>/data/secret.key</code> (met <code>chown 1000:1000</code>); zonder dat bestand werkt tweestapsverificatie niet meer en moet die per gebruiker worden uitgezet met <code>user reset-2fa</code> (zie <a href="gebruikers-beheren.html">Gebruikers beheren</a>).</p>
 
-<h3>Daarna: op elk apparaat opnieuw aanmelden</h3>
-<p>Meld na het terugzetten op elk apparaat af en weer aan (<x-ui k="settings.title"></x-ui>, dan <x-ui k="settings.signOut"></x-ui>). Een apparaat dat nieuwere wijzigingen kende dan de back-up, merkt het teruggezette bestand alleen vanzelf op zolang de server nog niet voorbij de stand van dat apparaat is gegroeid. Opnieuw aanmelden is de zekere weg, en het kost niets: alles staat op de server.</p>
+<h3 id="na-terugzetten">Daarna: de apparaten halen alles vanzelf opnieuw op</h3>
+<p>Elke back-up (met de opdracht of gedownload in de app) krijgt een eigen kenmerk. Zet je er een terug, dan merkt elk apparaat bij de volgende synchronisatie dat de server een andere stand heeft, en haalt het alles opnieuw op: wat het na de back-up nog kende, verdwijnt ook daar. Taken die op een apparaat nog wachtten om verstuurd te worden (bijvoorbeeld offline toegevoegd), gaan gewoon mee. Je hoeft dus niet opnieuw aan te melden.</p>
+<p>Zet je geen back-up van Tickory terug maar een kopie van de hele schijf of het volume (een snapshot), dan heeft die geen eigen kenmerk. Meld dan voor de zekerheid op elk apparaat af en weer aan (<x-ui k="settings.title"></x-ui>, dan <x-ui k="settings.signOut"></x-ui>).</p>
 <p>Wat na het maken van de back-up is toegevoegd of gewijzigd, is na het terugzetten weg.</p>
 
 <h2>Zonder Docker</h2>

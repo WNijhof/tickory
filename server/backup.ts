@@ -15,6 +15,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { liveFileKeysSql } from './backupArchive.ts';
+import { renewEpoch } from './rows.ts';
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
@@ -41,6 +42,9 @@ export function backupTo(sourcePath: string, destPath: string, attachmentsDir: s
   } finally {
     db.close();
   }
+  // een nieuwe epoch in de kopie: zet iemand haar terug, dan beginnen alle apparaten opnieuw (zie epochOf in rows.ts)
+  const fresh = new DatabaseSync(dest);
+  try { renewEpoch(fresh); } finally { fresh.close(); }
   const report: BackupReport = { files: 0, bytes: 0, missing: 0 };
   if (!withFiles) return report;
   // Welke bestanden bij de kopie horen, volgens de kopie zelf (niet volgens de database die intussen is doorgelopen).

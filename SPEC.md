@@ -67,7 +67,7 @@ Taken hebben daarnaast `assignee_id` (een lid van het project, of `null`) en `cr
 }
 ```
 
-- `sync_token`: `"*"` voor een volledige sync, anders het token uit het vorige antwoord.
+- `sync_token`: `"*"` voor een volledige sync, anders het token uit het vorige antwoord. Een token is `<epoch>-<rev>`: de epoch van de database (een willekeurige waarde in `meta`, nieuw in elke back-upkopie) en het versienummer. Voor de client is het ondoorzichtig. Een andere epoch (een andere of teruggezette database), een token van vóór de epoch (alleen een getal) of een versienummer voorbij dat van de server geeft een volledige sync.
 - `resource_types`: `"all"` (standaard) of namen (`tasks`, `projects`, `sections`, `labels`, `comments`, `attachments`, `reminders`, `filters`, `places`, `templates`, `settings`, `members`, `notifications`, `notes`, `note_files`, `note_shares`); `-naam` sluit uit.
 - `commands`: maximaal 100, in volgorde uitgevoerd.
 
@@ -75,7 +75,7 @@ Antwoord:
 
 ```json
 {
-  "sync_token": "42",
+  "sync_token": "3f2a9c41b7d0-42",
   "full_sync": false,
   "partial": false,
   "sync_status": { "<uuid>": "ok" },
@@ -756,7 +756,7 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Android-widgets: getest op een echt toestel | Gebouwd en getest op een nagebootste Android (gegevens, wachtrij, tekenen, configuratiescherm). Het uiterlijk per launcher, het aanpassen van het formaat, dynamische kleuren, tikken op de cirkel (een scherm zonder weergave start kort) en gedrag onder stroombesparing zijn alleen op een toestel te controleren; `android/README.md` heeft een korte testlijst |
 | Het kleine venster Taak toevoegen (Android): getest op een echt toestel, en meer dan Vandaag/Morgen/prioriteit | Gebouwd en getest op een nagebootst Android (openen met de focus in het veld, project uit de widget, toevoegen met en zonder verbinding, de wachtrij per account en na een herstart, weigering als melding, de tegel en de widgets) en het eindpunt op de server (5h). Hoe het venster eruitziet, of het toetsenbord echt meteen omhoog komt (per toetsenbord-app en Android-versie), de animatie en het dimmen per launcher zijn alleen op een toestel te zien; `android/README.md` heeft een testlijst. Kiezen van een sectie, labels, een herinnering of een andere datum dan vandaag of morgen kan alleen door het te typen, of via "Openen in de app" |
 | Datums in gewone taal in een filter in een widget | De widget kent de vaste vormen ("vandaag", "7 dagen", "31-12", "vóór: 31 dec"); "donderdag" of "eind januari" leest alleen de web-app (met de meegebundelde herkenner). De widget zegt dan welk deel hij niet kan lezen |
-| Herkennen van een teruggezette database | Het token is nu alleen een versienummer. Een `epoch` (willekeurige waarde, per database) in het token zou een teruggezette of vervangen database altijd een volledige sync laten afdwingen, ook als het versienummer toevallig weer voorbij de stand van een apparaat is gegroeid |
+| Een teruggezette snapshot herkennen | Een back-up van Tickory (`server/backup.ts` of de download in de app) krijgt een nieuwe epoch, dus terugzetten dwingt overal een volledige sync af. Een kopie van de hele schijf of het volume houdt de oude epoch: dan merkt een apparaat het alleen zolang de server nog niet voorbij zijn versienummer is gegroeid |
 | Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
 | Meldingen bij samenwerken: per e-mail, een samenvatting per dag, per project instellen, direct op Android | De meldingen staan in de app en komen als pushmelding in de browser; de Android-app haalt ze zonder Google-diensten bij het verversen op (tot een kwartier later). Iemand noemen kan alleen in opmerkingen. Op een echt toestel getest: nog niet (kanaal, tikken en het weghalen na lezen zijn op een nagebootst Android getest) |
 | Herinneringen per e-mail, en Engelse datumtaal voor herinneringen | Op tijd: in de app en als melding. Wat je intypt is voorlopig Nederlands (`!(morgen om 8 uur)`); `!30m` en een datum in de vorm `2026-12-31T14:30` werken in elke taal |
