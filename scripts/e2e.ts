@@ -36,6 +36,7 @@ import { templatesScenario } from './e2e-templates.ts';
 import { importScenario } from './e2e-import.ts';
 import { notifyScenario } from './e2e-notify.ts';
 import { accountScenario } from './e2e-account.ts';
+import { deleteScenario } from './e2e-delete.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
 import { listsScenario } from './e2e-lists.ts';
@@ -421,6 +422,13 @@ try {
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
   // meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts); met E2E_NOTIFY_ONLY=1 alleen dat onderdeel
   const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
+  // account verwijderen (scripts/e2e-delete.ts); met E2E_DELETE_ONLY=1 alleen dat onderdeel (in de volledige run komt het als laatste)
+  if (process.env.E2E_DELETE_ONLY) {
+    try { await deleteScenario({ evaluate, waitFor, step, SYNCED, db, alice, typeInto, clickText, nav, submit, PASSWORD_ALICE }); console.log('ALLEEN ACCOUNT VERWIJDEREN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-verwijderen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // snel toevoegen (scripts/e2e-quick.ts); met E2E_QUICK_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_QUICK_ONLY) {
     try { await quickScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN SNEL TOEVOEGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-snel'); process.exitCode = 1; }
@@ -3083,6 +3091,9 @@ try {
   assert.ok(aliceProjects.includes('Thuis'));
   assert.equal((await evaluate<string[]>(`[...document.querySelectorAll('.task-title')].map((e) => e.textContent)`)).includes('Bobs eigen taak'), false);
   step('sessie ingetrokken: het inlogscherm komt vanzelf; een ander account wist eerst de gegevens van de vorige gebruiker (na waarschuwing)');
+
+  // ---- je eigen account verwijderen (scripts/e2e-delete.ts) ----
+  await deleteScenario({ evaluate, waitFor, step, SYNCED, db, alice, typeInto, clickText, nav, submit, PASSWORD_ALICE });
 
   // ---- fouten in de console ----
   const own = consoleErrors.filter((e) => !/adguard/i.test(e));

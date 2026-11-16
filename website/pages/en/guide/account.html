@@ -70,5 +70,14 @@ description: Your account in Tickory: changing your password, seeing which devic
 <h2>Your name and username</h2>
 <p>The top of the window shows your name and your username. The name is what others see in a shared project; the username is what you sign in with and what others use to share a project with you. Neither can be changed in the app.</p>
 
+<h2 id="deleting-your-account"><x-ui k="accountDelete.title"></x-ui></h2>
+<p>At the bottom of the Account window there is <x-ui k="accountDelete.start"></x-ui>. It removes your account and all your data from the server. This cannot be undone: <a href="export.html">export</a> your data first if you want a copy.</p>
+<ul>
+  <li><strong>What is removed:</strong> your projects with their tasks, comments and attachments, your Inbox, notes, labels, filters, places, templates, reminders, notifications and settings, and your account with all devices. Files of attachments, photos and recordings are removed from the server at once.</li>
+  <li><strong>What stays:</strong> what you created in projects of others (tasks, comments, attachments). You are no longer a member there and your name is no longer shown; tasks assigned to you are no longer assigned to anyone.</li>
+  <li><strong>When it is not possible (yet):</strong> if you own a shared project that still has other members (delete the project or remove the members, so their work does not disappear unnoticed), or if you are the only administrator (make someone else an administrator first). The app tells you which projects they are.</li>
+</ul>
+<p>You confirm with your password (and a code if <a href="#two-step-verification">two-step verification</a> is on) and a tick box. The app then also clears everything on this device and shows the sign-in screen.</p>
+
 <h2>For administrators</h2>
 <p>If you are an administrator, it says so (<x-ui k="account.admin"></x-ui>) after your username and the window has a button <x-ui k="admin.title"></x-ui>. See <a href="managing-users.html">Managing users</a>.</p>

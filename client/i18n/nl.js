@@ -796,6 +796,17 @@ export default {
   },
 
   // ---------- account, apparaten en gebruikersbeheer ----------
+  'accountDelete.title': 'Account verwijderen',
+  'accountDelete.intro': 'Haal je account met al je gegevens weg van deze server. Dit kan niet ongedaan worden gemaakt.',
+  'accountDelete.start': 'Account verwijderen…',
+  'accountDelete.blocked': 'Je account kan nog niet worden verwijderd:',
+  'accountDelete.lastAdmin': 'Je bent de enige beheerder. Maak eerst iemand anders beheerder (onder Gebruikers beheren), anders kan niemand de server meer beheren.',
+  'accountDelete.sharedProject': { one: 'Je bent eigenaar van "{name}" en er zit nog {count} ander lid in. Verwijder het project of haal het lid eruit.', other: 'Je bent eigenaar van "{name}" en er zitten nog {count} andere leden in. Verwijder het project of haal de leden eruit.' },
+  'accountDelete.gone': 'Dit gaat weg: je projecten met hun taken, opmerkingen en bijlagen, je Inbox, notities, labels, filters, plaatsen, sjablonen, herinneringen, meldingen en instellingen, en je account met alle apparaten.',
+  'accountDelete.stays': 'Dit blijft: wat je in projecten van anderen hebt gemaakt (taken, opmerkingen, bijlagen). Daar sta je daarna niet meer bij naam. Wil je eerst een kopie? Exporteer je gegevens via Instellingen.',
+  'accountDelete.sure': 'Ik begrijp dat dit niet terug kan',
+  'accountDelete.confirm': 'Account definitief verwijderen',
+  'accountDelete.done': 'Je account is verwijderd. Bedankt voor het gebruiken van Tickory.',
   'account.title': 'Account',
   'account.username': 'Gebruikersnaam',
   'account.password': 'Wachtwoord',

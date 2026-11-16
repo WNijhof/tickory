@@ -407,6 +407,19 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       return n;
     },
 
+    /** Haalt de bestanden van deze bijlagen en notitiebestanden meteen weg, zonder wachttijd (een verwijderd account). */
+    removeNow(ids: string[]): number {
+      let n = 0;
+      for (const id of ids) {
+        const f = db.prepare('SELECT key FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
+        if (!f) continue;
+        removeFile(f.key as string);
+        db.prepare('DELETE FROM attachment_files WHERE id = ?').run(id);
+        n += 1;
+      }
+      return n;
+    },
+
     /** Bestanden die te lang op een bijlage wachten, en tijdelijke bestanden van afgebroken uploads. */
     sweep(): { orphans: number; temp: number } {
       const cutoff = new Date(now() - orphanMs).toISOString();

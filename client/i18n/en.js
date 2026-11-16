@@ -801,6 +801,17 @@ export default {
   },
 
   // ---------- account, apparaten en gebruikersbeheer ----------
+  'accountDelete.title': 'Delete account',
+  'accountDelete.intro': 'Remove your account and all your data from this server. This cannot be undone.',
+  'accountDelete.start': 'Delete account…',
+  'accountDelete.blocked': 'Your account cannot be deleted yet:',
+  'accountDelete.lastAdmin': 'You are the only administrator. First make someone else an administrator (under Manage users), otherwise nobody can manage the server any more.',
+  'accountDelete.sharedProject': { one: 'You own "{name}" and {count} other member is still in it. Delete the project or remove the member.', other: 'You own "{name}" and {count} other members are still in it. Delete the project or remove the members.' },
+  'accountDelete.gone': 'This is removed: your projects with their tasks, comments and attachments, your Inbox, notes, labels, filters, places, templates, reminders, notifications and settings, and your account with all devices.',
+  'accountDelete.stays': 'This stays: what you created in projects of others (tasks, comments, attachments). Your name is no longer shown there. Want a copy first? Export your data under Settings.',
+  'accountDelete.sure': 'I understand this cannot be undone',
+  'accountDelete.confirm': 'Delete account permanently',
+  'accountDelete.done': 'Your account has been deleted. Thank you for using Tickory.',
   'account.title': 'Account',
   'account.username': 'Username',
   'account.password': 'Password',

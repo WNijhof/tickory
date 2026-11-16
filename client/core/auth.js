@@ -101,6 +101,11 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
     sessions: () => call('sessions', 'GET', '/api/v1/auth/sessions'),
     revokeSession: (id) => call('revokeSession', 'POST', '/api/v1/auth/sessions/revoke', { id }),
     revokeOtherSessions: () => call('revokeOtherSessions', 'POST', '/api/v1/auth/sessions/revoke-others', {}),
+    /** Je eigen account verwijderen (server/accountDelete.ts): eerst `check` (wat het tegenhoudt), dan `remove`. */
+    deleteAccount: {
+      check: () => call('deleteAccount.check', 'GET', '/api/v1/auth/account/delete'),
+      remove: (password, code) => call('deleteAccount.remove', 'POST', '/api/v1/auth/account/delete', { password, ...(code ? { code } : {}) }),
+    },
     twoFactor: {
       status: () => call('twoFactor.status', 'GET', '/api/v1/auth/2fa'),
       setup: (password) => call('twoFactor.setup', 'POST', '/api/v1/auth/2fa/setup', { password }),

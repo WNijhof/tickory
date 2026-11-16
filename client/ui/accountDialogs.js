@@ -602,7 +602,78 @@ function ssoSection({ api, startLink, onPasswordless }) {
 }
 
 /**
- * Het accountscherm. Geeft 'logout' of 'admin' terug als de gebruiker dat kiest, anders null.
+ * Je account verwijderen, onderaan het accountscherm. Eerst vraagt de app de server wat het tegenhoudt (een gedeeld project met
+ * leden waarvan je eigenaar bent, of de laatste beheerder zijn) en zegt dat; anders uitleg wat er weggaat en wat blijft, dan
+ * wachtwoord (en een code bij tweestapsverificatie) en een vinkje dat je het begrijpt.
+ */
+function deleteAccountSection({ api, onDeleted }) {
+  const body = h('div', { class: 'account-delete' },
+    h('p', { class: 'hint' }, t('accountDelete.intro')),
+    h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button button-danger', dataset: { fk: 'account-delete' }, onclick: () => start() }, t('accountDelete.start'))));
+  const holder = h('details', { class: 'section account-delete-section' }, h('summary', { dataset: { fk: 'account-delete-summary' } }, t('accountDelete.title')), body);
+
+  async function start() {
+    replace(body, h('p', { class: 'hint' }, t('common.loading')));
+    let check;
+    let twoFactorOn = false;
+    try {
+      [check, twoFactorOn] = await Promise.all([api.deleteAccount.check(), api.twoFactor.status().then((s) => s.enabled).catch(() => false)]);
+    } catch (err) {
+      replace(body, h('p', { class: 'error' }, errorText(err)));
+      return;
+    }
+    if (!check.can_delete) {
+      replace(body,
+        h('p', {}, t('accountDelete.blocked')),
+        h('ul', { class: 'account-delete-blockers', dataset: { fk: 'account-delete-blockers' } },
+          check.last_admin && h('li', {}, t('accountDelete.lastAdmin')),
+          (check.shared_projects ?? []).map((p) => h('li', {}, t('accountDelete.sharedProject', { name: p.name, count: p.members })))),
+        h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: reset }, t('common.close'))));
+      return;
+    }
+    const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password'), dataset: { fk: 'account-delete-password' } });
+    const code = twoFactorOn && h('input', { class: 'field', type: 'text', required: true, autocomplete: 'one-time-code', autocapitalize: 'none', spellcheck: false, maxLength: 24, 'aria-label': t('twoFactor.codeOrRecovery') });
+    const sure = h('input', { type: 'checkbox', required: true, dataset: { fk: 'account-delete-sure' } });
+    const error = h('p', { class: 'error', role: 'alert' });
+    replace(body, h('form', {
+      class: 'section-form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        error.textContent = '';
+        try {
+          await api.deleteAccount.remove(pass.value, code ? code.value.trim() : '');
+          onDeleted();
+        } catch (err) {
+          error.textContent = errorText(err);
+          pass.value = '';
+          if (code) code.value = '';
+          pass.focus();
+        }
+      },
+    },
+    h('p', {}, t('accountDelete.gone')),
+    h('p', { class: 'hint' }, t('accountDelete.stays')),
+    h('label', { class: 'field-label' }, t('account.password'), pass),
+    code && h('label', { class: 'field-label' }, t('twoFactor.codeOrRecovery'), code),
+    h('label', { class: 'check-row' }, sure, t('accountDelete.sure')),
+    error,
+    h('div', { class: 'dialog-buttons' },
+      h('button', { type: 'button', class: 'button', onclick: reset }, t('common.cancel')),
+      h('button', { type: 'submit', class: 'button button-danger', dataset: { fk: 'account-delete-confirm' } }, t('accountDelete.confirm')))));
+    pass.focus();
+  }
+
+  function reset() {
+    const fresh = deleteAccountSection({ api, onDeleted });
+    fresh.open = true;
+    holder.replaceWith(fresh);
+  }
+
+  return holder;
+}
+
+/**
+ * Het accountscherm. Geeft 'logout' of 'admin' terug als de gebruiker dat kiest, 'deleted' na het verwijderen van het account, anders null.
  * @param {{ me: object, api: object, startLink?: (input: { password?: string, code?: string }) => Promise<string> }} options
  */
 export function accountDialog({ me, api, startLink = async () => 'away' }) {
@@ -617,6 +688,7 @@ export function accountDialog({ me, api, startLink = async () => 'away' }) {
       password,
       twoFactorSection({ api }),
       ssoSection({ api, startLink, onPasswordless }),
+      deleteAccountSection({ api, onDeleted: () => finish('deleted') }),
       h('div', { class: 'dialog-buttons' },
         h('button', { type: 'button', class: 'button button-danger button-left', onclick: () => finish('logout') }, t('account.signOut')),
         me.is_admin && h('button', { type: 'button', class: 'button', onclick: () => finish('admin') }, t('admin.title')),

@@ -551,6 +551,7 @@ async function accountFlow() {
     return accountFlow();
   }
   if (next === 'logout') return logout();
+  if (next === 'deleted') return afterAccountDeleted();
   if (next === 'relogin') return askLogin();
   return undefined;
 }
@@ -674,6 +675,24 @@ async function logout() {
   await attachments.clear(); // ook de bestanden die nog moesten worden geüpload
   location.reload();
 }
+
+/**
+ * Na het verwijderen van je account: alles van dit apparaat wissen (zoals bij afmelden; de server heeft de sessies al ingetrokken)
+ * en opnieuw beginnen bij het inlogscherm, met een melding dat het gelukt is.
+ */
+async function afterAccountDeleted() {
+  undo.clear();
+  events.stop();
+  sync.stop();
+  bridge.setSession(''); // de Android-app wist zijn token en alle geplande herinneringen
+  backend.clearToken();
+  localStorage.removeItem(ROUTE_KEY);
+  if (adapter.clear) await adapter.clear();
+  await attachments.clear();
+  try { sessionStorage.setItem(DELETED_KEY, '1'); } catch { /* zonder opslag: dan zonder melding */ }
+  location.reload();
+}
+const DELETED_KEY = 'tickory.accountDeleted';
 
 // ---------- een taak openen vanuit een melding ----------
 
@@ -946,7 +965,11 @@ async function boot() {
     if (usesPush()) pushClient.refresh().catch(() => {});
     sync.requestSync(0);
   } else {
-    askLogin(ssoFailed?.note ?? '');
+    let deletedNote = '';
+    try {
+      if (sessionStorage.getItem(DELETED_KEY)) { deletedNote = t('accountDelete.done'); sessionStorage.removeItem(DELETED_KEY); }
+    } catch { /* geen opslag */ }
+    askLogin(ssoFailed?.note ?? deletedNote);
   }
 
   // Een melding aangetikt: de taak openen, via de adresbalk (#task=…, Android en nieuwe vensters) of via de service worker.

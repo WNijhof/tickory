@@ -10,6 +10,7 @@
 //   POST /api/v1/auth/logout              trekt de sessie van dit apparaat in
 //   GET  /api/v1/auth/me                  -> {me}
 //   POST /api/v1/auth/password            {current_password, new_password}
+//   GET  /api/v1/auth/account/delete           -> {can_delete, shared_projects, last_admin}   POST {password, code?}: je account weg (accountDelete.ts)
 //   GET  /api/v1/auth/sessions            -> {sessions, policy}   POST /api/v1/auth/sessions/revoke {id}, /sessions/revoke-others
 //   GET  /api/v1/auth/2fa                 -> {enabled, …}    POST /api/v1/auth/2fa/setup, /enable, /disable, /recovery-codes
 //   GET  /api/v1/auth/methods             -> {password, sso}  hoe je kunt inloggen (zonder aanmelding)
@@ -43,6 +44,7 @@ import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
+import { accountBlockers, deleteAccount, isBlocked } from './accountDelete.ts';
 import { LIMITS } from './limits.ts';
 import { listActivity } from './activity.ts';
 import { getRevision, listRevisions } from './noteHistory.ts';
@@ -787,6 +789,22 @@ export function createApp(opts: AppOptions): App {
       if (path === '/api/v1/auth/password') {
         if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
         return await changePassword(req, res, caller);
+      }
+      if (path === '/api/v1/auth/account/delete') {
+        // je eigen account verwijderen: eerst zien of het mag, dan met wachtwoord (en code bij tweestapsverificatie)
+        const blockers = accountBlockers(db, caller.user.id);
+        if (req.method === 'GET') return send(res, 200, { can_delete: !isBlocked(blockers), ...blockers });
+        if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET of POST' });
+        const body = await readJson(req);
+        if (isBlocked(blockers)) return send(res, 409, { error_code: 'CONFLICT', error: 'het account kan nog niet worden verwijderd', ...blockers });
+        if (!(await confirmPassword(req, res, caller, body.password))) return undefined;
+        if (hasTwoFactor(db, caller.user.id) && !confirmCode(req, res, caller.user, body.code)) return undefined;
+        const username = caller.user.username;
+        const before = deleteAccount(db, caller.user.id, (ids) => { attachments?.removeNow(ids); });
+        closeStreams(caller.user.id);
+        broadcast(null, null, audienceSince(db, before, caller.user.id));
+        log(`[account] "${username}" heeft het eigen account verwijderd`);
+        return send(res, 200, { ok: true });
       }
       if (path === '/api/v1/auth/sessions') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
