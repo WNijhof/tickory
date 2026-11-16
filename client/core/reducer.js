@@ -466,6 +466,12 @@ export function applyCommand(state, cmd, now, userId = null) {
     }
     case 'task_restore': case 'section_restore': return restore(state, cmd, now, userId);
     case 'notification_read_all': return readAllNotifications(state, args, now, userId);
+    case 'note_restore': {
+      // een eerdere versie terugzetten: de client stuurt titel en tekst van die versie mee (de server neemt ze uit de versie zelf)
+      const note = state.notes.get(args.id);
+      if (!note || note.trashed_at || typeof args.title !== 'string' || typeof args.content !== 'string') return undefined;
+      return patch(state, 'notes', note.id, { title: args.title, content: args.content }, now);
+    }
     case 'member_update': return updateMemberRole(state, args, now, userId);
     default: {
       const m = GENERIC.exec(cmd.type);

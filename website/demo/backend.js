@@ -121,6 +121,9 @@ export class DemoServer {
     /** Het activiteitenlogboek (zoals server/activity.ts): de regels van alle projecten, de oudste eerst. */
     this.activity = seed.activity ?? [];
     this.activitySeq = this.activity.length;
+    /** Versies van notities (zoals server/noteHistory.ts): notitie-id -> versies, de oudste eerst. */
+    this.revisions = new Map();
+    this.revisionSeq = 0;
     for (const r of RESOURCE_NAMES) for (const id of this.state[r].keys()) this.revs.set(`${r}/${id}`, 1);
     /** Uitkomst per uuid: een herhaald commando wordt niet opnieuw uitgevoerd. */
     this.seen = new Map();
@@ -245,6 +248,7 @@ export class DemoServer {
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
       case 'project_leave': return this.projectLeave(state, args, at);
+      case 'note_restore': return this.noteRestore(state, args, at);
       case 'notification_read_all':
         // zoals de server: alle eigen meldingen gelezen, met `up_to` alleen wat de afzender al zag
         exactArgs(args, ['up_to']);
@@ -278,6 +282,7 @@ export class DemoServer {
         if (changes.parent_id !== null) this.requireEditor(state, changes.parent_id);
       }
       this.verify(state, e, row.id, { ...row, ...changes }, 'update', changes);
+      if (e.name === 'note') this.beforeNoteUpdate(row, changes, at);
       return apply();
     }
     exactArgs(args, ['id']);
@@ -285,11 +290,57 @@ export class DemoServer {
     this.requireMayWrite(e, row, state);
     const edited = editedProject(state, e.name, row);
     if (edited !== null) this.requireEditor(state, edited);
+    if (e.name === 'note') this.revisions.delete(row.id); // een notitie die weg is, neemt haar versies mee
     if (e.name === 'project') {
       if (isInboxId(row.id)) fail('CONFLICT', 'de Inbox kan niet worden verwijderd');
       this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verwijderen; gebruik "verlaten" om er zelf uit te gaan');
     }
     return apply();
+  }
+
+  // ---------- versies van notities (zoals server/noteHistory.ts; alleen in het geheugen) ----------
+
+  storeRevision(note, cause, at) {
+    const title = note.title ?? '';
+    const content = note.content ?? '';
+    if (!title && !content) return;
+    const list = this.revisions.get(note.id) ?? [];
+    const last = list.at(-1);
+    if (last && last.title === title && last.content === content) return;
+    list.push({ id: `rev_demo${String(++this.revisionSeq).padStart(8, '0')}`, version: (last?.version ?? 0) + 1, title, content, cause, saved_at: note.updated_at, created_at: at, author_id: this.me.id });
+    if (list.length > 50) list.splice(0, list.length - 50);
+    this.revisions.set(note.id, list);
+  }
+
+  beforeNoteUpdate(note, changes, at) {
+    const changed = (has(changes, 'title') && changes.title !== note.title) || (has(changes, 'content') && changes.content !== note.content);
+    if (!changed) return;
+    const last = this.revisions.get(note.id)?.at(-1);
+    if (last && Date.parse(at) - Date.parse(last.created_at) < 10 * 60 * 1000) return;
+    this.storeRevision(note, 'edit', at);
+  }
+
+  noteRestore(state, args, at) {
+    exactArgs(args, ['id', 'revision_id', 'title', 'content']);
+    const note = requireLive(state, 'note', args.id, 'note.id');
+    if (note.trashed_at) fail('CONFLICT', 'een notitie in de prullenbak zet je eerst terug');
+    const r = (this.revisions.get(note.id) ?? []).find((x) => x.id === args.revision_id);
+    if (!r) fail('NOT_FOUND', 'revision_id: deze versie bestaat niet');
+    if (r.title === note.title && r.content === note.content) return undefined;
+    this.storeRevision(note, 'restore', at);
+    return applyCommand(state, { type: 'note_update', args: { id: note.id, title: r.title, content: r.content } }, at, this.me.id);
+  }
+
+  revisionsPage(noteId) {
+    if (!this.state.notes.has(noteId)) throw apiError(404, 'NOT_FOUND', 'deze notitie bestaat niet');
+    const list = [...(this.revisions.get(noteId) ?? [])].reverse().map(({ content: _c, ...r }) => ({ ...r }));
+    return { revisions: list, next: null };
+  }
+
+  revisionOne(noteId, revisionId) {
+    const r = this.state.notes.has(noteId) ? (this.revisions.get(noteId) ?? []).find((x) => x.id === revisionId) : null;
+    if (!r) throw apiError(404, 'NOT_FOUND', 'deze versie bestaat niet');
+    return { ...r };
   }
 
   // ---------- het activiteitenlogboek (zoals server/activity.ts; alleen in het geheugen) ----------
@@ -819,6 +870,8 @@ export class DemoServer {
       },
       activity: async (projectId, q) => this.activityPage(projectId, q),
       stats: async (q) => this.statsPage(q),
+      noteRevisions: async (noteId) => this.revisionsPage(noteId),
+      noteRevision: async (noteId, revisionId) => this.revisionOne(noteId, revisionId),
       revokeSession: async (id) => {
         const i = this.sessions.findIndex((s) => s.id === id && !s.current);
         if (i < 0) throw apiError(404, 'NOT_FOUND', 'deze sessie bestaat niet');

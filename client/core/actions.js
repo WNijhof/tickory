@@ -324,6 +324,8 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       args: { id: uploaded.id, note_id: noteId, name: cleanFileName(name), size: uploaded.size, mime: uploaded.mime, sha256: uploaded.sha256 },
     }]),
     deleteNoteFile: (id) => send([{ type: 'note_file_delete', args: { id } }]),
+    /** Een eerdere versie van een notitie terugzetten (de server bewaart eerst de huidige; zie server/noteHistory.ts). */
+    restoreNoteRevision: (noteId, revision) => send([{ type: 'note_restore', args: { id: noteId, revision_id: revision.id, title: revision.title, content: revision.content } }]),
 
     // ---- labels ----
     async addLabel(name) {

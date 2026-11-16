@@ -106,7 +106,7 @@ function cardBody(note, maxRows) {
  *   getRoute: () => object, cleanUp?: boolean,
  * }} options `cleanUp`: ruim notities op die te lang in de prullenbak liggen (niet in de demo)
  */
-export function installNotes({ store, actions, handlers, getRoute, cleanUp = true }) {
+export function installNotes({ store, actions, handlers, getRoute, cleanUp = true, api = null }) {
   const state = { query: '', picking: false, picked: new Set() };
   let composing = false;
   let cleaned = false;
@@ -137,9 +137,9 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     if (!store.ready || !store.me) return;
     const { labelId } = isNotesRoute(getRoute()) ? scopeOfRoute(getRoute()) : { labelId: null };
     const id = await actions.addNote({ labels: labelId && store.view.labels.has(labelId) ? [labelId] : [] });
-    await openNoteEditor({ store, actions, noteId: id, created: true });
+    await openNoteEditor({ store, actions, api, noteId: id, created: true });
   }
-  const open = (note) => openNoteEditor({ store, actions, noteId: note.id });
+  const open = (note) => openNoteEditor({ store, actions, api, noteId: note.id });
 
   async function emptyTrash() {
     const ids = [...store.view.notes.values()].filter((n) => n.trashed_at).map((n) => n.id);
@@ -411,7 +411,7 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
     const id = pendingNote.id;
     pendingNote = null;
     handlers.navigate({ type: 'notes' });
-    openNoteEditor({ store, actions, noteId: id });
+    openNoteEditor({ store, actions, api, noteId: id });
   };
   store.subscribe(tryPending);
   function openNote(id) {

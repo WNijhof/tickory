@@ -209,6 +209,12 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS notes_owner ON notes (owner_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS note_files_note ON note_files (note_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS note_files_owner ON note_files (owner_id)');
+  // versies van notities (noteHistory.ts): geen gesynchroniseerde rijen, alleen voor het venster "Versiegeschiedenis"
+  db.exec(`CREATE TABLE IF NOT EXISTS note_revisions (
+    id TEXT PRIMARY KEY, note_id TEXT NOT NULL, owner_id TEXT NOT NULL, author_id TEXT, title TEXT NOT NULL, content TEXT NOT NULL,
+    cause TEXT NOT NULL, saved_at TEXT NOT NULL, created_at TEXT NOT NULL, seq INTEGER NOT NULL
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS note_revisions_note ON note_revisions (note_id, seq)');
   db.exec('CREATE INDEX IF NOT EXISTS labels_owner ON labels (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');

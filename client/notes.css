@@ -254,6 +254,50 @@ body[data-route="notes"] .quick-add { display: none; } /* bij notities voeg je g
 .note-tag { min-height: 30px; padding: 2px 6px 2px 11px; }
 .note-tag-remove { border: 0; background: transparent; color: var(--text-soft); width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 1rem; line-height: 1; }
 .note-tag-remove:hover { background: color-mix(in srgb, var(--text) 10%, transparent); color: var(--text); }
+/* versiegeschiedenis */
+.dialog-history { width: min(1000px, calc(100vw - 32px)); }
+.nh { max-height: min(84dvh, 900px); display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.nh-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nh-head h2 { margin: 0; }
+.nh-status:empty { display: none; }
+.nh-body { display: grid; grid-template-columns: minmax(200px, 260px) 1fr; gap: 16px; min-height: 0; flex: 1; }
+.nh-list { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; padding-right: 4px; border-right: 1px solid var(--line); }
+.nh-day { margin: 10px 8px 2px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-soft); }
+.nh-entry {
+  display: flex; align-items: baseline; gap: 10px; width: 100%; min-height: 40px; padding: 6px 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.nh-entry:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.nh-entry.is-on { background: var(--accent-soft); }
+.nh-entry:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.nh-time { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 3.2em; }
+.nh-label { color: var(--text-soft); font-size: 0.88rem; }
+.nh-current .nh-label { color: var(--accent); font-weight: 600; }
+.nh-empty { margin: 8px; }
+.nh-preview { display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow-y: auto; }
+.nh-summary { margin: 0; font-size: 0.88rem; }
+.nh-add { color: var(--success, #2e9d5b); }
+.nh-del { color: var(--danger); }
+.nh-chg { color: var(--accent); }
+.nh-when { color: var(--text-soft); }
+.nh-tabs { align-self: flex-start; }
+.nh-text { padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); }
+.nh-title { margin: 0 0 8px; font-size: 1.3rem; }
+.nh-diff { padding: 8px 0; border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); font-family: var(--mono, ui-monospace, monospace); font-size: 0.85rem; }
+.nh-line { margin: 0; padding: 1px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nh-mark { display: inline-block; width: 1.4em; color: var(--text-soft); }
+.nh-line-add { background: color-mix(in srgb, var(--success, #2e9d5b) 16%, transparent); }
+.nh-line-del { background: color-mix(in srgb, var(--danger) 14%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.nh-line-title { font-family: inherit; color: var(--accent); padding-bottom: 6px; }
+.nh-buttons { margin-top: auto; }
+@media (max-width: 720px) {
+  .dialog-history { width: calc(100vw - 16px); }
+  .nh { max-height: calc(100dvh - 48px); }
+  .nh-body { grid-template-columns: 1fr; }
+  .nh-list { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 6px; }
+  .nh-entry { min-height: 44px; }
+}
+
 /* foto's en geluid in de notitie */
 .note-files { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 4px; }
 .note-files[hidden] { display: none; }

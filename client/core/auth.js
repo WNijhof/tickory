@@ -135,6 +135,11 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       const query = q.toString();
       return call('activity', 'GET', `/api/v1/projects/${encodeURIComponent(projectId)}/activity${query ? `?${query}` : ''}`);
     },
+    /** De versies van een eigen notitie (server/noteHistory.ts): `{ revisions, next }`, de nieuwste eerst, zonder tekst. */
+    noteRevisions: (noteId, { before = null } = {}) =>
+      call('noteRevisions', 'GET', `/api/v1/notes/${encodeURIComponent(noteId)}/revisions${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+    /** Eén versie met de tekst. */
+    noteRevision: (noteId, revisionId) => call('noteRevision', 'GET', `/api/v1/notes/${encodeURIComponent(noteId)}/revisions/${encodeURIComponent(revisionId)}`),
     /** Het productiviteitsoverzicht (server/stats.ts): alleen je eigen afvinkingen, per dag in tijdzone `tz`. */
     stats: ({ tz = null, days = null } = {}) => {
       const q = new URLSearchParams();

@@ -329,6 +329,44 @@ export async function notesScenario(c: any) {
   await closeToasts();
   step('notities: foto\'s en geluid kiezen (een pdf niet), een schermafdruk plakken, afspelen, groot bekijken met vorige/volgende, verwijderen na een vraag; /geluid in het menu; op de kaart de foto met "+1"');
 
+  // ---- versiegeschiedenis: een wijziging van een ander apparaat na een pauze, de versie bekijken en terugzetten, ongedaan maken ----
+  db.prepare("UPDATE note_revisions SET created_at = '2000-01-01T00:00:00.000Z'").run(); // alsof de laatste versie lang geleden is
+  const mine = savedContent(made.id);
+  await as(aliceToken, [['note_update', { id: made.id, content: 'Versie van een ander apparaat\n- [ ] koffie' }]]);
+  await click(`[data-fk="note:${made.id}"]`);
+  await waitFor(`document.querySelector('dialog[open] .ned')?.textContent.includes('Versie van een ander apparaat')`, 'de notitie met de nieuwe tekst', 10_000);
+  await click('dialog[open] [data-fk="note:more"]');
+  await click('dialog[open] [data-fk="note-menu:history"]');
+  await waitFor(`document.querySelector('.dialog-history[open] .nh-entry:not(.nh-current)')`, 'de versies', 10_000);
+  assert.equal(await evaluate(`document.querySelector('.dialog-history[open] .nh-current .nh-label').textContent`), 'Huidige versie');
+  assert.equal(await evaluate(`document.querySelector('.dialog-history[open] .nh-day').textContent`), 'Vandaag');
+  assert.equal(await evaluate(`document.querySelector('.dialog-history[open] .nh-entry:not(.nh-current) .nh-label').textContent`), 'Eerdere versie');
+  await evaluate(`document.querySelector('.dialog-history[open] .nh-entry:not(.nh-current)').click()`);
+  await waitFor(`document.querySelector('.dialog-history[open] .nh-text')?.textContent.includes('Na de lijst')`, 'de vorige tekst met opmaak');
+  assert.match(await evaluate<string>(`document.querySelector('.dialog-history[open] .nh-summary').textContent`), /^\d+ toegevoegd · \d+ verwijderd · \d+ gewijzigd tot de huidige versie$/);
+  await click('.dialog-history[open] [data-fk="nh-mode:changes"]');
+  await waitFor(`document.querySelector('.dialog-history[open] .nh-line-add')`, 'de wijzigingen regel voor regel');
+  assert.ok((await evaluate<string[]>(`[...document.querySelectorAll('.dialog-history[open] .nh-line-add')].map((e) => e.textContent)`)).some((l) => l.includes('koffie')), 'wat erbij kwam');
+  await shot('notitie-versies');
+  await click('.dialog-history[open] [data-fk="nh-restore"]');
+  await waitFor(`!document.querySelector('.dialog-history[open]')`, 'het venster sluit');
+  await waitFor(`document.querySelector('dialog[open] .ned')?.textContent.includes('Na de lijst') && !document.querySelector('dialog[open] .ned').textContent.includes('Versie van een ander apparaat')`, 'de oude tekst staat weer in de editor', 10_000);
+  await synced();
+  assert.equal(savedContent(made.id), mine, 'zo ook op de server');
+  // ongedaan maken in de melding
+  await waitFor(`[...document.querySelectorAll('.toast')].some((e) => e.textContent.includes('Versie teruggezet.'))`, 'de melding');
+  await evaluate(`[...document.querySelectorAll('.toast')].find((e) => e.textContent.includes('Versie teruggezet.')).querySelector('button:not(.toast-close)').click()`);
+  await waitFor(`document.querySelector('dialog[open] .ned')?.textContent.includes('Versie van een ander apparaat')`, 'weer de nieuwste tekst', 10_000);
+  await synced();
+  assert.equal(savedContent(made.id), 'Versie van een ander apparaat\n- [ ] koffie');
+  // en terug naar de eigen tekst, zodat de rest van het scenario klopt
+  await as(aliceToken, [['note_update', { id: made.id, content: mine }]]);
+  await waitFor(`document.querySelector('dialog[open] .ned')?.textContent.includes('Na de lijst')`, 'de eigen tekst', 10_000);
+  await click('dialog[open] [data-fk="note-close"]');
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await closeToasts();
+  step('notities: versiegeschiedenis: een versie van vóór de wijziging op een ander apparaat, per dag, met opmaak en regel voor regel; terugzetten en ongedaan maken');
+
   // ---- meer notities van een ander apparaat: Overige, zoeken (ook in het archief), indeling ----
   await as(aliceToken, [
     ['note_add', { id: 'e2enotitie000001', title: 'Recept pannenkoeken', content: 'Meel, **melk** en een ei. Crème brûlée als toetje.', background: 'orange' }],

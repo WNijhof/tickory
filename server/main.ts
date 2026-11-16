@@ -45,6 +45,7 @@ import { createSchema, SCHEMA_VERSION } from './schema.ts';
 import { audienceSince, currentRev, handleSync, SyncError } from './sync.ts';
 import { LIMITS } from './limits.ts';
 import { listActivity } from './activity.ts';
+import { getRevision, listRevisions } from './noteHistory.ts';
 import { myStats } from './stats.ts';
 import { QUICK_ADD_VERSION, QuickAddLimiter, quickAdd } from './quickadd.ts';
 import {
@@ -761,7 +762,7 @@ export function createApp(opts: AppOptions): App {
 
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
-        || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path === '/api/v1/stats'
+        || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path.startsWith('/api/v1/notes/') || path === '/api/v1/stats'
         || path === '/api/v1/quick-add';
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
@@ -847,6 +848,19 @@ export function createApp(opts: AppOptions): App {
       if (path === '/api/v1/stats') {
         if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
         return send(res, 200, myStats(db, caller.user.id, { days: url.searchParams.get('days'), tz: url.searchParams.get('tz') }));
+      }
+
+      // De versiegeschiedenis van een notitie (noteHistory.ts): alleen voor de eigenaar, anders 404 zoals voor een onbekende notitie.
+      if (path.startsWith('/api/v1/notes/')) {
+        const m = /^\/api\/v1\/notes\/([^/]+)\/revisions(?:\/([^/]+))?$/.exec(path);
+        if (!m) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+        if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        try {
+          return send(res, 200, m[2] ? getRevision(db, caller.user.id, m[1], m[2]) : listRevisions(db, caller.user.id, m[1], { before: url.searchParams.get('before') }));
+        } catch (err) {
+          if (err instanceof SyncError) return send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
+          throw err;
+        }
       }
 
       // Het activiteitenlogboek van een project (activity.ts): alleen voor wie het project nu ziet, anders 404 zoals voor een onbekend project.

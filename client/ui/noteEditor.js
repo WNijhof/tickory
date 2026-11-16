@@ -20,8 +20,11 @@ import { backgroundPicker, bgClass } from './noteLook.js';
 import { saveTextFile } from './exportDialog.js';
 import { canRecord, createNoteFiles, noteFilesOf, pastedFile } from './noteFiles.js';
 import { attachmentRuntime } from './attachments.js';
+import { openNoteHistory } from './noteHistory.js';
 
 const SAVE_DELAY_MS = 600;
+/** Zo lang na het laatste typen blijft tekst van buiten (een ander apparaat) nog even weg uit de editor. */
+const IDLE_MS = 3000;
 // letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
 const REPEAT_LABEL = {
   none: () => t('note.repeatNone'), daily: () => t('note.repeatDaily'), weekly: () => t('note.repeatWeekly'),
@@ -29,14 +32,16 @@ const REPEAT_LABEL = {
 };
 
 /**
- * @param {{ store: import('../core/store.js').Store, actions: object, noteId: string, created?: boolean }} options
+ * @param {{ store: import('../core/store.js').Store, actions: object, noteId: string, created?: boolean, api?: object | null }} options
+ *   `api`: voor de versiegeschiedenis (core/auth.js: noteRevisions, noteRevision); zonder ontbreekt die in het menu
  *   `created`: de notitie is zojuist gemaakt; blijft ze leeg, dan wordt ze bij sluiten weer weggehaald
  * @returns {Promise<void>} klaar zodra het venster dicht is
  */
-export function openNoteEditor({ store, actions, noteId, created = false }) {
+export function openNoteEditor({ store, actions, noteId, created = false, api = null }) {
   const note = () => store.view.notes.get(noteId);
   if (!note()) return Promise.resolve();
   let timer = null;
+  let lastInput = 0; // wanneer je hier het laatst iets typte (zie takeOutside)
   let closing = false;
   let saving = false;
   let pop = null; // het open keuzevenstertje (achtergrond, menu, labels)
@@ -106,6 +111,7 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
       drawMeta();
     };
     function later() {
+      lastInput = Date.now();
       saving = true;
       drawStatus();
       if (timer) clearTimeout(timer);
@@ -264,6 +270,7 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
         counts.items > 0 && item('uncheck', 'undo', t('note.uncheckAll'), () => editor.uncheckAll(), { disabled: counts.checked === 0 }),
         counts.items > 0 && item('delete-checked', 'trash', t('note.deleteChecked'), () => editor.deleteChecked(), { disabled: counts.checked === 0, danger: true }),
         h('hr', { class: 'note-menu-sep' }),
+        api && item('history', 'history', t('note.history'), () => { flush(); openNoteHistory({ store, actions, api, noteId }); }),
         item('export', 'paperclip', t('note.export'), () => exportFile()),
         item('trash', 'trash', t('note.trash'), async () => {
           flush();
@@ -344,14 +351,27 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
     }
 
     // ---------- wijzigingen van buiten (een ander apparaat, de knoppen hierboven) ----------
+    // De tekst van buiten (een ander apparaat, een teruggezette versie) komt in de editor, behalve terwijl je hier typt: dan pas
+    // als je even (IDLE_MS) niets meer hebt ingetypt. Wat gelijk is aan wat er al staat (je eigen opgeslagen tekst), verandert niets,
+    // zodat de cursor blijft staan.
     let lastSeen = { title: initial.title ?? '', content: initial.content ?? '' };
+    let recheck = null;
+    const takeOutside = () => {
+      const n = note();
+      if (!n || closing) return;
+      const historyOpen = Boolean(document.querySelector('.dialog-history[open]'));
+      if (!historyOpen && (timer || Date.now() - lastInput < IDLE_MS)) {
+        clearTimeout(recheck);
+        recheck = setTimeout(takeOutside, IDLE_MS);
+        return;
+      }
+      if ((n.content ?? '') !== editor.getMarkdown()) editor.setMarkdown(n.content ?? '');
+      if ((n.title ?? '') !== title.value) { title.value = n.title ?? ''; grow(); }
+    };
     const unsubscribe = store.subscribe(() => {
       const n = note();
       if (!n) { if (!closing) { closing = true; finish(null); } return; }
-      // de tekst van een ander apparaat alleen overnemen als je hier niet zelf aan het typen bent
-      const typing = Boolean(timer) || editor.el.contains(document.activeElement) || document.activeElement === title;
-      if (!typing && n.content !== lastSeen.content) editor.setMarkdown(n.content ?? '');
-      if (!typing && n.title !== lastSeen.title) { title.value = n.title ?? ''; grow(); }
+      if (n.content !== lastSeen.content || n.title !== lastSeen.title) takeOutside();
       lastSeen = { title: n.title ?? '', content: n.content ?? '' };
       if (!pop || pop.kind !== 'background') sheet.className = `note-sheet ${bgClass(n.background)}`;
       editor.setCheckedBottom(prefs().checked_bottom);
@@ -365,6 +385,7 @@ export function openNoteEditor({ store, actions, noteId, created = false }) {
     globalThis.addEventListener?.('offline', onOnline);
 
     dialog.addEventListener('close', () => {
+      clearTimeout(recheck);
       unsubscribe();
       globalThis.removeEventListener?.('online', onOnline);
       globalThis.removeEventListener?.('offline', onOnline);

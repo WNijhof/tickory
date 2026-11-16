@@ -30,6 +30,7 @@ import { LIMITS } from './limits.ts';
 import { restoreHandlers } from './restore.ts';
 import * as notify from './notify.ts';
 import * as activity from './activity.ts';
+import { beforeNoteUpdate, forgetNoteRevisions, restoreChanges } from './noteHistory.ts';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../shared/roles.js';
 import { changedTaskFields } from '../shared/activity.js';
 
@@ -487,6 +488,7 @@ function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
     if (changes.parent_id !== null) requireEditor(ctx, changes.parent_id); // niet onder een project dat je alleen leest
   }
   verify(ctx, e, row.id as string, { ...toApi(e, row), ...changes }, 'update', changes);
+  if (e.name === 'note') beforeNoteUpdate(ctx, row, changes); // versiegeschiedenis (noteHistory.ts)
   updateRow(ctx, e, row.id as string, changes);
   logUpdated(ctx, e, row, changes);
   if (e.name === 'task' && changes.assignee_id && changes.assignee_id !== row.assignee_id) notify.taskAssigned(ctx, row.id as string, changes.assignee_id);
@@ -565,6 +567,7 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
       // de foto's en het geluid gaan mee (de bestanden ruimt attachments.ts daarna op)
       mark(ctx, 'note_files', 'note_id = ?', [id]);
       mark(ctx, 'notes', 'id = ?', [id]);
+      forgetNoteRevisions(ctx.db, id);
       break;
     case 'place':
       // een plaats die weg is, laat geen herinneringen achter die nergens meer naar verwijzen
@@ -836,6 +839,18 @@ function projectUnshare(ctx: Ctx, args: Args): void {
   }
 }
 
+/**
+ * Een eerdere versie van een notitie terugzetten (noteHistory.ts). De client stuurt titel en tekst van die versie mee om ze meteen te
+ * tonen; de server neemt ze uit de bewaarde versie zelf. Niet in de prullenbak: daar is een notitie alleen te lezen.
+ */
+function noteRestore(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['id', 'revision_id', 'title', 'content']);
+  const note = requireLive(ctx, 'note', args.id, 'note.id');
+  if (note.trashed_at) fail('CONFLICT', 'een notitie in de prullenbak zet je eerst terug');
+  const changes = restoreChanges(ctx, note, args.revision_id);
+  if (changes) updateRow(ctx, ENTITIES.note, note.id as string, changes);
+}
+
 function projectLeave(ctx: Ctx, args: Args): void {
   exactArgs(args, ['project_id']);
   const project = requireLive(ctx, 'project', args.project_id, 'project_id');
@@ -867,6 +882,7 @@ HANDLERS.task_uncomplete = taskUncomplete;
 HANDLERS.project_share = projectShare;
 HANDLERS.project_unshare = projectUnshare;
 HANDLERS.project_leave = projectLeave;
+HANDLERS.note_restore = noteRestore;
 HANDLERS.member_update = memberUpdate;
 Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 HANDLERS.notification_read_all = notificationReadAll;
