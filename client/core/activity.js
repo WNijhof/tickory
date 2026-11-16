@@ -153,6 +153,7 @@ export function describeEntry(entry, { view, projectId, userName }) {
     case 'member_role': sentence = t('activity.memberRole', { actor, name: name(entry.user_id), role: roleName(x.role) }); break;
     case 'member_removed': sentence = t('activity.memberRemoved', { actor, name: name(entry.user_id) }); break;
     case 'member_left': sentence = t('activity.memberLeft', { actor }); break;
+    case 'owner_changed': sentence = t('activity.ownerChanged', { actor, name: name(entry.user_id) }); break;
     case 'project_created': sentence = t('activity.projectCreated', { actor }); break;
     case 'project_renamed': sentence = t('activity.projectRenamed', { actor, from: String(x.from ?? '') }); break;
     case 'project_archived': sentence = t('activity.projectArchived', { actor }); break;

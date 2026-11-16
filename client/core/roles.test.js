@@ -137,3 +137,25 @@ test('member_update laat een subproject van een ander met rust, en zonder bekend
   run(s, 'task_add', { id: 'n9', project_id: 'ONBEKEND', content: 'Mag' });
   assert.ok(s.tasks.has('n9'));
 });
+
+test('eigendom overdragen (project_transfer) rekent de app vooruit zoals de server: alleen de eigenaar, aan een lid, ook in subprojecten', () => {
+  const s = world();
+  const roleOf = (p, u) => [...s.members.values()].find((m) => m.project_id === p && m.user_id === u)?.role ?? null;
+  // Carol is geen eigenaar van P: er verandert niets
+  run(s, 'project_transfer', { project_id: 'P', user_id: 'u-bram' });
+  assert.equal(roleOf('P', 'u-anna'), 'owner');
+  // in haar eigen project MINE maakt ze Bram eigenaar: zij wordt lid
+  run(s, 'project_transfer', { project_id: 'MINE', user_id: 'u-bram' });
+  assert.deepEqual([roleOf('MINE', 'u-bram'), roleOf('MINE', ME)], ['owner', 'member']);
+  // en terug kan ze het niet meer zelf
+  run(s, 'project_transfer', { project_id: 'MINE', user_id: ME });
+  assert.equal(roleOf('MINE', ME), 'member');
+  // Anna draagt P over aan Carol (een lezer): ook SUB, waar Carol lezer is
+  run(s, 'project_transfer', { project_id: 'P', user_id: ME }, 'u-anna');
+  assert.deepEqual([roleOf('P', ME), roleOf('P', 'u-anna'), roleOf('SUB', ME), roleOf('SUB', 'u-anna'), roleOf('P', 'u-bram')], ['owner', 'member', 'owner', 'member', 'member']);
+  // aan wie geen lid is, of aan zichzelf: niets
+  const before = JSON.stringify([...s.members.values()]);
+  run(s, 'project_transfer', { project_id: 'Q', user_id: 'u-onbekend' }, 'u-anna');
+  run(s, 'project_transfer', { project_id: 'Q', user_id: 'u-anna' }, 'u-anna');
+  assert.equal(JSON.stringify([...s.members.values()]), before);
+});

@@ -39,10 +39,14 @@ description: Sharing a project in Tickory: adding someone by username, the roles
   </table>
 </div>
 <p>View only is handy for someone who wants to follow along without changing anything: a grandparent who wants to know what has been arranged for the family weekend, or a child who may see the shopping list. Commenting does work, so a question does not have to go outside the app.</p>
-<p>An owner cannot leave the project and cannot hand over ownership: the only way out is deleting the project, and then it is gone for everyone.</p>
+<p>An owner cannot leave the project. If you want out without the project disappearing for everyone, first make someone else the owner (see <a href="#make-owner">Making someone the owner</a>).</p>
 
 <h2 id="changing-a-role">Changing a role</h2>
 <p>As the owner: open <x-ui k="project.shared"></x-ui> and choose <x-ui k="share.member"></x-ui> or <x-ui k="share.viewer"></x-ui> next to the name. It applies right away, also in the subprojects you own. When someone becomes a viewer, the tasks assigned to that person are no longer assigned.</p>
+
+<h2 id="make-owner">Making someone the owner</h2>
+<p>As the owner: open <x-ui k="project.shared"></x-ui> and choose <x-ui k="share.makeOwner"></x-ui> next to the name. After you confirm, that person is the owner, also of the subprojects you own, and you are a member: you can keep editing everything, but only the new owner then manages the members and can archive, move or delete the project. After that you can also leave the project. Someone who could only view can become the owner too. <a href="activity.html">Activity</a> shows who made whom the owner.</p>
+<p>How everyone sees the project (favorite, view, place in the sidebar) stays the same when ownership changes. If you own a shared project and want to <a href="account.html">delete your account</a>, this is how you first make someone else the owner.</p>
 
 <h2 id="view-only">When you can only view</h2>
 <p>In the sidebar the project has an eye instead of the two figures, and above the tasks it says <x-ui k="readonly.banner"></x-ui></p>
@@ -95,6 +99,5 @@ description: Sharing a project in Tickory: adding someone by username, the roles
 <ul>
   <li>You share a whole project, not a single task or section.</li>
   <li>There are three fixed roles. A viewer who may complete tasks, or rights per section, do not exist.</li>
-  <li>Handing over ownership is not possible.</li>
   <li>A comment can only be changed or deleted by whoever wrote it; an owner cannot do that for someone else.</li>
 </ul>

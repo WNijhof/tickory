@@ -44,7 +44,7 @@ export async function deleteScenario(c: any) {
   await openDelete();
   await waitFor(`document.querySelector('[data-fk="account-delete-blockers"]')`, 'wat het tegenhoudt');
   assert.equal(await evaluate(`document.querySelector('[data-fk="account-delete-blockers"]').textContent`),
-    'Je bent eigenaar van "Proefproject" en er zit nog 1 ander lid in. Verwijder het project of haal het lid eruit.');
+    'Je bent eigenaar van "Proefproject" en er zit nog 1 ander lid in. Maak dat lid eigenaar (onder Delen), verwijder het project of haal het lid eruit.');
   assert.equal(await evaluate(`document.querySelector('[data-fk="account-delete-confirm"]')`), null, 'nog geen knop om te verwijderen');
 
   // ---- het delen stoppen (zoals in het projectmenu), dan opnieuw: nu met wachtwoord en vinkje ----

@@ -296,6 +296,8 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     shareProject: (project_id, username, role = 'member') => send([{ type: 'project_share', args: { project_id, username: username.trim(), ...(role !== 'member' ? { role } : {}) } }]),
     /** De rol van een lid wijzigen (alleen de eigenaar): 'member' of 'viewer'. Wordt iemand lezer, dan vervallen zijn toewijzingen. */
     updateMemberRole: (project_id, user_id, role) => send([{ type: 'member_update', args: { project_id, user_id, role } }]),
+    /** Het eigendom overdragen (alleen de eigenaar): `user_id` wordt eigenaar, jij lid; ook in de subprojecten waar jij eigenaar bent. */
+    transferProject: (project_id, user_id) => send([{ type: 'project_transfer', args: { project_id, user_id } }]),
     unshareProject: (project_id, user_id) => send([{ type: 'project_unshare', args: { project_id, user_id } }]),
     leaveProject: (project_id) => send([{ type: 'project_leave', args: { project_id } }]),
     /** Wijst een taak toe aan een lid van het project, of aan niemand (null). */

@@ -164,9 +164,30 @@ export async function rolesScenario(c: any) {
   await noDialog();
   step('deelvenster: de rol bij elk lid, en de eigenaar zet een lid met de keuzelijst op "alleen lezen" (de toewijzing vervalt)');
 
+  // ---- Alice maakt Bob eigenaar van Moestuin (project_transfer): zij blijft lid ----
+  await clickText('Gedeeld');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="share-owner:${bob.id}"]')`, 'de knop Eigenaar maken bij Bob');
+  await click(`dialog[open] [data-fk="share-owner:${bob.id}"]`);
+  await waitFor(`document.querySelectorAll('dialog[open]').length === 2`, 'de vraag of dat zeker is');
+  assert.match(await evaluate<string>(`[...document.querySelectorAll('dialog[open]')].at(-1).textContent`), /Bob wordt eigenaar van "Moestuin"/);
+  await clickText('Eigenaar maken', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] .device-info .hint')].map((e) => e.textContent).join('|') === '@bob · eigenaar|@alice · kan bewerken' && await ${SYNCED}`, 'Bob is eigenaar, Alice lid');
+  const rolesQ = (db.prepare('SELECT user_id, role FROM project_members WHERE project_id = ? AND is_deleted = 0 ORDER BY role').all(Q) as any[]).map((m) => [m.user_id, m.role]);
+  assert.deepEqual(rolesQ, [[alice.id, 'member'], [bob.id, 'owner']]);
+  assert.equal(await evaluate(`document.querySelectorAll('dialog[open] [data-fk^="share-owner:"], dialog[open] select.share-role:not([data-fk="share-invite-role"])').length`), 0, 'Alice beheert de leden niet meer');
+  assert.ok((await buttons()).includes('Project verlaten'), 'wel zelf vertrekken');
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  await clickText('Project…');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu');
+  const menu = await buttons();
+  assert.ok(menu.includes('Project verlaten') && !menu.includes('Verwijderen'), JSON.stringify(menu));
+  await clickText('Sluiten', `document.querySelector('dialog[open]')`);
+  await noDialog();
+  step('eigendom overdragen: Alice maakt Bob eigenaar van haar project (na een bevestiging); zij blijft lid en kan het nu alleen nog verlaten');
+
   // ---- opruimen: terug waar de test begon ----
-  await as(bobToken, [['project_delete', { id: P }]]);
-  await as(aliceToken, [['project_delete', { id: Q }]]);
+  await as(bobToken, [['project_delete', { id: P }], ['project_delete', { id: Q }]]); // Moestuin is nu van Bob
   await waitFor(`![...document.querySelectorAll('.nav-label')].some((e) => e.textContent === 'Familieweekend' || e.textContent === 'Moestuin')`, 'de projecten zijn weg', 8000);
   await nav(startView);
   await waitFor(`document.getElementById('view-title').textContent === ${js(startView)}`, 'terug bij het begin');

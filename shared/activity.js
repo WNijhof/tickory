@@ -12,7 +12,7 @@ export const ACTIVITY_GROUPS = {
   sections: ['section_added', 'section_renamed', 'section_deleted', 'section_restored'],
   comments: ['comment_added', 'comment_deleted'],
   attachments: ['attachment_added', 'attachment_deleted'],
-  members: ['member_added', 'member_role', 'member_removed', 'member_left'],
+  members: ['member_added', 'member_role', 'member_removed', 'member_left', 'owner_changed'],
   project: ['project_created', 'project_renamed', 'project_archived', 'project_unarchived'],
 };
 export const ACTIVITY_KINDS = Object.values(ACTIVITY_GROUPS).flat();

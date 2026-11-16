@@ -7,7 +7,7 @@ import { createSchema } from './schema.ts';
 import { handleSync } from './sync.ts';
 import type { Command, SyncResponse } from './sync.ts';
 import { addUser, freshDb } from './testutil.ts';
-import { deleteAccount } from './accountDelete.ts';
+import { accountBlockers, deleteAccount } from './accountDelete.ts';
 import type { UserRow } from './users.ts';
 
 type Row = Record<string, any>;
@@ -154,4 +154,72 @@ test('een database van vóór de voorkeuren: elk gedeeld project krijgt een nieu
   const token = delta.sync_token;
   createSchema(db);
   assert.deepEqual(run(db, bob, [], token).projects, []);
+});
+
+// ---------- het eigendom overdragen (project_transfer) ----------
+
+const role = (db: DatabaseSync, project: string, user: string) =>
+  (db.prepare('SELECT role FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(project, user) as Row | undefined)?.role ?? null;
+
+test('eigendom overdragen: Bob wordt eigenaar, Alice lid; ieder ziet het project nog net zo', () => {
+  const { db, alice, bob, carol } = world();
+  const sub = cmd('project_add', { id: 'project-gezin-sub', name: 'Vakantie', parent_id: P });
+  const bobPrefs = cmd('project_update', { id: P, is_favorite: true, view_style: 'calendar', order_key: 'zz' });
+  ok(run(db, alice, [sub]), sub);
+  ok(run(db, bob, [bobPrefs]), bobPrefs);
+  const before = { alice: prefs(project(run(db, alice, []), P)), bob: prefs(project(run(db, bob, []), P)), carol: prefs(project(run(db, carol, []), P)) };
+  const t = cmd('project_transfer', { project_id: P, user_id: bob.id });
+  ok(run(db, alice, [t]), t);
+  assert.deepEqual([role(db, P, bob.id), role(db, P, alice.id), role(db, P, carol.id)], ['owner', 'member', 'viewer']);
+  assert.deepEqual([role(db, 'project-gezin-sub', bob.id), role(db, 'project-gezin-sub', alice.id)], ['owner', 'member'], 'ook het subproject');
+  // ieder ziet het project zoals ervoor; Carol (zonder eigen keuze) volgt nu de weergave van Bob
+  assert.deepEqual(prefs(project(run(db, alice, []), P)), before.alice);
+  assert.deepEqual(prefs(project(run(db, bob, []), P)), before.bob);
+  assert.equal(project(run(db, carol, []), P).view_style, 'calendar');
+  assert.equal(project(run(db, carol, []), P).is_favorite, before.carol.is_favorite);
+  // Bob's voorkeuren staan nu in het project zelf, die van Alice in haar eigen voorkeuren
+  assert.equal(Number((db.prepare('SELECT COUNT(*) AS n FROM project_prefs WHERE project_id = ? AND user_id = ?').get(P, bob.id) as Row).n), 0);
+  assert.equal((db.prepare('SELECT is_favorite FROM project_prefs WHERE project_id = ? AND user_id = ?').get(P, alice.id) as Row).is_favorite, 1);
+  // en de nieuwe rechten gelden meteen
+  const del = cmd('project_delete', { id: P });
+  err(run(db, alice, [del]), del, 'FORBIDDEN');
+  const rename = cmd('project_update', { id: P, name: 'Gezin (Alice bewerkt nog)' });
+  ok(run(db, alice, [rename]), rename);
+  const back = cmd('project_transfer', { project_id: P, user_id: alice.id });
+  ok(run(db, bob, [back]), back);
+  assert.deepEqual([role(db, P, alice.id), role(db, P, bob.id)], ['owner', 'member']);
+  assert.deepEqual(prefs(project(run(db, alice, []), P)), before.alice, 'ook heen en terug');
+  assert.deepEqual(prefs(project(run(db, bob, []), P)), before.bob);
+});
+
+test('eigendom overdragen: alleen de eigenaar, aan een lid; een lezer kan het ook krijgen; het staat in het logboek', () => {
+  const { db, alice, bob, carol } = world();
+  const byBob = cmd('project_transfer', { project_id: P, user_id: carol.id });
+  err(run(db, bob, [byBob]), byBob, 'FORBIDDEN');
+  const self = cmd('project_transfer', { project_id: P, user_id: alice.id });
+  err(run(db, alice, [self]), self, 'CONFLICT');
+  const dave = addUser(db, 'dave', 'Dave');
+  const stranger = cmd('project_transfer', { project_id: P, user_id: dave.id });
+  err(run(db, alice, [stranger]), stranger, 'NOT_FOUND');
+  const extra = cmd('project_transfer', { project_id: P, user_id: carol.id, role: 'owner' });
+  err(run(db, alice, [extra]), extra, 'UNKNOWN_ARG');
+  const inbox = cmd('project_transfer', { project_id: alice.inbox_project_id, user_id: bob.id });
+  err(run(db, alice, [inbox]), inbox, 'NOT_FOUND');
+  const toViewer = cmd('project_transfer', { project_id: P, user_id: carol.id });
+  ok(run(db, alice, [toViewer]), toViewer);
+  assert.deepEqual([role(db, P, carol.id), role(db, P, alice.id)], ['owner', 'member']);
+  const log = db.prepare("SELECT actor_id, user_id FROM activity WHERE project_id = ? AND kind = 'owner_changed'").all(P) as Row[];
+  assert.deepEqual(log.map((r) => [r.actor_id, r.user_id]), [[alice.id, carol.id]]);
+});
+
+test('na het overdragen blokkeert het gedeelde project het verwijderen van het account niet meer; het blijft voor de anderen', () => {
+  const { db, alice, bob } = world();
+  assert.deepEqual(accountBlockers(db, alice.id).shared_projects.map((p) => p.id), [P]);
+  const t = cmd('project_transfer', { project_id: P, user_id: bob.id });
+  ok(run(db, alice, [t]), t);
+  assert.deepEqual(accountBlockers(db, alice.id).shared_projects, []);
+  db.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').run(bob.id); // Alice is niet meer de enige beheerder
+  deleteAccount(db, alice.id, () => {});
+  assert.ok(project(run(db, bob, []), P), 'Bob heeft het project nog');
+  assert.equal(role(db, P, bob.id), 'owner');
 });

@@ -251,6 +251,29 @@ function updateMemberRole(state, args, now, userId) {
 }
 
 /**
+ * Het eigendom overdragen (`project_transfer`), zoals de server: alleen de eigenaar, aan een lid (niet jezelf of een eigenaar); ook
+ * in de subprojecten waar jij eigenaar bent en de ander lid is. De ander wordt eigenaar, jij lid. Hoe je het project ziet (favoriet,
+ * weergave, volgorde) verandert voor jou niet: dat regelt de server met eigen voorkeuren.
+ */
+function transferOwnership(state, args, now, userId) {
+  const { project_id: projectId, user_id: target } = args;
+  if (!state.projects.has(projectId) || !target || target === userId || !isOwner(state, userId, projectId)) return;
+  const current = roleOf(state, target, projectId);
+  if (current === null || current === 'owner') return;
+  const tree = [projectId];
+  for (let i = 0; i < tree.length; i++) for (const p of state.projects.values()) if (p.parent_id === tree[i] && !tree.includes(p.id)) tree.push(p.id);
+  for (const p of tree) {
+    const before = roleOf(state, target, p);
+    if (!isOwner(state, userId, p) || before === null || before === 'owner') continue;
+    for (const m of [...state.members.values()]) {
+      if (m.project_id !== p) continue;
+      if (m.user_id === target) patch(state, 'members', m.id, { role: 'owner' }, now);
+      else if (userId && m.user_id === userId) patch(state, 'members', m.id, { role: 'member' }, now);
+    }
+  }
+}
+
+/**
  * Mag dit project zo worden gewijzigd? Alleen een nieuwe bovenliggende (verplaatsen) kent regels, net als op de server: alleen
  * de eigenaar, het bovenliggende project moet bestaan, de Inbox kan niet verplaatst worden of subprojecten hebben, en geen cirkels.
  */
@@ -500,6 +523,7 @@ export function applyCommand(state, cmd, now, userId = null) {
       return patch(state, 'notes', note.id, { title: args.title, content: args.content }, now);
     }
     case 'member_update': return updateMemberRole(state, args, now, userId);
+    case 'project_transfer': return transferOwnership(state, args, now, userId);
     default: {
       const m = GENERIC.exec(cmd.type);
       const e = m && has(ENTITIES, m[1]) ? ENTITIES[m[1]] : null;

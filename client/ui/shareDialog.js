@@ -1,5 +1,5 @@
 // Het venster om een project te delen: wie erin zit en met welke rol, mensen uitnodigen (kan bewerken of alleen lezen), een rol
-// wijzigen of iemand eruit halen (alleen de eigenaar), of zelf vertrekken. De rollen staan in shared/roles.js.
+// wijzigen, iemand eigenaar maken of eruit halen (alleen de eigenaar), of zelf vertrekken. De rollen staan in shared/roles.js.
 
 import { t } from '../core/i18n.js';
 import { membersOf, roleIn } from '../core/selectors.js';
@@ -57,6 +57,16 @@ export function openShareDialog({ store, actions, project }) {
             class: 'field field-small share-role', 'aria-label': t('share.roleOf', { name }), dataset: { fk: `share-role:${m.user_id}` },
             onchange: (e) => actions.updateMemberRole(project.id, m.user_id, e.target.value),
           }, SHARE_ROLES.map((r) => h('option', { value: r, selected: r === m.role }, roleLabel(r)))),
+          manage && h('button', {
+            type: 'button', class: 'button button-small', dataset: { fk: `share-owner:${m.user_id}` }, onclick: async () => {
+              const ok = await confirmDialog({
+                title: t('share.makeOwnerTitle'),
+                text: t('share.makeOwnerText', { name: user?.name ?? t('share.thisPerson'), project: project.name }),
+                okText: t('share.makeOwner'),
+              });
+              if (ok) await actions.transferProject(project.id, m.user_id);
+            },
+          }, t('share.makeOwner')),
           manage && h('button', {
             type: 'button', class: 'button button-small button-danger', onclick: async () => {
               const ok = await confirmDialog({

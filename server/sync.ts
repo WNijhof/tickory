@@ -864,6 +864,42 @@ function memberUpdate(ctx: Ctx, args: Args): void {
 }
 
 /**
+ * Het eigendom van een project overdragen aan een lid (ook een lezer): die wordt eigenaar, jij wordt lid (kan bewerken). Ook in de
+ * subprojecten waar jij eigenaar bent en de ander lid is. Ieder houdt wat hij zag (projectPrefs.ts): jouw favoriet, inklapstand,
+ * weergave en volgorde gaan naar jouw eigen voorkeuren, die van de nieuwe eigenaar komen in het project.
+ */
+function projectTransfer(ctx: Ctx, args: Args): void {
+  exactArgs(args, ['project_id', 'user_id']);
+  const project = requireLive(ctx, 'project', args.project_id, 'project_id');
+  const id = project.id as string;
+  requireOwner(ctx, id, 'alleen de eigenaar kan het eigendom overdragen');
+  const target = args.user_id;
+  if (typeof target !== 'string' || !ID_RE.test(target)) fail('INVALID_ARG', 'ongeldig gebruikers-id');
+  if (target === ctx.userId) fail('CONFLICT', 'je bent al eigenaar');
+  const current = roleOf(ctx.db, target, id);
+  if (current === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
+  if (current === 'owner') fail('CONFLICT', 'deze persoon is al eigenaar');
+  const member = (p: string, u: string) => (ctx.db.prepare('SELECT id FROM project_members WHERE project_id = ? AND user_id = ? AND is_deleted = 0').get(p, u) as Row).id as string;
+  for (const p of projectTree(ctx.db, id)) {
+    const before = roleOf(ctx.db, target, p);
+    if (roleOf(ctx.db, ctx.userId, p) !== 'owner' || before === null || before === 'owner') continue;
+    const row = getRow(ctx.db, ENTITIES.project, p)!;
+    const api = toApi(ENTITIES.project, row);
+    // wat jij zag wordt jouw eigen voorkeur; wat de nieuwe eigenaar zag, komt in het project
+    savePrefs(ctx, p, { is_favorite: api.is_favorite, is_collapsed: api.is_collapsed, view_style: api.view_style, order_key: api.order_key });
+    const theirs = ctx.db.prepare('SELECT * FROM project_prefs WHERE project_id = ? AND user_id = ?').get(p, target) as Row | undefined;
+    updateRow(ctx, ENTITIES.project, p, {
+      is_favorite: theirs?.is_favorite === 1, is_collapsed: theirs?.is_collapsed === 1,
+      view_style: (theirs?.view_style as string | null) ?? api.view_style, order_key: (theirs?.order_key as string | null) ?? api.order_key,
+    });
+    forgetPrefs(ctx.db, p, target);
+    updateRow(ctx, ENTITIES.member, member(p, target), { role: 'owner' });
+    updateRow(ctx, ENTITIES.member, member(p, ctx.userId), { role: 'member' });
+    activity.record(ctx, p, 'owner_changed', { user_id: target, extra: { from: before } });
+  }
+}
+
+/**
  * Alle eigen meldingen als gelezen. `up_to` (optioneel, het `created_at` van de nieuwste melding die de afzender zag): wat daarna
  * binnenkwam blijft ongelezen, zodat "alles gelezen" op een apparaat dat even offline was geen melding wegwerkt die je nooit zag.
  */
@@ -967,6 +1003,7 @@ HANDLERS.project_leave = projectLeave;
 HANDLERS.note_restore = noteRestore;
 HANDLERS.note_share = noteShare;
 HANDLERS.member_update = memberUpdate;
+HANDLERS.project_transfer = projectTransfer;
 Object.assign(HANDLERS, restoreHandlers({ roleOf, quota, countOf })); // task_restore, section_restore (restore.ts)
 HANDLERS.notification_read_all = notificationReadAll;
 export const COMMAND_TYPES: string[] = Object.keys(HANDLERS).sort();

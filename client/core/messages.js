@@ -21,7 +21,7 @@ const VERB = {
 };
 
 // Delen en samenwerken hebben eigen zinnen; hun foutmeldingen van de server zijn al begrijpelijk Nederlands en preciezer dan een algemene tekst.
-const SPECIAL = { project_share: () => t('command.share'), project_unshare: () => t('command.unshare'), project_leave: () => t('command.leave'), member_update: () => t('command.memberUpdate') };
+const SPECIAL = { project_share: () => t('command.share'), project_unshare: () => t('command.unshare'), project_leave: () => t('command.leave'), member_update: () => t('command.memberUpdate'), project_transfer: () => t('command.transfer') };
 
 const BY_CODE = {
   NOT_FOUND: () => t('error.notFound'),
@@ -55,6 +55,9 @@ const BY_COMMAND_AND_CODE = {
   'member_update:FORBIDDEN': () => t('error.memberUpdateOwnerOnly'),
   'member_update:NOT_FOUND': () => t('error.unshareNotMember'),
   'member_update:CONFLICT': () => t('error.memberUpdateOwner'),
+  'project_transfer:FORBIDDEN': () => t('error.transferOwnerOnly'),
+  'project_transfer:NOT_FOUND': () => t('error.unshareNotMember'),
+  'project_transfer:CONFLICT': () => t('error.transferConflict'),
   'project_delete:FORBIDDEN': () => t('error.projectDeleteOwnerOnly'),
   'project_update:FORBIDDEN': () => t('error.projectMoveOwnerOnly'),
   'label_update:FORBIDDEN': () => t('error.labelForeign'),
