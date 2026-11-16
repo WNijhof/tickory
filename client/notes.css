@@ -1,0 +1,125 @@
+/* Tickory: stijl voor notities (het scherm met kaarten, het editorvenster en de Markdown-opmaak). Staat apart van app.css (die laadt
+   eerst) en gebruikt dezelfde kleuren en maten, dus ook de wisseling tussen licht en donker. Opbouw: Markdown · lijst en kaarten ·
+   editorvenster · telefoon. */
+
+/* ---------- Markdown (ui/markdown.js) ---------- */
+.md { overflow-wrap: anywhere; line-height: 1.55; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+.md-p { margin: 0 0 0.75em; }
+.md-h { margin: 1.1em 0 0.4em; line-height: 1.25; }
+.md-h1 { font-size: 1.45rem; }
+.md-h2 { font-size: 1.25rem; }
+.md-h3 { font-size: 1.1rem; }
+.md-h4, .md-h5, .md-h6 { font-size: 1rem; }
+.md a { color: var(--focus); text-decoration: underline; text-underline-offset: 2px; }
+.md-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 5px; padding: 0.05em 0.35em; }
+.md-pre { margin: 0 0 0.9em; padding: 10px 12px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; }
+.md-pre code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.88rem; white-space: pre; }
+.md-quote { margin: 0 0 0.9em; padding: 2px 0 2px 14px; border-left: 3px solid var(--line-strong); color: var(--text-soft); }
+.md-rule { border: 0; border-top: 1px solid var(--line); margin: 1.2em 0; }
+.md-list { margin: 0 0 0.75em; padding-left: 1.5em; }
+.md-list .md-list { margin: 0.2em 0 0; }
+.md-item { margin: 0.15em 0; }
+.md-task { list-style: none; margin-left: -1.5em; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.md-task > span { flex: 1 1 0; min-width: 0; }
+.md-task > .md-list { flex: 1 0 100%; margin-left: 1.9em; }
+.md-check { width: 1.1em; height: 1.1em; margin: 0; accent-color: var(--accent); flex: none; align-self: center; }
+.md-check:not(:disabled) { cursor: pointer; }
+.md-done > span { color: var(--text-soft); text-decoration: line-through; }
+.md-table-wrap { overflow-x: auto; margin: 0 0 0.9em; }
+.md-table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.md-table { border-collapse: collapse; min-width: 50%; }
+.md-table th, .md-table td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+.md-table th { background: var(--bg-soft); font-weight: 600; }
+.md-table .md-al-center { text-align: center; }
+.md-table .md-al-right { text-align: right; }
+
+/* ---------- de lijst met notities ---------- */
+.note-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.note-tools .field { flex: 1 1 220px; min-width: 0; max-width: 360px; }
+.note-tabs { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 9px; overflow: hidden; background: var(--bg); }
+.note-tab { border: 0; border-radius: 0; background: none; color: var(--text-soft); min-height: 34px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 6px; }
+.note-tab + .note-tab { border-left: 1px solid var(--line); }
+.note-tab:hover { background: var(--bg-hover); color: var(--text); }
+.note-tab.active { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.note-tab-count { font-size: 0.75rem; color: var(--text-soft); font-variant-numeric: tabular-nums; }
+.note-label-bar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.note-label-chip { cursor: pointer; background: var(--bg); min-height: 30px; }
+.note-label-chip:hover { background: var(--bg-hover); }
+.note-label-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+
+.note-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.note-card { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); border-top: 4px solid var(--dot, var(--line-strong)); }
+.note-card:hover { border-color: var(--line-strong); border-top-color: var(--dot, var(--line-strong)); }
+.note-card-open { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; padding: 12px 14px; cursor: pointer; border-radius: inherit; }
+.note-card-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.note-card-head { display: flex; align-items: flex-start; gap: 8px; }
+.note-card-title { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.note-pin { color: var(--text-soft); display: inline-flex; flex: none; }
+.note-pin .icon { width: 16px; height: 16px; }
+.note-snippet { margin: 0; color: var(--text-soft); font-size: 0.92rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.note-snippet mark, .note-card mark { background: var(--accent-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+.note-card-labels { display: flex; flex-wrap: wrap; gap: 4px; }
+.note-card-foot { font-size: 0.78rem; color: var(--text-soft); margin-top: auto; padding-top: 2px; }
+.note-card-restore { margin: 0 14px 12px; align-self: flex-start; }
+
+/* ---------- het editorvenster ---------- */
+.note-dialog { width: min(980px, calc(100vw - 24px)); }
+.note-form { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.note-head { display: flex; align-items: center; gap: 8px; }
+.note-title-input { flex: 1; min-width: 0; font-size: 1.2rem; font-weight: 600; border-color: transparent; background: transparent; padding-left: 6px; }
+.note-title-input:hover, .note-title-input:focus { border-color: var(--line-strong); background: var(--bg); }
+.note-body { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 16px; min-height: 0; }
+.note-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.note-toolbar { display: flex; flex-wrap: wrap; gap: 4px; }
+.note-toolbar[hidden], .note-text[hidden], .note-read[hidden] { display: none; }
+.note-tool { min-width: 38px; min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text); cursor: pointer; font: inherit; font-size: 0.9rem; }
+.note-tool:hover { background: var(--bg-hover); }
+.note-tool:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.tb-bold { font-weight: 800; }
+.tb-italic { font-style: italic; }
+.tb-strike { text-decoration: line-through; }
+.tb-heading { font-weight: 700; }
+.tb-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; }
+.note-text { min-height: min(52dvh, 460px); resize: vertical; line-height: 1.5; font-family: inherit; }
+.note-read { min-height: min(40dvh, 320px); max-height: min(62dvh, 560px); overflow-y: auto; padding: 4px 6px; border-radius: var(--radius); }
+.note-read:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.note-side { display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 0; }
+.note-action { justify-content: flex-start; width: 100%; }
+.note-action.active { background: var(--accent-soft); color: var(--text); }
+.note-colors { margin-top: 8px; }
+.note-colors .swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.note-labels-panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; background: var(--bg-soft); display: flex; flex-direction: column; gap: 8px; }
+.note-labels-panel[hidden] { display: none; }
+.note-label-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.note-label-option { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+.note-label-new { display: flex; gap: 6px; }
+.note-label-new .field { flex: 1; min-width: 0; }
+.note-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.note-status { font-size: 0.82rem; color: var(--text-soft); }
+
+/* ---------- telefoon ---------- */
+@media (max-width: 760px) {
+  .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .note-tools .field { max-width: none; flex-basis: 100%; }
+  .note-tab { min-height: 44px; }
+  .note-label-chip { min-height: 44px; }
+  .note-dialog { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
+  .md-check { width: 24px; height: 24px; }
+  .md-task { gap: 0 12px; min-height: 40px; align-items: center; }
+  .note-body { grid-template-columns: minmax(0, 1fr); }
+  .note-side { flex-direction: row; flex-wrap: wrap; order: -1; }
+  .note-action { width: auto; min-height: 44px; min-width: 44px; }
+  .note-side .hint { flex: 1 0 100%; }
+  .note-side .note-colors { flex: 1 0 100%; }
+  .note-tool { min-width: 44px; min-height: 44px; }
+  .note-text { min-height: 40dvh; font-size: 16px; }
+  .note-title-input { font-size: 1.1rem; }
+  .note-label-option { min-height: 44px; }
+  .note-card-restore { min-height: 44px; }
+  .note-head .icon-button { min-width: 44px; min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-card { transition: none; }
+}

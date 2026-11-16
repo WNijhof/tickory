@@ -327,6 +327,26 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     },
     updateLabel: (id, changes) => send([{ type: 'label_update', args: { id, ...changes } }]),
     deleteLabel: (id) => send([{ type: 'label_delete', args: { id } }]),
+
+    // ---- notities (privé, zie SPEC 5k) ----
+    /** Maakt een notitie; geeft het id terug. Wat niet is opgegeven, krijgt de standaard. */
+    async addNote({ title = '', content = '', background = null, labels = [], is_pinned = false } = {}) {
+      const id = makeId();
+      const args = { id };
+      if (title) args.title = title;
+      if (content) args.content = content;
+      if (background) args.background = background;
+      if (labels.length > 0) args.labels = labels;
+      if (is_pinned) args.is_pinned = true;
+      await send([{ type: 'note_add', args }]);
+      return id;
+    },
+    updateNote: (id, changes) => send([{ type: 'note_update', args: { id, ...changes } }]),
+    /** Naar de prullenbak (en niet meer vastgepind); terugzetten kan tot ze na NOTE_TRASH_DAYS dagen wordt opgeruimd. */
+    trashNote: (id, now = new Date()) => send([{ type: 'note_update', args: { id, trashed_at: now.toISOString(), is_pinned: false } }]),
+    restoreNote: (id) => send([{ type: 'note_update', args: { id, trashed_at: null } }]),
+    /** Definitief verwijderen. */
+    deleteNotes: (ids) => send(ids.map((id) => ({ type: 'note_delete', args: { id } }))),
     /**
      * Hernoemt een label. Labelnamen zijn uniek per eigenaar en niet hoofdlettergevoelig; de server weigert een dubbele naam
      * met DUPLICATE. Hier wordt dat vooraf gecontroleerd: dan komt er een fout terug en wordt er niets verstuurd.

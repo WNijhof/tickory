@@ -70,7 +70,7 @@ function canSee(db: DatabaseSync, userId: string, name: EntityName, row: Row): b
       return isMember(db, userId, row.project_id);
     }
     case 'label': return labelVisible(db, userId, row);
-    case 'filter': case 'settings': case 'place': case 'template': return row.owner_id === userId;
+    case 'filter': case 'settings': case 'place': case 'template': case 'note': return row.owner_id === userId;
     case 'reminder': {
       if (row.owner_id !== userId) return false;
       const t = db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
@@ -246,6 +246,13 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       if (tasks > LIMITS.tasksPerTemplate) fail('LIMIT_REACHED', `taken per sjabloon: de grens van ${LIMITS.tasksPerTemplate} is bereikt`);
       break;
     }
+    case 'note': {
+      // alleen je eigen labels: een label van iemand anders dat je ziet via een gedeelde taak, hoort niet bij een privénotitie
+      for (const l of (v.labels as string[]) ?? []) {
+        if (requireLive(ctx, 'label', l, 'note.labels').owner_id !== ctx.userId) fail('INVALID_ARG', 'note.labels: je kunt alleen je eigen labels gebruiken');
+      }
+      break;
+    }
     case 'label': {
       // Vergelijken in JavaScript, niet met SQLite's lower(): dat kent alleen ASCII, dus "Café" en "CAFÉ" waren twee labels.
       // Alleen onder je eigen labels: een ander mag best dezelfde naam gebruiken.
@@ -377,6 +384,9 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
       break;
     case 'template':
       quota(ctx, `templates:${ctx.userId}`, LIMITS.templatesPerUser, 'sjablonen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM templates WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
+      break;
+    case 'note':
+      quota(ctx, `notes:${ctx.userId}`, LIMITS.notesPerUser, 'notities per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM notes WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
       break;
     case 'place':
       quota(ctx, `places:${ctx.userId}`, LIMITS.placesPerUser, 'plaatsen per gebruiker', () => countOf(db, 'SELECT COUNT(*) AS n FROM places WHERE owner_id = ? AND is_deleted = 0', ctx.userId));
@@ -552,6 +562,11 @@ function deleteEntity(ctx: Ctx, e: Entity, args: Args): void {
         const before = JSON.parse(t.labels as string) as string[];
         const labels = before.filter((l) => l !== id);
         if (labels.length !== before.length) updateRow(ctx, ENTITIES.task, t.id as string, { labels });
+      }
+      for (const n of ctx.db.prepare('SELECT id, labels FROM notes WHERE is_deleted = 0 AND labels LIKE ?').all(`%${id}%`) as Row[]) {
+        const before = JSON.parse(n.labels as string) as string[];
+        const labels = before.filter((l) => l !== id);
+        if (labels.length !== before.length) updateRow(ctx, ENTITIES.note, n.id as string, { labels });
       }
       break;
     }
@@ -868,8 +883,8 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
     `SELECT owner_id AS user_id FROM labels WHERE rev > ? UNION SELECT owner_id FROM filters WHERE rev > ?
      UNION SELECT owner_id FROM reminders WHERE rev > ? UNION SELECT owner_id FROM user_settings WHERE rev > ?
      UNION SELECT owner_id FROM places WHERE rev > ? UNION SELECT owner_id FROM templates WHERE rev > ?
-     UNION SELECT owner_id FROM notifications WHERE rev > ?`,
-    since, since, since, since, since, since, since,
+     UNION SELECT owner_id FROM notifications WHERE rev > ? UNION SELECT owner_id FROM notes WHERE rev > ?`,
+    since, since, since, since, since, since, since, since,
   );
   // een hernoemd label van iemand anders zien ook de leden van projecten waar het op een taak staat
   for (const l of db.prepare('SELECT id FROM labels WHERE rev > ? AND is_deleted = 0').all(since) as Row[]) {
@@ -959,7 +974,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
         params: [uid, uid],
       };
-    case 'filter': case 'settings': case 'place': case 'template': return { sql: 'owner_id = ?', params: [uid] };
+    case 'filter': case 'settings': case 'place': case 'template': case 'note': return { sql: 'owner_id = ?', params: [uid] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksOfMine}))`, params: [uid, uid] };
     case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine})))`, params: [uid, uid, uid] };
   }

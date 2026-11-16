@@ -25,6 +25,8 @@ export const LIMITS = {
   /** Sjablonen per gebruiker, en taken (met subtaken) in één sjabloon. */
   templatesPerUser: 100,
   tasksPerTemplate: 1000,
+  /** Notities per gebruiker (ook die in het archief of de prullenbak). */
+  notesPerUser: 10_000,
   membersPerProject: 100,
   /** Aangemelde apparaten; bij het inloggen op een volgend apparaat wordt het langst ongebruikte afgemeld. */
   sessionsPerUser: 20,

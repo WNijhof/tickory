@@ -43,6 +43,7 @@ import { setUpcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installBottomNav } from './bottomNav.js';
+import { installNotes, isNotesRoute } from './notes.js';
 import { listOptionsDialog } from './listOptionsDialog.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
@@ -60,7 +61,7 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r))) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r) || isNotesRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
@@ -798,6 +799,7 @@ async function boot() {
   const productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
   installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
+  installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo }); // notities (ui/notes.js), onder Meldingen
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({

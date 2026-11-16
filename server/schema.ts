@@ -4,7 +4,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { ENTITIES as SHARED_ENTITIES, ENTITY_LIST as SHARED_LIST, ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId, validateValue as sharedValidate } from '../shared/schema.js';
 
-export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification';
+export type EntityName = 'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'notification';
 export type ColType = 'text' | 'int' | 'real' | 'bool' | 'json';
 
 export interface Col {
@@ -201,6 +201,7 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS reminders_owner ON reminders (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_place ON reminders (place_id)');
   db.exec('CREATE INDEX IF NOT EXISTS places_owner ON places (owner_id, is_deleted)');
+  db.exec('CREATE INDEX IF NOT EXISTS notes_owner ON notes (owner_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS labels_owner ON labels (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS filters_owner ON filters (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS members_user ON project_members (user_id, is_deleted)');

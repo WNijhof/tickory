@@ -12,9 +12,10 @@ import { NOTIFICATION_KINDS, mentionsCheck, notifyPushCheck } from './notificati
 import { ROLES } from './roles.js';
 import { GOALS, daysOffCheck } from './stats.js';
 import { viewOptionsCheck } from './viewOptions.js';
+import { NOTE_BACKGROUNDS, notePrefsCheck } from './notes.js';
 
 /**
- * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'notification'} EntityName
+ * @typedef {'project' | 'section' | 'task' | 'label' | 'comment' | 'attachment' | 'reminder' | 'filter' | 'member' | 'settings' | 'place' | 'template' | 'note' | 'notification'} EntityName
  * @typedef {{
  *   name: string,
  *   type: 'text' | 'int' | 'real' | 'bool' | 'json',
@@ -48,6 +49,9 @@ export const isInboxId = (id) => typeof id === 'string' && id.startsWith(INBOX_P
 
 /** Prioriteit: 1 = hoogst … 4 = geen (standaard). Het getal is gelijk aan het label in de app (P1–P4). */
 export const PRIORITIES = [1, 2, 3, 4];
+
+/** Grenzen van een notitie (SPEC 5k): de titel en de tekst (Markdown) in tekens. */
+export const NOTE_LIMITS = Object.freeze({ title: 200, content: 100_000 });
 
 function idList(v) {
   if (!Array.isArray(v) || v.length > 50) return "moet een lijst van maximaal 50 id's zijn";
@@ -205,6 +209,23 @@ export const ENTITIES = {
       owner(),
     ],
   },
+  // Een notitie van één gebruiker (privé): een titel en een tekst in Markdown, met een achtergrond (kleur of patroon, shared/notes.js),
+  // labels, vastpinnen, archief en prullenbak.
+  // `trashed_at` is het tijdstip waarop ze in de prullenbak ging (null = niet in de prullenbak); de app ruimt wat langer dan
+  // NOTE_TRASH_DAYS in de prullenbak ligt zelf op door het definitief te verwijderen.
+  note: {
+    name: 'note', table: 'notes', resource: 'notes',
+    cols: [
+      { name: 'title', type: 'text', default: '', maxLen: NOTE_LIMITS.title },
+      { name: 'content', type: 'text', default: '', maxLen: NOTE_LIMITS.content },
+      { name: 'background', type: 'text', nullable: true, default: null, oneOf: NOTE_BACKGROUNDS },
+      { name: 'labels', type: 'json', default: [], check: idList },
+      { name: 'is_pinned', type: 'bool', default: false },
+      { name: 'is_archived', type: 'bool', default: false },
+      { name: 'trashed_at', type: 'text', nullable: true, default: null, maxLen: 40, check: (v) => (Number.isNaN(Date.parse(v)) ? 'moet een tijdstip zijn' : null) },
+      owner(),
+    ],
+  },
   filter: {
     name: 'filter', table: 'filters', resource: 'filters',
     cols: [{ name: 'name', type: 'text', required: true, maxLen: 200 }, { name: 'query', type: 'text', required: true, maxLen: 2000 }, color(), key(), fav(), owner()],
@@ -229,6 +250,8 @@ export const ENTITIES = {
       // Hoe de lijsten gesorteerd en gegroepeerd worden: { 'project:<id>' | 'today' | 'upcoming': { sort, dir, group } } (shared/viewOptions.js).
       // null = overal de standaard.
       { name: 'view_options', type: 'json', nullable: true, default: null, check: viewOptionsCheck },
+      // Voorkeuren voor de notities: { layout, sort, order, checked_bottom } (shared/notes.js); null = de standaard.
+      { name: 'note_prefs', type: 'json', nullable: true, default: null, check: notePrefsCheck },
       owner(),
     ],
   },

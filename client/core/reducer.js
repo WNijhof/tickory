@@ -296,6 +296,9 @@ function remove(state, e, args, now, userId) {
       for (const t of [...state.tasks.values()]) {
         if (t.labels.includes(id)) patch(state, 'tasks', t.id, { labels: t.labels.filter((l) => l !== id) }, now);
       }
+      for (const n of [...state.notes.values()]) {
+        if (n.labels.includes(id)) patch(state, 'notes', n.id, { labels: n.labels.filter((l) => l !== id) }, now);
+      }
       break;
     default:
       state[e.resource].delete(id);
