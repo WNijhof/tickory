@@ -374,7 +374,7 @@ export function resetRowCache() {
 
 const count = (n) => h('span', { class: 'group-count' }, String(n));
 
-export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null }) {
+export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null, description = '' }) {
   const head = title && h('div', { class: 'group-head' },
     collapsible && h('button', {
       class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
@@ -387,6 +387,8 @@ export function group({ title, rows, total, collapsible = null, extra = null, fo
   // `drop`: hier kunnen taken heen gesleept worden (project en sectie), zie ui/dragdrop.js
   return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}`, dataset: drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : {} },
     head,
+    // de beschrijving van een sectie, met opmaak (Markdown), onder de kop; ingeklapt niet
+    !collapsed && String(description ?? '').trim() && h('div', { class: 'section-desc', role: 'note', 'aria-label': t('section.descriptionLabel', { name: title }) }, renderMarkdown(String(description).trim())),
     !collapsed && rows.length > 0 && h('ul', { class: 'tasks' }, rows),
     !collapsed && footer);
 }
@@ -560,7 +562,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     }
     const section = g.section;
     return group({
-      title: section.name, rows: items, total: g.tasks.length,
+      title: section.name, rows: items, total: g.tasks.length, description: section.description,
       collapsible: readOnly ? null : { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
       extra: !readOnly && h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
       footer: !archived && addInline(handlers, addTarget(section)),

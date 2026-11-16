@@ -254,5 +254,13 @@
   "en/telefoon-productiviteit": {
     "width": 780,
     "height": 1560
+  },
+  "tijdlijn-week": {
+    "width": 2240,
+    "height": 2000
+  },
+  "en/tijdlijn-week": {
+    "width": 2240,
+    "height": 2000
   }
 }

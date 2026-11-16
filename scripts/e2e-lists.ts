@@ -195,6 +195,18 @@ export async function listsScenario(c: any) {
   await waitFor(`document.querySelector('[data-fk="project-desc"] strong')?.textContent === 'verhuizing'`, 'de beschrijving met opmaak onder de titel', 10_000);
   assert.equal(await evaluate(`document.querySelector('[data-fk="project-desc"] a').getAttribute('href')`), 'https://example.org/lijst');
   assert.equal(await evaluate(`document.querySelector('[data-fk="project-desc"] a').getAttribute('target')`), '_blank');
+  // de beschrijving van een sectie: via het menu van de sectie, met opmaak onder de kop
+  const moreOf = `[...document.querySelectorAll('.group')].find((g) => g.querySelector('.group-title')?.textContent === 'Eerst').querySelector('.group-more')`;
+  await evaluate(`${moreOf}.click()`);
+  await waitFor(`[...document.querySelectorAll('dialog[open] .menu button')].some((b) => b.textContent === 'Beschrijving…')`, 'het sectiemenu');
+  await evaluate(`[...document.querySelectorAll('dialog[open] .menu button')].find((b) => b.textContent === 'Beschrijving…').click()`);
+  await waitFor(`document.querySelector('dialog[open] [data-fk="section-description"]')`, 'het venster Beschrijving');
+  await evaluate(`(() => { const a = document.querySelector('dialog[open] [data-fk="section-description"]'); a.value = 'Wat **vandaag** nog moet'; })()`);
+  await evaluate(`document.querySelector('dialog[open] [data-fk="section-description-save"]').click()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  await waitFor(`document.querySelector('.section-desc strong')?.textContent === 'vandaag'`, 'de beschrijving met opmaak onder de kop');
+  assert.equal((serverState().sections as any[]).find((x) => x.id === 'e2elijstsectie01').description, 'Wat **vandaag** nog moet');
   await as([['project_update', { id: P, color: 'teal' }]]);
   await nav('Aankomend');
   await waitFor(`document.querySelector('[data-fk="viewstyle:calendar"]')`, 'de keuze kalender');
@@ -216,7 +228,7 @@ export async function listsScenario(c: any) {
   await as([['settings_update', { id: `settings-${alice.id}`, general: null }]]);
   await waitFor(`document.querySelector('.cal-table thead th:not(.cal-weekhead) abbr')?.textContent === 'ma'`, 'weer maandag', 10_000);
   await click('[data-fk="viewstyle:list"]');
-  step('een projectbeschrijving met opmaak en een klikbare link onder de titel; de kalender gekleurd per project en weer per prioriteit; met zondag als eerste dag begint de kalender op zondag');
+  step('een projectbeschrijving met opmaak en een klikbare link onder de titel, en een sectiebeschrijving via het sectiemenu; de kalender gekleurd per project en weer per prioriteit; met zondag als eerste dag begint de kalender op zondag');
 
   // ---- opruimen ----
   await as([['project_delete', { id: P }], ['label_delete', { id: 'e2elijstlabel001' }]]);

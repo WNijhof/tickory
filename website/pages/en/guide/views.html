@@ -80,6 +80,19 @@ description: A project as a list, as a board with a column per section or as a c
 <x-shot name="telefoon-kalender" alt="The calendar of Huishouden on a phone as a list per day: at the top the month with the buttons previous, Today and next and the choice Month or Week, below that a heading Week 47 and then every day with its name, its number, a plus button and the tasks below it as large bars.">On a phone the month becomes a list per day, with a plus on every day.</x-shot>
 <p>A table with seven columns is too tight for a phone. There the calendar shows a <strong>list per day</strong>: a heading per week, and under it every day with its name, its number, a plus to add a task and its tasks as large bars. In the month view only the days from today on remain, and not the days of another month. Choose <x-ui k="calendar.week"></x-ui> to see all seven days of a week.</p>
 
+<h2 id="timeline">The timeline: planning with hours</h2>
+<x-shot name="tijdlijn-week" alt="The timeline of a week: at the top the days from Monday to Sunday, below them the All day row with a birthday, and then the hours of the day with the task Meeting from 10:45 to 12:45 as a two-hour block and a short task at 14:00. On the right the To schedule sidebar. A red line shows the current time.">The timeline: tasks at their time, as tall as they last.</x-shot>
+<p>In the calendar, choose <x-ui k="calendar.timeline"></x-ui> and next to it <x-ui k="timeline.day"></x-ui> or <x-ui k="calendar.week"></x-ui>. You see the hours of the day; a task with a time is at its place and as tall as its <a href="task-window.html">duration</a> (half an hour without one). Tasks at the same time stand side by side. Tasks without a time are at the top under <x-ui k="timeline.allDay"></x-ui>; a red line shows the current time.</p>
+<ul>
+  <li><strong>Scheduling:</strong> on the right (below on a phone) is <x-ui k="timeline.plan"></x-ui>: your tasks without a date, and what is overdue. Drag one to a day and time.</li>
+  <li><strong>Moving:</strong> drag a task to another time or day, or to <x-ui k="timeline.allDay"></x-ui> to remove the time. It snaps to a quarter of an hour; a recurring task keeps recurring.</li>
+  <li><strong>Longer or shorter:</strong> drag the bottom edge of a task.</li>
+  <li><strong>Adding:</strong> click an empty spot: <x-ui k="quick.addTask"></x-ui> opens with that day and time filled in.</li>
+  <li><strong>Keyboard:</strong> on a task, <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> moves it a quarter of an hour and <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd> a day.</li>
+  <li>On a touch screen, hold a task for a moment before dragging; a normal swipe scrolls.</li>
+</ul>
+<p>You can undo every change from the message at the bottom. The choice between Month, Week and Timeline (and Day or Week) is kept on this device; on a phone the timeline starts with a single day.</p>
+
 <h2 id="upcoming-as-a-calendar">Upcoming as a calendar</h2>
 <p>In <x-ui k="nav.upcoming"></x-ui> choose <x-ui k="viewStyle.calendar"></x-ui> at the top right: you see the tasks of all your projects in the calendar, with the name of the project next to them. Everything above applies there too; a task you add goes into your Inbox. <x-ui k="nav.today"></x-ui> has no calendar: a single day has no use for one.</p>
 
@@ -99,6 +112,5 @@ description: A project as a list, as a board with a column per section or as a c
   <li><strong>Dragging a column (section).</strong> Sections stay in the order they were made, on the board and in the list.</li>
   <li>Dropping a card on another card <strong>to make it a subtask</strong>: that is only possible in the list.</li>
   <li><strong>Completed tasks</strong> in the calendar, deadlines as an item of their own, and a calendar of a filter.</li>
-  <li><strong>Giving a task a time by dragging</strong> in the calendar (there is no day grid with hours).</li>
   <li>A repeating task that started more than about eleven years (daily) or 4000 occurrences ago shows no coming occurrences any more.</li>
 </ul>

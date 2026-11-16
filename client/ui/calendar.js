@@ -26,6 +26,7 @@ import { colorClass } from '../core/colors.js';
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { readPref, writePref } from './viewPrefs.js';
+import { timelineView } from './timeline.js';
 
 const MODE_KEY = 'tickory.calendarMode';
 /** Waarop de kleur van een taak in de kalender gebaseerd is (zoals in Todoist): prioriteit, project of het eerste label. */
@@ -53,10 +54,20 @@ export function calendarColorOf(task, view, mode) {
 /** Per kalender (project of Binnenkort) wat je er op dit scherm van hebt gekozen; blijft staan zolang de pagina open is. */
 const states = new Map();
 
-const readMode = () => (readPref(MODE_KEY) === 'week' ? 'week' : 'month');
+const MODES = ['month', 'week', 'timeline'];
+const readMode = () => (MODES.includes(readPref(MODE_KEY)) ? readPref(MODE_KEY) : 'month');
+// letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
+const MODE_LABEL = { month: () => t('calendar.month'), week: () => t('calendar.week'), timeline: () => t('calendar.timeline') };
+/** De tijdlijn toont een dag of een week (ui/timeline.js); standaard een week, op een telefoon een dag. */
+const TIMELINE_KEY = 'tickory.timelineMode';
+const readTimelineMode = () => {
+  const saved = readPref(TIMELINE_KEY);
+  if (saved === 'day' || saved === 'week') return saved;
+  return globalThis.matchMedia?.('(max-width: 760px)').matches ? 'day' : 'week';
+};
 
 function stateOf(key) {
-  if (!states.has(key)) states.set(key, { mode: readMode(), anchor: null, focus: null });
+  if (!states.has(key)) states.set(key, { mode: readMode(), anchor: null, focus: null, tlMode: readTimelineMode(), tlScroll: null });
   return states.get(key);
 }
 
@@ -66,6 +77,7 @@ export function resetCalendarStates() {
 }
 
 const within = (day, from, to) => day >= from && day <= to;
+const upperFirstOf = (text, locale) => (text ? text[0].toLocaleUpperCase(locale) + text.slice(1) : text);
 
 /**
  * @param {{
@@ -84,8 +96,10 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
 
   const refresh = () => handlers.refresh();
   const setAnchor = (day) => { state.anchor = day === today ? null : day; };
+  const timeline = state.mode === 'timeline';
+  const dayMode = timeline && state.tlMode === 'day';
   const shift = (direction) => {
-    setAnchor(shiftPeriod(state.mode, anchor, direction));
+    setAnchor(timeline ? addDays(anchor, (dayMode ? 1 : 7) * direction) : shiftPeriod(state.mode, anchor, direction));
     state.focus = null;
     refresh();
   };
@@ -93,6 +107,12 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     if (mode === state.mode) return;
     state.mode = mode;
     writePref(MODE_KEY, mode);
+    refresh();
+  };
+  const setTimelineMode = (mode) => {
+    if (mode === state.tlMode) return;
+    state.tlMode = mode;
+    writePref(TIMELINE_KEY, mode);
     refresh();
   };
   const colorMode = readColor();
@@ -103,18 +123,35 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
 
   // ---------- kop ----------
   const monthMode = state.mode === 'month';
+  const prevLabel = dayMode ? t('calendar.prevDay') : monthMode ? t('calendar.prevMonth') : t('calendar.prevWeek');
+  const nextLabel = dayMode ? t('calendar.nextDay') : monthMode ? t('calendar.nextMonth') : t('calendar.nextWeek');
+  const title = dayMode ? upperFirstOf(dayLabel(locale, anchor, 'full'), locale) : periodTitle(timeline ? 'week' : state.mode, anchor, locale);
   const bar = h('div', { class: 'cal-bar' },
     h('div', { class: 'cal-nav' },
-      h('button', { class: 'icon-button', type: 'button', 'aria-label': monthMode ? t('calendar.prevMonth') : t('calendar.prevWeek'), title: monthMode ? t('calendar.prevMonth') : t('calendar.prevWeek'), dataset: { fk: 'cal-prev' }, onclick: () => shift(-1) }, icon('chevronLeft')),
+      h('button', { class: 'icon-button', type: 'button', 'aria-label': prevLabel, title: prevLabel, dataset: { fk: 'cal-prev' }, onclick: () => shift(-1) }, icon('chevronLeft')),
       h('button', { class: 'button button-small', type: 'button', dataset: { fk: 'cal-today' }, onclick: () => { state.anchor = null; state.focus = today; refresh(); } }, t('calendar.today')),
-      h('button', { class: 'icon-button', type: 'button', 'aria-label': monthMode ? t('calendar.nextMonth') : t('calendar.nextWeek'), title: monthMode ? t('calendar.nextMonth') : t('calendar.nextWeek'), dataset: { fk: 'cal-next' }, onclick: () => shift(1) }, icon('chevronRight'))),
-    h('h2', { class: 'cal-title', 'aria-live': 'polite' }, periodTitle(state.mode, anchor, locale)),
+      h('button', { class: 'icon-button', type: 'button', 'aria-label': nextLabel, title: nextLabel, dataset: { fk: 'cal-next' }, onclick: () => shift(1) }, icon('chevronRight'))),
+    h('h2', { class: 'cal-title', 'aria-live': 'polite' }, title),
     h('div', { class: 'cal-mode', role: 'group', 'aria-label': t('calendar.modeLabel') },
-      ['month', 'week'].map((mode) => h('button', {
+      MODES.map((mode) => h('button', {
         class: `button button-small view-switch-button${mode === state.mode ? ' active' : ''}`, type: 'button', 'aria-pressed': String(mode === state.mode),
         dataset: { mode, fk: `cal-mode:${mode}` }, onclick: () => setMode(mode),
-      }, mode === 'month' ? t('calendar.month') : t('calendar.week')))),
+      }, MODE_LABEL[mode]()))),
+    timeline && h('div', { class: 'cal-mode tl-switch', role: 'group', 'aria-label': t('timeline.modeLabel') },
+      ['day', 'week'].map((mode) => h('button', {
+        class: `button button-small view-switch-button${mode === state.tlMode ? ' active' : ''}`, type: 'button', 'aria-pressed': String(mode === state.tlMode),
+        dataset: { mode, fk: `tl-mode:${mode}` }, onclick: () => setTimelineMode(mode),
+      }, mode === 'day' ? t('timeline.day') : t('calendar.week')))),
     colorPick);
+  if (timeline) {
+    // de tijdlijn (ui/timeline.js): wat te laat is staat daar in de zijbalk In te plannen
+    return h('div', { class: 'cal cal-timeline', dataset: { calendar: calendarKey, mode: 'timeline' } },
+      bar,
+      timelineView({
+        state, tasks, view, today, anchor, colorOf: (task) => calendarColorOf(task, view, colorMode),
+        handlers, showProject, addTarget, readOnly, canEdit,
+      }));
+  }
 
   // ---------- een taak op een dag ----------
   const item = (entry, { withDate = false } = {}) => {

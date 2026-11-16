@@ -21,7 +21,7 @@ import { dateDialog } from './bulkDialogs.js';
 import { reschedule } from '../core/quickDates.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
-import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
+import { confirmDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { createDragDrop } from './dragdrop.js';
 import { installSelection } from './selection.js';
@@ -30,6 +30,7 @@ import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
 import { openGeneralDialog } from './generalDialog.js';
+import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
 import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
@@ -122,11 +123,22 @@ applyLanguage(); // meteen bij het laden, zodat de Nederlandse terugval in een a
 
 // ---------- tekenen ----------
 
+/**
+ * Tijdens een sleep- of veegbeweging op de tijdlijn of in een lijst (body.hold-render, zie ui/timeline.js en ui/swipe.js) wacht het
+ * opnieuw tekenen: anders verdwijnt het element onder je vinger of muis halverwege. Bij het einde (voorval 'hold-render-end') tekent
+ * de app bij wat er intussen binnenkwam.
+ */
+window.addEventListener('hold-render-end', () => { if (ui.heldRender) { ui.heldRender = false; invalidate(); } });
+/** Wacht het tekenen nu? Hooguit 15 seconden: een beweging die nooit eindigt (een gemist voorval) houdt het scherm niet vast. */
+const renderHeld = () => document.body.classList.contains('hold-render') && Date.now() - Number(document.body.dataset.holdSince ?? 0) < 15_000;
+
 function invalidate() {
+  if (renderHeld()) { ui.heldRender = true; return; }
   if (ui.scheduled) return;
   ui.scheduled = true;
   requestAnimationFrame(() => {
     ui.scheduled = false;
+    if (renderHeld()) { ui.heldRender = true; return; }
     render();
   });
 }
@@ -346,6 +358,11 @@ const handlers = {
 
   /** Een taak toevoegen op een dag van de kalender; `target` zegt in welk project (leeg: de Inbox). */
   addToDay: (day, target = {}) => handlers.quickAdd({ ...target, due: day }),
+  /** Een wijziging vanuit de tijdlijn (ui/timeline.js): een andere tijd of dag, of een andere duur; met "Ongedaan maken". */
+  async planTask(task, changes, text) {
+    const { entry } = await actions.track(text, () => actions.updateTask(task.id, changes));
+    undoToast(text, entry);
+  },
 
   toggleProject: (project) => actions.updateProject(project.id, { is_collapsed: !project.is_collapsed }),
   toggleSection: (section) => actions.updateSection(section.id, { is_collapsed: !section.is_collapsed }),
@@ -472,9 +489,16 @@ const handlers = {
   async sectionMenu(section) {
     const choice = await menuDialog({
       title: section.name,
-      items: [{ value: 'rename', label: t('common.rename') }, { value: 'delete', label: t('section.delete'), danger: true }],
+      items: [
+        { value: 'rename', label: t('common.rename') },
+        { value: 'description', label: t('section.descriptionEdit') },
+        { value: 'delete', label: t('section.delete'), danger: true },
+      ],
     });
-    if (choice === 'rename') {
+    if (choice === 'description') {
+      const description = await sectionDescriptionDialog(section);
+      if (description !== null && description !== (section.description ?? '')) await actions.updateSection(section.id, { description });
+    } else if (choice === 'rename') {
       const name = await promptDialog({ title: t('common.rename'), label: t('common.name'), value: section.name });
       if (name && name !== section.name) await actions.updateSection(section.id, { name });
     } else if (choice === 'delete') {
@@ -694,6 +718,21 @@ async function afterAccountDeleted() {
 }
 const DELETED_KEY = 'tickory.accountDeleted';
 
+/** De beschrijving van een sectie bewerken (met Markdown, zoals bij een project). Geeft de nieuwe tekst, of null bij annuleren. */
+function sectionDescriptionDialog(section) {
+  return openDialog((finish) => {
+    const area = h('textarea', { class: 'field', rows: 4, maxLength: 16000, value: section.description ?? '', placeholder: t('section.descriptionPlaceholder'), dataset: { fk: 'section-description' }, 'aria-label': t('section.descriptionEdit') });
+    queueMicrotask(() => area.focus());
+    return h('form', { class: 'dialog-form', onsubmit: (e) => { e.preventDefault(); finish(area.value.trim()); } },
+      h('h2', {}, t('section.descriptionTitle', { name: section.name })),
+      area,
+      h('p', { class: 'hint' }, t('section.descriptionHint')),
+      h('div', { class: 'dialog-buttons' },
+        h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
+        h('button', { type: 'submit', class: 'button button-primary', dataset: { fk: 'section-description-save' } }, t('common.save'))));
+  });
+}
+
 // ---------- een taak openen vanuit een melding ----------
 
 let pendingTaskId = null;
@@ -908,6 +947,7 @@ async function boot() {
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
+  installSwipe({ content: $('content'), store, handlers }); // vegen op een aanraakscherm: afvinken of een datum (ui/swipe.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
   // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
   productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });

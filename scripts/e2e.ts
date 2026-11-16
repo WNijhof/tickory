@@ -41,6 +41,8 @@ import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
 import { listsScenario } from './e2e-lists.ts';
 import { quickScenario } from './e2e-quick.ts';
+import { timelineScenario } from './e2e-timeline.ts';
+import { swipeScenario } from './e2e-swipe.ts';
 import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
@@ -426,6 +428,13 @@ try {
   // account verwijderen (scripts/e2e-delete.ts); met E2E_DELETE_ONLY=1 alleen dat onderdeel (in de volledige run komt het als laatste)
   if (process.env.E2E_DELETE_ONLY) {
     try { await deleteScenario({ evaluate, waitFor, step, SYNCED, db, alice, typeInto, clickText, nav, submit, PASSWORD_ALICE }); console.log('ALLEEN ACCOUNT VERWIJDEREN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-verwijderen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // de tijdlijn (scripts/e2e-timeline.ts); met E2E_TIMELINE_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_TIMELINE_ONLY) {
+    try { await timelineScenario({ ...notifyCtx(), startServer, stopServer }); await swipeScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN TIJDLIJN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-tijdlijn'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -1568,6 +1577,8 @@ try {
   // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
   await listsScenario({ ...notifyCtx(), startServer, stopServer });
   await quickScenario({ ...notifyCtx(), startServer, stopServer });
+  await timelineScenario({ ...notifyCtx(), startServer, stopServer });
+  await swipeScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
   await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });

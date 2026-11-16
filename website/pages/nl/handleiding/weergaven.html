@@ -80,6 +80,19 @@ description: Een project als lijst, als bord met kolommen per sectie of als kale
 <x-shot name="telefoon-kalender" alt="De kalender van Huishouden op een telefoon als lijst per dag: bovenaan de maand met de knoppen vorige, Vandaag en volgende en de keuze Maand of Week, daaronder een kop Week 47 en dan elke dag met zijn naam, zijn nummer, een plus-knop en de taken eronder als grote balkjes.">Op een telefoon wordt de maand een lijst per dag, met een plus bij elke dag.</x-shot>
 <p>Een tabel met zeven kolommen is te krap voor een telefoon. Daar toont de kalender een <strong>lijst per dag</strong>: per week een kopje, en daaronder elke dag met zijn naam, zijn nummer, een plus om een taak toe te voegen en zijn taken als grote balkjes. In de maandweergave blijven alleen de dagen vanaf vandaag over, en niet de dagen van een andere maand. Kies <x-ui k="calendar.week"></x-ui> om alle zeven dagen van een week te zien.</p>
 
+<h2 id="tijdlijn">De tijdlijn: plannen met uren</h2>
+<x-shot name="tijdlijn-week" alt="De tijdlijn van een week: bovenaan de dagen van maandag tot en met zondag, daaronder de rij Hele dag met een verjaardag, en dan de uren van de dag met de taak Overleg van 10:45 tot 12:45 als blok van twee uur en een korte taak om 14:00. Rechts de zijbalk In te plannen. Een rode lijn geeft aan hoe laat het nu is.">De tijdlijn: taken op hun tijd, zo hoog als ze duren.</x-shot>
+<p>Kies in de kalender <x-ui k="calendar.timeline"></x-ui> en daarnaast <x-ui k="timeline.day"></x-ui> of <x-ui k="calendar.week"></x-ui>. Je ziet de uren van de dag; een taak met een tijd staat op haar plek en is zo hoog als haar <a href="taakvenster.html">duur</a> (zonder duur een half uur). Taken die tegelijk lopen, staan naast elkaar. Taken zonder tijd staan bovenaan bij <x-ui k="timeline.allDay"></x-ui>; een rode lijn wijst aan hoe laat het nu is.</p>
+<ul>
+  <li><strong>Plannen:</strong> rechts (op een telefoon eronder) staat <x-ui k="timeline.plan"></x-ui>: je taken zonder datum, en wat te laat is. Sleep er een naar een dag en tijd.</li>
+  <li><strong>Verplaatsen:</strong> sleep een taak naar een andere tijd of dag, of naar <x-ui k="timeline.allDay"></x-ui> om de tijd weg te halen. Het blijft op een kwartier afgerond; een herhaling blijft herhalen.</li>
+  <li><strong>Langer of korter:</strong> sleep de onderrand van een taak.</li>
+  <li><strong>Toevoegen:</strong> klik op een lege plek: <x-ui k="quick.addTask"></x-ui> opent met die dag en tijd al ingevuld.</li>
+  <li><strong>Toetsenbord:</strong> op een taak verplaatst <kbd>Alt</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> haar een kwartier, <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd> een dag.</li>
+  <li>Op een aanraakscherm houd je een taak even vast voordat je sleept; een gewone veeg scrolt.</li>
+</ul>
+<p>Elke wijziging kun je ongedaan maken in de melding onderaan. De keuze tussen Maand, Week en Tijdlijn (en Dag of Week) blijft op dit apparaat bewaard; op een telefoon begint de tijdlijn met één dag.</p>
+
 <h2 id="aankomend-als-kalender">Aankomend als kalender</h2>
 <p>Kies bij <x-ui k="nav.upcoming"></x-ui> rechtsboven <x-ui k="viewStyle.calendar"></x-ui>: je ziet de taken van al je projecten in de kalender, met de naam van het project erbij. Alles hierboven geldt ook daar; een taak die je toevoegt komt in je Inbox. <x-ui k="nav.today"></x-ui> heeft geen kalender: één dag heeft er niets aan.</p>
 
@@ -99,6 +112,5 @@ description: Een project als lijst, als bord met kolommen per sectie of als kale
   <li><strong>Een kolom (sectie) slepen.</strong> Secties staan in de volgorde waarin ze zijn gemaakt, op het bord en in de lijst.</li>
   <li>Een kaart <strong>boven of onder een andere kaart laten vallen als subtaak</strong>: dat kan alleen in de lijst.</li>
   <li><strong>Voltooide taken</strong> in de kalender, deadlines als eigen item, en een kalender van een filter.</li>
-  <li>Een taak op de kalender <strong>een tijdstip geven door te slepen</strong> (er is geen dagraster met uren).</li>
   <li>Een terugkerende taak van meer dan ongeveer elf jaar (dagelijks) of 4000 keer geleden toont geen komende voorkomens meer.</li>
 </ul>

@@ -2,7 +2,7 @@
 // en dat venster zelf.
 
 import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
-import { formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
+import { clockText, formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
 import { getLanguage, t } from '../core/i18n.js';
 import { offsetText } from '../core/reminderText.js';
 import { parseQuickAdd } from '../core/quickadd.js';
@@ -112,8 +112,10 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     const shared = context.files?.length ? h('p', { class: 'hint quick-files' }, icon('paperclip'), t('quick.sharedFiles', { names: context.files.join(', ') })) : null;
     const sectionFor = () => (project.value === startProject && context.sectionId ? context.sectionId : null);
     // `due` is 'today' (Vandaag), of een dag 'YYYY-MM-DD' (een "+" in de kalender): dan staat de taak op die dag, ook zonder dat je die typt.
-    const day = /^\d{4}-\d{2}-\d{2}$/.test(context.due ?? '') ? context.due : null;
-    const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : day ? { date: day } : null);
+    // of een dag met een tijd 'YYYY-MM-DDTHH:MM' (een klik in de tijdlijn)
+    const dayTime = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(context.due ?? '') ? context.due : null;
+    const day = dayTime ? dayTime.slice(0, 10) : null;
+    const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : dayTime ? { date: dayTime } : null);
     const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
@@ -190,7 +192,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
       },
     },
     h('h2', {}, t('quick.addTask')),
-    day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: formatDayHeading(day, todayString()) })),
+    day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: dayTime.length > 10 ? `${formatDayHeading(day, todayString())} ${clockText(dayTime.slice(11, 16))}` : formatDayHeading(day, todayString()) })),
     mic ? h('div', { class: 'quick-row' }, input, mic) : input,
     suggest.node,
     description,

@@ -151,6 +151,21 @@ async function shootAll() {
   await capture('kalender', TALL);
   await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
   await waitFor(`document.querySelector('.group-title')`, 'lijst terug');
+  // de tijdlijn van een week, met de taken van al je projecten (Aankomend als kalender › Tijdlijn › Week)
+  await nav(T('nav.upcoming'));
+  await title(T('nav.upcoming'));
+  await evaluate(`document.querySelector('.view-switch [data-view-style="calendar"]').click()`);
+  await waitFor(`document.querySelector('[data-fk="cal-mode:timeline"]')`, 'kalender met Tijdlijn');
+  await evaluate(`document.querySelector('[data-fk="cal-mode:timeline"]').click()`);
+  await waitFor(`document.querySelector('.tl')`, 'tijdlijn');
+  if (await evaluate(`document.querySelector('.tl').dataset.tlMode !== 'week'`)) await evaluate(`document.querySelector('[data-fk="tl-mode:week"]').click()`);
+  await waitFor(`document.querySelector('.tl[data-tl-mode="week"]')`, 'tijdlijn per week');
+  await settle();
+  await capture('tijdlijn-week', TALL);
+  await evaluate(`document.querySelector('[data-fk="cal-mode:month"]').click()`);
+  await evaluate(`document.querySelector('.view-switch [data-view-style="list"]').click()`);
+  await nav(projectName);
+  await title(projectName);
   await browser.viewport(DESKTOP.width, DESKTOP.height, { scale: DESKTOP.scale, mobile: false });
   await settle();
 

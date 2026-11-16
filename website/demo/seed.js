@@ -176,7 +176,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   /**
    * @param {string} by wie de taak aanmaakte
    * @param {{ content: string, project: string, section?: string, parent?: string, due?: object, deadline?: number, priority?: number,
-   *   labels?: string[], assignee?: string, description?: string, done?: boolean }} t  `deadline` in dagen vanaf vandaag
+   *   labels?: string[], assignee?: string, description?: string, done?: boolean, duration?: number }} t  `deadline` in dagen vanaf vandaag, `duration` in minuten
    */
   const task = (by, t) => {
     const tid = id('task');
@@ -189,6 +189,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     if (t.labels) args.labels = t.labels;
     if (t.assignee) args.assignee_id = t.assignee;
     if (t.description) args.description = t.description;
+    if (t.duration) args.duration = t.duration;
     run(by, 'task_add', args);
     if (t.done) run(by, 'task_complete', { id: tid });
     return tid;
@@ -234,7 +235,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   // ---- Inbox: alleen van jou ----
   task(anna, { content: 'Fietsband plakken', project: INBOX, due: day(-1) });
   task(anna, { content: 'Bibliotheekboeken terugbrengen', project: INBOX, due: day(-3), priority: 3 });
-  const tandarts = task(anna, { content: 'Tandarts bellen voor controle', project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen] });
+  const tandarts = task(anna, { content: 'Tandarts bellen voor controle', project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen], duration: 15 });
   const paspoort = task(anna, {
     content: 'Paspoort verlengen', project: INBOX, deadline: 21, priority: 2,
     description: 'Afspraak maken bij de gemeente. Meenemen: het oude paspoort en een nieuwe pasfoto.',
@@ -254,7 +255,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   const sKlusjes = section(anna, huis, 'Klusjes');
   const sVast = section(anna, huis, 'Vaste prik');
   task(bram, { content: 'Weekmenu maken', project: huis, due: day(0), assignee: bram });
-  const boodschap = task(anna, { content: 'Boodschappen doen', project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen], description: 'Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.' });
+  const boodschap = task(anna, { content: 'Boodschappen doen', project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen], duration: 45, description: 'Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.' });
   task(anna, { content: 'Brood', project: huis, parent: boodschap, done: true });
   task(anna, { content: 'Melk en eieren', project: huis, parent: boodschap });
   task(bram, { content: 'Koffiebonen', project: huis, parent: boodschap });
@@ -281,7 +282,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   const texel = project(anna, 'Vakantie Texel', [], { color: 'sky' });
   const sRegelen = section(anna, texel, 'Regelen');
   const sInpakken = section(anna, texel, 'Inpakken');
-  const boot = task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1 });
+  const boot = task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1, duration: 30 });
   reminder(boot, { minutes: 30 });
   reminder(boot, { minutes: 1440 });
   task(anna, { content: 'Huisje aanbetalen', project: texel, section: sRegelen, due: due('over twee weken') });

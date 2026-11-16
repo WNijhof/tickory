@@ -861,6 +861,11 @@ export class DemoServer {
       logout: async () => ({ ok: true }),
       me: async () => ({ me: { ...this.me } }),
       changePassword: async () => { throw apiError(403, 'DEMO', notInDemo()); },
+      // je account verwijderen kan in de demo niet (er is geen account); de app toont dan de nette melding
+      deleteAccount: {
+        check: async () => ({ can_delete: true, shared_projects: [], last_admin: false }),
+        remove: async () => { throw apiError(403, 'DEMO', notInDemo()); },
+      },
       sessions: async () => ({ sessions: this.sessions.map((s) => ({ ...s, device: { ...s.device } })), policy: { idle_days: 90, max_days: 365 } }),
       revokeOtherSessions: async () => {
         const before = this.sessions.length;

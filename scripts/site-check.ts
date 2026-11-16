@@ -1209,7 +1209,7 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
-        assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '1/4', '2', '@boodschappen', '🔔', 'voor jou', 'Huishouden / Boodschappen']);
+        assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '45 min', '1/4', '2', '@boodschappen', '🔔', 'voor jou', 'Huishouden / Boodschappen']);
         const bar = await evaluate<{ text: string; href: string; top: number; height: number }>(`(() => { const el = document.getElementById('demo-bar'); const r = el.getBoundingClientRect(); return { text: el.querySelector('.demo-bar-long').textContent, href: el.querySelector('.demo-bar-link').href, top: r.top, height: r.height }; })()`);
         assert.equal(bar.text, 'Dit is een demo: wijzigingen worden niet bewaard.');
         assert.equal(bar.href, site.url, 'de link in de balk gaat terug naar de website');
@@ -1572,7 +1572,7 @@ if (wants('browser')) {
         };
         const sidebarProjects = () => evaluate<string[]>(`[...document.querySelectorAll('.nav-row .nav-label')].map((e) => e.textContent)`);
         await openPicker();
-        assert.deepEqual(await items(), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing']);
+        assert.deepEqual(await items(), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing', 'Schoonmaakrooster', 'Weekafsluiting', 'Solliciteren']);
         await choose('Kinderverjaardag organiseren');
         const preview = await evaluate<string>(`document.querySelector('dialog[open] .tpl-detail').innerText`);
         assert.match(preview, /15 taken, verdeeld over 5 secties/);
