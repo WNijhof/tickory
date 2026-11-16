@@ -3168,10 +3168,10 @@ try {
   // ---- fouten in de console ----
   const own = consoleErrors.filter((e) => !/adguard/i.test(e));
   // Een te kort wachtwoord of een ongeldige gebruikersnaam hoort hier niet meer bij: dat houdt de app zelf tegen vóór het versturen.
-  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 403 .*\/api\/v1\/auth\/(password|2fa\/)|status of 409 .*\/api\/v1\/admin\/users/i.test(e)); // 2fa: een bewust fout wachtwoord en een foute code (e2e-account.ts)
+  const expected = own.filter((e) => /401|Failed to fetch|ERR_CONNECTION_REFUSED|net::ERR|status of 403 .*\/api\/v1\/auth\/(password|2fa\/)|status of 409 .*\/api\/v1\/admin\/users|status of 404 .*\/api\/v1\/invites\/tki_z{43}/i.test(e)); // 2fa: een bewust fout wachtwoord en een foute code (e2e-account.ts); invites: de bewust kapotte link (e2e-invite.ts)
   const unexpected = own.filter((e) => !expected.includes(e));
   assert.deepEqual(unexpected, [], 'onverwachte fouten in de console van de browser');
-  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-tests, de foute wachtwoorden, de bestaande gebruikersnaam en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
+  step(`console: geen onverwachte fouten (${expected.length} verwachte netwerkmeldingen: de offline-tests, de foute wachtwoorden, de bestaande gebruikersnaam, de kapotte uitnodigingslink en de ingetrokken sessie; ${consoleErrors.length - own.length} van AdGuard genegeerd)`);
 } catch (err) {
   failed = err;
   try {
