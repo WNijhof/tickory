@@ -847,6 +847,16 @@ class MainActivity : ComponentActivity() {
         startSettings(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
     }
 
+    /** Het scherm van het kanaal Dringende herinneringen (daar staat "Niet storen negeren"). */
+    fun openUrgentSettings() {
+        Notifications.ensureUrgentChannel(this)
+        startSettings(
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, Notifications.URGENT_CHANNEL_ID),
+        )
+    }
+
     /**
      * Opent de pagina van deze app in de instellingen van Android; daar staat "Batterij" (kies "Onbeperkt"). Bewust
      * niet de directe vraag "batterijoptimalisatie negeren": die vraagt een extra recht in het manifest.

@@ -8,6 +8,7 @@ import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.reminders.AlarmScheduler
 import io.github.wnijhof.tickory.reminders.Background
 import io.github.wnijhof.tickory.reminders.Notifications
+import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.sync.Session
 import io.github.wnijhof.tickory.sync.SyncScheduler
 
@@ -53,6 +54,9 @@ class WebBridge(private val activity: MainActivity) {
                 "exactAlarms" to AlarmScheduler.canScheduleExact(app),
                 // true = Android mag de app op de achtergrond afremmen om de batterij te sparen
                 "batteryOptimized" to (power != null && !power.isIgnoringBatteryOptimizations(app.packageName)),
+                // dringende herinneringen: gekozen op dit toestel, en of ze door Niet storen heen mogen
+                "urgent" to Prefs(app).urgentReminders,
+                "urgentBypassDnd" to Notifications.urgentBypassesDnd(app),
                 "appVersion" to BuildConfig.VERSION_NAME,
             ),
         )
@@ -63,6 +67,21 @@ class WebBridge(private val activity: MainActivity) {
     fun requestNotificationPermission() {
         if (!activity.isTrustedPage()) return
         activity.runOnUiThread { activity.requestNotificationPermission() }
+    }
+
+    /** Dringende herinneringen aan of uit op dit toestel (zie Prefs.urgentReminders). */
+    @JavascriptInterface
+    fun setUrgentReminders(on: Boolean) {
+        if (!activity.isTrustedPage()) return
+        Prefs(app).urgentReminders = on
+        if (on) Notifications.ensureUrgentChannel(app)
+    }
+
+    /** De instellingen van het kanaal Dringende herinneringen, waar je "Niet storen negeren" aanzet. */
+    @JavascriptInterface
+    fun openUrgentSettings() {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.openUrgentSettings() }
     }
 
     @JavascriptInterface

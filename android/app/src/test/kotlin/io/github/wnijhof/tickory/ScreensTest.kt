@@ -225,7 +225,7 @@ class ScreensTest {
 
         // de eigen server staat geladen
         val status = Json.parseObject(bridge.notificationStatus())!!
-        assertEquals(setOf("notifications", "exactAlarms", "batteryOptimized", "appVersion"), status.keys)
+        assertEquals(setOf("notifications", "exactAlarms", "batteryOptimized", "urgent", "urgentBypassDnd", "appVersion"), status.keys)
         assertTrue(status["notifications"] is Boolean && status["exactAlarms"] is Boolean && status["batteryOptimized"] is Boolean)
         assertEquals(BuildConfig.VERSION_NAME, status["appVersion"])
         bridge.setSession("tky_test-token_0123456789")

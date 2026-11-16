@@ -1355,6 +1355,10 @@ export default {
   'places.android.neverChecked': 'Nog niet gecontroleerd',
   'places.android.accuracy': 'nauwkeurigheid ongeveer {accuracy}',
   'places.android.noGps': 'dit toestel heeft geen GPS: alleen een grove positie via netwerken',
+  'notify.urgent': 'Dringende herinneringen op deze telefoon',
+  'notify.urgentHint': 'Een herinnering klinkt dan als een wekker en blijft klinken tot je de melding aanraakt of wegveegt.',
+  'notify.urgentDndOn': 'Ze komen ook door Niet storen heen.',
+  'notify.urgentDndOff': 'Bij Niet storen blijven ze stil. Zet in Android bij Dringende herinneringen "Niet storen negeren" aan om ze dan ook te horen.',
   'notify.androidVersion': 'Versie van de app: {version}',
 
   // ---------- nieuw uiterlijk: zijbalk, lijst, taakvenster, opmerkingen, sneltoetsen ----------

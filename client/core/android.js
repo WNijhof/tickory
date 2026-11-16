@@ -24,7 +24,7 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     remindersChanged: () => call('remindersChanged'),
     /** Meldt dat iets is veranderd dat in de widgets van de Android-app staat (taken, projecten, volgorde); de app ververst ze. */
     widgetsChanged: () => call('widgetsChanged'),
-    /** @returns {{ notifications: boolean, exactAlarms: boolean, batteryOptimized: boolean, appVersion: string } | null} */
+    /** @returns {{ notifications: boolean, exactAlarms: boolean, batteryOptimized: boolean, appVersion: string, urgent?: boolean, urgentBypassDnd?: boolean } | null} */
     status() {
       try {
         const raw = call('notificationStatus');
@@ -37,6 +37,12 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     requestNotificationPermission: () => call('requestNotificationPermission'),
     openNotificationSettings: () => call('openNotificationSettings'),
     openBatterySettings: () => call('openBatterySettings'),
+    /** Kent de app dringende herinneringen? (Een oudere versie niet: dan staat de keuze er niet.) */
+    canUrgent: () => typeof host?.setUrgentReminders === 'function',
+    /** Dringende herinneringen aan of uit op dit toestel: klinken als een wekker tot je reageert. */
+    setUrgentReminders: (on) => call('setUrgentReminders', Boolean(on)),
+    /** Het scherm van Android voor het kanaal Dringende herinneringen ("Niet storen negeren"). */
+    openUrgentSettings: () => call('openUrgentSettings'),
     changeServer: () => call('changeServer'),
     /** Kan de app een bijlage zelf ophalen en aan een andere app geven? (Een oudere versie van de app kan dat niet.) */
     canOpenAttachments: () => typeof host?.openAttachment === 'function',

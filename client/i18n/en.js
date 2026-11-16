@@ -1358,6 +1358,10 @@ export default {
   'places.android.neverChecked': 'Not checked yet',
   'places.android.accuracy': 'accurate to about {accuracy}',
   'places.android.noGps': 'this device has no GPS: only a rough position from networks',
+  'notify.urgent': 'Urgent reminders on this phone',
+  'notify.urgentHint': 'A reminder then sounds like an alarm and keeps sounding until you touch or swipe away the notification.',
+  'notify.urgentDndOn': 'They also get through Do Not Disturb.',
+  'notify.urgentDndOff': 'During Do Not Disturb they stay silent. In Android, turn on "Override Do Not Disturb" for Urgent reminders to hear them then too.',
   'notify.androidVersion': 'App version: {version}',
 
   // ---------- new look: sidebar, list, task window, comments, shortcuts ----------

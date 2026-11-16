@@ -12,6 +12,7 @@ import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.ReminderInfo
 import io.github.wnijhof.tickory.core.SyncSnapshot
 import io.github.wnijhof.tickory.core.TaskInfo
+import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.ReminderStore
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -73,6 +74,7 @@ class ReminderPipelineTest {
 
     @After
     fun tearDown() {
+        Prefs(app).urgentReminders = false
         AppClock.now = { System.currentTimeMillis() }
         TimeZone.setDefault(originalZone)
     }
@@ -94,6 +96,26 @@ class ReminderPipelineTest {
         assertNull("het alarm draagt geen gegevens van de taak", operation.savedIntent.extras)
 
         assertEquals("er is nog niets te melden", 0, notifications.size())
+    }
+
+    @Test
+    fun `dringend - het kanaal met wekkergeluid, het geluid herhaalt tot je reageert, en het mag door Niet storen`() {
+        Prefs(app).urgentReminders = true
+        ReminderEngine.onSynced(app, snapshot())
+        AppClock.now = { trigger }
+        fireAlarms()
+
+        val notification = notifications.getNotification("rem-00001", 1)
+        assertNotNull(notification)
+        assertEquals(Notifications.URGENT_CHANNEL_ID, notification.channelId)
+        assertEquals(Notification.CATEGORY_ALARM, notification.category)
+        assertTrue("het geluid herhaalt", notification.flags and Notification.FLAG_INSISTENT != 0)
+        assertEquals(listOf("Voltooien", "Over 10 minuten", "Over 1 uur"), notification.actions.map { it.title.toString() })
+        val channel = app.getSystemService(NotificationManager::class.java).getNotificationChannel(Notifications.URGENT_CHANNEL_ID)
+        assertEquals("Dringende herinneringen", channel.name.toString())
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
+        assertEquals(android.media.AudioAttributes.USAGE_ALARM, channel.audioAttributes.usage)
+        assertTrue(Notifications.enabled(app))
     }
 
     @Test

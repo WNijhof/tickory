@@ -1,12 +1,15 @@
 package io.github.wnijhof.tickory.reminders
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,11 +24,15 @@ import io.github.wnijhof.tickory.core.Ids
 import io.github.wnijhof.tickory.core.Lang
 import io.github.wnijhof.tickory.core.NoteReminders
 import io.github.wnijhof.tickory.core.PlannedReminder
+import io.github.wnijhof.tickory.store.Prefs
 import java.time.ZoneId
 
 /** De meldingen van herinneringen: het kanaal, de melding zelf met de twee knoppen, en het weghalen. */
 object Notifications {
     const val CHANNEL_ID = "reminders"
+
+    /** Het kanaal voor dringende herinneringen (zie Prefs.urgentReminders): wekkergeluid, mag door Niet storen als je dat toestaat. */
+    const val URGENT_CHANNEL_ID = "reminders_urgent"
 
     const val ACTION_COMPLETE = "io.github.wnijhof.tickory.action.COMPLETE"
     const val ACTION_SNOOZE = "io.github.wnijhof.tickory.action.SNOOZE"
@@ -57,10 +64,33 @@ object Notifications {
         manager.createNotificationChannel(channel)
     }
 
-    /** Mag de app nu meldingen tonen? (De toestemming op Android 13 en nieuwer, en het kanaal niet uitgezet.) */
+    /**
+     * Het kanaal "Dringende herinneringen": hoge prioriteit met het wekkergeluid van het toestel (als alarm, dus ook hoorbaar als
+     * het toestel op stil staat, net als een wekker) en trillen. Het verzoek om door Niet storen heen te gaan (setBypassDnd) honoreert
+     * Android alleen als de gebruiker dat voor dit kanaal aanzet; de web-app wijst de weg (openUrgentSettings).
+     */
+    fun ensureUrgentChannel(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val channel = NotificationChannel(URGENT_CHANNEL_ID, context.getString(R.string.channel_urgent), NotificationManager.IMPORTANCE_HIGH)
+        channel.description = context.getString(R.string.channel_urgent_description)
+        channel.enableVibration(true)
+        channel.setBypassDnd(true)
+        val sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        channel.setSound(sound, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        manager.createNotificationChannel(channel)
+    }
+
+    /** Het kanaal dat herinneringen nu gebruiken: dringend als dat op dit toestel is gekozen. */
+    fun channelFor(context: Context): String = if (Prefs(context).urgentReminders) URGENT_CHANNEL_ID else CHANNEL_ID
+
+    /** Komen dringende herinneringen door Niet storen heen (de gebruiker heeft dat voor het kanaal toegestaan)? */
+    fun urgentBypassesDnd(context: Context): Boolean =
+        context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(URGENT_CHANNEL_ID)?.canBypassDnd() == true
+
+    /** Mag de app nu meldingen tonen? (De toestemming op Android 13 en nieuwer, en het kanaal dat nu gebruikt wordt niet uitgezet.) */
     fun enabled(context: Context): Boolean {
         if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
-        val channel = context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(CHANNEL_ID)
+        val channel = context.getSystemService(NotificationManager::class.java)?.getNotificationChannel(channelFor(context))
         return channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE
     }
 
@@ -78,17 +108,19 @@ object Notifications {
             return // geen toestemming: Android zou de melding toch weggooien
         }
         ensureChannel(context)
+        val urgent = Prefs(context).urgentReminders
+        if (urgent) ensureUrgentChannel(context)
 
         val title = reminder.title.ifBlank { context.getString(R.string.task_untitled) }
         val text = note ?: defaultText(context, reminder)
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, if (urgent) URGENT_CHANNEL_ID else CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_reminder)
             .setColor(ContextCompat.getColor(context, R.color.notification_accent))
             .setContentTitle(title)
             .setContentText(text)
             // uitgeklapt: de hele titel als die lang is, en de hele toelichting
             .setStyle(NotificationCompat.BigTextStyle().bigText(if (title.length > 40) "$title\n$text" else text))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setCategory(if (urgent) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setWhen(reminder.triggerAtMs)
             .setShowWhen(true)
@@ -107,8 +139,11 @@ object Notifications {
             builder.addAction(0, context.getString(R.string.action_snooze_hour), actionIntent(context, ACTION_SNOOZE_HOUR, reminder))
         }
 
+        val notification = builder.build()
+        // dringend: het geluid herhaalt tot je de melding aanraakt, wegveegt of op een knop drukt (zoals een wekker)
+        if (urgent && !quiet) notification.flags = notification.flags or Notification.FLAG_INSISTENT
         try {
-            NotificationManagerCompat.from(context).notify(reminder.reminderId, NOTIFICATION_ID, builder.build())
+            NotificationManagerCompat.from(context).notify(reminder.reminderId, NOTIFICATION_ID, notification)
         } catch (_: SecurityException) {
             // de toestemming is tussen de controle en het tonen ingetrokken
         }

@@ -190,10 +190,23 @@ export function notificationsDialog({ store, actions, bridge, pushClient }) {
         if (s && !s.notifications) problems.push(row(t('notify.androidNoNotifications'), t('notify.androidAllow'), () => bridge.requestNotificationPermission()));
         if (s && !s.exactAlarms) problems.push(row(t('notify.androidNoExact'), t('notify.androidSettings'), () => bridge.openNotificationSettings()));
         if (s && s.batteryOptimized) problems.push(row(t('notify.androidBattery'), t('notify.androidBatterySettings'), () => bridge.openBatterySettings()));
+        // dringende herinneringen (alleen op dit toestel): als een wekker, tot je reageert; door Niet storen als Android het toestaat
+        const urgent = bridge.canUrgent() && s && h('div', { class: 'urgent-reminders' },
+          h('label', { class: 'check-row' },
+            h('input', {
+              type: 'checkbox', checked: Boolean(s.urgent), dataset: { fk: 'notify-urgent' },
+              onchange: (e) => { bridge.setUrgentReminders(e.target.checked); drawDevice(); },
+            }),
+            t('notify.urgent')),
+          h('p', { class: 'hint' }, t('notify.urgentHint')),
+          s.urgent && (s.urgentBypassDnd
+            ? h('p', { class: 'hint' }, t('notify.urgentDndOn'))
+            : row(t('notify.urgentDndOff'), t('notify.androidSettings'), () => bridge.openUrgentSettings())));
         replace(device,
           h('p', { class: 'hint' }, t('notify.androidInfo')),
           s && problems.length === 0 && h('p', { class: 'hint' }, t('notify.androidOk')),
           problems,
+          urgent,
           s?.appVersion && h('p', { class: 'hint' }, t('notify.androidVersion', { version: s.appVersion })));
         return;
       }

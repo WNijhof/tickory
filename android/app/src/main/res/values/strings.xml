@@ -60,6 +60,8 @@
     <!-- Meldingen -->
     <string name="channel_reminders">Herinneringen</string>
     <string name="channel_reminders_description">Meldingen voor de herinneringen bij je taken</string>
+    <string name="channel_urgent">Dringende herinneringen</string>
+    <string name="channel_urgent_description">Herinneringen die klinken als een wekker, tot je reageert</string>
     <string name="notification_reminder">Herinnering</string>
     <string name="notification_reminder_due">Herinnering · %1$s</string>
     <string name="notification_geo_enter">Je bent aangekomen bij %1$s</string>

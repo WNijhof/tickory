@@ -1182,9 +1182,11 @@ try {
       const log = (name, args) => { const l = JSON.parse(sessionStorage.getItem('android-calls') || '[]'); l.push([name, ...args]); sessionStorage.setItem('android-calls', JSON.stringify(l)); };
       window.TickoryAndroid = {
         setSession: (t) => log('setSession', [t]), remindersChanged: () => log('remindersChanged', []),
-        notificationStatus: () => JSON.stringify({ notifications: false, exactAlarms: false, batteryOptimized: true, appVersion: '0.3.0-test' }),
+        notificationStatus: () => JSON.stringify({ notifications: false, exactAlarms: false, batteryOptimized: true, appVersion: '0.3.0-test', urgent: sessionStorage.getItem('android-urgent') === '1', urgentBypassDnd: false }),
         requestNotificationPermission: () => log('requestNotificationPermission', []), openNotificationSettings: () => log('openNotificationSettings', []),
         openBatterySettings: () => log('openBatterySettings', []), changeServer: () => log('changeServer', []),
+        setUrgentReminders: (on) => { log('setUrgentReminders', [on]); sessionStorage.setItem('android-urgent', on ? '1' : '0'); },
+        openUrgentSettings: () => log('openUrgentSettings', []),
       };
     })();` });
   await evaluate(`sessionStorage.removeItem('android-calls')`);
@@ -1204,6 +1206,15 @@ try {
   await clickText('Meldingen toestaan');
   await clickText('Batterij-instellingen');
   assert.deepEqual((await calls()).filter((c) => c[0].startsWith('request') || c[0].startsWith('open')).map((c) => c[0]), ['requestNotificationPermission', 'openBatterySettings']);
+  // dringende herinneringen op deze telefoon: aan, dan de weg naar "Niet storen negeren", en weer uit
+  assert.equal(await evaluate(`document.querySelector('[data-fk="notify-urgent"]').checked`), false);
+  await evaluate(`document.querySelector('[data-fk="notify-urgent"]').click()`);
+  await waitFor(`document.querySelector('.urgent-reminders')?.textContent.includes('Bij Niet storen blijven ze stil')`, 'uitleg over Niet storen');
+  assert.equal(await evaluate(`document.querySelector('[data-fk="notify-urgent"]').checked`), true);
+  await evaluate(`document.querySelector('.urgent-reminders button').click()`);
+  await evaluate(`document.querySelector('[data-fk="notify-urgent"]').click()`);
+  await waitFor(`!document.querySelector('.urgent-reminders')?.textContent.includes('Bij Niet storen')`, 'weer uit');
+  assert.deepEqual((await calls()).filter((c) => c[0] === 'setUrgentReminders' || c[0] === 'openUrgentSettings'), [['setUrgentReminders', true], ['openUrgentSettings'], ['setUrgentReminders', false]]);
   await clickText('Sluiten', `document.querySelector('dialog[open]')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');
   // een wijziging aan een herinnering: Android hoort het (kort uitgesteld, één keer)

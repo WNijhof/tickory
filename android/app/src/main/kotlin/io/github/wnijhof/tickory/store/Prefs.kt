@@ -37,6 +37,14 @@ class Prefs(context: Context) {
         get() = prefs.getString(KEY_TOKEN, null)
         set(value) = prefs.edit { if (value == null) remove(KEY_TOKEN) else putString(KEY_TOKEN, value) }
 
+    /**
+     * Dringende herinneringen (een keuze per toestel, in de web-app onder Herinneringen en meldingen): een herinnering klinkt als
+     * een wekker, herhaalt het geluid tot je reageert, en komt door Niet storen heen als je dat in Android voor het kanaal toestaat.
+     */
+    var urgentReminders: Boolean
+        get() = prefs.getBoolean(KEY_URGENT, false)
+        set(value) = prefs.edit { putBoolean(KEY_URGENT, value) }
+
     fun setServer(origin: String, isLocal: Boolean) = prefs.edit {
         putString(KEY_ORIGIN, origin)
         putBoolean(KEY_LOCAL, isLocal)
@@ -54,5 +62,6 @@ class Prefs(context: Context) {
         const val KEY_LOCAL = "server_is_local"
         const val KEY_EXPIRED = "session_expired"
         const val KEY_TOKEN = "session_token_encrypted"
+        const val KEY_URGENT = "urgent_reminders"
     }
 }
