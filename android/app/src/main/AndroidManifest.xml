@@ -248,6 +248,23 @@
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 
+        <!-- De widget Notities (widget/NotesWidget.kt): de kaartjes komen uit NotesWidgetService, alleen door Android te binden. -->
+        <receiver
+            android:name=".widget.NotesWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_notes_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_notes_info" />
+        </receiver>
+        <service
+            android:name=".widget.NotesWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <!-- Heeft geen scherm: voert een tik op een regel van een widget uit (afvinken, taak openen) en sluit. -->
         <activity
             android:name=".widget.WidgetActionActivity"

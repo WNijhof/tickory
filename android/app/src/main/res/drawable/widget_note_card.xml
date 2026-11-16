@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De kaart van een notitie in de widget; de kleur komt van de notitie (een tint vanaf Android 12, zie NotesWidget). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_note_card" />
+    <corners android:radius="14dp" />
+</shape>

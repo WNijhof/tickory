@@ -93,6 +93,24 @@
     <string name="widget_add_task">Add task</string>
     <string name="widget_complete_task">Complete: %1$s</string>
     <string name="widget_open_task">Open task: %1$s</string>
+    <!-- The Notes widget (widget/NotesWidget.kt) -->
+    <string name="widget_notes_name">Notes</string>
+    <string name="widget_notes_description">Your notes as cards, pinned ones first</string>
+    <string name="widget_title_notes">Notes</string>
+    <plurals name="widget_note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="widget_empty_notes">No notes yet. Tap + for a new one.</string>
+    <string name="widget_new_note">New note</string>
+    <string name="widget_open_note">Open note: %1$s</string>
+    <string name="widget_note_untitled">Untitled</string>
+    <string name="widget_note_checklist">Done: %1$d/%2$d</string>
+    <string name="widget_note_shared">shared</string>
+    <string name="widget_preview_note_1">Groceries</string>
+    <string name="widget_preview_note_1_text">✓ Bread\n○ Milk\n○ Apples</string>
+    <string name="widget_preview_note_2">Holiday ideas</string>
+    <string name="widget_preview_note_2_text">Cycling on Texel, the lighthouse</string>
     <string name="widget_signed_out">Sign in via the app</string>
     <string name="widget_expired">Sign in again via the app</string>
     <string name="widget_loading">Loading…</string>

@@ -1,6 +1,6 @@
 <!--
 title: Widgets on Android
-description: The widgets of the Tickory Android app: Today, Project or list, Upcoming and an Add task button. Complete tasks from the home screen, also without internet, and add a task in a small window without opening the app; placing them, resizing, colours and what they do and do not do. From version 0.3.0.
+description: The widgets of the Tickory Android app: Today, Project or list, Upcoming, Notes and an Add task button. Complete tasks from the home screen, also without internet, and add a task in a small window without opening the app; placing them, resizing, colours and what they do and do not do. From version 0.3.0.
 -->
 <h1>Widgets on Android</h1>
 <p class="intro">A widget shows your tasks on the home screen of your phone and lets you complete them and add one there, without opening the app. The widgets are part of the <a href="android-app.html">Android app</a>; they do not exist in a browser.</p>
@@ -10,7 +10,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   <p>The widgets are in the Android app from version 0.3.0. They have been tested on a computer (the calculation rules, the data on the device, the queue, drawing on a simulated Android and the screen where you choose what a widget shows). How they look <strong>on a real phone and in your launcher</strong>, how resizing feels and how battery saving treats them has not been tried yet. If you notice something, report it on <a href="{{repo}}/issues">GitHub</a>.</p>
 </div>
 
-<h2>The four widgets</h2>
+<h2>The five widgets</h2>
 <div class="table-wrap">
   <table>
     <thead>
@@ -20,6 +20,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
       <tr><td><strong>Today</strong></td><td class="wrap-ok">What is overdue and what is due today, in the same order as in the app: by time first, then by priority. The date and the number of tasks are at the top. If there is nothing to do, it says so.</td></tr>
       <tr><td><strong>Project or list</strong></td><td class="wrap-ok">The open tasks of one place that you choose when you place the widget: the Inbox, a project (with its sections and subtasks), Today or Upcoming. You can place more of them, each with its own choice. Saved filters cannot be shown yet; the list of choices is prepared for them.</td></tr>
       <tr><td><strong>Upcoming</strong></td><td class="wrap-ok">The next two weeks starting tomorrow, by day with a heading. What is overdue is in Today.</td></tr>
+      <tr><td><strong>Notes</strong></td><td class="wrap-ok">Your <a href="notes.html">notes</a> as cards in their own colour: pinned ones first, then the most recently changed. Each card shows the title, a few lines of text (a checklist with ○ and ✓) and, for example, "1 of 3 done". Tap a card to open the note, or + for a new note. Archived notes and the bin are not included; notes someone shared with you are.</td></tr>
       <tr><td><strong>Add task</strong></td><td class="wrap-ok">A button (small, 1×1 or wider) that opens the <a href="#small-window">small Add task window</a> over your home screen, in the project you chose last time (at first the Inbox).</td></tr>
     </tbody>
   </table>
@@ -127,6 +128,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <ul>
   <li>Saved filters in a widget. The list of choices is prepared; filters come later.</li>
   <li>Editing a task in the widget, postponing it or giving it a date; open the task for that.</li>
+  <li>Editing a note in the widget or ticking off an item of a checklist; open the note for that.</li>
   <li>In the small window, <em>choosing</em> a section, label, reminder or a day other than today or tomorrow: type it (<code>/section</code>, <code>@label</code>, <code>!30m</code>), or tap <em>Open in the app</em>.</li>
   <li>Widgets on the lock screen or in a browser.</li>
 </ul>

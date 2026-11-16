@@ -76,6 +76,17 @@ test('widgetFingerprint verandert bij alles wat in de widgets staat en niet bij 
   await c.actions.updateProject(project, { name: 'Werk 2' });
   await c.sync.syncNow();
   assert.notEqual(widgetFingerprint(c.store.view), withProject, 'de naam van een project staat in de widget');
+  // de widget Notities: een nieuwe notitie, een andere titel, tekst, vastpinnen en kleur veranderen hem
+  let before = widgetFingerprint(c.store.view);
+  const note = await c.actions.addNote({ title: 'Boodschappen' });
+  await c.sync.syncNow();
+  assert.notEqual(widgetFingerprint(c.store.view), before, 'een nieuwe notitie');
+  for (const [name, changes] of [['titel', { title: 'Boodschappen zaterdag' }], ['tekst', { content: '- [ ] melk' }], ['vastpinnen', { is_pinned: true }], ['kleur', { background: 'yellow' }]]) {
+    before = widgetFingerprint(c.store.view);
+    await c.actions.updateNote(note, changes);
+    await c.sync.syncNow();
+    assert.notEqual(widgetFingerprint(c.store.view), before, name);
+  }
 });
 
 test('Android hoort een wijziging voor de widgets één keer per reeks, en niet buiten de app', async () => {

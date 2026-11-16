@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De kaarten van de notitiewidget in de kleuren van de notities, donkere weergave (gelijk aan client/notes.css). -->
+<resources>
+    <color name="widget_note_card">#24292E</color>
+    <color name="widget_note_yellow">#3D3820</color>
+    <color name="widget_note_orange">#432F1F</color>
+    <color name="widget_note_brown">#3A2F27</color>
+    <color name="widget_note_red">#452624</color>
+    <color name="widget_note_pink">#432438</color>
+    <color name="widget_note_purple">#33284A</color>
+    <color name="widget_note_indigo">#282D4F</color>
+    <color name="widget_note_blue">#1F3549</color>
+    <color name="widget_note_teal">#1D3C39</color>
+    <color name="widget_note_green">#233B27</color>
+    <color name="widget_note_dots">#22272C</color>
+    <color name="widget_note_grid">#1F2A38</color>
+    <color name="widget_note_lines">#1D2C3B</color>
+    <color name="widget_note_waves">#213A26</color>
+    <color name="widget_note_groceries">#432826</color>
+    <color name="widget_note_music">#31284A</color>
+    <color name="widget_note_travel">#1C3A3B</color>
+    <color name="widget_note_code">#212D40</color>
+</resources>

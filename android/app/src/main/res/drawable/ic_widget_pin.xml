@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Een punaise: de notitie is vastgepind. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@color/widget_text_soft"
+        android:pathData="M15,3l6,6l-2,0.5l-3.5,3.5l0.5,4.5l-1.5,1.5l-3.5,-3.5l-5,5l-1,0l0,-1l5,-5l-3.5,-3.5l1.5,-1.5l4.5,0.5l3.5,-3.5z" />
+</vector>

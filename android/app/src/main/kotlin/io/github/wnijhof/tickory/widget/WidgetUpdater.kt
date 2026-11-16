@@ -39,6 +39,8 @@ object WidgetUpdater {
             val addIds = manager.getAppWidgetIds(ComponentName(app, AddWidgetProvider::class.java))
             for (id in addIds) manager.updateAppWidget(id, AddWidgetProvider.render(app, manager, id))
             if (addIds.isNotEmpty()) any = true
+            val noteIds = manager.getAppWidgetIds(ComponentName(app, NotesWidgetProvider::class.java))
+            if (noteIds.isNotEmpty()) NotesWidget.update(app, manager, noteIds)
             if (any) WidgetClock.scheduleMidnight(app) else WidgetClock.cancel(app)
         } catch (e: RuntimeException) {
             // een widget die niet getekend kan worden (launcher weg, gegevens onleesbaar) mag niets anders breken

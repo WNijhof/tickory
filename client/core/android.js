@@ -113,7 +113,8 @@ export function addContextFromHash(hash, knowsProject = () => true) {
 
 /**
  * Een vingerafdruk van alles wat in de widgets van de Android-app staat: van elke open taak de titel, datum, prioriteit,
- * plek en volgorde, en de namen van de projecten. Verandert hij, dan moet de Android-app de widgets verversen.
+ * plek en volgorde, de namen van de projecten, en van de notities (de widget Notities) wat op een kaartje staat. Verandert hij,
+ * dan moet de Android-app de widgets verversen.
  */
 export function widgetFingerprint(view) {
   const lines = [];
@@ -125,7 +126,13 @@ export function widgetFingerprint(view) {
   for (const p of view.projects.values()) projects.push([p.id, p.name, p.parent_id ?? '', p.is_archived ? 1 : 0, p.order_key].join(''));
   const sections = [];
   for (const s of view.sections.values()) sections.push([s.id, s.name, s.order_key, s.is_archived ? 1 : 0].join(''));
-  return [lines.sort().join(''), projects.sort().join(''), sections.sort().join('')].join('');
+  // notities: de kop, de lengte en het tijdstip van de laatste wijziging (de tekst zelf zou bij veel notities te groot worden),
+  // vastgepind, archief, prullenbak en kleur
+  const notes = [];
+  for (const n of view.notes?.values() ?? []) {
+    notes.push([n.id, n.title ?? '', (n.content ?? '').length, n.updated_at ?? '', n.is_pinned ? 1 : 0, n.is_archived ? 1 : 0, n.trashed_at ?? '', n.background ?? ''].join(''));
+  }
+  return [lines.sort().join(''), projects.sort().join(''), sections.sort().join(''), notes.sort().join('')].join('');
 }
 
 /**

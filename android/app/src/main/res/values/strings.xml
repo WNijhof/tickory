@@ -98,6 +98,24 @@
     <string name="widget_add_task">Taak toevoegen</string>
     <string name="widget_complete_task">Voltooien: %1$s</string>
     <string name="widget_open_task">Taak openen: %1$s</string>
+    <!-- De widget Notities (widget/NotesWidget.kt) -->
+    <string name="widget_notes_name">Notities</string>
+    <string name="widget_notes_description">Je notities als kaartjes, vastgepinde eerst</string>
+    <string name="widget_title_notes">Notities</string>
+    <plurals name="widget_note_count">
+        <item quantity="one">%d notitie</item>
+        <item quantity="other">%d notities</item>
+    </plurals>
+    <string name="widget_empty_notes">Nog geen notities. Tik op + voor een nieuwe.</string>
+    <string name="widget_new_note">Nieuwe notitie</string>
+    <string name="widget_open_note">Notitie openen: %1$s</string>
+    <string name="widget_note_untitled">Zonder titel</string>
+    <string name="widget_note_checklist">%1$d van %2$d gedaan</string>
+    <string name="widget_note_shared">gedeeld</string>
+    <string name="widget_preview_note_1">Boodschappen</string>
+    <string name="widget_preview_note_1_text">✓ Brood\n○ Melk\n○ Appels</string>
+    <string name="widget_preview_note_2">Ideeën voor de vakantie</string>
+    <string name="widget_preview_note_2_text">Fietsen op Texel, de vuurtoren</string>
     <string name="widget_signed_out">Log in in de app</string>
     <string name="widget_expired">Log opnieuw in in de app</string>
     <string name="widget_loading">Bezig met laden…</string>

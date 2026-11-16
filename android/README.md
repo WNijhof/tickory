@@ -335,7 +335,7 @@ maakt er een titel en beschrijving van en opent het venster Taak toevoegen, in d
 
 ## Widgets
 
-Vier widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
+Vijf widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
 meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 
 | Widget | Wat |
@@ -343,6 +343,7 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
 | Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag of Aankomend; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, en gereserveerd `filter:<id>`); filters komen erbij door een bron en een regel in `WidgetChoices` toe te voegen |
 | Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
+| Notities | Je notities (`NotesWidget`, `WidgetNotes`) als kaartjes in de kleur van de notitie, vastgepinde eerst en dan de laatst gewijzigde: kop, een paar regels zonder Markdown (checklist met ○ en ✓), "1 van 3 gedaan" en "gedeeld". Tik opent de notitie (`note_<id>` via `WidgetActionActivity`), "+" een nieuwe notitie, de kop de notities |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie

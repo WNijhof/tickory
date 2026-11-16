@@ -43,6 +43,7 @@ data class WidgetLabel(val id: String, val name: String)
  *
  * @property accountId het id van de gebruiker van wie dit is; wisselt dat, dan gaat alles weg (zie WidgetStore)
  * @property inboxId het project dat de Inbox van deze gebruiker is
+ * @property notes de notities voor de notitiewidget (eigen en met de gebruiker gedeelde), in de volgorde van [WidgetNotes.order]
  */
 data class WidgetSnapshot(
     val accountId: String,
@@ -51,6 +52,7 @@ data class WidgetSnapshot(
     val projects: List<WidgetProject>,
     val sections: List<WidgetSection>,
     val labels: List<WidgetLabel>,
+    val notes: List<WidgetNote> = emptyList(),
 ) {
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
@@ -119,7 +121,9 @@ object WidgetParser {
             val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
             WidgetLabel(id, SyncParser.cleanTitle(o.text("name")))
         }
-        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels)
+        // de notities (een server zonder notities stuurt de lijst niet mee: dan geen notities)
+        val notes = WidgetNotes.parse(root.list("notes"), accountId)
+        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes)
     }
 }
 
@@ -141,6 +145,12 @@ object WidgetCodec {
             "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey, "readOnly" to it.readOnly) },
             "sections" to s.sections.map { mapOf("id" to it.id, "project" to it.projectId, "name" to it.name, "archived" to it.archived, "order" to it.orderKey) },
             "labels" to s.labels.map { mapOf("id" to it.id, "name" to it.name) },
+            "notes" to s.notes.map {
+                mapOf(
+                    "id" to it.id, "title" to it.title, "excerpt" to it.excerpt, "background" to it.background, "pinned" to it.pinned,
+                    "updated" to it.updatedAt, "done" to it.done.toLong(), "total" to it.total.toLong(), "shared" to it.shared,
+                )
+            },
         ),
     )
 
@@ -169,6 +179,15 @@ object WidgetCodec {
             )
         }
         val labels = objects("labels").mapNotNull { o -> WidgetLabel(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "") }
-        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels)
+        // bewaard door een oudere versie: zonder "notes", dan geen notities (tot de volgende verversing)
+        val notes = objects("notes").mapNotNull { o ->
+            WidgetNote(
+                id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null,
+                title = o.text("title") ?: "", excerpt = o.text("excerpt") ?: "", background = o.text("background")?.takeIf { it in WidgetNotes.BACKGROUNDS },
+                pinned = o.flag("pinned"), updatedAt = o.text("updated") ?: "", done = o.whole("done")?.toInt() ?: 0, total = o.whole("total")?.toInt() ?: 0,
+                shared = o.flag("shared"),
+            )
+        }
+        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes)
     }
 }
