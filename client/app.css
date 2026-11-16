@@ -884,3 +884,10 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 
 /* een knop in de kop van een groep (Opnieuw plannen bij Te laat) */
 .group-action { margin-left: auto; font-size: 0.85rem; }
+
+/* de samenvatting boven Vandaag: een smalle balk met hoeveel van je dagdoel al gedaan is */
+.stats-strip-today { margin-bottom: 12px; }
+.stats-strip-bar { position: relative; flex: 1 1 80px; max-width: 160px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.stats-strip-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); border-radius: inherit; }
+.stats-strip-fill.is-met { background: var(--success, #2e9d5b); }
+.stats-strip-link { margin-left: auto; font-size: 0.85rem; }

@@ -140,6 +140,8 @@ export async function listsScenario(c: any) {
   assert.equal((serverState().tasks as any[]).find((x) => x.id === 'e2elijstouder001').is_collapsed, false, 'het uitklappen verandert de taak zelf niet');
   await click('[data-fk="fold:e2elijstouder001"]');
   await waitFor(`!document.querySelector('.task[data-id="e2elijstkind0001"]')`, 'weer ingeklapt');
+  await waitFor(`/Vandaag \\d+\\/5/.test(document.querySelector('[data-fk="today-summary"]')?.textContent ?? '')`, 'de samenvatting boven Vandaag (tegenover het dagdoel van 5)', 15_000);
+  assert.ok(await evaluate(`Boolean(document.querySelector('[data-fk="today-summary"] [data-fk="productivity-open"]'))`), 'met een link naar het overzicht');
   step('Vandaag: subtaken van een taak uitklappen (een niveau dieper, zonder de taak te wijzigen) en weer inklappen; vet in de titel, zonder sterretjes voor schermlezers');
 
   // ---- te laat: alles in één keer opnieuw plannen, en ongedaan maken ----

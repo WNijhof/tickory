@@ -68,7 +68,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   const storage = persist ? storageOrNull() : null;
   const visible = () => {
     const r = getRoute();
-    return r.type === 'productivity' || (r.type === 'completed' && !r.id);
+    return r.type === 'productivity' || r.type === 'today' || (r.type === 'completed' && !r.id);
   };
   const feed = createStatsFeed({
     fetchStats: ({ tz }) => api.stats({ tz }),
@@ -156,6 +156,24 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
       item(t('productivity.week'), ofGoal(s.week), s.week.met && h('span', { class: 'stats-strip-met' }, icon('check'), h('span', { class: 'sr-only' }, t('productivity.goalMet')))),
       s.dayStreak && item(t('productivity.dayStreak'), t('productivity.streakDays', { count: s.dayStreak.current })),
       open);
+  }
+
+  /**
+   * De korte samenvatting boven Vandaag: hoeveel je vandaag afvinkte tegenover je dagdoel, en je reeks. Niets zonder dagdoel
+   * (0) of zolang er nog geen cijfers zijn (dan geen lege strook boven je taken).
+   */
+  function todaySummary({ view, today }) {
+    const s = summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 });
+    ensureFresh(s?.stale);
+    if (!s || !(s.today.goal > 0)) return null;
+    const fill = h('span', { class: `stats-strip-fill${s.today.met ? ' is-met' : ''}` });
+    fill.style.width = `${Math.round(Math.min(1, s.today.count / s.today.goal) * 100)}%`; // via de CSSOM: een style-attribuut staat de CSP niet toe
+    return h('section', { class: 'stats-strip stats-strip-today', 'aria-label': t('productivity.headerLabel'), dataset: { fk: 'today-summary' } },
+      h('span', { class: 'stats-strip-item' }, h('span', { class: 'stats-strip-label' }, t('productivity.today')), ' ', h('strong', { class: 'stats-strip-value' }, ofGoal(s.today)),
+        s.today.met && h('span', { class: 'stats-strip-met' }, icon('check'), h('span', { class: 'sr-only' }, t('productivity.goalMet')))),
+      h('span', { class: 'stats-strip-bar', 'aria-hidden': 'true' }, fill),
+      s.dayStreak && s.dayStreak.current > 0 && h('span', { class: 'stats-strip-item' }, h('span', { class: 'stats-strip-label' }, t('productivity.dayStreak')), ' ', h('strong', { class: 'stats-strip-value' }, t('productivity.streakDays', { count: s.dayStreak.current }))),
+      h('button', { class: 'link-button stats-strip-link', type: 'button', dataset: { fk: 'productivity-open' }, onclick: () => navigate({ type: 'productivity' }) }, t('productivity.open')));
   }
 
   // ---------- de doelen (blijvende velden: een nieuw veld bij elke keer tekenen zou tijdens het typen zijn tekst kwijtraken) ----------
@@ -342,5 +360,5 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
     };
   };
 
-  return { completedHeader, forget: () => feed.forget(), feed };
+  return { completedHeader, todaySummary, forget: () => feed.forget(), feed };
 }

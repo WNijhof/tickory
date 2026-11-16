@@ -91,6 +91,8 @@ const undo = createUndo();
 let selection;
 /** Notities (ui/notes.js): om een notitie te openen vanuit een melding. */
 let notesUi = null;
+/** Het productiviteitsoverzicht (ui/productivity.js): ook voor de samenvatting boven Vandaag. */
+let productivity = null;
 /** De menubalk onderaan op een telefoon (ui/bottomNav.js). */
 let bottomNav = null;
 /** Sjablonen (ui/templateUi.js); pas aangemaakt zodra opslag en handelingen er zijn. */
@@ -314,6 +316,9 @@ const handlers = {
   toggleProject: (project) => actions.updateProject(project.id, { is_collapsed: !project.is_collapsed }),
   toggleSection: (section) => actions.updateSection(section.id, { is_collapsed: !section.is_collapsed }),
   toggleTask: (task) => actions.updateTask(task.id, { is_collapsed: !task.is_collapsed }),
+
+  /** De samenvatting boven Vandaag (ui/productivity.js); niets zolang die er nog niet is. */
+  todaySummary: (ctx) => productivity?.todaySummary(ctx) ?? null,
 
   /** "Opnieuw plannen" bij Te laat (Vandaag): alle te late taken die je kunt bewerken naar een gekozen dag; tijd en herhaling blijven. */
   async rescheduleOverdue() {
@@ -821,7 +826,7 @@ async function boot() {
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
   // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
-  const productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
+  productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
   installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route }); // meldingen bij samenwerken (ui/inbox.js)
   notesUi = installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo, api }); // notities (ui/notes.js), onder Meldingen

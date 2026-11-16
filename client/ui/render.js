@@ -446,8 +446,9 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
       lead: icon('today'),
       actions: [optionsButton(handlers, route, opts)],
       nodes: grouped
-        ? [...optionGroups(grouped, (g) => rows(g.rows, true)), total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }), addInline(handlers, { due: 'today' })]
+        ? [handlers.todaySummary?.({ view, today }), ...optionGroups(grouped, (g) => rows(g.rows, true)), total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }), addInline(handlers, { due: 'today' })]
         : [
+          handlers.todaySummary?.({ view, today }), // hoeveel je vandaag afvinkte tegenover je doel (ui/productivity.js)
           list.overdue.length > 0 && group({
             title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length,
             // zoals Todoist: alle te late taken in één keer naar een andere dag (met ongedaan maken)
