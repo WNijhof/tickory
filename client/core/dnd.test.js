@@ -342,15 +342,29 @@ function projects() {
 const kids = (state, parent) => [...state.projects.values()].filter((p) => (p.parent_id ?? null) === parent && p.id !== 'inbox-alice').sort(byOrder).map((p) => p.id);
 const performProject = (w, id, plan) => { for (const c of projectMoveCommands(w.state, id, plan)) applyCommand(w.state, c, NOW, 'alice'); };
 
-test('canReorderProject: alleen de eigenaar; de Inbox en een gearchiveerd project niet; zonder bekende gebruiker wel', () => {
+test('canReorderProject: elk lid (de volgorde is persoonlijk); de Inbox en een gearchiveerd project niet; zonder bekende gebruiker wel', () => {
   const w = projects();
   assert.equal(canReorderProject(w.state, 'A', 'alice'), true);
   assert.equal(canReorderProject(w.state, 'B', 'alice'), true);
-  assert.equal(canReorderProject(w.state, 'E', 'alice'), false, 'lid, geen eigenaar');
+  assert.equal(canReorderProject(w.state, 'E', 'alice'), true, 'lid, geen eigenaar: de eigen volgorde');
   assert.equal(canReorderProject(w.state, 'inbox-alice', 'alice'), false);
   assert.equal(canReorderProject(w.state, 'F', 'alice'), false);
   assert.equal(canReorderProject(w.state, 'weg', 'alice'), false);
   assert.equal(canReorderProject(w.state, 'E', null), true);
+});
+
+test('een lid dat geen eigenaar is: schuiven tussen projecten met dezelfde bovenliggende wel, ergens onder hangen of eruit halen niet', () => {
+  const w = projects();
+  assert.deepEqual(planProjectDrop(w.state, { dragId: 'E', overId: 'A', zone: 'before', userId: 'alice' }), { parent_id: null, beforeId: 'A' });
+  assert.equal(planProjectDrop(w.state, { dragId: 'E', overId: 'B', zone: 'child', userId: 'alice' }), null, 'onder een ander project');
+  assert.equal(planProjectDrop(w.state, { dragId: 'E', overId: 'B', zone: 'before', userId: 'alice' }), null, 'naast een subproject');
+  assert.equal(planProjectKey(w.state, 'E', 'indent', { userId: 'alice' }).blocked, 'denied');
+  assert.equal(planProjectKey(w.state, 'E', 'up', { userId: 'alice' }).kind, 'moved');
+  // een subproject van een gedeeld project, bij een lid: eruit halen naar boven kan niet
+  w.state.projects.set('E1', { id: 'E1', name: 'E1', parent_id: 'E', order_key: 'a', is_deleted: false });
+  w.state.members.set('m3', { id: 'm3', project_id: 'E1', user_id: 'alice', role: 'member', is_deleted: false });
+  assert.equal(planProjectDropToTop(w.state, { dragId: 'E1', userId: 'alice' }), null);
+  assert.equal(planProjectKey(w.state, 'E1', 'outdent', { userId: 'alice' }).blocked, 'denied');
 });
 
 test('planProjectDrop: volgorde wijzigen op het hoogste niveau', () => {
@@ -397,13 +411,13 @@ test('planProjectDrop: geen cirkels, niet onder de Inbox, niet op jezelf, niet o
   assert.equal(planProjectDrop(w.state, { dragId: 'A', overId: 'diep', zone: 'child', userId: 'alice' }), null, 'ook niet onder een kleinkind');
 });
 
-test('planProjectDrop: een lid (geen eigenaar) kan niets verplaatsen, en de Inbox ook niet', () => {
+test('planProjectDrop: een lid (geen eigenaar) verschuift alleen in de eigen volgorde, en de Inbox kan niet', () => {
   const w = projects();
-  assert.equal(planProjectDrop(w.state, { dragId: 'E', overId: 'A', zone: 'before', userId: 'alice' }), null);
+  assert.deepEqual(planProjectDrop(w.state, { dragId: 'E', overId: 'A', zone: 'before', userId: 'alice' }), { parent_id: null, beforeId: 'A' });
   assert.equal(planProjectDrop(w.state, { dragId: 'E', overId: 'A', zone: 'child', userId: 'alice' }), null);
   assert.equal(planProjectDrop(w.state, { dragId: 'inbox-alice', overId: 'A', zone: 'after', userId: 'alice' }), null);
-  assert.equal(planProjectDropToTop(w.state, { dragId: 'E', userId: 'alice' }), null);
-  assert.equal(planProjectKey(w.state, 'E', 'up', { userId: 'alice' }).blocked, 'denied');
+  assert.deepEqual(planProjectDropToTop(w.state, { dragId: 'E', userId: 'alice' }), { parent_id: null, beforeId: 'A' });
+  assert.equal(planProjectKey(w.state, 'E', 'up', { userId: 'alice' }).kind, 'moved');
   // maar je kunt wel een project van jou onder een project van iemand anders... (de server staat het toe) of ernaast zetten
   assert.ok(planProjectDrop(w.state, { dragId: 'D', overId: 'E', zone: 'after', userId: 'alice' }));
 });

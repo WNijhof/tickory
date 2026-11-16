@@ -94,7 +94,7 @@ export function sidebar({ view, today, route, handlers, me = null }) {
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('nav.addProject'), title: t('nav.addProject'), onclick: () => handlers.addProject() }, icon('plus')),
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('template.menu.fromTemplate'), title: t('template.menu.fromTemplate'), dataset: { fk: 'nav-from-template' }, onclick: () => handlers.projectFromTemplate() }, icon('template')))),
       navProjects(view).map(({ project, depth, hasChildren, collapsed }) => h('div', { class: 'nav-row', dataset: { depth: String(Math.min(depth, 3)), hasChildren: String(hasChildren && !collapsed) } },
-        hasChildren && canEditProject(view, project.id, me?.id) // inklappen hoort bij het project: een lezer wijzigt het niet
+        hasChildren // inklappen is persoonlijk (ook voor een lezer): op de server een eigen voorkeur, zie server/projectPrefs.ts
           ? h('button', {
             class: 'nav-toggle', type: 'button', 'aria-expanded': String(!collapsed), dataset: { fk: `toggle:${project.id}` },
             'aria-label': collapsed ? t('nav.expand', { name: project.name }) : t('nav.collapse', { name: project.name }),
@@ -505,11 +505,12 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost ${cls}`, type: 'button', onclick, ...extra },
     icon(iconName), h('span', { class: 'btn-label' }, label));
   const style = viewStyleOf(project);
-  // een project dat je alleen leest: niets toevoegen, slepen of indelen; de weergave kiest wie kan bewerken (ze geldt voor iedereen)
+  // een project dat je alleen leest: niets toevoegen, slepen of indelen. De weergave kiest iedereen voor zichzelf (in een gedeeld
+  // project een eigen voorkeur, zie server/projectPrefs.ts).
   const readOnly = !canEditProject(view, project.id, me?.id);
   const actions = [
     style === 'list' && optionsButton(handlers, route, opts),
-    !readOnly && viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
+    viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
     headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
     !inbox && headButton('btn-share', readOnly ? 'eye' : 'users', readOnly ? t('project.members') : isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),
     !inbox && headButton('btn-menu', 'more', t('project.menu'), () => handlers.projectMenu(project)),

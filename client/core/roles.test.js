@@ -40,7 +40,7 @@ test('een lezer wijzigt niets aan taken, secties, bijlagen of het project, ook n
     ['task_delete', { id: 'T' }], ['task_complete', { id: 'T' }], ['task_move', { id: 'T', project_id: 'inbox-u-carol' }], ['task_move', { id: 'T', section_id: null }],
     ['task_move', { id: 'TQ', project_id: 'P' }], ['task_move', { id: 'TM', project_id: 'SUB' }],
     ['section_add', { id: 'n2', project_id: 'P', name: 'x' }], ['section_update', { id: 'S', name: 'x' }], ['section_delete', { id: 'S' }],
-    ['project_update', { id: 'P', name: 'x' }], ['project_update', { id: 'SUB', is_collapsed: true }], ['project_add', { id: 'n3', name: 'x', parent_id: 'P' }],
+    ['project_update', { id: 'P', name: 'x' }], ['project_update', { id: 'SUB', name: 'x', is_collapsed: true }], ['project_add', { id: 'n3', name: 'x', parent_id: 'P' }],
     ['project_update', { id: 'MINE', parent_id: 'P' }], ['attachment_delete', { id: 'A' }],
     ['task_restore', { id: 'gone' }], ['section_restore', { id: 'gone' }],
   ];
@@ -55,7 +55,7 @@ test('een lezer wijzigt niets aan taken, secties, bijlagen of het project, ook n
   assert.equal(snap(s), withDone, 'heropenen ook niet');
 });
 
-test('een lezer mag wel: reageren, eigen herinneringen, en in zijn eigen projecten gewoon alles', () => {
+test('een lezer mag wel: reageren, eigen herinneringen, eigen projectvoorkeuren, en in zijn eigen projecten gewoon alles', () => {
   const s = world();
   run(s, 'comment_add', { id: 'c1', task_id: 'T', content: 'Leuk' });
   run(s, 'reminder_add', { id: 'r1', task_id: 'T', type: 'relative', minute_offset: 10 });
@@ -65,6 +65,11 @@ test('een lezer mag wel: reageren, eigen herinneringen, en in zijn eigen project
   assert.ok(s.tasks.has('n1') && s.tasks.get('TQ').checked, 'in Q is Carol lid');
   run(s, 'task_move', { id: 'n1', project_id: 'MINE' });
   assert.equal(s.tasks.get('n1').project_id, 'MINE');
+  // eigen voorkeuren in een project dat ze alleen leest: favoriet, ingeklapt, weergave en volgorde (zoals de server, projectPrefs.ts)
+  run(s, 'project_update', { id: 'SUB', is_collapsed: true });
+  run(s, 'project_update', { id: 'P', is_favorite: true, view_style: 'board', parent_id: null });
+  assert.equal(s.projects.get('SUB').is_collapsed, true);
+  assert.deepEqual([s.projects.get('P').is_favorite, s.projects.get('P').view_style], [true, 'board']);
 });
 
 test('toewijzen kan alleen aan wie kan bewerken; verhuist een taak naar een project waar de toegewezene lezer is, dan vervalt het', () => {

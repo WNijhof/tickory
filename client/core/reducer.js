@@ -211,6 +211,17 @@ function editedProject(state, entityName, row) {
   }
 }
 
+// Favoriet, ingeklapt, weergave en volgorde van een project zijn persoonlijk: in een gedeeld project bewaart de server ze als eigen
+// voorkeur van een lid dat geen eigenaar is (server/projectPrefs.ts), dus dat mag ook een lezer.
+const PERSONAL_PROJECT_FIELDS = ['is_favorite', 'is_collapsed', 'view_style', 'order_key'];
+
+/** Wijzigt dit project_update alleen eigen voorkeuren (de rest gelijk aan wat er al staat)? Zoals de server. */
+function onlyPersonal(args, existing) {
+  const keys = Object.keys(args).filter((k) => k !== 'id');
+  if (!keys.some((k) => PERSONAL_PROJECT_FIELDS.includes(k))) return false;
+  return keys.every((k) => PERSONAL_PROJECT_FIELDS.includes(k) || JSON.stringify(args[k] ?? null) === JSON.stringify(existing[k] ?? null));
+}
+
 /** Toewijzen kan alleen aan wie in het project kan bewerken (een lezer niet), zoals de server (die geeft anders INVALID_ARG). */
 function mayAssign(state, userId, projectId, assigneeId) {
   if (!userId || assigneeId === null || assigneeId === undefined) return true;
@@ -505,7 +516,8 @@ export function applyCommand(state, cmd, now, userId = null) {
       const existing = state[e.resource].get(args.id);
       if (existing) {
         const edited = editedProject(state, e.name, existing);
-        if (edited !== null && !mayEdit(state, userId, edited)) return undefined;
+        const personal = e.name === 'project' && m[2] === 'update' && onlyPersonal(args, existing);
+        if (edited !== null && !personal && !mayEdit(state, userId, edited)) return undefined;
         if (e.name === 'project' && m[2] === 'update' && has(args, 'parent_id') && args.parent_id && args.parent_id !== (existing.parent_id ?? null) && !mayEdit(state, userId, args.parent_id)) return undefined;
         if (e.name === 'task' && m[2] === 'update' && has(args, 'assignee_id') && !mayAssign(state, userId, existing.project_id, args.assignee_id)) return undefined;
       }

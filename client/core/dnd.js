@@ -215,11 +215,19 @@ export function planTaskKey(view, taskId, command, { isVisible = (t) => !t.check
 
 // ---------- projecten ----------
 
-/** Alleen de eigenaar verplaatst een project; de Inbox en een gearchiveerd project helemaal niet. Zonder bekende gebruiker (voor de eerste sync) telt iedereen als eigenaar. */
+/**
+ * Een project in de zijbalk verschuiven mag elk lid: de volgorde is persoonlijk (in een gedeeld project een eigen voorkeur, zie
+ * server/projectPrefs.ts). De Inbox en een gearchiveerd project niet.
+ */
 export function canReorderProject(view, projectId, userId) {
   const project = view.projects.get(projectId);
   if (!project || isInboxId(projectId) || isArchivedProject(view, projectId)) return false;
-  return !userId || roleIn(view, projectId, userId) === 'owner';
+  return !userId || roleIn(view, projectId, userId) !== null;
+}
+
+/** Een project onder een ander hangen of eruit halen verandert het project voor iedereen: alleen de eigenaar. Zonder bekende gebruiker (voor de eerste sync) telt iedereen als eigenaar. */
+export function canNestProject(view, projectId, userId) {
+  return canReorderProject(view, projectId, userId) && (!userId || roleIn(view, projectId, userId) === 'owner');
 }
 
 /** De broers en zussen van een project op volgorde (dezelfde lijst als op de server), zonder `exceptId`. */
@@ -260,6 +268,8 @@ export function planProjectDrop(view, { dragId, overId, zone, userId = null, ove
     if (zone === 'child' || (over.parent_id ?? null) !== (drag.parent_id ?? null)) return null;
   }
   const nested = zone === 'child' || (zone === 'after' && overExpanded && !favoritesOnly);
+  // geen eigenaar: alleen schuiven tussen projecten met dezelfde bovenliggende
+  if (!canNestProject(view, dragId, userId) && (nested || (over.parent_id ?? null) !== (drag.parent_id ?? null))) return null;
   if (nested) {
     if (!validParent(view, dragId, over.id) || isArchivedProject(view, over.id)) return null;
     const first = zone === 'after' ? projectSiblings(view, over.id, dragId)[0] : undefined;
@@ -276,6 +286,7 @@ export function planProjectDrop(view, { dragId, overId, zone, userId = null, ove
 export function planProjectDropToTop(view, { dragId, userId = null }) {
   const drag = view.projects.get(dragId);
   if (!drag || !canReorderProject(view, dragId, userId)) return null;
+  if ((drag.parent_id ?? null) !== null && !canNestProject(view, dragId, userId)) return null; // eruit halen: alleen de eigenaar
   const first = projectSiblings(view, null, dragId).find((p) => !isInboxId(p.id));
   return finishProject(view, drag, { parent_id: null, beforeId: first?.id ?? null });
 }
@@ -329,6 +340,7 @@ export function planProjectKey(view, projectId, command, { userId = null, favori
     return done({ parent_id, beforeId: after?.id ?? null }, { kind: 'moved' });
   }
   if (favoritesOnly) return { blocked: 'unknown' };
+  if ((command === 'indent' || command === 'outdent') && !canNestProject(view, projectId, userId)) return { blocked: 'denied' };
   if (command === 'indent') {
     if (!prev || !validParent(view, projectId, prev.id)) return { blocked: 'noPrevious' };
     return done({ parent_id: prev.id, beforeId: null }, { kind: 'indented', parent: prev.name });

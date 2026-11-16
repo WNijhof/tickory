@@ -1,7 +1,8 @@
 // De weergave van een project (lijst, bord of kalender) en wat het bord nodig heeft. Geen scherm.
 //
-// De keuze staat in `project.view_style` ('list' | 'board' | 'calendar'): dat veld bestaat al in het datamodel (SPEC hoofdstuk 3),
-// wordt met `project_update` gesynchroniseerd en geldt dus voor iedereen met wie het project is gedeeld. Een project zonder dat
+// De keuze staat in `project.view_style` ('list' | 'board' | 'calendar'): dat veld bestaat al in het datamodel (SPEC hoofdstuk 3) en
+// wordt met `project_update` gesynchroniseerd. In een gedeeld project is het een eigen voorkeur van elk lid (server/projectPrefs.ts):
+// zonder eigen keuze ziet een lid de weergave van de eigenaar. Een project zonder dat
 // veld (gegevens van vóór deze versie, de demo) of met een onbekende waarde is gewoon een lijst; een oudere client kent de
 // keuze niet en toont altijd de lijst.
 

@@ -440,6 +440,21 @@ try {
     await stopServer();
     process.exit(process.exitCode ?? 0);
   }
+  // rollen en activiteit (scripts/e2e-roles.ts); met E2E_ROLES_ONLY=1 alleen dat onderdeel (met eigen kopieën van de hulpjes van verderop)
+  if (process.env.E2E_ROLES_ONLY) {
+    const texts = (selector: string) => evaluate<string[]>(`[...document.querySelectorAll(${js(selector)})].map((e) => e.textContent)`);
+    const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.trim())`);
+    const openTask = async (content: string) => {
+      await waitFor(`!document.querySelector('#task-dialog')`, 'het vorige bewerkvenster is weg');
+      await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(content)}).querySelector('.task-body').click()`);
+      await waitFor(`document.querySelector('#task-dialog[open]')`, 'bewerkvenster');
+    };
+    const noDialog = () => waitFor(`!document.querySelector('dialog[open]')`, 'alle vensters gesloten');
+    try { await rolesScenario({ ...notifyCtx(), openTask, noDialog, buttons, texts }); console.log('ALLEEN ROLLEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-rollen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // herhalen met knoppen (scripts/e2e-repeat.ts); met E2E_REPEAT_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_REPEAT_ONLY) {
     try { await repeatScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN HERHALEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-herhalen'); process.exitCode = 1; }

@@ -8,6 +8,9 @@
 // alles met rev > token dat de gebruiker mag zien. Verwijderingen blijven als rijen met is_deleted=true bestaan, zodat
 // ze in de delta meekomen.
 //
+// Persoonlijk in een gedeeld project (projectPrefs.ts): favoriet, ingeklapt, weergave en volgorde van een lid dat geen eigenaar is,
+// staan in project_prefs en worden bij het verzenden over het project heen gelegd.
+//
 // Wie wat ziet (zie `visibility`):
 //   - projecten, secties, taken, opmerkingen en leden: wie lid is van het project;
 //   - labels, filters, plaatsen, sjablonen en herinneringen: de eigenaar (labels ook op taken in projecten waar je lid van bent: lezen mag, wijzigen niet);
@@ -34,6 +37,7 @@ import { beforeNoteUpdate, forgetNoteRevisions, restoreChanges } from './noteHis
 import { EDITOR_FIELDS, NOTES_I_SEE, NOTES_SHARED_WITH, canEditNote, noteRole } from './noteAccess.ts';
 import { canEditRole, DEFAULT_SHARE_ROLE, shareRoleProblem } from '../shared/roles.js';
 import { changedTaskFields } from '../shared/activity.js';
+import { forgetPrefs, personalize, prefsOf, PREFS_CHANGED, savePrefs, splitPersonal } from './projectPrefs.ts';
 
 export { currentRev, newId, SyncError, INBOX_ID };
 
@@ -504,8 +508,24 @@ function updateEntity(ctx: Ctx, e: Entity, args: Args): void {
   const row = requireLive(ctx, e.name, args.id, `${e.name}.id`);
   requireMayWrite(ctx, e, row);
   const edited = editedProject(ctx.db, e.name, row);
-  if (edited !== null) requireEditor(ctx, edited);
-  const changes = collect(ctx, e, args, 'update');
+  let changes: Row;
+  if (e.name === 'project' && roleOf(ctx.db, ctx.userId, row.id) !== 'owner') {
+    // Een lid dat geen eigenaar is (ook een lezer): favoriet, ingeklapt, weergave en volgorde zijn van hemzelf (projectPrefs.ts).
+    // Wat hetzelfde blijft van de rest (de client stuurt soms de huidige ouder mee), telt niet als wijziging van het project.
+    const { personal, shared } = splitPersonal(collect(ctx, e, args, 'update'));
+    if (Object.keys(personal).length > 0) {
+      const current = toApi(e, row);
+      for (const k of Object.keys(shared)) if (JSON.stringify(shared[k]) === JSON.stringify(current[k] ?? null)) delete shared[k];
+      if (has(personal, 'order_key') && !isValidKey(personal.order_key as string)) fail('INVALID_ARG', 'project.order_key: ongeldige volgordesleutel');
+      savePrefs(ctx, row.id as string, personal);
+      if (Object.keys(shared).length === 0) return;
+    }
+    requireEditor(ctx, edited);
+    changes = shared;
+  } else {
+    if (edited !== null) requireEditor(ctx, edited);
+    changes = collect(ctx, e, args, 'update');
+  }
   if (e.name === 'note' && row.owner_id !== ctx.userId) {
     for (const k of Object.keys(changes)) if (!EDITOR_FIELDS.includes(k)) fail('FORBIDDEN', `alleen de eigenaar kan "${k}" van deze notitie wijzigen`);
   }
@@ -775,6 +795,7 @@ function exactArgs(args: Args, allowed: string[]): void {
 /** Een persoon uit een project en de bijbehorende gegevens halen: hun toewijzingen en herinneringen voor die taken. */
 function removeMember(ctx: Ctx, projectId: string, userId: string): void {
   mark(ctx, 'project_members', 'project_id = ? AND user_id = ?', [projectId, userId]);
+  forgetPrefs(ctx.db, projectId, userId);
   const tasks = (ctx.db.prepare('SELECT id FROM tasks WHERE project_id = ? AND is_deleted = 0').all(projectId) as Row[]).map((r) => r.id as string);
   for (const part of chunked(tasks)) {
     const ph = placeholders(part.length);
@@ -1153,6 +1174,8 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
       // een notitie die net met je gedeeld is: de notitie en haar bestanden, ook als ze zelf niet veranderden
       if (e.name === 'note') { extra.push(`id IN (${SHARED_SINCE})`); extraParams.push(uid, since); }
       if (e.name === 'note_file') { extra.push(`note_id IN (${SHARED_SINCE})`); extraParams.push(uid, since); }
+      // een project waarvan alleen de eigen voorkeuren veranderden (projectPrefs.ts): alleen voor deze gebruiker opnieuw
+      if (e.name === 'project') { extra.push(`id IN (${PREFS_CHANGED})`); extraParams.push(uid, since); }
       if (e.name === 'label') {
         extra.push(`id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}) AND (t.rev > ? OR t.project_id IN (${GAINED})))`);
         extraParams.push(uid, since, uid, since);
@@ -1168,8 +1191,13 @@ function collectResources(db: DatabaseSync, uid: string, include: Set<string>, s
     }
     // Een verwijderde rij gaat nooit met zijn inhoud mee, alleen als {id, is_deleted}: dat is wat een client nodig heeft om
     // hem op te ruimen. De inhoud van wat is verwijderd, hoort niet bij iemand te komen die er nooit bij was.
-    const out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[])
+    let out = (db.prepare(`SELECT * FROM ${e.table} WHERE ${where} ORDER BY rev, id`).all(...params) as Row[])
       .map((row) => (row.is_deleted === 1 ? { id: row.id, is_deleted: true } : toApi(e, row)));
+    // een gedeeld project met de eigen favoriet, inklapstand, weergave en volgorde van deze gebruiker
+    if (e.name === 'project' && out.length > 0) {
+      const mine = prefsOf(db, uid);
+      out = out.map((p) => personalize(p, mine));
+    }
     // verdwenen toegang: de client verwijdert het project met alles erin
     if (e.name === 'project') for (const p of lost) out.push({ id: p, is_deleted: true });
     if (e.name === 'task') for (const t of moved) out.push({ id: t, is_deleted: true });

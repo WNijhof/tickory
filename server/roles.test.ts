@@ -85,8 +85,8 @@ test('een lezer wijzigt niets aan taken, secties of het project: FORBIDDEN, en e
     cmd('task_delete', { id: T }), cmd('task_complete', { id: T }), cmd('task_complete', { id: T, if_due: '2030-01-07' }), cmd('task_uncomplete', { id: T }),
     cmd('task_move', { id: T, project_id: carol.inbox_project_id }), cmd('task_move', { id: T, section_id: null }), cmd('task_move', { id: T2, parent_id: T }),
     cmd('section_add', { project_id: P, name: 'Van Carol' }), cmd('section_update', { id: S, name: 'x' }), cmd('section_update', { id: S, is_collapsed: true }), cmd('section_delete', { id: S }),
-    cmd('project_update', { id: P, name: 'Van Carol' }), cmd('project_update', { id: P, is_favorite: true }), cmd('project_update', { id: P, view_style: 'board' }),
-    cmd('project_update', { id: P, is_archived: true }), cmd('project_update', { id: SUB, is_collapsed: true }),
+    cmd('project_update', { id: P, name: 'Van Carol' }), cmd('project_update', { id: P, name: 'Van Carol', is_favorite: true }),
+    cmd('project_update', { id: P, is_archived: true }), cmd('project_update', { id: P, parent_id: null }),
     cmd('project_add', { name: 'Onder het project van Anna', parent_id: P }),
     cmd('project_delete', { id: P }), cmd('project_share', { project_id: P, username: 'bram' }), cmd('project_unshare', { project_id: P, user_id: anna.id }),
     cmd('member_update', { project_id: P, user_id: carol.id, role: 'member' }),
@@ -107,7 +107,7 @@ test('een lezer wijzigt niets aan taken, secties of het project: FORBIDDEN, en e
   assert.equal(activityCount(db), before2.log, 'en ook hier groeide het logboek niet');
 });
 
-test('een lezer mag wel: opmerkingen plaatsen en zijn eigen opmerkingen bewerken, eigen herinneringen zetten, en vertrekken', () => {
+test('een lezer mag wel: opmerkingen plaatsen en zijn eigen opmerkingen bewerken, eigen herinneringen zetten, eigen projectvoorkeuren kiezen, en vertrekken', () => {
   const { db, anna, carol } = world();
   const mine = [
     cmd('comment_add', { id: 'comment-carol-01', task_id: T, content: 'Ik kan helaas niet' }), cmd('comment_add', { id: 'comment-carol-02', project_id: P, content: 'Leuk project' }),
@@ -119,6 +119,13 @@ test('een lezer mag wel: opmerkingen plaatsen en zijn eigen opmerkingen bewerken
   const r = run(db, carol, others);
   for (const c of others) assert.equal(status(r, c), 'FORBIDDEN', 'een opmerking van een ander blijft van de schrijver');
   assert.equal(find(run(db, anna, []), 'comments', 'comment-carol-01')!.content, 'Ik kan toch');
+  // eigen voorkeuren (projectPrefs.ts): favoriet, weergave en inklappen zijn van haarzelf; voor anna verandert er niets
+  const annaBefore = snapshot(db, anna);
+  const prefs = [cmd('project_update', { id: P, is_favorite: true }), cmd('project_update', { id: P, view_style: 'board' }), cmd('project_update', { id: SUB, is_collapsed: true })];
+  ok(run(db, carol, prefs), ...prefs);
+  assert.equal(snapshot(db, anna), annaBefore, 'anna ziet precies hetzelfde');
+  const hers = find(run(db, carol, []), 'projects', P)!;
+  assert.deepEqual([hers.is_favorite, hers.view_style], [true, 'board']);
   const leave = cmd('project_leave', { project_id: P });
   ok(run(db, carol, [leave]), leave);
   const after = run(db, carol, []);
@@ -340,7 +347,8 @@ test('toegangsfuzz: wat een lezer ook probeert aan taken, secties, bijlagen en h
     () => cmd('section_add', { project_id: pick(projects), name: 'x' }),
     () => cmd('section_update', { id: pick(sections), ...pick([{ name: 'x' }, { is_collapsed: true }, { is_archived: true }]) }),
     () => cmd('section_delete', { id: pick(sections) }),
-    () => cmd('project_update', { id: pick(projects), ...pick([{ name: 'x' }, { color: 'red' }, { is_favorite: true }, { is_archived: true }, { is_collapsed: true }, { view_style: 'calendar' }, { parent_id: null }]) }),
+    // favoriet, inklappen en weergave zijn persoonlijk (projectPrefs.ts) en mag een lezer wel: hier alleen samen met iets van het project zelf
+    () => cmd('project_update', { id: pick(projects), ...pick([{ name: 'x' }, { color: 'red' }, { name: 'x', is_favorite: true }, { is_archived: true }, { color: 'red', is_collapsed: true }, { is_archived: true, view_style: 'calendar' }, { parent_id: null }]) }),
     () => cmd('project_add', { name: 'x', parent_id: pick(projects) }),
     () => cmd('project_delete', { id: pick(projects) }),
     () => cmd('attachment_delete', { id: 'attach-fuzz-0001' }),

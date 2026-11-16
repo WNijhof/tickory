@@ -41,7 +41,7 @@ export async function rolesScenario(c: any) {
   assert.equal(await evaluate(`document.querySelectorAll('#content .add-inline').length`), 0, 'geen "Taak toevoegen"');
   assert.equal(await evaluate(`[...document.querySelectorAll('#content button')].some((b) => b.textContent.includes('Sectie toevoegen'))`), false, 'geen "Sectie toevoegen"');
   assert.equal(await evaluate(`document.querySelectorAll('#content .group-more, #content .group-toggle, #content .drag-handle, #content .sel-box').length`), 0, 'geen sectiemenu, inklappen, handvat of keuzevakje');
-  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Opmerkingen', 'Leden bekijken', 'Project…'], 'geen keuze van Lijst, Bord of Kalender (wel van de eigen sortering)');
+  assert.deepEqual(await buttons('.view-actions'), ['Sorteren', 'Lijst', 'Bord', 'Kalender', 'Opmerkingen', 'Leden bekijken', 'Project…'], 'de weergave en de sortering kiest een lezer voor zichzelf');
   assert.ok(await evaluate(`[...document.querySelectorAll('#content li.task')].every((li) => li.classList.contains('task-readonly') && li.querySelector('.check').getAttribute('aria-disabled') === 'true')`));
   assert.equal(await evaluate(`[...document.querySelectorAll('#content .task-title')].map((e) => e.textContent).includes('Aanbetaling doen')`), true, 'subtaken staan uitgeklapt');
   // aanwijzen geeft geen snelle knoppen; het rondje zegt dat afvinken niet kan, en er verandert niets
@@ -58,7 +58,25 @@ export async function rolesScenario(c: any) {
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40, modifiers: 1 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowDown', code: 'ArrowDown', windowsVirtualKeyCode: 40, modifiers: 1 });
   await waitFor(`document.getElementById('dnd-live').textContent.includes('alleen leest')`, 'Alt+pijl meldt dat verplaatsen niet kan');
-  step('lezer: het gedeelde project met een balk "alleen lezen", een oog in de zijbalk, geen toevoegen, snelle knoppen, slepen, kiezen of weergavekeuze, en afvinken zegt dat het niet kan');
+  step('lezer: het gedeelde project met een balk "alleen lezen", een oog in de zijbalk, geen toevoegen, snelle knoppen, slepen of kiezen, en afvinken zegt dat het niet kan');
+
+  // ---- eigen voorkeuren in het gedeelde project (server/projectPrefs.ts): de weergave en favoriet zijn van Alice zelf ----
+  await click('[data-fk="viewstyle:board"]');
+  await waitFor(`document.querySelector('[data-fk="viewstyle:board"]')?.getAttribute('aria-pressed') === 'true' && document.querySelector('#content .board')`, 'het bord bij Alice');
+  await waitFor(`await ${SYNCED}`, 'bijgewerkt');
+  // wat Bob van het project krijgt (een volledige sync met zijn token)
+  const bobSees = async () => ((await (await syncAs(bobToken, 'e2e-rollen', [])).json()).projects as any[]).find((x) => x.id === P);
+  assert.equal((await bobSees()).view_style, 'list', 'Bob ziet nog gewoon de lijst');
+  assert.equal((db.prepare('SELECT view_style FROM projects WHERE id = ?').get(P) as any).view_style, 'list', 'het project zelf is niet veranderd');
+  assert.equal((serverState().projects as any[]).find((x) => x.id === P).view_style, 'board', 'Alice krijgt van de server haar eigen keuze');
+  await clickText('Project…');
+  await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van de lezer');
+  await clickText('Aan favorieten toevoegen', `document.querySelector('dialog[open]')`);
+  await waitFor(`[...document.querySelectorAll('#sidebar [data-fk="fav:${P}"]')].length === 1 && await ${SYNCED}`, 'Familieweekend bij de favorieten van Alice');
+  assert.equal((await bobSees()).is_favorite, false, 'niet bij de favorieten van Bob');
+  await click('[data-fk="viewstyle:list"]');
+  await waitFor(`document.querySelector('[data-fk="viewstyle:list"]')?.getAttribute('aria-pressed') === 'true'`, 'weer de lijst');
+  step('lezer: de weergave (bord) en favoriet kiest Alice voor zichzelf; voor Bob en het project verandert niets');
 
   // ---- het taakvenster om te lezen, met reageren ----
   await openTask('Huisje boeken');
@@ -78,7 +96,7 @@ export async function rolesScenario(c: any) {
   // ---- het projectmenu en Activiteit ----
   await clickText('Project…');
   await waitFor(`document.querySelector('dialog[open] .menu')`, 'projectmenu van de lezer');
-  assert.deepEqual(await buttons(), ['Opslaan als sjabloon…', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Opslaan als sjabloon…', 'Uit favorieten halen', 'Voltooide taken bekijken', 'Activiteit', 'Leden bekijken', 'Project verlaten', 'Sluiten']);
   await clickText('Activiteit', `document.querySelector('dialog[open]')`);
   await waitFor(`document.getElementById('view-title').textContent === 'Activiteit: Familieweekend' && document.querySelectorAll('.activity-item').length >= 6`, 'het scherm Activiteit');
   const sentences = await texts('.activity-sentence');

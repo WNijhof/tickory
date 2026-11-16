@@ -335,7 +335,7 @@ const handlers = {
   /** Sorteren en groeperen van de lijst waar je nu in staat: bewaard bij je instellingen, dus op al je apparaten. */
   viewOptions: (route) => listOptionsDialog({ route, view: store.view, userId: store.userId, update: (view_options) => actions.updateSettings({ view_options }) }),
 
-  /** Lijst, bord of kalender voor een project; bewaard in het project zelf (`view_style`), dus ook op andere apparaten en voor de leden. */
+  /** Lijst, bord of kalender voor een project (`view_style`), ook op je andere apparaten; in een gedeeld project alleen voor jezelf (server/projectPrefs.ts). */
   setViewStyle: (project, style) => actions.updateProject(project.id, { view_style: style }),
   /** Lijst of kalender bij Binnenkort: alleen een voorkeur van dit apparaat. */
   setUpcomingStyle(style) {
@@ -432,7 +432,7 @@ const handlers = {
         edit && { value: 'sub', label: t('project.addSub') },
         edit && !isArchivedProject(store.view, project.id) && { value: 'taskTemplate', label: t('template.menu.insert') },
         { value: 'saveTemplate', label: t('template.menu.save') },
-        edit && { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') },
+        { value: 'favorite', label: project.is_favorite ? t('project.unfavorite') : t('project.favoriteAdd') }, // persoonlijk, ook voor een lezer
         { value: 'completed', label: t('project.completedMenu') },
         { value: 'activity', label: t('activity.menu') },
         { value: 'share', label: mine === 'owner' ? t('project.shareMenu') : t('project.members') },

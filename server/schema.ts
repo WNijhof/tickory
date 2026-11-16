@@ -40,9 +40,10 @@ export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
 // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken, 7: rollen (lezer) en het activiteitenlogboek,
-// 8: tweestapsverificatie en het soort apparaat per sessie, 9: inloggen via OIDC (gekoppelde identiteiten en eenmalige inlogcodes)
+// 8: tweestapsverificatie en het soort apparaat per sessie, 9: inloggen via OIDC (gekoppelde identiteiten en eenmalige inlogcodes),
+// 10: persoonlijke voorkeuren in een gedeeld project (project_prefs)
 // (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -189,6 +190,30 @@ export function createSchema(db: DatabaseSync): void {
     )`);
     addMissingColumns(db, e);
     db.exec(`CREATE INDEX IF NOT EXISTS ${e.table}_rev ON ${e.table} (rev)`);
+  }
+  // Versie 10. Persoonlijke voorkeuren in een gedeeld project (projectPrefs.ts): favoriet, ingeklapt, weergave en de plek in de
+  // zijbalk van een lid dat geen eigenaar is. Geen entiteit: de sync legt ze over het project heen.
+  const hadPrefs = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'project_prefs'").get() !== undefined;
+  db.exec(`CREATE TABLE IF NOT EXISTS project_prefs (
+    project_id TEXT NOT NULL, user_id TEXT NOT NULL,
+    is_favorite INTEGER, is_collapsed INTEGER, view_style TEXT, order_key TEXT,
+    rev INTEGER NOT NULL, updated_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, user_id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS project_prefs_user ON project_prefs (user_id, rev)');
+  if (!hadPrefs) {
+    // Tot nu toe zagen de leden de favoriet, de inklapstand, de weergave en de volgorde van het project zelf. Een nieuwe versie van
+    // elk gedeeld project laat hun apparaten de eigen waarden ophalen (geen favoriet, niet ingeklapt, tot ze zelf iets kiezen).
+    const shared = (db.prepare('SELECT project_id FROM project_members WHERE is_deleted = 0 GROUP BY project_id HAVING COUNT(*) > 1').all() as { project_id: string }[])
+      .map((r) => r.project_id);
+    if (shared.length > 0) {
+      const rev = Number((db.prepare("SELECT value FROM meta WHERE key = 'rev'").get() as { value: string }).value) + 1;
+      db.prepare("UPDATE meta SET value = ? WHERE key = 'rev'").run(String(rev));
+      for (let i = 0; i < shared.length; i += 500) {
+        const part = shared.slice(i, i + 500);
+        db.prepare(`UPDATE projects SET rev = ? WHERE id IN (${part.map(() => '?').join(', ')})`).run(rev, ...part);
+      }
+    }
   }
   db.exec('CREATE INDEX IF NOT EXISTS tasks_project ON tasks (project_id, is_deleted)');
   // De volgordesleutel van een nieuwe rij is "de hoogste van de lijst + 1" (nextKey in sync.ts). Met deze indexen is dat een

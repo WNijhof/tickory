@@ -257,12 +257,24 @@ test('projecten slepen: volgorde en subproject gaan door de server; alleen de ei
   assert.equal(w.bob.store.view.projects.get(b).parent_id, a, 'wel met de verwijzing naar A, die hij niet ziet');
   await settles(w.alice, () => w.alice.actions.moveProject(b, { parent_id: null, beforeId: null }));
   assert.deepEqual(names(w.alice), ['Inbox', 'C', 'A', 'B']);
-  // bob (lid van B) kan B niet slepen: geen plan, en doet hij het toch via de actie, dan weigert de server en draait het terug
+  // bob (lid van B) verschuift B in zijn eigen volgorde (een persoonlijke voorkeur op de server, projectPrefs.ts), maar hangt het
+  // nergens onder; doet hij dat toch via de actie, dan weigert de server en draait het terug
   const bobId = w.bob.user.id;
   await w.bob.sync.syncNow();
-  assert.equal(planProjectDrop(w.bob.store.view, { dragId: b, overId: w.bob.user.inbox_project_id, zone: 'after', userId: bobId }), null);
-  assert.equal(planProjectKey(w.bob.store.view, b, 'up', { userId: bobId }).blocked, 'denied');
+  assert.equal(planProjectDrop(w.bob.store.view, { dragId: b, overId: w.bob.user.inbox_project_id, zone: 'after', userId: bobId }), null, 'niet op de Inbox');
   const own = await w.bob.actions.addProject({ name: 'Van bob' });
+  await w.bob.sync.syncNow();
+  assert.deepEqual(names(w.bob), ['Inbox', 'B', 'Van bob']);
+  assert.equal(planProjectDrop(w.bob.store.view, { dragId: b, overId: own, zone: 'child', userId: bobId }), null, 'niet onder een ander project');
+  assert.equal(planProjectKey(w.bob.store.view, b, 'indent', { userId: bobId }).blocked, 'denied');
+  const plan = planProjectDrop(w.bob.store.view, { dragId: b, overId: own, zone: 'after', userId: bobId });
+  assert.deepEqual(plan, { parent_id: null, beforeId: null });
+  await settles(w.bob, () => w.bob.actions.moveProject(b, plan));
+  assert.deepEqual(names(w.bob), ['Inbox', 'Van bob', 'B'], 'B onderaan, bij bob');
+  await w.bob.sync.syncNow();
+  assert.deepEqual(names(w.bob), ['Inbox', 'Van bob', 'B'], 'ook na de sync');
+  await w.alice.sync.syncNow();
+  assert.deepEqual(names(w.alice), ['Inbox', 'C', 'A', 'B'], 'voor alice verandert niets');
   await w.bob.actions.updateProject(b, { parent_id: own }); // wat de interface nooit aanbiedt
   assert.equal(w.bob.store.view.projects.get(b).parent_id, null, 'ook direct niet doorgevoerd');
   await w.bob.sync.syncNow();

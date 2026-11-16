@@ -208,8 +208,8 @@ test('migratie naar 9: een database van versie 8 krijgt de tabellen voor koppeli
   db.prepare("UPDATE meta SET value = '8' WHERE key = 'schema_version'").run();
   createSchema(db);
   createSchema(db);
-  assert.equal(SCHEMA_VERSION, 9);
-  assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, '9');
+  assert.ok(SCHEMA_VERSION >= 9);
+  assert.equal((db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() as any).value, String(SCHEMA_VERSION));
   linkIdentity(db, 'https://i', 'sub-a', a.id, new Date().toISOString());
   assert.equal(userForIdentity(db, 'https://i', 'sub-a'), a.id);
   assert.ok(createLoginCode(db, { userId: a.id, kind: 'login', bindingHash: null, ttlMs: 1000, nowMs: Date.now() }));
