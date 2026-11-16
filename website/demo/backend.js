@@ -59,6 +59,14 @@ const roleOf = (state, userId, projectId) => {
 };
 const isMember = (state, userId, projectId) => roleOf(state, userId, projectId) !== null;
 /** Het project waarvan de inhoud verandert bij een wijziging van deze rij; null voor wat ook een lezer mag (zoals server/sync.ts). */
+// Favoriet, ingeklapt, weergave en volgorde van een project zijn persoonlijk (server/projectPrefs.ts): die mag ook een lezer wijzigen.
+// De demo heeft maar één echte gebruiker, dus ze staan gewoon in het project zelf.
+const PERSONAL_PROJECT_FIELDS = ['is_favorite', 'is_collapsed', 'view_style', 'order_key'];
+const onlyPersonal = (args, row) => {
+  const keys = Object.keys(args).filter((k) => k !== 'id');
+  return keys.some((k) => PERSONAL_PROJECT_FIELDS.includes(k))
+    && keys.every((k) => PERSONAL_PROJECT_FIELDS.includes(k) || JSON.stringify(args[k] ?? null) === JSON.stringify(row[k] ?? null));
+};
 const editedProject = (state, name, row) => (name === 'project' ? row.id : name === 'section' || name === 'task' ? row.project_id : name === 'attachment' ? state.tasks.get(row.task_id)?.project_id ?? null : null);
 
 /** Het project en al zijn subprojecten (alle niveaus), de wortel eerst. */
@@ -245,6 +253,7 @@ export class DemoServer {
         return apply();
       case 'task_uncomplete': exactArgs(args, ['id']); this.requireEditor(state, requireLive(state, 'task', args.id, 'task.id').project_id); return apply();
       case 'member_update': return this.memberUpdate(state, args, at);
+      case 'project_transfer': return this.projectTransfer(state, args, at);
       case 'task_restore': case 'section_restore': return this.restore(state, type, args, at);
       case 'project_share': return this.projectShare(state, args, at);
       case 'project_unshare': return this.projectUnshare(state, args, at);
@@ -277,7 +286,7 @@ export class DemoServer {
       const row = requireLive(state, e.name, args.id, `${e.name}.id`);
       this.requireMayWrite(e, row, state);
       const edited = editedProject(state, e.name, row);
-      if (edited !== null) this.requireEditor(state, edited);
+      if (edited !== null && !(e.name === 'project' && onlyPersonal(args, row))) this.requireEditor(state, edited);
       const changes = this.collect(state, e, args, 'update');
       if (e.name === 'project' && has(changes, 'parent_id') && changes.parent_id !== row.parent_id) {
         this.requireOwner(state, row.id, 'alleen de eigenaar kan een project verplaatsen');
@@ -446,6 +455,13 @@ export class DemoServer {
         if (!x) return;
         for (const e of this.activity) if (e.attachment_id === x.id) e.title = null; // de naam van een verwijderde bijlage verdwijnt
         this.record(taskProject(a, x.task_id), 'attachment_deleted', at, { attachment_id: x.id, task_id: x.task_id });
+        return;
+      }
+      case 'project_transfer': {
+        for (const m of b.members.values()) {
+          const old = [...a.members.values()].find((x) => x.project_id === m.project_id && x.user_id === m.user_id);
+          if (old && old.role !== 'owner' && m.role === 'owner') this.record(m.project_id, 'owner_changed', at, { user_id: m.user_id, extra: { from: old.role } });
+        }
         return;
       }
       case 'project_share': case 'member_update': case 'project_unshare': case 'project_leave': {
@@ -736,6 +752,19 @@ export class DemoServer {
     if (current === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
     if (current === 'owner') fail('CONFLICT', 'de rol van een eigenaar kan niet worden gewijzigd');
     return applyCommand(state, { type: 'member_update', args }, at, this.me.id);
+  }
+
+  /** Het eigendom overdragen, zoals de server (sync.ts): alleen de eigenaar, aan een lid of lezer; jij wordt lid. */
+  projectTransfer(state, args, at) {
+    exactArgs(args, ['project_id', 'user_id']);
+    const id = requireLive(state, 'project', args.project_id, 'project_id').id;
+    this.requireOwner(state, id, 'alleen de eigenaar kan het eigendom overdragen');
+    if (typeof args.user_id !== 'string' || !ID_RE.test(args.user_id)) fail('INVALID_ARG', 'ongeldig gebruikers-id');
+    if (args.user_id === this.me.id) fail('CONFLICT', 'je bent al eigenaar');
+    const current = roleOf(state, args.user_id, id);
+    if (current === null) fail('NOT_FOUND', 'deze persoon is geen lid van het project');
+    if (current === 'owner') fail('CONFLICT', 'deze persoon is al eigenaar');
+    return applyCommand(state, { type: 'project_transfer', args }, at, this.me.id);
   }
 
   /** Haalt iemand uit één project: het lidmaatschap, diens toewijzingen en diens herinneringen bij die taken. */
