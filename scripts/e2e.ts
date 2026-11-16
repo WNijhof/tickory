@@ -39,6 +39,7 @@ import { accountScenario } from './e2e-account.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
 import { listsScenario } from './e2e-lists.ts';
+import { quickScenario } from './e2e-quick.ts';
 import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
@@ -420,6 +421,13 @@ try {
   const dndScenario = () => dragAndDropScenario({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, otherToken, startServer, stopServer });
   // meldingen bij samenwerken en @-vermeldingen (scripts/e2e-notify.ts); met E2E_NOTIFY_ONLY=1 alleen dat onderdeel
   const notifyCtx = () => ({ send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, typeInto, click, clickText, nav });
+  // snel toevoegen (scripts/e2e-quick.ts); met E2E_QUICK_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_QUICK_ONLY) {
+    try { await quickScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN SNEL TOEVOEGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-snel'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // lijsten (scripts/e2e-lists.ts); met E2E_LISTS_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_LISTS_ONLY) {
     try { await listsScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN LIJSTEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-lijsten'); process.exitCode = 1; }
@@ -1539,6 +1547,7 @@ try {
 
   // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
   await listsScenario({ ...notifyCtx(), startServer, stopServer });
+  await quickScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
   await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });

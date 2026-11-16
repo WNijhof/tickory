@@ -8,8 +8,11 @@ import { offsetText } from '../core/reminderText.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { canEditProject, editableProjectList } from '../core/access.js';
 import { startVoice, voiceSupport } from '../core/voice.js';
-import { h, openDialog, replace, toast } from './dom.js';
+import { confirmDialog, h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
+import { attachQuickSuggest } from './quickSuggest.js';
+import { labelList } from '../core/selectors.js';
+import { splitPastedLines } from '../core/quickSuggest.js';
 
 const INDENT = String.fromCharCode(160, 160);
 
@@ -56,6 +59,38 @@ function voiceErrorText(code) {
   }
 }
 
+/**
+ * Geplakte tekst met meer regels: na een vraag wordt elke regel een eigen taak (met dezelfde herkenning als snel toevoegen, in
+ * `context`). Geeft het aantal toegevoegde taken, of 0 als je het niet wilde.
+ */
+export async function addPastedTasks({ view, actions, text, context }) {
+  const lines = splitPastedLines(text);
+  if (lines.length < 2) return 0;
+  const ok = await confirmDialog({
+    title: t('quick.pasteTitle', { count: lines.length }),
+    text: t('quick.pasteText', { first: lines.slice(0, 3).join(' · ') }),
+    okText: t('quick.pasteOk', { count: lines.length }), danger: false,
+  });
+  if (!ok) return 0;
+  let added = 0;
+  for (const line of lines) {
+    const p = parseQuickAdd(line, { view, now: new Date(), ...context });
+    if (!p.content) continue;
+    await actions.addTask(p);
+    added += 1;
+  }
+  toast(t('quick.pasteDone', { count: added }));
+  return added;
+}
+
+/** De bronnen voor de suggesties (ui/quickSuggest.js): projecten waar je kunt toevoegen, secties, je eigen labels. */
+export const suggestSource = (store, defaultProjectId) => ({
+  projects: editableProjectList(store.view, store.userId).map(({ project: p }) => p),
+  sections: [...store.view.sections.values()].filter((s) => !s.is_archived),
+  labels: labelList(store.view, store.userId).own.map((x) => x.label),
+  defaultProjectId,
+});
+
 export function openQuickAddDialog({ store, actions, context = {}, onTemplate = null }) {
   const view = store.view;
   const inbox = store.me?.inbox_project_id ?? null;
@@ -82,6 +117,17 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);
+
+    // Suggesties tijdens het typen: # projecten, / secties, @ labels, { een deadline (ui/quickSuggest.js)
+    const suggest = attachQuickSuggest({ input, source: () => suggestSource(store, project.value) });
+
+    // Meer regels plakken (zoals Todoist): na een vraag wordt elke regel een eigen taak, met dezelfde herkenning als hier.
+    input.addEventListener('paste', async (e) => {
+      const text = e.clipboardData?.getData('text/plain') ?? '';
+      if (splitPastedLines(text).length < 2) return;
+      e.preventDefault();
+      if (await addPastedTasks({ view, actions, text, context: parseContext() })) finish(null);
+    });
 
     // Spraakinvoer: alleen een knop als dit apparaat het kan. De herkende tekst komt in het veld; er wordt niets aangemaakt.
     let mic = null;
@@ -145,6 +191,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     h('h2', {}, t('quick.addTask')),
     day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: formatDayHeading(day, todayString()) })),
     mic ? h('div', { class: 'quick-row' }, input, mic) : input,
+    suggest.node,
     description,
     shared,
     preview,

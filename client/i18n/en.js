@@ -43,6 +43,17 @@ export default {
 
   // ---------- snel toevoegen ----------
   'quick.placeholder': 'New task, e.g. Pay rent 31-12 p1',
+  'quick.suggestLabel': 'Suggestions',
+  'quick.deadlineToday': 'Today',
+  'quick.deadlineTomorrow': 'Tomorrow',
+  'quick.deadlineFriday': 'Friday',
+  'quick.deadlineNextWeek': 'Next week',
+  'quick.deadlineMonth': 'In a month',
+  'quick.pasteText': 'Each line becomes a task of its own: {first}',
+  'quick.suggestCount': { one: '{count} suggestion', other: '{count} suggestions' },
+  'quick.pasteTitle': { one: 'Add {count} task?', other: 'Add {count} tasks?' },
+  'quick.pasteOk': { one: 'Add {count} task', other: 'Add {count} tasks' },
+  'quick.pasteDone': { one: '{count} task added.', other: '{count} tasks added.' },
   'quick.label': 'Add task',
   'quick.noName': '(no name yet)',
   'quick.newLabel': '@{name} (new)',

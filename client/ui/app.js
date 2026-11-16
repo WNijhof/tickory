@@ -28,7 +28,9 @@ import { installSelection } from './selection.js';
 import { installCompleted, isCompletedRoute } from './completed.js';
 import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
-import { openQuickAddDialog, previewChips } from './quickAdd.js';
+import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
+import { attachQuickSuggest } from './quickSuggest.js';
+import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
@@ -839,6 +841,15 @@ async function boot() {
   bottomNav = installBottomNav({ store, handlers, getRoute: () => ui.route, inboxId }); // op een telefoon: de balk onderaan, Bladeren en de "+"
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
+  // ook in de balk: suggesties (# / @ {) en meer regels plakken (ui/quickSuggest.js, ui/quickAdd.js)
+  const barSuggest = attachQuickSuggest({ input: $('quick-input'), source: () => suggestSource(store, quickContext().defaultProjectId) });
+  $('quick-add').after(barSuggest.node);
+  $('quick-input').addEventListener('paste', async (e) => {
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (!quickContext().defaultProjectId || splitPastedLines(text).length < 2) return;
+    e.preventDefault();
+    await addPastedTasks({ view: store.view, actions, text, context: quickContext() });
+  });
   $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));
   $('sync-status').addEventListener('click', () => (ui.syncState === 'unauthorized' || !getToken() ? askLogin() : sync.requestSync(0)));
 

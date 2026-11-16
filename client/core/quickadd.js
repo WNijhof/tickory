@@ -60,6 +60,26 @@ const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.r
  *   reminders: ({ type: 'relative', minute_offset: number } | { type: 'absolute', due: { date: string } })[],
  * }}
  */
+const TIME = '(\\d{1,2})(?:[:.](\\d{2}))?';
+const RANGE = new RegExp(`(?<![\\p{L}\\p{N}:./-])(van\\s+)?${TIME}\\s*(?:-|–|tot(?:\\s+en\\s+met)?)\\s*${TIME}(\\s*uur)?(?![\\p{L}\\p{N}:./-])`, 'iu');
+
+/**
+ * Een tijdsbereik in een regel: "9:00-10:30", "18:00 - 19:30", "9-10 uur", "van 9 tot 10:30". Geeft het begin ("HH:MM"), de duur
+ * in minuten en de plek, of null. Zonder dubbele punt, "uur" of "van … tot" is het geen tijd: "9-10" is 9 oktober.
+ * @returns {{ start: string, minutes: number, index: number, length: number } | null}
+ */
+export function findTimeRange(text) {
+  const m = RANGE.exec(String(text ?? ''));
+  if (!m) return null;
+  const [, van, h1, m1, h2, m2, uur] = m;
+  const clear = Boolean(van) || Boolean(uur) || m1 !== undefined || m2 !== undefined;
+  if (!clear || (van && !/tot/i.test(m[0]))) return null;
+  const a = Number(h1) * 60 + Number(m1 ?? 0);
+  const b = Number(h2) * 60 + Number(m2 ?? 0);
+  if (Number(h1) > 23 || Number(h2) > 23 || Number(m1 ?? 0) > 59 || Number(m2 ?? 0) > 59 || b <= a) return null;
+  return { start: `${String(h1).padStart(2, '0')}:${String(m1 ?? '00').padStart(2, '0')}`, minutes: b - a, index: m.index, length: m[0].length };
+}
+
 export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
@@ -144,6 +164,14 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
       out.duration = minutes;
       rest = cut(rest, du.index, du.index + du[0].length);
     }
+  }
+
+  // een tijdsbereik ("9:00-10:30", "18-19 uur", "van 9 tot 10:30"): het begin wordt de tijd, het verschil de duur (zoals Todoist).
+  // "9-10" alleen is in het Nederlands een datum (9 oktober), dus pas met een dubbele punt, "uur" of "van … tot".
+  const range = findTimeRange(rest);
+  if (range) {
+    rest = `${rest.slice(0, range.index)}om ${range.start}${rest.slice(range.index + range.length)}`.replace(/\s+/g, ' ').trim();
+    if (out.duration === undefined) out.duration = range.minutes;
   }
 
   // datum of herhaling in gewone taal

@@ -37,6 +37,17 @@ export default {
 
   // ---------- snel toevoegen ----------
   'quick.placeholder': 'Nieuwe taak, bv. Bellen morgen p1',
+  'quick.suggestLabel': 'Suggesties',
+  'quick.deadlineToday': 'Vandaag',
+  'quick.deadlineTomorrow': 'Morgen',
+  'quick.deadlineFriday': 'Vrijdag',
+  'quick.deadlineNextWeek': 'Volgende week',
+  'quick.deadlineMonth': 'Over een maand',
+  'quick.pasteText': 'Elke regel wordt een eigen taak: {first}',
+  'quick.suggestCount': { one: '{count} suggestie', other: '{count} suggesties' },
+  'quick.pasteTitle': { one: '{count} taak toevoegen?', other: '{count} taken toevoegen?' },
+  'quick.pasteOk': { one: '{count} taak toevoegen', other: '{count} taken toevoegen' },
+  'quick.pasteDone': { one: '{count} taak toegevoegd.', other: '{count} taken toegevoegd.' },
   'quick.label': 'Taak toevoegen',
   'quick.noName': '(nog geen naam)',
   'quick.newLabel': '@{name} (nieuw)',
