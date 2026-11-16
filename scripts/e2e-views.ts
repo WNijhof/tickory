@@ -154,6 +154,8 @@ export async function calendarDragScenario(c: any): Promise<void> {
   const OVERLEG = 'e2ekalenderoverleg01';
   const overleg = () => (c.serverState().tasks as any[]).find((t) => t.id === OVERLEG);
   await evaluate(`window.scrollTo(0, 0)`);
+  // meldingen van eerdere stappen onderin beeld kunnen precies over een taak liggen (dan pakt de muis de melding): eerst weg
+  await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
   await waitFor(`document.querySelector('.cal[data-mode="month"]')`, 'maandweergave');
   // een dag waar de taak naartoe kan: de eerste van de komende dagen die in beeld is
   const target = await evaluate(`(() => { for (const n of [2, 3, 1, 4]) { const d = ${js(today)}; const t = new Date(Date.parse(d + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10); const c = document.querySelector('td.cal-day[data-date="' + t + '"]'); if (c && c.getBoundingClientRect().height > 0) return t; } return null; })()`) as string;

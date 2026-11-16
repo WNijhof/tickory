@@ -80,6 +80,7 @@
         { "nl": "handleiding/taken-toevoegen.html", "en": "guide/adding-tasks.html" },
         { "nl": "handleiding/datums-en-herhalingen.html", "en": "guide/dates-and-recurrence.html" },
         { "nl": "handleiding/het-scherm.html", "en": "guide/the-screen.html" },
+        { "nl": "handleiding/notities.html", "en": "guide/notes.html" },
         { "nl": "handleiding/projecten.html", "en": "guide/projects.html" },
         { "nl": "handleiding/sjablonen.html", "en": "guide/templates.html" },
         { "nl": "handleiding/weergaven.html", "en": "guide/views.html" },

@@ -82,6 +82,14 @@ description: A project as a list, as a board with a column per section or as a c
 <h2 id="upcoming-as-a-calendar">Upcoming as a calendar</h2>
 <p>In <x-ui k="nav.upcoming"></x-ui> choose <x-ui k="viewStyle.calendar"></x-ui> at the top right: you see the tasks of all your projects in the calendar, with the name of the project next to them. Everything above applies there too; a task you add goes into your Inbox. <x-ui k="nav.today"></x-ui> has no calendar: a single day has no use for one.</p>
 
+<h2 id="sorting-and-grouping">Sorting and grouping</h2>
+<p>With the <x-ui k="listopt.button"></x-ui> button at the top right of a project (as a list), in <x-ui k="nav.today"></x-ui> and in <x-ui k="nav.upcoming"></x-ui> you choose how the tasks are arranged:</p>
+<ul>
+  <li><strong><x-ui k="listopt.sort"></x-ui></strong>: <x-ui k="listopt.sort.manual"></x-ui> (the order you drag them in), or by <x-ui k="listopt.sort.name"></x-ui>, <x-ui k="listopt.sort.date"></x-ui>, <x-ui k="listopt.sort.priority"></x-ui>, <x-ui k="listopt.sort.deadline"></x-ui>, <x-ui k="listopt.sort.added"></x-ui> or <x-ui k="listopt.sort.assignee"></x-ui>, ascending or descending. Names ignore capitals and accents, and <em>task 2</em> comes before <em>task 10</em>. Tasks without a date, deadline or assignee are always at the bottom.</li>
+  <li><strong><x-ui k="listopt.group"></x-ui></strong>: the sections (the default in a project), or by date, priority, label, assignee, project or deadline. A task stays with its sub-tasks.</li>
+</ul>
+<p>Your choice applies only to you (also in a shared project) and on all your devices. While you use your own sort or grouping, the button is highlighted and you cannot drag tasks within the list; dragging to another project in the sidebar still works. <x-ui k="listopt.reset"></x-ui> puts everything back.</p>
+
 <h2>What is not possible yet</h2>
 <ul>
   <li><strong>Dragging a column (section).</strong> Sections stay in the order they were made, on the board and in the list.</li>

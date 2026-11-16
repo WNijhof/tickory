@@ -249,3 +249,17 @@ test('wat de editor bewaart, leest de gewone Markdown-lezer net zo (kaartvoorbee
   assert.deepEqual(tree[0].items.map((x) => x.checked), [false, true]);
   assert.equal(plainText(md), 'melk brood Doel: sparen');
 });
+
+test('losse sterretjes en lage strepen in gewone tekst blijven tekst', () => {
+  for (const text of ['a*b*c', '*nadruk*', '**geen vet**', 'x_y_z', '_a_', '~~niet~~', '==niet==', '++niet++']) {
+    const back = fromMarkdown(toMarkdown([p(text)]));
+    assert.deepEqual(back[0].runs, [{ text }], `${text} → ${toMarkdown([p(text)])}`);
+  }
+});
+
+test('cursief midden in een woord direct voor vet: de schrijver kiest een schrijfwijze die precies terugkomt (geen ***)', () => {
+  const runs = [{ text: 'a' }, { text: 'b', i: true }, { text: 'c', b: true }];
+  const md = runsToMd(runs);
+  assert.equal(md.includes('***'), false, md);
+  assert.deepEqual(fromMarkdown(md)[0].runs, runs, md);
+});

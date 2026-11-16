@@ -1,0 +1,64 @@
+<!--
+title: Notes
+description: Notes next to your tasks: writing with formatting on screen, checklists that move checked items to the bottom, backgrounds, labels, pinning, the archive and the bin, search and selecting.
+-->
+<h1>Notes</h1>
+<p class="intro">Not everything is a task. A shopping list, a recipe, an idea or a bike route goes in <x-ui k="note.title"></x-ui>: notes with formatting, a colour or pattern, labels and a checklist you tick off as you go. Your notes are only for you and are on all your devices, also without a connection.</p>
+
+<h2 id="creating">Creating a note</h2>
+<ul>
+  <li>Choose <x-ui k="note.title"></x-ui> in the sidebar (on a phone under <x-ui k="bottomNav.browse"></x-ui>) and then <x-ui k="note.new"></x-ui>. Or press <kbd>N</kbd> anywhere.</li>
+  <li>Type a title and press Enter to continue in the text. Everything is saved automatically, shortly after you stop typing. At the top you see <x-ui k="note.saved"></x-ui>, or <x-ui k="note.waiting"></x-ui> when you are offline.</li>
+  <li>If you close a new note without writing anything, it disappears again.</li>
+</ul>
+
+<h2 id="writing">Writing with formatting</h2>
+<p>Formatting shows straight away: bold is bold, a list is a list. There are three ways to format.</p>
+<ul>
+  <li><strong>The toolbar</strong> above the text (on a phone at the bottom, above the keyboard): the text style (normal or a heading), <x-ui k="note.tb.bold"></x-ui>, <x-ui k="note.tb.italic"></x-ui>, <x-ui k="note.tb.underline"></x-ui>, <x-ui k="note.tb.strike"></x-ui>, <x-ui k="note.tb.highlight"></x-ui> in five colours, code, a link, the lists, a quote, a code block, indenting and undo.</li>
+  <li><strong>A slash.</strong> Type <kbd>/</kbd> at the start of a line (or after a space) and pick from the menu: <x-ui k="note.slash.check"></x-ui>, a heading, a list, a quote, code, a table, a divider or a link. Keep typing to search (<em>/head</em> shows the headings).</li>
+  <li><strong>Characters at the start of a line</strong>, as in many other apps: <kbd>-</kbd> and a space for a list, <kbd>1.</kbd> for a numbered list, <kbd>[]</kbd> for a checklist, <kbd>#</kbd>, <kbd>##</kbd> or <kbd>###</kbd> for a heading, <kbd>&gt;</kbd> for a quote, <kbd>```</kbd> for code and <kbd>---</kbd> for a line.</li>
+</ul>
+<p>With the keyboard: <kbd>Ctrl</kbd>+<kbd>B</kbd>, <kbd>I</kbd> and <kbd>U</kbd> for bold, italic and underline, <kbd>Ctrl</kbd>+<kbd>K</kbd> for a link, <kbd>Tab</kbd> and <kbd>Shift</kbd>+<kbd>Tab</kbd> to indent or outdent an item, <kbd>Ctrl</kbd>+<kbd>Z</kbd> to undo. On a Mac it is <kbd>Cmd</kbd> instead of <kbd>Ctrl</kbd>. To open a link in the text: <kbd>Ctrl</kbd>+click, or put the cursor in it and choose the link button.</p>
+<p>When you paste text from a website or from another note, the formatting (headings, lists, bold, links) is kept. Anything else a web page sends along, such as scripts or images, is left out.</p>
+
+<h2 id="checklists">Checklists</h2>
+<ul>
+  <li>Click a checkbox to check an item. It moves to the bottom, under <x-ui k="note.checkedItems" n="1"></x-ui>; click that to fold the checked items in or out. If you want them to stay where they are, turn off <x-ui k="note.checkedBottom"></x-ui> under <x-ui k="note.view"></x-ui>.</li>
+  <li>An item can have sub-items (<kbd>Tab</kbd>); they go along when you check the item.</li>
+  <li>The <x-ui k="note.more"></x-ui> menu of a note has <x-ui k="note.uncheckAll"></x-ui> (handy for a regular shopping list) and <x-ui k="note.deleteChecked"></x-ui>.</li>
+  <li>The card in the list shows only the open items, with how many are already done.</li>
+</ul>
+
+<h2 id="look">Background, pinning and labels</h2>
+<ul>
+  <li><strong><x-ui k="note.background"></x-ui></strong> (the palette at the top): ten colours and eight patterns, such as dots, waves, a shopping bag or little planes. Point at one to preview it before you choose.</li>
+  <li><strong><x-ui k="note.pin"></x-ui></strong> (the pushpin): the note stays at the top, under <x-ui k="note.pinned"></x-ui>.</li>
+  <li><strong>Labels:</strong> choose <x-ui k="note.addLabel"></x-ui> under the title, find a label or create one. The cross on a label removes it again. These are the same labels as for your tasks.</li>
+</ul>
+
+<h2 id="the-list">The list of notes</h2>
+<ul>
+  <li>Your notes appear as cards, with their colour and the start of the text with formatting. Pinned notes are at the top; the rest are under <x-ui k="note.others"></x-ui>.</li>
+  <li><strong><x-ui k="note.view"></x-ui></strong>: choose <x-ui k="note.layout.masonry"></x-ui>, <x-ui k="note.layout.grid"></x-ui> or <x-ui k="note.layout.list"></x-ui>, and sort by <x-ui k="note.sort.updated"></x-ui>, <x-ui k="note.sort.created"></x-ui> or <x-ui k="note.sort.title"></x-ui>. Your choice applies on all your devices.</li>
+  <li><strong>Search</strong> the title, the text and the labels, ignoring capitals and accents. In all notes it also searches the archive.</li>
+  <li><strong>Labels</strong>: while you are in your notes, your labels with the number of notes are in the sidebar. Choose one to see only those notes; a new note gets that label straight away.</li>
+  <li><strong><x-ui k="note.select"></x-ui></strong>: pick several notes (or hold <kbd>Ctrl</kbd> while clicking) to pin, archive or move them to the bin in one go.</li>
+</ul>
+
+<h2 id="archive-and-bin">Archive and bin</h2>
+<ul>
+  <li><strong><x-ui k="note.archive"></x-ui></strong> (in the <x-ui k="note.more"></x-ui> menu): the note goes to <x-ui k="note.scope.archive"></x-ui>. It is not gone and search still finds it.</li>
+  <li><strong><x-ui k="note.trash"></x-ui></strong>: the note stays in <x-ui k="note.scope.trash"></x-ui> for 30 days and is then deleted automatically. Until then, bring it back with <x-ui k="note.restore"></x-ui>. <x-ui k="note.emptyTrash"></x-ui> deletes everything in it at once, after asking.</li>
+</ul>
+
+<h2 id="saving">Saving as a file</h2>
+<p>The <x-ui k="note.more"></x-ui> menu has <x-ui k="note.export"></x-ui>: you get the note as a Markdown file, which any text editor and apps such as Obsidian can read. The <a href="export.html">export of all your data</a> contains your notes too.</p>
+
+<h2>Not possible yet</h2>
+<ul>
+  <li>A reminder on a note, and pictures or voice recordings in a note.</li>
+  <li>Viewing and restoring earlier versions of a note.</li>
+  <li>Sharing a note with someone else.</li>
+  <li>Importing notes from Google Keep or Markdown files.</li>
+</ul>
