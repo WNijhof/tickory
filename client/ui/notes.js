@@ -18,6 +18,7 @@ import { isTyping } from '../core/shortcuts.js';
 import { confirmDialog, h, openDialog, toast } from './dom.js';
 import { icon } from './icons.js';
 import { openNoteEditor } from './noteEditor.js';
+import { openNoteImport } from './noteImportDialog.js';
 import { bgClass } from './noteLook.js';
 import { sidebarHooks, viewHooks } from './render.js';
 
@@ -177,8 +178,16 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         segmented(t('note.sortBy'), NOTE_SORTS, (v) => SORT[v](), p.sort, (v) => setPrefs({ sort: v, order: v === 'title' ? 'asc' : 'desc' })),
         segmented(t('note.order'), Object.keys(ORDER), (v) => ORDER[v](), p.order, (v) => setPrefs({ order: v })),
         h('label', { class: 'note-options-check' }, bottom, t('note.checkedBottom')),
-        h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
+        h('div', { class: 'dialog-buttons note-options-buttons' },
+          h('button', { type: 'button', class: 'button', dataset: { fk: 'notes-import' }, onclick: () => { finish(null); importNotes(); } }, icon('plus'), t('note.import')),
+          h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
     }, { className: 'dialog-small' });
+  }
+
+  // ---------- importeren (Google Keep, Markdown; ui/noteImportDialog.js) ----------
+  async function importNotes(files = null) {
+    const result = await openNoteImport({ store, actions, files });
+    if (result?.count) handlers.navigate({ type: 'notes' });
   }
 
   // ---------- selecteren ----------
@@ -228,6 +237,19 @@ export function installNotes({ store, actions, handlers, getRoute, cleanUp = tru
         noteLabels(store.view).map(({ label, count }) => item({ type: 'notes', id: `label:${label.id}` }, null, label.name, count, labelId === label.id, `nav-notes-label:${label.id}`, true))));
     }
     extra.before(...nodes);
+  });
+
+  // ---------- bestanden neerzetten op het overzicht: importeren ----------
+  document.addEventListener('dragover', (e) => {
+    if (!isNotesRoute(getRoute()) || document.querySelector('dialog[open]') || !e.dataTransfer?.types?.includes('Files')) return;
+    if (!e.target.closest?.('.note-board, .empty-state, #view')) return;
+    e.preventDefault();
+  });
+  document.addEventListener('drop', (e) => {
+    if (!isNotesRoute(getRoute()) || document.querySelector('dialog[open]') || !e.dataTransfer?.files?.length) return;
+    if (!e.target.closest?.('.note-board, .empty-state, #view')) return;
+    e.preventDefault();
+    importNotes([...e.dataTransfer.files]);
   });
 
   // ---------- sneltoets N ----------

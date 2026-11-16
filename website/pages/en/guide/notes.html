@@ -72,11 +72,17 @@ description: Notes next to your tasks: writing with formatting on screen, checkl
 <h2 id="versions">Earlier versions</h2>
 <p>Tickory keeps an earlier version of your note as soon as you write again after a break (or change the note on another device). The <x-ui k="note.more"></x-ui> menu has <x-ui k="note.history"></x-ui>: pick a version to read it, or choose <x-ui k="note.history.changes"></x-ui> to see what changed after it. <x-ui k="note.history.restore"></x-ui> brings the old text back; your current text is kept as a version, and <x-ui k="note.undo"></x-ui> puts it right back. The last fifty versions of each note are kept.</p>
 
+<h2 id="importing">Importing from Google Keep or Markdown</h2>
+<ul>
+  <li><strong>Google Keep:</strong> at <a href="https://takeout.google.com" rel="noopener">Google Takeout</a>, request only "Keep" and download the zip. In your notes, choose <x-ui k="note.view"></x-ui> and then <x-ui k="note.import"></x-ui>, and pick that zip (or single .json files). Titles, text, checklists, labels, colours, pinning and pictures come along; archived notes can go to the archive. What's in the Keep bin is left out.</li>
+  <li><strong>Markdown:</strong> pick .md or .txt files, or a folder as a zip (for example from Obsidian). The title comes from a first line with <code>#</code> or from the file name; tags in the header become labels; pictures inside the zip become pictures on the note.</li>
+  <li>You can also drag the files onto your notes overview. Before anything happens, you see what was found and what is skipped.</li>
+</ul>
+
 <h2 id="saving">Saving as a file</h2>
 <p>The <x-ui k="note.more"></x-ui> menu has <x-ui k="note.export"></x-ui>: you get the note as a Markdown file, which any text editor and apps such as Obsidian can read. The <a href="export.html">export of all your data</a> contains your notes too.</p>
 
 <h2>Not possible yet</h2>
 <ul>
   <li>Sharing a note with someone else.</li>
-  <li>Importing notes from Google Keep or Markdown files.</li>
 </ul>

@@ -17,7 +17,7 @@ import { handleSync } from './sync.ts';
 import type { Command } from './sync.ts';
 import { LIMITS } from './limits.ts';
 import { addUser, freshDb } from './testutil.ts';
-import { MAX_FILES_PER_NOTE } from '../shared/notes.js';
+import { MAX_FILES_PER_NOTE, MAX_NOTES_PER_USER } from '../shared/notes.js';
 
 setPasswordCostForTests(1024);
 
@@ -138,6 +138,7 @@ test('hooguit twintig bestanden per notitie (ook wachtende uploads tellen); de g
   const w = await world();
   try {
     assert.equal(LIMITS.filesPerNote, MAX_FILES_PER_NOTE);
+    assert.equal(LIMITS.notesPerUser, MAX_NOTES_PER_USER);
     for (let i = 0; i < LIMITS.filesPerNote; i++) {
       const up = await w.upload('alice', `id=file-many-${String(i).padStart(4, '0')}&note_id=note-alice-0001`, PNG(), 'image/png');
       assert.equal(up.status, 200);

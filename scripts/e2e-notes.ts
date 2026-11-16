@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { crc32, deflateSync } from 'node:zlib';
 import { createSession } from '../server/users.ts';
+import { makeZip } from './zipFixture.ts';
 
 export async function notesScenario(c: any) {
   const { send, evaluate, waitFor, step, shot, sleep, js, SYNCED, db, alice, bob, syncAs, serverState, click, nav, workDir } = c;
@@ -474,8 +475,50 @@ export async function notesScenario(c: any) {
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   step('notities: op een telefoon geen zijwaarts scrollen, tikvlakken van 44 px, de editor over het hele scherm met de werkbalk onderaan; ook in het donker');
 
+  // ---- importeren: een Takeout-zip van Keep (lijst, kleur, label, foto, archief, prullenbak) en een Markdown-bestand ----
+  const keepJson = (o: object) => JSON.stringify({ isTrashed: false, isPinned: false, isArchived: false, userEditedTimestampUsec: 1, color: 'DEFAULT', ...o });
+  const takeout = await makeZip([
+    { name: 'Takeout/Keep/Kamperen.json', data: keepJson({ title: 'Kamperen', color: 'GREEN', labels: [{ name: 'Vakantie' }], listContent: [{ text: 'tent', isChecked: true }, { text: 'slaapzak', isChecked: false }], attachments: [{ filePath: 'kampeerplek.png', mimetype: 'image/png' }] }), method: 8 },
+    { name: 'Takeout/Keep/kampeerplek.png', data: png, method: 0 },
+    { name: 'Takeout/Keep/Oud idee.json', data: keepJson({ title: 'Oud idee', textContent: '*geen* opmaak', isArchived: true }), method: 8 },
+    { name: 'Takeout/Keep/Weggegooid.json', data: keepJson({ title: 'Weggegooid', textContent: 'x', isTrashed: true }), method: 8 },
+    { name: 'Takeout/Keep/Labels.txt', data: 'Vakantie', method: 8 },
+  ]);
+  const importFiles = { zip: `${filesDir}takeout.zip`, md: `${filesDir}Leeslijst.md` };
+  writeFileSync(importFiles.zip, takeout);
+  writeFileSync(importFiles.md, '---\ntags: [boeken]\n---\n# Leeslijst\n\n- [ ] Max Havelaar\n- [x] De avonden');
+  await click('[data-fk="notes-view"]');
+  await waitFor(`document.querySelector('dialog[open] [data-fk="notes-import"]')`, 'de knop importeren in Indeling');
+  await click('dialog[open] [data-fk="notes-import"]');
+  await waitFor(`document.querySelector('.dialog-note-import[open] [data-fk="note-import-input"]')`, 'het importvenster');
+  {
+    const { result } = await send('Runtime.evaluate', { expression: `document.querySelector('.dialog-note-import[open] [data-fk="note-import-input"]')` });
+    await send('DOM.setFileInputFiles', { files: [importFiles.zip, importFiles.md], objectId: result.objectId });
+  }
+  await waitFor(`document.querySelector('.dialog-note-import[open] .ni-found')`, 'wat er gevonden is', 15_000);
+  assert.equal(await evaluate(`document.querySelector('.dialog-note-import[open] .ni-found').textContent`), "3 notities gevonden · 1 met foto's of geluid");
+  assert.match(await evaluate<string>(`document.querySelector('.dialog-note-import[open] .ni-skipped').textContent`), /Weggegooid\.json: in de prullenbak van Keep/);
+  assert.equal(await evaluate(`document.querySelector('.dialog-note-import[open] [data-fk="note-import-go"]').textContent`), '3 notities importeren');
+  await click('.dialog-note-import[open] [data-fk="note-import-go"]');
+  await waitFor(`!document.querySelector('.dialog-note-import[open]')`, 'het venster sluit');
+  await waitFor(`[...document.querySelectorAll('.toast')].some((e) => e.textContent.includes('3 notities geïmporteerd.'))`, 'de melding');
+  await synced();
+  const imported = () => notes().filter((n) => ['Kamperen', 'Oud idee', 'Leeslijst'].includes(n.title));
+  assert.equal(imported().length, 3);
+  const kamp = imported().find((n) => n.title === 'Kamperen');
+  const vakantie = (serverState().labels as any[]).find((l) => l.name === 'Vakantie' && l.owner_id === alice.id);
+  assert.deepEqual([kamp.content, kamp.background, kamp.labels], ['- [x] tent\n- [ ] slaapzak', 'green', [vakantie?.id]], 'lijst, kleur en een eigen label');
+  const oud = imported().find((n) => n.title === 'Oud idee');
+  assert.deepEqual([oud.content, oud.is_archived], ['\\*geen\\* opmaak', true], 'platte tekst blijft platte tekst; in het archief');
+  assert.equal(imported().find((n) => n.title === 'Leeslijst').content, '- [ ] Max Havelaar\n- [x] De avonden');
+  for (let i = 0; i < 40 && !(serverState().note_files as any[]).some((f) => f.note_id === kamp.id && !f.is_deleted); i++) await sleep(250);
+  assert.ok((serverState().note_files as any[]).some((f) => f.note_id === kamp.id && f.name === 'kampeerplek.png' && !f.is_deleted), 'de foto is geüpload en gekoppeld');
+  await closeToasts();
+  step('notities: importeren uit een Takeout-zip van Keep (lijst, kleur, eigen label, foto, archief; de prullenbak niet) en uit Markdown (tags, titel uit # …)');
+
   // ---- opruimen ----
-  await as(aliceToken, [...notes().map((n) => ['note_delete', { id: n.id }] as [string, object]), ['label_delete', { id: labelId }], ['settings_update', { id: `settings-${alice.id}`, note_prefs: null }]]);
+  const boeken = (serverState().labels as any[]).filter((l) => ['Vakantie', 'boeken'].includes(l.name) && l.owner_id === alice.id).map((l) => ['label_delete', { id: l.id }] as [string, object]);
+  await as(aliceToken, [...notes().map((n) => ['note_delete', { id: n.id }] as [string, object]), ['label_delete', { id: labelId }], ...boeken, ['settings_update', { id: `settings-${alice.id}`, note_prefs: null }]]);
   assert.equal(notes().length, before);
   await nav(startView);
   await waitFor(`document.getElementById('view-title').textContent === ${js(startView)}`, 'terug bij het begin');

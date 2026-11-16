@@ -72,11 +72,17 @@ description: Losse notities naast je taken: schrijven met opmaak in beeld, check
 <h2 id="versies">Eerdere versies</h2>
 <p>Tickory bewaart een eerdere versie van je notitie zodra je na een pauze verder schrijft (of een notitie op een ander apparaat wijzigt). In het menu <x-ui k="note.more"></x-ui> staat <x-ui k="note.history"></x-ui>: kies een versie om haar te lezen, of kies <x-ui k="note.history.changes"></x-ui> om te zien wat er daarna veranderde. Met <x-ui k="note.history.restore"></x-ui> komt de oude tekst terug; je huidige tekst blijft bewaard als versie, en <x-ui k="note.undo"></x-ui> zet die meteen weer terug. Per notitie blijven de laatste vijftig versies bewaard.</p>
 
+<h2 id="importeren">Importeren uit Google Keep of Markdown</h2>
+<ul>
+  <li><strong>Google Keep:</strong> vraag bij <a href="https://takeout.google.com" rel="noopener">Google Takeout</a> alleen "Keep" aan en download de zip. Kies bij de notities <x-ui k="note.view"></x-ui> en dan <x-ui k="note.import"></x-ui>, en kies die zip (of losse .json-bestanden). Titels, tekst, lijsten met vinkjes, labels, kleuren, vastgepind en foto's komen mee; gearchiveerde notities kun je meenemen naar het archief. Wat in de prullenbak van Keep staat, blijft weg.</li>
+  <li><strong>Markdown:</strong> kies .md- of .txt-bestanden, of een map als zip (bijvoorbeeld uit Obsidian). De titel komt uit een eerste regel met <code>#</code> of uit de bestandsnaam; tags uit de kop worden labels; afbeeldingen die in de zip zitten worden foto's bij de notitie.</li>
+  <li>Je kunt de bestanden ook gewoon op het overzicht van je notities slepen. Voordat er iets gebeurt, zie je wat er gevonden is en wat er wordt overgeslagen.</li>
+</ul>
+
 <h2 id="bewaren">Bewaren als bestand</h2>
 <p>In het menu <x-ui k="note.more"></x-ui> staat <x-ui k="note.export"></x-ui>: je krijgt de notitie als Markdown-bestand, dat elke teksteditor en apps als Obsidian kunnen lezen. Ook de <a href="exporteren.html">export van al je gegevens</a> bevat je notities.</p>
 
 <h2>Wat nog niet kan</h2>
 <ul>
   <li>Een notitie delen met iemand anders.</li>
-  <li>Notities importeren uit Google Keep of Markdown-bestanden.</li>
 </ul>

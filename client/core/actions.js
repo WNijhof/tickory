@@ -67,8 +67,11 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
   };
   const endKey = (resource, entity, scope, exceptId = null) => keyAfter(maxKey(store.view[resource], scopeOf(entity, scope), exceptId));
 
-  /** Commando's om labels op naam te vinden of aan te maken. Geeft de id's terug in dezelfde volgorde. */
-  const labelCommands = (names) => {
+  /**
+   * Commando's om labels op naam te vinden of aan te maken. Geeft de id's terug in dezelfde volgorde.
+   * `ownOnly`: alleen eigen labels gebruiken (een notitie is privé; het label van een ander op een gedeelde taak telt dan niet).
+   */
+  const labelCommands = (names, { ownOnly = false } = {}) => {
     const ids = [];
     const commands = [];
     const byName = new Map(); // nameKey -> id, voor alle opgegeven namen (ook de al bestaande)
@@ -78,7 +81,9 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
     // Een eigen label gaat voor; bestaat alleen het label van iemand anders (op een gedeelde taak), dan gebruiken we dat.
     const known = new Map();
     const me = store.userId;
-    for (const l of [...store.view.labels.values()].sort((a, b) => Number(isOwnLabel(a, me)) - Number(isOwnLabel(b, me)))) known.set(nameKey(l.name), l.id);
+    for (const l of [...store.view.labels.values()].sort((a, b) => Number(isOwnLabel(a, me)) - Number(isOwnLabel(b, me)))) {
+      if (!ownOnly || isOwnLabel(l, me)) known.set(nameKey(l.name), l.id);
+    }
     // nieuwe labels krijgen in één keer een reeks korte sleutels (keyAfter steeds op de vorige wordt bij honderden labels te lang)
     const fresh = [...new Set(names.map((raw) => normalizeText(raw).trim()).filter((name) => name && !known.has(nameKey(name))).map((name) => nameKey(name)))];
     let chained = last;
@@ -350,6 +355,28 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
       return id;
     },
     updateNote: (id, changes) => send([{ type: 'note_update', args: { id, ...changes } }]),
+    /**
+     * Notities importeren (core/noteImport.js): eerst de labels die nog niet bestaan (alleen eigen labels), dan de notities, in één
+     * reeks commando's. Geeft de nieuwe id's terug in dezelfde volgorde.
+     * @param {{ title: string, content: string, background: string | null, labels: string[], is_pinned: boolean, is_archived: boolean }[]} list
+     */
+    async importNotes(list) {
+      const { commands, byName } = labelCommands(list.flatMap((n) => n.labels ?? []), { ownOnly: true });
+      const ids = [];
+      for (const n of list) {
+        const id = makeId();
+        ids.push(id);
+        const args = { id, title: n.title ?? '', content: n.content ?? '' };
+        if (n.background) args.background = n.background;
+        const labels = [...new Set((n.labels ?? []).map((name) => byName.get(nameKey(normalizeText(name).trim()))).filter(Boolean))];
+        if (labels.length) args.labels = labels;
+        if (n.is_pinned) args.is_pinned = true;
+        if (n.is_archived) args.is_archived = true;
+        commands.push({ type: 'note_add', args });
+      }
+      await send(commands);
+      return ids;
+    },
     /** Naar de prullenbak (en niet meer vastgepind); terugzetten kan tot ze na NOTE_TRASH_DAYS dagen wordt opgeruimd. */
     trashNote: (id, now = new Date()) => send([{ type: 'note_update', args: { id, trashed_at: now.toISOString(), is_pinned: false } }]),
     restoreNote: (id) => send([{ type: 'note_update', args: { id, trashed_at: null } }]),

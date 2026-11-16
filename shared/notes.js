@@ -26,6 +26,8 @@ export const isNoteFileMime = (mime) => NOTE_IMAGE_MIMES.includes(mime) || NOTE_
 export const noteFileKind = (mime) => (NOTE_IMAGE_MIMES.includes(mime) ? 'image' : NOTE_AUDIO_MIMES.includes(mime) ? 'audio' : null);
 /** Zoveel foto's en geluidsfragmenten kan een notitie hebben (gelijk aan LIMITS.filesPerNote op de server). */
 export const MAX_FILES_PER_NOTE = 20;
+/** Zoveel notities kan iemand hebben (gelijk aan LIMITS.notesPerUser op de server). */
+export const MAX_NOTES_PER_USER = 10_000;
 
 // ---------- herinneringen op een notitie ----------
 //
