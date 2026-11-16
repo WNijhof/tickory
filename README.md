@@ -58,7 +58,7 @@ The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in En
 
 ## Status
 
-Version 0.3. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet. English date phrases ("tomorrow") are not recognised yet.
+Version 0.4. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet. English date phrases ("tomorrow") are not recognised yet.
 
 ## Development
 

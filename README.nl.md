@@ -58,7 +58,7 @@ De [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) beschrijft a
 
 ## Stand van zaken
 
-Versie 0.3. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels. Engelse datumzinnen ("tomorrow") worden nog niet herkend.
+Versie 0.4. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels. Engelse datumzinnen ("tomorrow") worden nog niet herkend.
 
 ## Ontwikkelen
 
