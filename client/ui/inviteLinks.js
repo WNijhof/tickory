@@ -19,8 +19,8 @@ const DAY_LABEL = { 1: () => t('invite.dayOne'), 7: () => t('invite.daySeven'), 
 
 const capitalize = (text) => text.charAt(0).toLocaleUpperCase() + text.slice(1);
 
-/** Hoe lang een link nog werkt, in hele dagen (afgerond naar boven). */
-const daysLeft = (iso) => Math.max(1, Math.ceil((Date.parse(iso) - Date.now()) / 86_400_000));
+/** Hoe lang een link nog werkt, in hele dagen (afgerond naar boven), gerekend vanaf de tijd van de server. */
+const daysLeft = (iso, now) => Math.max(1, Math.ceil((Date.parse(iso) - (Date.parse(now) || Date.now())) / 86_400_000));
 
 /**
  * Het deel "Uitnodigen met een link" van het deelvenster (alleen voor de eigenaar).
@@ -37,11 +37,11 @@ export function inviteSection({ api, project }) {
 
   const load = async () => {
     try {
-      const { invites } = await api.invites.list(project.id);
+      const { invites, now } = await api.invites.list(project.id);
       replace(list, invites.map((inv) => h('li', { class: 'device', dataset: { inviteId: inv.id } },
         h('div', { class: 'device-info' },
           h('strong', {}, capitalize(ROLE_LABEL[inv.role]?.() ?? inv.role)),
-          h('span', { class: 'hint' }, [t('invite.validFor', { count: daysLeft(inv.expires_at) }), t('invite.used', { count: inv.uses })].join(' · '))),
+          h('span', { class: 'hint' }, [t('invite.validFor', { count: daysLeft(inv.expires_at, now) }), t('invite.used', { count: inv.uses })].join(' · '))),
         h('button', {
           type: 'button', class: 'button button-small', dataset: { fk: `invite-revoke:${inv.id}` },
           onclick: async () => {

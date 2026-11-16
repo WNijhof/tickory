@@ -924,7 +924,7 @@ export class DemoServer {
       },
       // uitnodigen via een link kan niet in de demo: er is maar één echte gebruiker
       invites: {
-        list: async () => ({ invites: [] }),
+        list: async () => ({ invites: [], now: new Date().toISOString() }),
         create: demoOnly,
         revoke: demoOnly,
         preview: demoOnly,

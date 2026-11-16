@@ -51,7 +51,8 @@ const view = (r: Row) => ({ id: r.id as string, role: r.role as string, created_
 export function listInvites(db: DatabaseSync, userId: string, projectId: string, nowMs: number) {
   requireOwner(db, userId, projectId);
   const rows = db.prepare('SELECT * FROM project_invites WHERE project_id = ? AND revoked = 0 AND expires_at > ? ORDER BY created_at').all(projectId, new Date(nowMs).toISOString()) as Row[];
-  return { invites: rows.map(view) };
+  // `now`: de tijd van de server, zodat de app "nog zoveel dagen" goed uitrekent, ook met een scheve klok op het apparaat
+  return { invites: rows.map(view), now: new Date(nowMs).toISOString() };
 }
 
 /** Een nieuwe link: `token` komt alleen hier terug (de database kent alleen de hash). */

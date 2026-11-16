@@ -50,6 +50,7 @@ test('de eigenaar maakt een link; Bram bekijkt hem, neemt hem aan en zit erin me
     const list = await w.call('GET', `/api/v1/projects/${P}/invites`, w.tokens.anna);
     assert.deepEqual(list.body.invites.map((i: any) => [i.id, i.role, i.uses]), [[made.body.id, 'viewer', 0]]);
     assert.equal(list.body.invites[0].token, undefined, 'het token komt maar één keer terug');
+    assert.equal(list.body.now, '2026-11-17T10:00:00.000Z', 'de tijd van de server');
 
     const seen = await w.call('GET', `/api/v1/invites/${made.body.token}`, w.tokens.bram);
     assert.deepEqual(seen.body, { project_id: P, project_name: 'Gezin', owner_name: 'Anna', role: 'viewer', member: false });
