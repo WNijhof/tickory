@@ -112,8 +112,8 @@ description: De Android-app van Tickory: je eigen server in een app, met herinne
   <li>Een melding vervangt de web-app niet: een herinnering is een alarm van de telefoon. Op een toestel zonder <em>Android System WebView</em> (of met WebView uitgezet) start de app niet; hij zegt dat.</li>
 </ul>
 
-<h2>Bijwerken</h2>
-<p>Installeer de nieuwe APK over de oude heen; je gegevens blijven staan. Android werkt een app alleen bij als de nieuwe APK met <strong>dezelfde sleutel</strong> is ondertekend als de oude.</p>
+<h2 id="bijwerken">Bijwerken</h2>
+<p>Staat er een nieuwere app op GitHub, dan zie je dat in de app: één keer een melding, en bovenaan <x-ui k="settings.title"></x-ui> een regel met <x-ui k="update.download"></x-ui> (je server kijkt voor je; de app zelf praat niet met GitHub). Installeer de nieuwe APK over de oude heen; je gegevens blijven staan. Android werkt een app alleen bij als de nieuwe APK met <strong>dezelfde sleutel</strong> is ondertekend als de oude.</p>
 <ul>
   <li>APK's van de releasepagina zijn getekend met de sleutel van de maker en kunnen elkaar opvolgen. Dat geldt zodra de maker die sleutel in GitHub heeft ingesteld; zonder sleutel bouwt GitHub een <em>debug-APK</em>.</li>
   <li><strong>Een debug-APK kan geen eerdere versie bijwerken</strong> (elke bouw heeft een andere wegwerpsleutel): verwijder dan eerst de oude app. Dat geldt ook voor een APK die je zelf bouwt met <code>assembleDebug</code> op een andere computer.</li>

@@ -87,6 +87,8 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS sessions_user ON sessions (user_id)');
   // Versie 8. Het soort apparaat ("browser/Firefox/Windows", zonder versienummers; zie describeUserAgent in users.ts).
   addColumnIfMissing(db, 'sessions', 'device', 'TEXT');
+  // Inloggen zonder "onthoud mij": `short` = 1, en de sessie verloopt na SHORT_IDLE_MS zonder gebruik (users.ts).
+  addColumnIfMissing(db, 'sessions', 'short', 'INTEGER');
   // Tweestapsverificatie (zie totp.ts). Het geheim staat versleuteld; `totp_last_step` is het laatst gebruikte tijdvak (een code
   // geldt maar één keer); `totp_pending` is een nieuw geheim dat nog met een code moet worden bevestigd.
   for (const [col, type] of [['totp_secret', 'TEXT'], ['totp_enabled_at', 'TEXT'], ['totp_last_step', 'INTEGER'], ['totp_pending', 'TEXT'], ['totp_pending_at', 'TEXT']]) {

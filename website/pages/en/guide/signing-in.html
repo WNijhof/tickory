@@ -18,6 +18,9 @@ description: Signing in to Tickory: what you need, what happens with a wrong pas
   <li>If you have <a href="account.html#two-step-verification">two-step verification</a> on, <x-ui k="login.codeTitle"></x-ui> follows: enter the 6-digit code from your authenticator app and choose <x-ui k="login.verify"></x-ui>. Lost your phone? Choose <x-ui k="login.useRecovery"></x-ui>. You have five minutes for this step; after that you start again with your password.</li>
   <li>The app fetches your tasks. The top right shows <x-ui k="sync.upToDate"></x-ui> once everything is in.</li>
 </ol>
+<h3 id="remember-me">Remember me</h3>
+<p>Below the password there is <x-ui k="login.remember"></x-ui>, ticked by default: then you stay signed in, as described below. On a computer you share with others, untick it. You are then signed out again after closing the browser, and the app removes your data on that device the next time it opens. Even if you do not close the browser, such a sign-in expires after twelve hours without use. The Android app has no tick box: there you always stay signed in.</p>
+
 <p>You stay signed in on this device until you sign out yourself, someone revokes the session, or you have not used the device for 90 days (and after 365 days in any case; the administrator can set other periods). Every device and every browser gets its own session; you can see them all in <a href="account.html">your account</a>.</p>
 <p>If your server has its own sign-in service (SSO), the sign-in screen also has a button “Sign in with …”; see <a href="sign-in-with-sso.html">Signing in with SSO</a>.</p>
 

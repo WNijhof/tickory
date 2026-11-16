@@ -112,8 +112,8 @@ description: The Tickory Android app: your own server in an app, with reminders 
   <li>A notification does not replace the web app: a reminder is an alarm of the phone. On a device without <em>Android System WebView</em> (or with WebView turned off) the app does not start; it says so.</li>
 </ul>
 
-<h2>Updating</h2>
-<p>Install the new APK over the old one; your data stays. Android only updates an app if the new APK is signed with the <strong>same key</strong> as the old one.</p>
+<h2 id="updating">Updating</h2>
+<p>If there is a newer app on GitHub, the app shows it: a notice once, and at the top of <x-ui k="settings.title"></x-ui> a line with <x-ui k="update.download"></x-ui> (your server checks for you; the app itself does not talk to GitHub). Install the new APK over the old one; your data stays. Android only updates an app if the new APK is signed with the <strong>same key</strong> as the old one.</p>
 <ul>
   <li>APKs from the releases page are signed with the maker's key and can succeed each other. That holds once the maker has set up that key in GitHub; without a key, GitHub builds a <em>debug APK</em>.</li>
   <li><strong>A debug APK cannot update an earlier version</strong> (every build has a different throwaway key): remove the old app first. The same goes for an APK you build yourself with <code>assembleDebug</code> on another computer.</li>

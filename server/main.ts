@@ -25,6 +25,7 @@
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
 //   GET  /api/v1/projects/{id}/invites    (eigenaar) uitnodigingslinks; POST {role, days} -> {…, token}; DELETE …/invites/{inviteId} (invites.ts)
 //   GET  /api/v1/invites/{token}          wat de link is; POST /api/v1/invites/{token}/accept: lid worden
+//   GET  /api/v1/version                  -> {version, latest, update_available, checked_at, enabled}: een nieuwere release op GitHub (updateCheck.ts)
 //   GET  /api/v1/admin/backup             (beheerder) -> {download, auto}: downloaden en de automatische back-ups (autoBackup.ts)
 //   POST /api/v1/admin/backup             (beheerder) {password, code?} -> {ticket}; GET /api/v1/admin/backup/download?ticket=… het archief
 //   GET  /api/v1/push/key                 de publieke sleutel om meldingen in de browser aan te zetten
@@ -63,6 +64,8 @@ import { cleanCode, cleanRecoveryCode, createSecretBox, matchStep, newRecoveryCo
 import { createBackupArchive, removeStaleTemp } from './backupArchive.ts';
 import { autoBackupConfig, createAutoBackup } from './autoBackup.ts';
 import { acceptInvite, createInvite, InviteError, listInvites, previewInvite, revokeInvite } from './invites.ts';
+import { createUpdateCheck, serverVersion, updateCheckEnabled } from './updateCheck.ts';
+import type { UpdateCheck } from './updateCheck.ts';
 import type { AutoBackup } from './autoBackup.ts';
 import { createOidcClient, oidcConfigFrom } from './oidc.ts';
 import type { OidcClient } from './oidc.ts';
@@ -139,6 +142,10 @@ export interface AppOptions {
   autoBackup?: AutoBackup | null;
   /** Hoe vaak de server kijkt of de automatische back-up van vandaag er al is; 0 = niet vanzelf. Standaard elke vijf minuten. */
   autoBackupCheckMs?: number;
+  /** Kijken of er een nieuwere release op GitHub staat (updateCheck.ts). Zonder: uit. */
+  updateCheck?: UpdateCheck | null;
+  /** Hoe vaak; 0 = niet vanzelf. Standaard twee keer per dag (de eerste keer kort na het starten). */
+  updateCheckMs?: number;
   /** Voor tests: de klok (milliseconden) voor sessies, codes en downloadbewijzen. */
   clock?: () => number;
   /** Waar logregels van beheer en beveiliging heen gaan (standaard de console). Er komen nooit geheimen, codes of tokens in. */
@@ -270,8 +277,15 @@ export function createApp(opts: AppOptions): App {
   autoTimer?.unref();
   const autoFirst = autoBackup && autoMs > 0 ? setTimeout(() => autoBackup.tick(), Math.min(autoMs, 15_000)) : null;
   autoFirst?.unref();
+  // een nieuwere release op GitHub: kort na het starten en daarna twee keer per dag kijken
+  const updateCheck = opts.updateCheck ?? null;
+  const updateMs = opts.updateCheckMs ?? 12 * 3_600_000;
+  const updateTimer = updateCheck && updateMs > 0 ? setInterval(() => { updateCheck.check().catch(() => {}); }, updateMs) : null;
+  updateTimer?.unref();
+  const updateFirst = updateCheck && updateMs > 0 ? setTimeout(() => { updateCheck.check().catch(() => {}); }, Math.min(updateMs, 30_000)) : null;
+  updateFirst?.unref();
   /** De tweede inlogstap, per (gehasht) tussentoken. Alleen in het geheugen: een herstart betekent opnieuw het wachtwoord intypen. */
-  const challenges = new Map<string, { userId: string; device: string; kind: DeviceKind; expires: number; attempts: number }>();
+  const challenges = new Map<string, { userId: string; device: string; kind: DeviceKind; remember: boolean; expires: number; attempts: number }>();
   /** Downloadbewijzen voor een back-up, per (gehasht) bewijs. */
   const tickets = new Map<string, { userId: string; sessionId: string; expires: number }>();
   const backupsByUser = new Map<string, number[]>();
@@ -403,6 +417,8 @@ export function createApp(opts: AppOptions): App {
     const username = typeof body.username === 'string' ? body.username.slice(0, 200) : '';
     const password = typeof body.password === 'string' ? body.password.slice(0, 1000) : '';
     const device = typeof body.device_name === 'string' ? body.device_name : '';
+    // "Onthoud mij" uit (remember: false): een sessie die na twaalf uur zonder gebruik verloopt (users.ts, SHORT_IDLE_MS)
+    const remember = body.remember !== false;
     // De poging wordt geteld vóórdat het wachtwoord wordt gecontroleerd. Dat controleren is asynchroon en duurt even; tellen
     // erna liet honderden gelijktijdige pogingen door de beperking voordat de eerste was geteld.
     const { wait, attempt } = limiter.begin(username, clientIp(req));
@@ -428,11 +444,11 @@ export function createApp(opts: AppOptions): App {
     if (hasTwoFactor(db, user.id)) {
       // Het wachtwoord klopt; nu nog de code. Het tussentoken geeft alleen toegang tot die tweede stap, en alleen even.
       const challenge = `tkc_${randomBytes(32).toString('base64url')}`;
-      challenges.set(hashToken(challenge), { userId: user.id, device, kind, expires: clock() + CHALLENGE_MS, attempts: 0 });
+      challenges.set(hashToken(challenge), { userId: user.id, device, kind, remember, expires: clock() + CHALLENGE_MS, attempts: 0 });
       forget(challenges, 10_000);
       return send(res, 200, { two_factor_required: true, challenge, expires_in: CHALLENGE_MS / 1000 });
     }
-    const { token, id } = createSession(db, user.id, device, kind);
+    const { token, id } = createSession(db, user.id, device, kind, { remember });
     send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
 
@@ -522,7 +538,7 @@ export function createApp(opts: AppOptions): App {
       return;
     }
     challenges.delete(key);
-    const { token, id } = createSession(db, user.id, ch.device, ch.kind);
+    const { token, id } = createSession(db, user.id, ch.device, ch.kind, { remember: ch.remember });
     const extra = how === 'recovery' ? { recovery_code_used: true, recovery_codes_left: getTwoFactor(db, user.id).recoveryLeft } : {};
     send(res, 200, { token, session_id: id, me: publicMe(user), ...extra });
   };
@@ -788,7 +804,7 @@ export function createApp(opts: AppOptions): App {
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
         || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path.startsWith('/api/v1/notes/') || path === '/api/v1/stats' || path === '/api/v1/completed/recurring'
-        || path === '/api/v1/quick-add' || path.startsWith('/api/v1/invites/');
+        || path === '/api/v1/quick-add' || path.startsWith('/api/v1/invites/') || path === '/api/v1/version';
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
@@ -908,6 +924,13 @@ export function createApp(opts: AppOptions): App {
           if (err instanceof SyncError) return send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
           throw err;
         }
+      }
+
+      // De versie van de server en de nieuwste release op GitHub (updateCheck.ts): voor iedereen die is aangemeld (de Android-app
+      // vergelijkt er zijn eigen versie mee; de beheerder ziet of de server bijgewerkt kan worden).
+      if (path === '/api/v1/version') {
+        if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+        return send(res, 200, updateCheck ? updateCheck.status() : { version: serverVersion(), latest: null, update_available: false, checked_at: null, enabled: false });
       }
 
       // Uitnodigen via een link (invites.ts): de eigenaar beheert de links van een project; wie een link heeft, bekijkt en neemt hem aan.
@@ -1061,6 +1084,8 @@ export function createApp(opts: AppOptions): App {
         if (sessionTimer) clearInterval(sessionTimer);
         if (autoTimer) clearInterval(autoTimer);
         if (autoFirst) clearTimeout(autoFirst);
+        if (updateTimer) clearInterval(updateTimer);
+        if (updateFirst) clearTimeout(updateFirst);
         for (const s of streams) s.res.end();
         streams.clear();
         server.close(() => resolveClose());
@@ -1348,9 +1373,12 @@ if (import.meta.main) {
       console.error(`Fout in de instellingen voor automatische back-ups: ${(err as Error).message}`);
       process.exit(1);
     }
+    // Kijken of er een nieuwere release op GitHub staat (UPDATE_CHECK=0 zet het uit; zie updateCheck.ts)
+    const updateCheck = updateCheckEnabled(process.env) ? createUpdateCheck() : null;
+    if (!updateCheck) console.log('Kijken naar nieuwe versies staat uit (UPDATE_CHECK=0).');
     const app = createApp({
       db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1',
-      sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc, autoBackup,
+      sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc, autoBackup, updateCheck,
       // de tijdelijke kopie voor een back-up staat naast de database: in Docker is /tmp een (kleine) geheugenschijf
       backup: { tmpDir: dataDir, attachmentsDir: attachments.dir },
     });

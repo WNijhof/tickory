@@ -94,7 +94,7 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
 
   return {
     /** Geeft `{token, me}`, of bij tweestapsverificatie `{two_factor_required: true, challenge}`: dan volgt `loginCode`. */
-    login: (username, password, deviceName) => call('login', 'POST', '/api/v1/auth/login', { username, password, device_name: deviceName }, { token: null }),
+    login: (username, password, deviceName, remember = true) => call('login', 'POST', '/api/v1/auth/login', { username, password, device_name: deviceName, ...(remember ? {} : { remember: false }) }, { token: null }),
     /** De tweede inlogstap: het tussentoken uit `login` en een code uit de app (of een herstelcode). */
     loginCode: (challenge, code) => call('loginCode', 'POST', '/api/v1/auth/login/2fa', { challenge, code }, { token: null }),
     logout: (token) => call('logout', 'POST', '/api/v1/auth/logout', {}, token ? { token } : undefined),
@@ -122,7 +122,7 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       /** Begint een poging (`purpose` 'login' of 'link'; koppelen met `password` en zo nodig `code`): `{ url, binding }`. */
       start: (input) => call('sso.start', 'POST', '/api/v1/auth/oidc/start', input, input?.purpose === 'link' ? undefined : { token: null }),
       /** Wisselt de eenmalige code na de terugkeer in: `{ token, me }`, of na koppelen `{ linked: true }`. */
-      handoff: (code, binding) => call('sso.handoff', 'POST', '/api/v1/auth/login/handoff', { code, ...(binding ? { binding } : {}) }, { token: null }),
+      handoff: (code, binding, remember = true) => call('sso.handoff', 'POST', '/api/v1/auth/login/handoff', { code, ...(binding ? { binding } : {}), ...(remember ? {} : { remember: false }) }, { token: null }),
       status: () => call('sso.status', 'GET', '/api/v1/auth/oidc/link'),
       unlink: () => call('sso.unlink', 'POST', '/api/v1/auth/oidc/unlink', {}),
     },
@@ -133,6 +133,8 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       /** Een nieuwe code: `{ code, expires_in }`. Eenmalig; vervangt een eerdere code die nog openstond. */
       create: (password, code) => call('pairing.create', 'POST', '/api/v1/auth/pair-code', { ...(password ? { password } : {}), ...(code ? { code } : {}) }),
     },
+    /** De versie van de server en de nieuwste release op GitHub (server/updateCheck.ts). */
+    version: () => call('version', 'GET', '/api/v1/version'),
     /** Uitnodigen via een link (server/invites.ts): de eigenaar beheert de links, wie een link heeft bekijkt en neemt hem aan. */
     invites: {
       list: (projectId) => call('invites.list', 'GET', `/api/v1/projects/${encodeURIComponent(projectId)}/invites`),

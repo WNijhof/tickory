@@ -348,7 +348,7 @@ export function createSso(deps: SsoDeps) {
     limiter.succeed(attempt);
     if (row.kind === 'linked') return send(res, 200, { linked: true, name: config?.buttonName ?? 'SSO' });
     if (row.kind === 'emergency') log(`[beveiliging] "${user.username}" is ingelogd met een noodcode van de opdrachtregel`);
-    const { token, id } = createSession(db, user.id, row.device || (row.kind === 'emergency' ? 'Noodcode' : 'SSO'), describeDevice(req));
+    const { token, id } = createSession(db, user.id, row.device || (row.kind === 'emergency' ? 'Noodcode' : 'SSO'), describeDevice(req), { remember: body.remember !== false });
     return send(res, 200, { token, session_id: id, me: publicMe(user) });
   };
 

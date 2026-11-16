@@ -33,8 +33,12 @@ export function errorText(err) {
  * poging (de pagina gaat dan naar de inlogdienst). Staat inloggen met een wachtwoord uit (`passwordLogin: false`), dan is die knop
  * het enige.
  */
-export function loginDialog({ attempt, attemptCode, username = '', note = '', sso = null, passwordLogin = true, onSso = null }) {
+export function loginDialog({ attempt, attemptCode, username = '', note = '', sso = null, passwordLogin = true, onSso = null, askRemember = true }) {
   return openDialog((finish) => {
+    // "Onthoud mij" (standaard aan): uit = alleen tot de browser sluit (core/backend.js). In de Android-app niet: daar blijf je aangemeld.
+    const rememberBox = h('input', { type: 'checkbox', checked: true, dataset: { fk: 'login-remember' } });
+    const rememberRow = askRemember && h('label', { class: 'login-remember', title: t('login.rememberHint') }, rememberBox, h('span', {}, t('login.remember')));
+    const remember = () => !askRemember || rememberBox.checked;
     // inloggen via SSO: een knop, en een eigen regel voor een melding
     const ssoError = h('p', { class: 'error', role: 'alert' });
     const ssoLabel = sso ? t('login.sso', { name: sso.name }) : '';
@@ -44,7 +48,7 @@ export function loginDialog({ attempt, attemptCode, username = '', note = '', ss
         ssoButton.disabled = true;
         ssoButton.textContent = t('login.ssoBusy', { name: sso.name });
         try {
-          if ((await onSso()) === 'update-app') ssoError.textContent = t('login.ssoUpdateApp', { name: sso.name });
+          if ((await onSso(remember())) === 'update-app') ssoError.textContent = t('login.ssoUpdateApp', { name: sso.name });
         } catch (err) {
           ssoError.textContent = errorText(err);
         } finally {
@@ -60,6 +64,7 @@ export function loginDialog({ attempt, attemptCode, username = '', note = '', ss
         h('h2', {}, t('login.title')),
         note && h('p', { class: 'hint' }, note),
         h('p', {}, t('login.passwordOff', { name: sso.name })),
+        rememberRow,
         ...ssoPart));
     }
     const user = h('input', { class: 'field', type: 'text', value: username, required: true, autocomplete: 'username', autocapitalize: 'none', spellcheck: false, 'aria-label': t('account.username') });
@@ -136,7 +141,7 @@ export function loginDialog({ attempt, attemptCode, username = '', note = '', ss
         submit.disabled = true;
         submit.textContent = t('login.busy');
         try {
-          const res = await attempt(user.value.trim(), pass.value);
+          const res = await attempt(user.value.trim(), pass.value, remember());
           if (res?.two_factor_required) {
             challenge = res.challenge;
             form.replaceWith(codeForm);
@@ -160,6 +165,7 @@ export function loginDialog({ attempt, attemptCode, username = '', note = '', ss
     sso && h('p', { class: 'login-or' }, t('login.or')),
     h('label', { class: 'field-label' }, t('account.username'), user),
     h('label', { class: 'field-label' }, t('account.password'), pass),
+    rememberRow,
     error,
     h('div', { class: 'dialog-buttons' }, submit));
     queueMicrotask(() => (username ? pass : user).focus());

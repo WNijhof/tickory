@@ -45,6 +45,7 @@ import { timelineScenario } from './e2e-timeline.ts';
 import { swipeScenario } from './e2e-swipe.ts';
 import { repeatScenario } from './e2e-repeat.ts';
 import { inviteScenario } from './e2e-invite.ts';
+import { sessionScenario } from './e2e-session.ts';
 import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
@@ -259,7 +260,7 @@ try {
   assert.equal(await evaluate(`localStorage.getItem('tickory.lang')`), null, 'er is nog geen voorkeur bewaard');
   assert.equal(await evaluate(`document.documentElement.lang`), 'en');
   assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Sign in');
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] label')].map((l) => l.firstChild.textContent)`), ['Username', 'Password']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] label')].map((l) => l.textContent.trim())`), ['Username', 'Password', 'Remember me']);
   assert.equal(await evaluate(`document.getElementById('quick-input').placeholder`), en['quick.placeholder']);
   assert.equal(await evaluate(`document.querySelector('#quick-add button[type=submit]').textContent`), 'Add');
   assert.equal(await evaluate(`document.getElementById('sync-status').textContent`), 'Sign-in required');
@@ -452,6 +453,13 @@ try {
     };
     const noDialog = () => waitFor(`!document.querySelector('dialog[open]')`, 'alle vensters gesloten');
     try { await rolesScenario({ ...notifyCtx(), openTask, noDialog, buttons, texts }); console.log('ALLEEN ROLLEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-rollen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // "onthoud mij" en een nieuwe versie (scripts/e2e-session.ts); met E2E_SESSION_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_SESSION_ONLY) {
+    try { await sessionScenario({ ...notifyCtx(), startServer, stopServer, submit, PASSWORD_ALICE }); console.log('ALLEEN SESSIE: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-sessie'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -3093,6 +3101,9 @@ try {
   } catch (err) {
     step(`installeerbaarheid kon in deze browser niet worden opgevraagd (${(err as Error).message})`);
   }
+
+  // ---- 10b. "Onthoud mij" en een nieuwe versie (scripts/e2e-session.ts) ----
+  await sessionScenario({ ...notifyCtx(), startServer, stopServer, submit, PASSWORD_ALICE });
 
   // ---- 11. afmelden wist de lokale gegevens ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });

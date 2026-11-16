@@ -54,6 +54,8 @@ services:
       OIDC_ADMIN_GROUPS: ${OIDC_ADMIN_GROUPS:-}
       OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-}
       OIDC_ONLY: ${OIDC_ONLY:-0}
+      # Kijken of er een nieuwere Tickory op GitHub staat (twee keer per dag, niets over de server mee); 0 = uit.
+      UPDATE_CHECK: ${UPDATE_CHECK:-1}
       # Automatische back-ups: een map in het volume, bijvoorbeeld /data/backups; leeg = uit. Elke dag na BACKUP_TIME één kopie (met
       # de bijlagen), de nieuwste BACKUP_KEEP blijven. Zie de handleiding, Back-up en terugzetten.
       BACKUP_DIR: ${BACKUP_DIR:-}

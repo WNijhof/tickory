@@ -286,3 +286,15 @@ test('een geheim van een andere sleutel (verkeerd sleutelbestand) laat geen code
     await other.close();
   } finally { /* al gesloten */ }
 });
+
+test('"onthoud mij" uit geldt ook na de code: de sessie is kort', async () => {
+  const w = await world();
+  try {
+    const { secret } = await w.enable(await w.tokenOf('bob'));
+    const first = await w.call('/api/v1/auth/login', { username: 'bob', password: PW, device_name: 'Gedeeld', remember: false });
+    assert.equal(first.body.two_factor_required, true);
+    const done = await w.call('/api/v1/auth/login/2fa', { challenge: first.body.challenge, code: code(secret, w.clock.now) });
+    assert.equal(done.status, 200);
+    assert.equal((w.db.prepare('SELECT short FROM sessions WHERE id = ?').get(done.body.session_id) as any).short, 1);
+  } finally { await w.close(); }
+});

@@ -452,6 +452,8 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .prop-label { font-size: 0.78rem; font-weight: 600; color: var(--text-soft); }
 .task-col-side .field { background: var(--bg); }
 .quick-dates { display: flex; flex-wrap: wrap; gap: 5px; margin-top: -6px; }
+/* "Onthoud mij" op het inlogscherm */
+.login-remember { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; font-size: 0.92rem; cursor: pointer; }
 /* uitnodigen met een link in het deelvenster (ui/inviteLinks.js) */
 .invite-section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
 .invite-section .subheading { margin-top: 0; }

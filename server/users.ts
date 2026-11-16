@@ -273,8 +273,15 @@ const DAY_MS = 86_400_000;
 export interface SessionPolicy { idleDays: number; maxDays: number }
 export const DEFAULT_SESSION_POLICY: SessionPolicy = { idleDays: 90, maxDays: 365 };
 
+/**
+ * Een sessie zonder "onthoud mij" (`short`): de browser bewaart het token alleen tot hij sluit; als vangnet (een browser die
+ * sessiecookies na een herstart terugzet) verloopt ze ook hier na twaalf uur zonder gebruik.
+ */
+export const SHORT_IDLE_MS = 12 * 60 * 60_000;
+
 /** Is deze sessie op `nowMs` verlopen volgens `policy`? */
-export function sessionExpired(s: { created_at: string; last_used_at: string }, policy: SessionPolicy, nowMs: number): boolean {
+export function sessionExpired(s: { created_at: string; last_used_at: string; short?: unknown }, policy: SessionPolicy, nowMs: number): boolean {
+  if (s.short === 1 && nowMs - Date.parse(s.last_used_at) > SHORT_IDLE_MS) return true;
   if (policy.idleDays > 0 && nowMs - Date.parse(s.last_used_at) > policy.idleDays * DAY_MS) return true;
   if (policy.maxDays > 0 && nowMs - Date.parse(s.created_at) > policy.maxDays * DAY_MS) return true;
   return false;
@@ -325,12 +332,15 @@ const decodeDevice = (raw: unknown): DeviceKind => {
 
 export interface SessionInfo { id: string; name: string; created_at: string; last_used_at: string; device: DeviceKind }
 
-export function createSession(db: DatabaseSync, userId: string, deviceName: string, device: DeviceKind = { kind: 'other', browser: null, os: null }): { token: string; id: string } {
+export function createSession(
+  db: DatabaseSync, userId: string, deviceName: string, device: DeviceKind = { kind: 'other', browser: null, os: null }, opts: { remember?: boolean } = {},
+): { token: string; id: string } {
   const token = `tky_${randomBytes(32).toString('base64url')}`;
   const id = newId();
   const now = new Date().toISOString();
   const name = deviceName.normalize('NFC').replace(/[\u0000-\u001f\u007f\s]+/gu, ' ').trim().slice(0, 100) || 'Onbekend apparaat';
-  db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at, device) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, userId, sha256(token), name, now, now, encodeDevice(device));
+  db.prepare('INSERT INTO sessions (id, user_id, token_hash, name, created_at, last_used_at, device, short) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, userId, sha256(token), name, now, now, encodeDevice(device), opts.remember === false ? 1 : null);
   // Het aantal aangemelde apparaten is begrensd (zie limits.ts): bij het volgende inloggen wordt het langst ongebruikte afgemeld.
   const surplus = db
     .prepare('SELECT id FROM sessions WHERE user_id = ? AND revoked_at IS NULL AND id <> ? ORDER BY last_used_at DESC, created_at DESC, rowid DESC LIMIT -1 OFFSET ?')
@@ -351,13 +361,13 @@ export function findSession(
   if (token.length < 20 || token.length > 200) return null;
   const r = db
     .prepare(
-      `SELECT s.id AS session_id, s.last_used_at AS session_last_used_at, s.created_at AS session_created_at, u.* FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT s.id AS session_id, s.last_used_at AS session_last_used_at, s.created_at AS session_created_at, s.short AS session_short, u.* FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.is_disabled = 0`,
     )
     .get(sha256(token)) as Row | undefined;
   if (!r) return null;
   const lastUsed = r.session_last_used_at as string;
-  if (sessionExpired({ created_at: r.session_created_at as string, last_used_at: lastUsed }, policy, nowMs)) {
+  if (sessionExpired({ created_at: r.session_created_at as string, last_used_at: lastUsed, short: r.session_short }, policy, nowMs)) {
     db.prepare('UPDATE sessions SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL').run(new Date(nowMs).toISOString(), r.session_id as string);
     return null;
   }
@@ -370,14 +380,14 @@ export function findSession(
 /** Is de sessie met dit id nog geldig, voor deze gebruiker (zonder het token: voor een downloadbewijs dat aan een sessie hangt)? */
 export function sessionValid(db: DatabaseSync, userId: string, sessionId: string, nowMs: number = Date.now(), policy: SessionPolicy = DEFAULT_SESSION_POLICY): boolean {
   const s = db.prepare(
-    'SELECT s.created_at, s.last_used_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND u.is_disabled = 0',
-  ).get(sessionId, userId) as { created_at: string; last_used_at: string } | undefined;
+    'SELECT s.created_at, s.last_used_at, s.short FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.id = ? AND s.user_id = ? AND s.revoked_at IS NULL AND u.is_disabled = 0',
+  ).get(sessionId, userId) as { created_at: string; last_used_at: string; short: unknown } | undefined;
   return Boolean(s) && !sessionExpired(s!, policy, nowMs);
 }
 
 /** De aangemelde apparaten van een gebruiker: alleen geldige sessies, laatst gebruikt eerst. */
 export function listSessions(db: DatabaseSync, userId: string, nowMs: number = Date.now(), policy: SessionPolicy = DEFAULT_SESSION_POLICY): SessionInfo[] {
-  const rows = db.prepare('SELECT id, name, created_at, last_used_at, device FROM sessions WHERE user_id = ? AND revoked_at IS NULL ORDER BY last_used_at DESC, created_at DESC').all(userId) as Row[];
+  const rows = db.prepare('SELECT id, name, created_at, last_used_at, device, short FROM sessions WHERE user_id = ? AND revoked_at IS NULL ORDER BY last_used_at DESC, created_at DESC').all(userId) as Row[];
   return rows
     .filter((r) => !sessionExpired(r as { created_at: string; last_used_at: string }, policy, nowMs))
     .map((r) => ({ id: r.id as string, name: r.name as string, created_at: r.created_at as string, last_used_at: r.last_used_at as string, device: decodeDevice(r.device) }));
@@ -391,7 +401,9 @@ export function pruneSessions(db: DatabaseSync, policy: SessionPolicy = DEFAULT_
   const now = new Date(nowMs).toISOString();
   const idleCutoff = policy.idleDays > 0 ? new Date(nowMs - policy.idleDays * DAY_MS).toISOString() : '';
   const maxCutoff = policy.maxDays > 0 ? new Date(nowMs - policy.maxDays * DAY_MS).toISOString() : '';
-  const expired = db.prepare('UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL AND (last_used_at < ? OR created_at < ?)').run(now, idleCutoff, maxCutoff).changes;
+  const shortCutoff = new Date(nowMs - SHORT_IDLE_MS).toISOString();
+  const expired = db.prepare('UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL AND (last_used_at < ? OR created_at < ? OR (short = 1 AND last_used_at < ?))')
+    .run(now, idleCutoff, maxCutoff, shortCutoff).changes;
   db.prepare('DELETE FROM sessions WHERE revoked_at IS NOT NULL AND revoked_at < ?').run(new Date(nowMs - 30 * DAY_MS).toISOString());
   return Number(expired);
 }

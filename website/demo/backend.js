@@ -922,6 +922,8 @@ export class DemoServer {
         info: demoOnly,
         create: demoOnly,
       },
+      // de demo kijkt niet naar nieuwe versies
+      version: async () => ({ version: '0.0.0', latest: null, update_available: false, checked_at: null, enabled: false }),
       // uitnodigen via een link kan niet in de demo: er is maar één echte gebruiker
       invites: {
         list: async () => ({ invites: [], now: new Date().toISOString() }),
@@ -1005,6 +1007,8 @@ export function createBackend() {
     getToken: () => 'demo',
     setToken: () => {},
     clearToken: () => {},
+    forgotten: () => false,
+    clearForgotten: () => {},
     api: server.api(),
     transport: async (body) => server.sync(body),
     attachments: server.attachmentsApi(),

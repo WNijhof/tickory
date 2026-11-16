@@ -39,6 +39,7 @@ import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from '
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { openPendingInvite, takeInviteFromHash } from './inviteLinks.js';
+import { createUpdates } from './updates.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
@@ -86,6 +87,10 @@ const pushClient = createPushClient({ getToken, lang: getLanguage });
 const usesPush = () => !backend.demo && !bridge.available;
 const deviceZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 let adapter;
+/** Meldingen over een nieuwere versie van de server of de Android-app (ui/updates.js). */
+let updates = null;
+/** De bijlagen op dit apparaat ook wissen zodra die er zijn (na een vergeten aanmelding, zie boot). */
+let forgetFiles = false;
 let store;
 let sync;
 let actions;
@@ -520,6 +525,7 @@ const handlers = {
     const choice = await menuDialog({
       title: t('settings.title'),
       items: [
+        ...(updates?.menuItems() ?? []), // een nieuwere versie van de server (beheerder) of de Android-app, bovenaan
         { value: 'general', label: t('settings.general') },
         { value: 'account', label: t('settings.account') },
         { value: 'notifications', label: t('settings.notifications') },
@@ -534,6 +540,7 @@ const handlers = {
         { value: 'logout', label: t('settings.signOut'), danger: true },
       ],
     });
+    if (choice && await updates?.handle(choice)) return undefined;
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'general') await openGeneralDialog({ store, actions });
     else if (choice === 'account') await accountFlow();
@@ -586,6 +593,10 @@ async function accountFlow() {
  * dan wissen we die eerst (na bevestiging als er nog wijzigingen wachten): gegevens van de één horen nooit bij de ander terecht te komen.
  * Met tweestapsverificatie geeft het wachtwoord eerst alleen een tussentoken; het inlogscherm vraagt dan de code (loginDialog).
  */
+/** De keuze "onthoud mij" tussen het wachtwoord en de code (tweestapsverificatie), en bij SSO tot de terugkeer van de inlogdienst. */
+let loginRemember = true;
+const REMEMBER_KEY = 'tickory.ssoRemember';
+
 async function askLogin(note = '') {
   if (ui.askingLogin) return;
   ui.askingLogin = true;
@@ -601,13 +612,19 @@ async function askLogin(note = '') {
       note: note || (store.me ? t('login.sessionEnded') : ''),
       sso: methods.sso ?? null,
       passwordLogin: methods.password !== false || !methods.sso,
-      onSso: () => startSso({ api, purpose: 'login', bridge, storage: localStorage, location, deviceName: device(), lang: getLanguage() }),
-      attempt: async (username, password) => {
-        const res = await api.login(username, password, device());
-        return res.two_factor_required ? res : adoptLogin(res);
+      // "Onthoud mij": in de Android-app altijd (geen vinkje); bij SSO onthouden we de keuze tot de terugkeer van de inlogdienst
+      askRemember: !window.TickoryAndroid,
+      onSso: (remember = true) => {
+        try { sessionStorage.setItem(REMEMBER_KEY, remember ? '1' : '0'); } catch { /* zonder opslag: dan onthouden */ }
+        return startSso({ api, purpose: 'login', bridge, storage: localStorage, location, deviceName: device(), lang: getLanguage() });
+      },
+      attempt: async (username, password, remember = true) => {
+        loginRemember = remember;
+        const res = await api.login(username, password, device(), remember);
+        return res.two_factor_required ? res : adoptLogin(res, remember);
       },
       attemptCode: async (challenge, code) => {
-        const res = await adoptLogin(await api.loginCode(challenge, code));
+        const res = await adoptLogin(await api.loginCode(challenge, code), loginRemember);
         if (res.recovery_code_used) toast(t('login.recoveryLeft', { count: res.recovery_codes_left ?? 0 }), { timeout: 12_000 });
         return res;
       },
@@ -622,7 +639,7 @@ async function askLogin(note = '') {
  * gegevens op dit apparaat staan, dan wissen we die eerst (na bevestiging als er nog wijzigingen wachten): gegevens van de één horen
  * nooit bij de ander terecht te komen.
  */
-async function adoptLogin(res) {
+async function adoptLogin(res, remember = true) {
   const other = store.me && store.me.id !== res.me.id;
   if (other) {
     const waiting = store.queueLength;
@@ -641,7 +658,7 @@ async function adoptLogin(res) {
     if (adapter.clear) await adapter.clear();
     await attachments.clear();
   }
-  backend.setToken(res.token);
+  backend.setToken(res.token, { remember });
   bridge.setSession(res.token);
   if (other) {
     location.reload();
@@ -667,7 +684,9 @@ async function finishSso(ret) {
   if (ret.kind === 'error') return fail(ssoErrorText(ret.error));
   if (ret.kind === 'code' && !pending) return fail(ssoErrorText('EXPIRED')); // niet hier begonnen: niet inwisselen
   try {
-    const res = await api.sso.handoff(ret.code, pending?.binding);
+    let remember = true;
+    try { remember = sessionStorage.getItem(REMEMBER_KEY) !== '0'; sessionStorage.removeItem(REMEMBER_KEY); } catch { /* zonder opslag: onthouden */ }
+    const res = await api.sso.handoff(ret.code, pending?.binding, remember);
     if (res.linked) {
       toast(t('sso.linkedToast', { name: res.name }), { timeout: 8000 });
       return null;
@@ -695,6 +714,7 @@ async function logout() {
   await api.logout().catch(() => { /* zonder verbinding: het token wordt hier toch gewist; intrekken kan later via Account */ });
   bridge.setSession(''); // de Android-app wist dan zijn token en alle geplande herinneringen
   backend.clearToken();
+  backend.clearForgotten(); // alles gaat hier al weg
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
   await attachments.clear(); // ook de bestanden die nog moesten worden geüpload
@@ -896,6 +916,12 @@ async function boot() {
     // In de demo bewaren we niets: elke keer openen begint opnieuw met de voorbeeldgegevens.
     adapter = backend.demo ? new MemoryAdapter() : new IdbAdapter();
     if (adapter.open) await adapter.open();
+    // Aangemeld zonder "onthoud mij" en de browser is intussen gesloten: de gegevens op dit apparaat horen weg (core/backend.js)
+    if (backend.forgotten()) {
+      if (adapter.clear) await adapter.clear();
+      localStorage.removeItem(ROUTE_KEY);
+      forgetFiles = true;
+    }
   } catch {
     adapter = new MemoryAdapter();
     toast(t('boot.noStorage'), { kind: 'error', timeout: 0 });
@@ -921,6 +947,7 @@ async function boot() {
   // andere tabbladen op dit apparaat laten weten dat er lokaal iets is veranderd (ook zonder verbinding)
   const channel = 'BroadcastChannel' in window ? new BroadcastChannel('tickory') : null;
   channel?.addEventListener('message', () => store.init());
+  updates = createUpdates({ api, store, bridge, demo: backend.demo, getToken });
   actions = createActions(store, {
     requestSync: () => {
       channel?.postMessage('changed');
@@ -934,6 +961,11 @@ async function boot() {
     store, actions, api: backend.attachments, getToken, makeId: newId,
     files: backend.demo || !('indexedDB' in window) ? new MemoryFiles() : new IdbFiles(),
   });
+  if (forgetFiles) {
+    await attachments.clear();
+    backend.clearForgotten();
+    forgetFiles = false;
+  }
   configureAttachments({ manager: attachments, bridge });
 
   events = backend.listen({ onSyncNeeded: () => sync.requestSync(0), onConnected: () => sync.requestSync(0) });
@@ -945,6 +977,9 @@ async function boot() {
   store.subscribe(openPendingPlace);
   store.subscribe(openPendingShare);
   store.subscribe(runInvite); // een onthouden uitnodigingslink, zodra je ingelogd bent
+  // een nieuwere versie: zodra je bent aangemeld, en daarna af en toe (de controle zelf kijkt hooguit eens per zes uur)
+  store.subscribe(() => updates.check());
+  setInterval(() => updates.check(), 3_600_000);
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat

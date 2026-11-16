@@ -260,3 +260,43 @@ test('migratie naar 8: een database op versie 7 (activiteitenlogboek, zonder 2FA
     assert.ok(cols(db, 'sessions').includes('device') && cols(db, 'users').includes('totp_secret'));
   }
 });
+
+test('zonder "onthoud mij": de sessie verloopt na twaalf uur zonder gebruik (ook met het standaardbeleid), een onthouden sessie niet', () => {
+  const db = freshDb();
+  const a = mk(db, 'alice');
+  const now = Date.now();
+  const kept = createSession(db, a.id, 'Onthouden');
+  const short = createSession(db, a.id, 'Gedeelde computer', undefined, { remember: false });
+  assert.equal((db.prepare('SELECT short FROM sessions WHERE id = ?').get(short.id) as any).short, 1);
+  assert.equal((db.prepare('SELECT short FROM sessions WHERE id = ?').get(kept.id) as any).short, null);
+  setTimes(db, kept.id, now - 2 * DAY, now - 13 * 3_600_000);
+  setTimes(db, short.id, now - 2 * DAY, now - 11 * 3_600_000);
+  assert.ok(findSession(db, short.token, now), 'elf uur stil: nog geldig');
+  setTimes(db, short.id, now - 2 * DAY, now - 13 * 3_600_000);
+  assert.equal(sessionValid(db, a.id, short.id, now), false);
+  assert.deepEqual(listSessions(db, a.id, now).map((x) => x.name), ['Onthouden']);
+  assert.equal(pruneSessions(db, DEFAULT_SESSION_POLICY, now), 1, 'opruimen trekt de korte sessie in');
+  assert.ok(findSession(db, kept.token, now), 'de onthouden sessie blijft');
+  assert.equal(findSession(db, short.token, now), null);
+});
+
+test('inloggen met remember: false geeft een korte sessie (met code: twoFactor.http.test.ts)', async () => {
+  const db = freshDb();
+  const a = createUser(db, { username: 'alice', name: 'Alice', passwordHash: await (await import('./users.ts')).hashPassword('een-goed-wachtwoord') });
+  const app = createApp({ db, sessionSweepMs: 0, attachmentSweepMs: 0, backup: null, log: () => {} });
+  await new Promise<void>((r) => app.server.listen(0, '127.0.0.1', r));
+  try {
+    const base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+    const login = async (remember?: boolean) => (await (await fetch(`${base}/api/v1/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'alice', password: 'een-goed-wachtwoord', device_name: 'Test', ...(remember === undefined ? {} : { remember }) }),
+    })).json()) as any;
+    const shortOf = (id: string) => (db.prepare('SELECT short FROM sessions WHERE id = ?').get(id) as any).short;
+    assert.equal(shortOf((await login()).session_id), null, 'standaard onthouden');
+    assert.equal(shortOf((await login(true)).session_id), null);
+    assert.equal(shortOf((await login(false)).session_id), 1);
+    assert.ok(a.id);
+  } finally {
+    await app.close();
+  }
+});

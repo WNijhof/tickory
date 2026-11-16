@@ -5,6 +5,10 @@ description: Tickory bijwerken naar een nieuwe versie met docker compose pull, z
 <h1>Bijwerken</h1>
 <p class="intro">Een nieuwe versie haal je op met twee opdrachten. Je gegevens staan in een Docker-volume en blijven daarbij bewaard.</p>
 
+<h2 id="nieuwe-versie-zien">Zien dat er een nieuwe versie is</h2>
+<p>De server kijkt twee keer per dag op GitHub of er een nieuwere Tickory is. Hij stuurt daarbij niets over je server of de gebruikers mee; de apps vragen het aan je eigen server, niet aan GitHub. Is er een nieuwere versie, dan krijgt een beheerder één keer een melding, en staat bovenaan <x-ui k="settings.title"></x-ui> een regel met uitleg en een link naar wat er nieuw is. In de <a href="android-app.html#bijwerken">Android-app</a> ziet iedereen zo dat er een nieuwere app is, met een link naar de APK.</p>
+<p>Liever geen verbinding met GitHub? Zet <code>UPDATE_CHECK=0</code> in <code>.env</code>; dan kijk je zelf op de <a href="{{repo}}/releases">releasepagina</a>.</p>
+
 <h2>Een nieuwe versie installeren</h2>
 <p>Maak eerst een <a href="back-up.html">back-up</a>. Daarna, in de map met <code>docker-compose.yml</code>:</p>
 <pre><code>docker compose pull &amp;&amp; docker compose up -d</code></pre>
