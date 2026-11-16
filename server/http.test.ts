@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { request } from 'node:http';
+import { Agent, request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { createSchema } from './schema.ts';
@@ -203,9 +203,20 @@ test('ETag: een ongewijzigd bestand geeft 304; HEAD geeft geen inhoud', async (t
     assert.equal((await staticResponse('/shared/orderKey.js', CLIENT_DIR, SHARED_DIR, etag))!.status, 304, 'de regel zelf klopt');
     t.diagnostic(`If-None-Match kwam niet ongewijzigd bij de server aan (verstuurd ${etag}, ontvangen ${received ?? 'niets'}): iets tussen de test en de server paste het verzoek aan. De 304 is hier rechtstreeks gecontroleerd in plaats van via het netwerk.`);
   }
-  const head = await fetchWithRetry(t, `${base}/shared/orderKey.js`, { method: 'HEAD' });
+  // HEAD met een client die de verbinding open houdt: fetch (undici) vraagt bij HEAD zelf om sluiten, en op Windows ging het
+  // antwoord daarbij af en toe verloren (ECONNRESET). Dat is de client en het besturingssysteem, niet de server (zie ook attachments.http.test.ts).
+  const agent = new Agent({ keepAlive: true });
+  const head = await new Promise<{ status: number; body: string }>((resolve, reject) => {
+    const r = request(`${base}/shared/orderKey.js`, { method: 'HEAD', agent }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body }));
+    });
+    r.on('error', reject);
+    r.end();
+  }).finally(() => agent.destroy());
   assert.equal(head.status, 200);
-  assert.equal((await head.text()).length, 0);
+  assert.equal(head.body.length, 0);
 });
 
 test('buiten de toegestane mappen komen lukt niet', async () => {

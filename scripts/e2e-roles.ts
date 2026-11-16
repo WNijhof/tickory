@@ -65,7 +65,7 @@ export async function rolesScenario(c: any) {
   assert.ok(await evaluate(`Boolean(document.querySelector('#task-dialog [data-fk="task-readonly"]'))`), 'het venster zegt dat je alleen kunt lezen');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Taak bekijken');
   assert.deepEqual(await evaluate(`[document.querySelector('#task-dialog .task-title-input').readOnly, document.querySelector('#task-dialog .check-large').disabled, document.querySelector('#task-dialog .subtask-row') === null]`), [true, true, true]);
-  assert.equal(await evaluate(`[...document.querySelectorAll('#task-dialog .dialog-buttons button')].map((b) => b.textContent.trim()).join('|')`), 'Als sjabloon bewaren|Sluiten', 'geen Opslaan of Verwijderen');
+  assert.equal(await evaluate(`[...document.querySelectorAll('#task-dialog .dialog-buttons button')].map((b) => b.textContent.trim() || b.getAttribute('aria-label')).join('|')`), 'Als sjabloon bewaren|Meer|Sluiten', 'geen Opslaan of Verwijderen (Meer heeft alleen Link kopiëren)');
   await evaluate(`(() => { const t = document.querySelector('#task-dialog .comment-form textarea'); t.focus(); t.value = 'Zal ik de spelletjes meenemen?'; t.dispatchEvent(new Event('input', { bubbles: true })); })()`);
   await click('#task-dialog .comment-form .button-primary');
   await waitFor(`document.querySelectorAll('#task-dialog .comment').length === 1 && await ${SYNCED}`, 'de opmerking van de lezer is geplaatst');
