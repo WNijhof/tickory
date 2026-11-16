@@ -131,6 +131,24 @@ export async function quickScenario(c: any) {
   await waitFor(`!document.body.dataset.hideNav && document.querySelector('[data-fk="find-toggle:labels"]')`, 'weer de standaard (via de server)');
   step('Instellingen › Algemeen: 12 uur (2:30 p.m.), Notities en Labels uit de zijbalk, "morgen" blijft tekst als datums niet herkend worden, en na herladen opent de startpagina Aankomend; overal op de server bewaard');
 
+  // ---- een plek uit het adres (snelkoppelingen onder het app-icoon op Android): #view=today en #note=new ----
+  await nav('Inbox');
+  await evaluate(`location.hash = '#view=today'`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Vandaag' && location.hash === ''`, 'Vandaag geopend, het adres weer schoon');
+  const notesBefore = (serverState().notes as any[] ?? []).length;
+  await evaluate(`location.hash = '#note=new'`);
+  await waitFor(`document.querySelector('dialog[open] .note-sheet') && location.hash === ''`, 'een nieuwe notitie open');
+  await evaluate(`document.querySelector('dialog[open] [data-fk="note-close"]').click()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'notitie dicht');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Notities');
+  assert.ok((serverState().notes as any[]).length <= notesBefore + 1, 'hooguit één nieuwe notitie (een lege verdwijnt vanzelf)');
+  await evaluate(`location.hash = '#view=onzin'`);
+  await waitFor(`location.hash === '#view=onzin'`, 'een onbekende plek doet niets');
+  assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Notities');
+  await evaluate(`history.replaceState(null, '', location.pathname)`);
+  step('adres: #view=today opent Vandaag en #note=new een nieuwe notitie (zoals de snelkoppelingen onder het app-icoon op Android); iets onbekends doet niets');
+
   // ---- opruimen ----
   await as([...pasted.map((x) => ['task_delete', { id: x.id }] as [string, object]), ['project_delete', { id: 'e2esnelproject01' }], ['label_delete', { id: 'e2esnellabel0001' }]]);
   await nav(startView);

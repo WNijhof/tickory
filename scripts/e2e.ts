@@ -890,7 +890,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Account, password and devices', 'Reminders and notifications', 'Productivity', 'Places', 'Export data', 'Import from Todoist', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Places', 'Export data', 'Import from Todoist', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');

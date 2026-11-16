@@ -30,7 +30,7 @@ import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
 import { openGeneralDialog } from './generalDialog.js';
-import { generalOf, startRoute } from '../../shared/general.js';
+import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
@@ -691,13 +691,39 @@ function openTaskById(id) {
   openTaskDialog({ task, store, actions, today: todayString, saveTemplate: (x) => templatesUi().saveTask(x) });
 }
 
+let pendingPlace = null;
+/** Een plek uit het adres openen zodra het kan: de Inbox en een nieuwe notitie wachten op je gegevens (de eerste sync). */
+function openPendingPlace() {
+  if (!pendingPlace) return;
+  if (pendingPlace === 'new-note') {
+    if (!store.ready || !store.me || !notesUi) return;
+    pendingPlace = null;
+    navigate({ type: 'notes' });
+    notesUi.newNote();
+    return;
+  }
+  const route = startRoute(pendingPlace, inboxId());
+  if (!route) return; // de Inbox: nog niet bekend wie je bent
+  pendingPlace = null;
+  navigate(route);
+}
+
 function openPendingTask() {
   if (pendingTaskId && Date.now() - pendingSince > 30_000) pendingTaskId = null; // een taak die niet komt: opgeven
   if (pendingTaskId && store.view.tasks.has(pendingTaskId)) openTaskById(pendingTaskId);
 }
 
 function openTaskFromHash() {
+  if (location.hash) userNavigated = true; // een link (melding, snelkoppeling) gaat voor de startpagina
   if (openShareFromHash()) return;
+  // #view=today …: een snelkoppeling onder het app-icoon (Android) of een bladwijzer; #note=new: een nieuwe notitie
+  const view = viewFromHash(location.hash);
+  if (view || location.hash === '#note=new') {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    pendingPlace = view ?? 'new-note';
+    openPendingPlace();
+    return;
+  }
   const noteId = noteIdFromHash(location.hash);
   if (noteId) {
     history.replaceState(null, '', `${location.pathname}${location.search}`); // het adres weer schoon
@@ -844,6 +870,7 @@ async function boot() {
   store.subscribe(applyGeneral); // Instellingen › Algemeen: tijdnotatie, zijbalk en (één keer) de startpagina
   applyGeneral();
   store.subscribe(openPendingTask);
+  store.subscribe(openPendingPlace);
   store.subscribe(openPendingShare);
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert

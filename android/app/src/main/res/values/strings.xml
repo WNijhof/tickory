@@ -195,4 +195,12 @@
     <string name="quick_failed_other_account">Er is intussen met een ander account ingelogd.</string>
     <string name="quick_failed_other">De server weigerde de taak (%1$s).</string>
     <string name="quick_failed_action">In de app toevoegen</string>
+
+    <!-- Snelkoppelingen onder het app-icoon (AppShortcuts): kort (op het startscherm) en lang (in het menu). -->
+    <string name="shortcut_add_short">Nieuwe taak</string>
+    <string name="shortcut_add_long">Taak toevoegen</string>
+    <string name="shortcut_today_short">Vandaag</string>
+    <string name="shortcut_today_long">Vandaag openen</string>
+    <string name="shortcut_note_short">Notitie</string>
+    <string name="shortcut_note_long">Nieuwe notitie</string>
 </resources>

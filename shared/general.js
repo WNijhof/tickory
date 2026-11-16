@@ -38,6 +38,15 @@ export function generalOf(settings) {
   };
 }
 
+/**
+ * Een vaste plek uit het adres: `#view=today` (of upcoming, inbox, notes), van een snelkoppeling onder het app-icoon op
+ * Android of een bladwijzer. Geeft de naam (zoals bij START_PAGES) of null.
+ */
+export function viewFromHash(hash) {
+  const m = /^#view=(inbox|today|upcoming|notes)$/.exec(hash ?? '');
+  return m ? m[1] : null;
+}
+
 /** De route bij een startpagina, of null voor 'last' (dan waar je was). De Inbox is een project: `inboxId` is dat van jou. */
 export function startRoute(page, inboxId = null) {
   switch (page) {

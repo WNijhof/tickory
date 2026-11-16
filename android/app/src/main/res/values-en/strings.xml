@@ -190,4 +190,12 @@
     <string name="quick_failed_other_account">Another account has signed in since.</string>
     <string name="quick_failed_other">The server refused the task (%1$s).</string>
     <string name="quick_failed_action">Add in the app</string>
+
+    <!-- Snelkoppelingen onder het app-icoon (AppShortcuts): kort (op het startscherm) en lang (in het menu). -->
+    <string name="shortcut_add_short">New task</string>
+    <string name="shortcut_add_long">Add task</string>
+    <string name="shortcut_today_short">Today</string>
+    <string name="shortcut_today_long">Open Today</string>
+    <string name="shortcut_note_short">Note</string>
+    <string name="shortcut_note_long">New note</string>
 </resources>

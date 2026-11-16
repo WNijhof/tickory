@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         origin = saved
+        AppShortcuts.publish(this)
 
         setContentView(R.layout.activity_main)
         webContainer = findViewById(R.id.web_container)
@@ -371,6 +372,8 @@ class MainActivity : ComponentActivity() {
         // tickory://oidc?code=… of ?error=…: terug van de inlogdienst (zie SignInLink)
         if (intent.action == Intent.ACTION_VIEW) return SignInLink.fragmentFor(intent.dataString)?.takeIf(DeepLink::isSafe)
         DeepLink.notification(intent.getStringExtra(InboxNotifier.EXTRA_NOTIFICATION_ID))?.let { return it }
+        // een snelkoppeling onder het app-icoon (AppShortcuts): alleen een vaste keuze
+        DeepLink.view(intent.getStringExtra(DeepLink.EXTRA_VIEW))?.let { return it }
         // uit het kleine venster Taak toevoegen ("Openen in de app") of de melding "Niet toegevoegd": de getypte tekst, gekeurd door ShareLink
         if (intent.hasExtra(DeepLink.EXTRA_DRAFT_TEXT)) {
             ShareLink.draftFragment(intent.getStringExtra(DeepLink.EXTRA_DRAFT_TEXT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_PROJECT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_DUE))

@@ -8,6 +8,14 @@ package io.github.wnijhof.tickory.core
 object DeepLink {
     const val EXTRA_ADD = "io.github.wnijhof.tickory.extra.ADD"
 
+    /** Een vaste plek om te openen, vanuit een snelkoppeling onder het app-icoon (AppShortcuts): alleen de waarden hieronder. */
+    const val EXTRA_VIEW = "io.github.wnijhof.tickory.extra.VIEW"
+    const val VIEW_TODAY = "today"
+    const val VIEW_UPCOMING = "upcoming"
+    const val VIEW_INBOX = "inbox"
+    const val VIEW_NOTES = "notes"
+    const val VIEW_NEW_NOTE = "new-note"
+
     /**
      * Een taak die in het kleine venster "Taak toevoegen" is ingetypt en in de app verder moet ("Openen in de app", of een tik
      * op de melding "Niet toegevoegd"): de tekst, en zo nodig het project en de dag. Gaat als `share=` naar de web-app (ShareLink.draftFragment).
@@ -35,6 +43,13 @@ object DeepLink {
         target == "today" -> "add=today"
         Ids.isSafeId(target) -> "add=$target"
         else -> "add"
+    }
+
+    /** `view=today` (of upcoming, inbox, notes) opent dat overzicht, `note=new` een nieuwe notitie; een andere waarde niets. */
+    fun view(target: String?): String? = when (target) {
+        VIEW_TODAY, VIEW_UPCOMING, VIEW_INBOX, VIEW_NOTES -> "view=$target"
+        VIEW_NEW_NOTE -> "note=new"
+        else -> null
     }
 
     /** Het fragment bij de gegevens van een intentie: een taak gaat voor, anders Taak toevoegen als daar om gevraagd is. */

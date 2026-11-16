@@ -1,7 +1,7 @@
 // Algemene voorkeuren (shared/general.js): de controle, de standaard en de startpagina.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_GENERAL, generalCheck, generalOf, startRoute } from './general.js';
+import { DEFAULT_GENERAL, generalCheck, generalOf, startRoute, viewFromHash } from './general.js';
 
 test('controle: alleen bekende velden met geldige waarden', () => {
   assert.equal(generalCheck(null), null);
@@ -23,4 +23,10 @@ test('startpagina: een route, of null voor waar je was', () => {
   assert.deepEqual(startRoute('inbox', 'inbox-anna'), { type: 'project', id: 'inbox-anna' });
   assert.equal(startRoute('inbox'), null);
   assert.equal(startRoute('last'), null);
+});
+
+test('een plek uit het adres: alleen de vaste namen', () => {
+  assert.equal(viewFromHash('#view=today'), 'today');
+  assert.equal(viewFromHash('#view=notes'), 'notes');
+  for (const bad of ['', null, '#view=', '#view=last', '#view=today&x', '#task=abc', '#view=TODAY']) assert.equal(viewFromHash(bad), null, String(bad));
 });
