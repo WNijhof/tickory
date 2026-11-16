@@ -704,7 +704,16 @@ export function accountDialog({ me, api, startLink = async () => 'away' }) {
 function backupSection({ api, inApp }) {
   const intro = [h('p', {}, t('admin.backupText')), h('p', { class: 'warning', role: 'note' }, t('admin.backupWarning'))];
   const restore = h('p', { class: 'hint' }, t('admin.backupRestoreHint'));
-  if (inApp) return h('details', { class: 'section backup-section' }, h('summary', {}, t('admin.backup')), intro, h('p', { class: 'hint' }, t('admin.backupInBrowser')), restore);
+  // de automatische back-ups van de server (BACKUP_DIR): aan of uit, de laatste kopie, of wat er misging
+  const auto = h('p', { class: 'hint', dataset: { fk: 'backup-auto' } });
+  api.admin.backupStatus?.().then(({ auto: a }) => {
+    if (!a?.enabled) { auto.textContent = t('admin.autoBackupOff'); return; }
+    const parts = [t('admin.autoBackupOn', { time: a.time, keep: a.keep, dir: a.dir }), a.last ? t('admin.autoBackupLast', { date: when(a.last.at) }) : t('admin.autoBackupNone')];
+    if (a.error) parts.push(t('admin.autoBackupError', { date: when(a.error.at), message: a.error.message }));
+    auto.textContent = parts.join(' ');
+    auto.classList.toggle('error', Boolean(a.error));
+  }).catch(() => auto.remove());
+  if (inApp) return h('details', { class: 'section backup-section' }, h('summary', {}, t('admin.backup')), intro, auto, h('p', { class: 'hint' }, t('admin.backupInBrowser')), restore);
   const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('admin.backupPassword') });
   const code = h('input', { class: 'field', type: 'text', autocomplete: 'one-time-code', autocapitalize: 'none', spellcheck: false, maxLength: 24, 'aria-label': t('admin.backupCode') });
   const codeLabel = h('label', { class: 'field-label' }, t('admin.backupCode'), code);
@@ -741,7 +750,7 @@ function backupSection({ api, inApp }) {
   // het codeveld alleen als de beheerder zelf tweestapsverificatie heeft
   codeLabel.remove();
   api.twoFactor.status().then((s) => { if (s.enabled) { pass.parentElement.after(codeLabel); code.required = true; } }).catch(() => {});
-  return h('details', { class: 'section backup-section' }, h('summary', {}, t('admin.backup')), intro, form, restore);
+  return h('details', { class: 'section backup-section' }, h('summary', {}, t('admin.backup')), intro, auto, form, restore);
 }
 
 /** Gebruikersbeheer voor beheerders: accounts aanmaken, blokkeren, wachtwoorden herstellen, tweestapsverificatie uitzetten, back-up. */

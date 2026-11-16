@@ -165,6 +165,8 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       /** Een eenmalig downloadbewijs; `backupUrl` maakt er het adres van dat de browser zelf downloadt. */
       backupTicket: (password, code) => call('admin.backup', 'POST', '/api/v1/admin/backup', { password, ...(code ? { code } : {}) }),
       backupUrl: (ticket) => `${baseUrl}/api/v1/admin/backup/download?ticket=${encodeURIComponent(ticket)}`,
+      /** De stand van de back-ups: `{download, auto}` (zie GET /api/v1/admin/backup). */
+      backupStatus: () => call('admin.backupStatus', 'GET', '/api/v1/admin/backup'),
     },
   };
 }

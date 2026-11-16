@@ -835,7 +835,7 @@ try {
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Duration', 'Deadline']);
-  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Save as template', 'Cancel', 'Save']);
+  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'Repeat', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Save as template', 'Cancel', 'Save']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask', 'Write a comment…']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['Inbox', 'Thuis', '(no section)']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prio-option')].map((l) => [l.title, l.querySelector('input').checked])`), [['P1 – highest', true], ['P2', false], ['P3', false], ['P4 – none', false]], 'vier prioriteitsknoppen; de taak "Call the dentist" is P1');
@@ -899,7 +899,7 @@ try {
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
   assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · can edit']);
-  assert.deepEqual(await buttons(), ['Remove', 'Share', 'Close']);
+  assert.deepEqual(await buttons(), ['Make owner', 'Remove', 'Share', 'Close']);
   assert.deepEqual(await evaluate(`[document.querySelector('dialog[open] input').placeholder, document.querySelector('dialog[open] input').getAttribute('aria-label')]`), ['Username', "The person's username"]);
   await typeInto(`dialog[open] input[aria-label="The person's username"]`, 'niemand-bekend');
   await submit('dialog[open] form.subtask-row');
@@ -1820,7 +1820,7 @@ try {
   await openTask('Afwasmachine uitruimen');
   assert.equal(await evaluate(`document.querySelector('#task-dialog .comments .subheading').textContent`), 'Comments (2)');
   assert.ok((await texts('#task-dialog .comment-time')).every((x) => /^(just now|\d+ minutes? ago)$/.test(x)), `tijden in het Engels: ${JSON.stringify(await texts('#task-dialog .comment-time'))}`);
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .quick-dates button')].map((b) => b.textContent)`), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'No date']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .quick-dates button')].map((b) => b.textContent)`), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'Repeat', 'No date']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Assigned to', 'Duration', 'Deadline']);
   assert.match(await evaluate(`document.querySelector('#task-dialog .task-created').textContent`), /^Created by Alice, today$/);
   await noDutch('taakvenster met opmerkingen', mine);

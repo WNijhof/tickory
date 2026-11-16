@@ -54,6 +54,11 @@ services:
       OIDC_ADMIN_GROUPS: ${OIDC_ADMIN_GROUPS:-}
       OIDC_GROUPS_CLAIM: ${OIDC_GROUPS_CLAIM:-}
       OIDC_ONLY: ${OIDC_ONLY:-0}
+      # Automatische back-ups: een map in het volume, bijvoorbeeld /data/backups; leeg = uit. Elke dag na BACKUP_TIME één kopie (met
+      # de bijlagen), de nieuwste BACKUP_KEEP blijven. Zie de handleiding, Back-up en terugzetten.
+      BACKUP_DIR: ${BACKUP_DIR:-}
+      BACKUP_TIME: ${BACKUP_TIME:-03:00}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
       # Het sleutelbestand voor tweestapsverificatie; leeg = /data/secret.key (maakt de server zelf). Het zit niet in een back-up:
       # bewaar er zelf een kopie van, apart van je back-ups.
       SECRET_KEY_FILE: ${SECRET_KEY_FILE:-}

@@ -23,6 +23,7 @@
 //   POST /api/v1/quick-add                {text, project_id?, uuid, typed_at, tz, …} -> {task, preview}: snel toevoegen (zie quickadd.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
+//   GET  /api/v1/admin/backup             (beheerder) -> {download, auto}: downloaden en de automatische back-ups (autoBackup.ts)
 //   POST /api/v1/admin/backup             (beheerder) {password, code?} -> {ticket}; GET /api/v1/admin/backup/download?ticket=… het archief
 //   GET  /api/v1/push/key                 de publieke sleutel om meldingen in de browser aan te zetten
 //   POST /api/v1/push/subscribe           {endpoint, keys, lang}   POST /api/v1/push/unsubscribe {endpoint}
@@ -58,6 +59,8 @@ import {
 import type { DeviceKind, SessionPolicy, UserRow } from './users.ts';
 import { cleanCode, cleanRecoveryCode, createSecretBox, matchStep, newRecoveryCodes, newSecret, otpauthUri, base32Encode } from './totp.ts';
 import { createBackupArchive, removeStaleTemp } from './backupArchive.ts';
+import { autoBackupConfig, createAutoBackup } from './autoBackup.ts';
+import type { AutoBackup } from './autoBackup.ts';
 import { createOidcClient, oidcConfigFrom } from './oidc.ts';
 import type { OidcClient } from './oidc.ts';
 import { createLoginCode, createSso, EMERGENCY_MS, hasPassword } from './sso.ts';
@@ -129,6 +132,10 @@ export interface AppOptions {
   codeLimiter?: LoginLimiter;
   /** Back-ups downloaden: de map voor de tijdelijke kopie van de database en de map met bijlagen. `null` zet het uit. */
   backup?: { tmpDir: string; attachmentsDir?: string | null } | null;
+  /** Automatische back-ups (autoBackup.ts): de server maakt elke dag zelf een kopie. Zonder: uit. */
+  autoBackup?: AutoBackup | null;
+  /** Hoe vaak de server kijkt of de automatische back-up van vandaag er al is; 0 = niet vanzelf. Standaard elke vijf minuten. */
+  autoBackupCheckMs?: number;
   /** Voor tests: de klok (milliseconden) voor sessies, codes en downloadbewijzen. */
   clock?: () => number;
   /** Waar logregels van beheer en beveiliging heen gaan (standaard de console). Er komen nooit geheimen, codes of tokens in. */
@@ -251,6 +258,13 @@ export function createApp(opts: AppOptions): App {
   const quickAddLimiter = opts.quickAddLimiter ?? new QuickAddLimiter();
   const backup = opts.backup === null ? null : { tmpDir: opts.backup?.tmpDir ?? tmpdir(), attachmentsDir: opts.backup?.attachmentsDir ?? attachments?.dir ?? null };
   if (backup) removeStaleTemp(backup.tmpDir);
+  // automatische back-ups: kort na het starten (een gemiste kopie inhalen) en daarna elke paar minuten kijken
+  const autoBackup = opts.autoBackup ?? null;
+  const autoMs = opts.autoBackupCheckMs ?? 5 * 60_000;
+  const autoTimer = autoBackup && autoMs > 0 ? setInterval(() => autoBackup.tick(), autoMs) : null;
+  autoTimer?.unref();
+  const autoFirst = autoBackup && autoMs > 0 ? setTimeout(() => autoBackup.tick(), Math.min(autoMs, 15_000)) : null;
+  autoFirst?.unref();
   /** De tweede inlogstap, per (gehasht) tussentoken. Alleen in het geheugen: een herstart betekent opnieuw het wachtwoord intypen. */
   const challenges = new Map<string, { userId: string; device: string; kind: DeviceKind; expires: number; attempts: number }>();
   /** Downloadbewijzen voor een back-up, per (gehasht) bewijs. */
@@ -623,7 +637,9 @@ export function createApp(opts: AppOptions): App {
    * zelf (gestreamd, naar schijf) kan opslaan. Het sessietoken komt zo nooit in een adres.
    */
   const adminBackupTicket = async (req: IncomingMessage, res: ServerResponse, caller: Caller): Promise<void> => {
-    if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+    // de stand: of downloaden kan, en de automatische back-ups (aan of uit, de laatste kopie, een fout)
+    if (req.method === 'GET') return send(res, 200, { download: backup !== null, auto: autoBackup ? autoBackup.status() : { enabled: false } });
+    if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET of POST' });
     if (!backup) return send(res, 404, { error_code: 'NOT_FOUND', error: 'back-ups downloaden staat op deze server uit' });
     const body = await readJson(req);
     const recent = (backupsByUser.get(caller.user.id) ?? []).filter((t) => t > clock() - 3_600_000);
@@ -997,6 +1013,8 @@ export function createApp(opts: AppOptions): App {
         if (pushTimer) clearInterval(pushTimer);
         if (sweepTimer) clearInterval(sweepTimer);
         if (sessionTimer) clearInterval(sessionTimer);
+        if (autoTimer) clearInterval(autoTimer);
+        if (autoFirst) clearTimeout(autoFirst);
         for (const s of streams) s.res.end();
         streams.clear();
         server.close(() => resolveClose());
@@ -1271,9 +1289,22 @@ if (import.meta.main) {
       console.error(`Fout in de instellingen voor OIDC: ${(err as Error).message}`);
       process.exit(1);
     }
+    let autoBackup: AutoBackup | null = null;
+    try {
+      // Automatische back-ups (BACKUP_DIR, BACKUP_TIME, BACKUP_KEEP; zie autoBackup.ts). Een ongeldige instelling stopt de start.
+      const config = autoBackupConfig(process.env);
+      if (config) {
+        if (dbPath === ':memory:') throw new Error('een database in het geheugen (DB_PATH=:memory:) kan niet worden gekopieerd');
+        autoBackup = createAutoBackup(config, { dbPath, attachmentsDir: attachments.dir });
+        console.log(`Automatische back-ups staan aan: elke dag na ${config.time}${config.timeZone ? ` (${config.timeZone})` : ''} in ${config.dir}; de nieuwste ${config.keep} blijven.`);
+      }
+    } catch (err) {
+      console.error(`Fout in de instellingen voor automatische back-ups: ${(err as Error).message}`);
+      process.exit(1);
+    }
     const app = createApp({
       db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1',
-      sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc,
+      sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc, autoBackup,
       // de tijdelijke kopie voor een back-up staat naast de database: in Docker is /tmp een (kleine) geheugenschijf
       backup: { tmpDir: dataDir, attachmentsDir: attachments.dir },
     });

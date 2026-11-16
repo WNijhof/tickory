@@ -979,6 +979,7 @@ export class DemoServer {
         },
         backupTicket: demoOnly,
         backupUrl: () => '#',
+        backupStatus: async () => ({ download: false, auto: { enabled: false } }),
       },
     };
   }

@@ -46,8 +46,14 @@ description: Downloading a backup of Tickory in the app or making one with a com
   <p>A copy contains all tasks of all users, the password hashes, the (hashed) sessions and the server's keys for notifications: the private key (VAPID) and the secret that signs the buttons in a notification. Whoever has it can use those buttons to complete or postpone any task of any user. Do not leave it where others can get at it, not even in a folder that other users of the server can read.</p>
 </div>
 
-<h2>Automatically, every night</h2>
-<p>Schedule the command with <code>cron</code> on the server (<code>crontab -e</code>). This example makes a copy every night at 3 o'clock; change the path to the directory that holds your <code>docker-compose.yml</code>. In a crontab a percent sign is written as <code>\%</code>.</p>
+<h2 id="automatic">Automatically, every night</h2>
+<p>The server can do this itself, without cron. Put in <code>.env</code>:</p>
+<pre><code>BACKUP_DIR=/data/backups
+BACKUP_TIME=03:00
+BACKUP_KEEP=14</code></pre>
+<p>and start the container again (<code>docker compose up -d</code>). The server then makes one copy every day after 03:00, <code>todo-2026-11-17.db</code> with the attachments in <code>todo-2026-11-17.attachments/</code>, just like the command above. If the server was off at that time, it makes the copy as soon as it runs again. The newest 14 copies stay (<code>BACKUP_KEEP</code>); the server removes older ones itself, but only files with exactly that name: whatever you put there yourself stays. The time is in <code>DEFAULT_TIMEZONE</code> if that is set. In <x-ui k="admin.title"></x-ui>, under <x-ui k="admin.backup"></x-ui>, you see whether it is on and when the last copy was made (or what went wrong).</p>
+<p>Mind the space: every copy also contains all attachments. And a copy in the same volume protects against mistakes and a damaged database, not against a broken disk: regularly get them off the server (see above).</p>
+<p>Rather schedule it yourself? Then schedule the command with <code>cron</code> on the server (<code>crontab -e</code>). This example makes a copy every night at 3 o'clock; change the path to the directory that holds your <code>docker-compose.yml</code>. In a crontab a percent sign is written as <code>\%</code>.</p>
 <pre><code>0 3 * * * cd /path/to/tickory &amp;&amp; docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +\%F).db</code></pre>
 
 <h2>Restoring a backup</h2>
@@ -80,4 +86,5 @@ docker compose up -d</code></pre>
 <h2>Without Docker</h2>
 <p>The command is the same, without the Docker part:</p>
 <pre><code>node server/backup.ts ./backups/todo-$(date +%F).db</code></pre>
+<p>Automatic backups work here too, with the same settings (<code>BACKUP_DIR=./backups</code> and so on).</p>
 <p>The source is the file from <code>DB_PATH</code> (<code>./data/todo.db</code> by default). You restore by stopping the server, removing the files <code>todo.db-wal</code> and <code>todo.db-shm</code> next to the database, putting your copy in the place of <code>todo.db</code> and starting the server again.</p>

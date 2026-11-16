@@ -2,6 +2,7 @@
 // geldig, alleen voor beheerders, een grens per uur, het tar-archief zelf (database en bijlagen; ook met het gewone `tar`
 // gecontroleerd als dat er is), de logregel en het opruimen van de tijdelijke kopie.
 
+import { createAutoBackup } from './autoBackup.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac, randomBytes } from 'node:crypto';
@@ -76,7 +77,10 @@ test('alleen een beheerder, met het eigen wachtwoord: dan een eenmalig downloadb
     assert.equal((await w.call('/api/v1/admin/backup', null, { password: PW })).status, 401, 'niet aangemeld');
     assert.equal((await w.ticket(w.tokens.alice, { password: 'verkeerd-wachtwoord' })).status, 403, 'fout wachtwoord');
     assert.equal((await w.ticket(w.tokens.alice, {})).status, 403, 'geen wachtwoord');
-    assert.equal((await w.call('/api/v1/admin/backup', w.tokens.alice)).status, 405, 'alleen POST');
+    const status = await w.call('/api/v1/admin/backup', w.tokens.alice);
+    assert.equal(status.status, 200, 'GET geeft de stand');
+    assert.deepEqual(status.body, { download: true, auto: { enabled: false } });
+    assert.equal((await w.call('/api/v1/admin/backup', w.tokens.bob)).status, 403, 'de stand ook alleen voor een beheerder');
     const t = await w.ticket(w.tokens.alice);
     assert.equal(t.status, 200);
     assert.match(t.body.ticket, /^tkb_[\w-]{43}$/);
@@ -235,4 +239,31 @@ test('tar-koppen: controlesom, octale velden, base-256 voor heel grote bestanden
   assert.equal(big.readUIntBE(130, 6), 9 * 1024 ** 3);
   assert.equal(String.fromCharCode(tarHeader('map/', 0, 0, 'dir')[156]), '5');
   for (const bad of ['', 'a b', 'x'.repeat(100), 'é', 'a\nb']) assert.throws(() => tarHeader(bad, 0, 0), /ongeldige naam/, bad);
+});
+
+test('de stand van de automatische back-ups (GET /api/v1/admin/backup): aan, met de laatste kopie, en een fout', async (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'tickory-auto-http-'));
+  t.after(() => { try { rmSync(root, { recursive: true, force: true, maxRetries: 5 }); } catch { /* Windows */ } });
+  const dbPath = join(root, 'todo.db');
+  const db = new DatabaseSync(dbPath);
+  createSchema(db);
+  const alice = createUser(db, { username: 'alice', name: 'Alice', passwordHash: await hashPassword(PW) });
+  const auto = createAutoBackup({ dir: join(root, 'backups'), time: '00:00', keep: 3, timeZone: null }, { dbPath, attachmentsDir: null, log: () => {} });
+  const app = createApp({ db, attachmentSweepMs: 0, sessionSweepMs: 0, autoBackup: auto, autoBackupCheckMs: 0, backup: null });
+  await new Promise<void>((r) => app.server.listen(0, '127.0.0.1', r));
+  try {
+    const base = `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`;
+    const token = createSession(db, alice.id, 'Laptop').token;
+    const status = async () => (await (await fetch(`${base}/api/v1/admin/backup`, { headers: { Authorization: `Bearer ${token}` } })).json()) as any;
+    const before = await status();
+    assert.equal(before.download, false, 'downloaden staat hier uit');
+    assert.deepEqual([before.auto.enabled, before.auto.time, before.auto.keep, before.auto.last, before.auto.error], [true, '00:00', 3, null, null]);
+    const made = auto.tick();
+    assert.match(made ?? '', /^todo-\d{4}-\d{2}-\d{2}\.db$/);
+    const after = await status();
+    assert.equal(after.auto.last.name, made);
+  } finally {
+    await app.close();
+    db.close();
+  }
 });

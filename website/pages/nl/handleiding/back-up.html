@@ -46,8 +46,14 @@ description: Een back-up van Tickory downloaden in de app of maken met een opdra
   <p>Een kopie bevat alle taken van alle gebruikers, de wachtwoord-hashes, de (gehashte) aanmeldingen en de sleutels van de server voor meldingen: de privésleutel (VAPID) en het geheim waarmee de knoppen in een melding worden ondertekend. Wie haar heeft, kan met die knoppen elke taak van elke gebruiker afvinken of uitstellen. Leg haar niet neer waar anderen bij kunnen, ook niet in een map die voor andere gebruikers van de server leesbaar is.</p>
 </div>
 
-<h2>Automatisch, elke nacht</h2>
-<p>Plan de opdracht in met <code>cron</code> op de server (<code>crontab -e</code>). Dit voorbeeld maakt elke nacht om 3 uur een kopie; pas het pad aan naar de map waar je <code>docker-compose.yml</code> staat. In een crontab schrijf je een procentteken als <code>\%</code>.</p>
+<h2 id="automatisch">Automatisch, elke nacht</h2>
+<p>De server kan dat zelf, zonder cron. Zet in <code>.env</code>:</p>
+<pre><code>BACKUP_DIR=/data/backups
+BACKUP_TIME=03:00
+BACKUP_KEEP=14</code></pre>
+<p>en start de container opnieuw (<code>docker compose up -d</code>). Dan maakt de server elke dag na 03:00 één kopie, <code>todo-2026-11-17.db</code> met de bijlagen in <code>todo-2026-11-17.attachments/</code>, net als met de opdracht hierboven. Stond de server op dat tijdstip uit, dan maakt hij de kopie zodra hij weer draait. Van de kopieën blijven de nieuwste 14 staan (<code>BACKUP_KEEP</code>); oudere ruimt de server zelf op, maar alleen bestanden met precies die naam: wat je er zelf neerzet, blijft staan. Het tijdstip is in <code>DEFAULT_TIMEZONE</code> als die is ingesteld. In <x-ui k="admin.title"></x-ui>, bij <x-ui k="admin.backup"></x-ui>, zie je of het aanstaat en wanneer de laatste kopie is gemaakt (of wat er misging).</p>
+<p>Let op de ruimte: elke kopie bevat ook alle bijlagen. En een kopie in hetzelfde volume beschermt tegen vergissingen en een beschadigde database, niet tegen een kapotte schijf: haal ze geregeld van de server af (zie hierboven).</p>
+<p>Liever zelf plannen? Plan de opdracht dan in met <code>cron</code> op de server (<code>crontab -e</code>). Dit voorbeeld maakt elke nacht om 3 uur een kopie; pas het pad aan naar de map waar je <code>docker-compose.yml</code> staat. In een crontab schrijf je een procentteken als <code>\%</code>.</p>
 <pre><code>0 3 * * * cd /pad/naar/tickory &amp;&amp; docker compose exec -T tickory node server/backup.ts /data/backups/todo-$(date +\%F).db</code></pre>
 
 <h2>Een back-up terugzetten</h2>
@@ -80,4 +86,5 @@ docker compose up -d</code></pre>
 <h2>Zonder Docker</h2>
 <p>De opdracht is dezelfde, zonder het Docker-deel:</p>
 <pre><code>node server/backup.ts ./backups/todo-$(date +%F).db</code></pre>
+<p>Automatisch kan ook hier, met dezelfde instellingen (<code>BACKUP_DIR=./backups</code> en verder).</p>
 <p>De bron is het bestand uit <code>DB_PATH</code> (standaard <code>./data/todo.db</code>). Terugzetten doe je door de server te stoppen, de bestanden <code>todo.db-wal</code> en <code>todo.db-shm</code> naast de database te verwijderen, je kopie op de plek van <code>todo.db</code> te zetten en de server weer te starten.</p>
