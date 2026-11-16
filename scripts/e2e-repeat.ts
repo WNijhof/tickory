@@ -28,7 +28,7 @@ export async function repeatScenario(c: any) {
   const ID = 'e2erep-planten01';
   await as([
     ['project_add', { id: P, name: 'Herhaalproef' }],
-    ['task_add', { id: ID, project_id: P, content: 'Planten water geven', due: { date: tomorrow } }],
+    ['task_add', { id: ID, project_id: P, content: 'Herhaalproef: kamerplanten', due: { date: tomorrow } }],
   ]);
   const task = () => (serverState().tasks as any[]).find((x) => x.id === ID);
   const D = `document.querySelector('#task-dialog')`;
@@ -120,6 +120,9 @@ export async function repeatScenario(c: any) {
   await until(() => task()?.due && !task().due.recurrence, 'zonder herhaling');
   assert.equal(task().due.date, before, 'dezelfde datum en tijd');
 
+  // opruimen: latere stappen zoeken taken op naam
+  await as([['project_delete', { id: P }]]);
+  await waitFor(`![...document.querySelectorAll('.nav-item .nav-label')].some((e) => e.textContent === 'Herhaalproef')`, 'het proefproject is weg', 10_000);
   await nav(startView);
   step('herhalen met knoppen in het taakvenster: elke werkdag, een eigen keuze (om de 2 weken op ma en do om 9:00) met voorbeeld, Enter en Escape in het paneel, en niet herhalen');
 }
