@@ -111,3 +111,25 @@ test('toetsenbord: een andere breedte (het toestel gedraaid) begint opnieuw', ()
   assert.equal(open({ width: 780, height: 200 }), true, 'liggend met toetsenbord');
   assert.equal(open({ width: 390, height: 780 }), false, 'weer staand');
 });
+
+import { routeOfTab, tabsFor } from './bottomNav.js';
+
+test('een eigen balk (Instellingen › Algemeen): drie knoppen naar keuze met Bladeren rechts; een scherm zonder eigen knop hoort bij Bladeren', () => {
+  const tabs = tabsFor(['notes', 'today', 'notifications']);
+  assert.deepEqual(tabs, ['notes', 'today', 'notifications', 'browse']);
+  const opts = { inboxId: INBOX, tabs };
+  assert.equal(activeTab({ type: 'notes' }, opts), 'notes');
+  assert.equal(activeTab({ type: 'notes', id: 'archive' }, opts), 'notes');
+  assert.equal(activeTab({ type: 'notifications' }, opts), 'notifications');
+  assert.equal(activeTab({ type: 'project', id: INBOX }, opts), 'browse', 'de Inbox heeft hier geen knop');
+  assert.equal(activeTab({ type: 'upcoming' }, opts), 'browse');
+  const more = { inboxId: INBOX, tabs: tabsFor(['completed', 'filters', 'labels']) };
+  assert.equal(activeTab({ type: 'completed' }, more), 'completed');
+  assert.equal(activeTab({ type: 'completed', id: 'p-thuis' }, more), 'browse', 'Voltooid van één project hoort bij dat project');
+  assert.equal(activeTab({ type: 'filter', id: 'f-1' }, more), 'filters');
+  assert.equal(activeTab({ type: 'label', id: 'l-thuis' }, more), 'labels');
+  assert.deepEqual(routeOfTab('inbox', INBOX), { type: 'project', id: INBOX });
+  assert.equal(routeOfTab('inbox', null), null);
+  assert.deepEqual(routeOfTab('notes', INBOX), { type: 'notes' });
+  assert.equal(routeOfTab('browse', INBOX), null);
+});

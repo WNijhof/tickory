@@ -12,7 +12,9 @@
 // weg, zodat ze niet boven het toetsenbord over het veld schuiven (in de Android-app maakt het toetsenbord de WebView kleiner). Een melding ("Ongedaan maken") staat boven de balk; de "+" schuift
 // er dan boven.
 
-import { TABS, activeTab, fabTarget, keyboardTracker } from '../core/bottomNav.js';
+import { activeTab, fabTarget, keyboardTracker, routeOfTab, tabsFor } from '../core/bottomNav.js';
+import { BOTTOM_TAB_CHOICES, generalOf } from '../../shared/general.js';
+import { mySettings } from '../core/selectors.js';
 import { todayString } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { counts } from '../core/selectors.js';
@@ -41,17 +43,28 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
   const isOpen = () => body.classList.contains('nav-open');
 
   // ---------- de balk en de knop "+" ----------
-  const icons = { inbox: 'inbox', today: 'today', upcoming: 'upcoming', browse: 'browse' };
+  const icons = { inbox: 'inbox', today: 'today', upcoming: 'upcoming', notes: 'note', notifications: 'bell', completed: 'completed', filters: 'funnel', labels: 'tag', browse: 'browse' };
   const labels = {};
   const buttons = {};
   const badge = h('span', { class: 'bnav-badge', 'aria-hidden': 'true' });
-  for (const tab of TABS) {
+  // alle mogelijke knoppen; welke er staan, kies je onder Instellingen › Algemeen (`bottom_tabs`, zie tabs())
+  for (const tab of [...BOTTOM_TAB_CHOICES, 'browse']) {
     labels[tab] = h('span', { class: 'bnav-label' });
     buttons[tab] = h('button', { class: 'bnav-item', type: 'button', dataset: { tab, fk: `bnav:${tab}` }, onclick: () => choose(tab) },
       h('span', { class: 'bnav-icon' }, icon(icons[tab]), tab === 'today' && badge), labels[tab]);
   }
   buttons.browse.setAttribute('aria-controls', 'sidebar');
-  const bar = h('nav', { id: 'bottom-nav', class: 'bottom-nav' }, TABS.map((tab) => buttons[tab]));
+  const tabs = () => tabsFor(generalOf(mySettings(store.view, store.userId)).bottom_tabs);
+  let shownTabs = '';
+  const bar = h('nav', { id: 'bottom-nav', class: 'bottom-nav' });
+  const placeTabs = () => {
+    const list = tabs();
+    const key = list.join(' ');
+    if (key === shownTabs) return;
+    shownTabs = key;
+    bar.replaceChildren(...list.map((tab) => buttons[tab]));
+  };
+  placeTabs();
   const fab = h('button', { id: 'fab', class: 'fab', type: 'button', 'aria-keyshortcuts': 'q', hidden: true, onclick: () => add() }, icon('plus'));
   const toasts = document.getElementById('toasts');
   if (toasts) toasts.before(bar, fab);
@@ -63,9 +76,9 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
       else open();
       return;
     }
-    const id = inboxId();
-    if (tab === 'inbox' && !id) return; // nog niet ingelogd: er is (nog) geen Inbox
-    handlers.navigate(tab === 'inbox' ? { type: 'project', id } : { type: tab }); // sluit ook Bladeren
+    const route = routeOfTab(tab, inboxId());
+    if (!route) return; // de Inbox: nog niet ingelogd, er is (nog) geen Inbox
+    handlers.navigate(route); // sluit ook Bladeren
     buttons[tab].focus({ preventScroll: true }); // de focus blijft op de knop (ook als het scherm opnieuw is getekend)
     window.scrollTo({ top: 0, behavior: 'instant' }); // een ander scherm begint bovenaan; nog eens op dezelfde knop tikken gaat ook naar boven
   }
@@ -162,8 +175,9 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
   function paint() {
     const route = getRoute();
     const browseOpen = isOpen() && narrow();
-    const active = activeTab(route, { inboxId: inboxId(), browseOpen });
-    for (const tab of TABS) {
+    const list = tabs();
+    const active = activeTab(route, { inboxId: inboxId(), browseOpen, tabs: list });
+    for (const tab of list) {
       const on = tab === active;
       if (buttons[tab].classList.contains('active') !== on) buttons[tab].classList.toggle('active', on);
       if (on) buttons[tab].setAttribute('aria-current', 'page');
@@ -178,10 +192,16 @@ export function installBottomNav({ store, handlers, getRoute, inboxId }) {
   }
 
   function render() {
+    placeTabs();
     bar.setAttribute('aria-label', t('bottomNav.label'));
     labels.inbox.textContent = t('bottomNav.inbox');
     labels.today.textContent = t('nav.today');
     labels.upcoming.textContent = t('nav.upcoming');
+    labels.notes.textContent = t('note.title');
+    labels.notifications.textContent = t('inbox.title');
+    labels.completed.textContent = t('nav.completed');
+    labels.filters.textContent = t('filters.title');
+    labels.labels.textContent = t('labels.title');
     labels.browse.textContent = t('bottomNav.browse');
     // het aantal zoals in de zijbalk bij Vandaag (te laat en vandaag)
     const n = counts(store.view, todayString()).today;

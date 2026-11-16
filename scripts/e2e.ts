@@ -902,7 +902,7 @@ try {
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
-  assert.deepEqual(await texts('dialog[open] summary'), ['Signed-in devices', 'Change password', 'Two-step verification']);
+  assert.deepEqual(await texts('dialog[open] summary'), ['Signed-in devices', 'Change password', 'Two-step verification', 'Delete account']);
   const deviceHints = await texts('dialog[open] .device .hint');
   assert.ok(deviceHints.filter((x) => x.startsWith('Last used')).every((x) => /^Last used: \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'datum en tijd in het Engels');
   assert.ok(deviceHints.filter((x) => x.startsWith('Signed in since')).every((x) => /^Signed in since \d{1,2} [A-Z][a-z]{2} \d{4}, \d{2}:\d{2}$/.test(x)), 'aangemeld sinds, in het Engels');
@@ -921,7 +921,7 @@ try {
   await submit('dialog[open] details:nth-of-type(2) form');
   await waitFor(`document.querySelector('dialog[open] .section-form .error')?.textContent === 'The current password is incorrect.'`, 'fout huidig wachtwoord: eigen Engelse vertaling van de servermelding');
   // één ander apparaat (de "Telefoon" van eerder) met een eigen knop, een koppelcode voor de browserextensie, het formulier, en de knoppen van het venster
-  assert.deepEqual(await buttons(), ['Sign out', 'Sign out all other devices', 'Create pairing code', 'Change password', 'Turn on two-step verification', 'Sign out', 'User management', 'Close']);
+  assert.deepEqual(await buttons(), ['Sign out', 'Sign out all other devices', 'Create pairing code', 'Change password', 'Turn on two-step verification', 'Delete account…', 'Sign out', 'User management', 'Close']);
   await noDutch('account');
   await fits('account');
   await shot('engels-account');
@@ -2210,6 +2210,20 @@ try {
   assert.deepEqual([barNow.current, barNow.active, barNow.expanded], [['browse'], ['browse'], 'false'], 'een project (niet de Inbox) hoort bij Bladeren');
   assert.ok(barNow.sizes.every(([w, h]: number[]) => w >= 48 && h >= 48), `tikvlakken van de balk: ${JSON.stringify(barNow.sizes)}`);
   assert.equal(barNow.clipped, 0, 'geen afgekapte namen in de balk');
+  // een eigen balk (Instellingen › Algemeen): Notities, Vandaag en Meldingen; Bladeren blijft rechts
+  const settingsId = `settings-${alice.id}`;
+  handleSync(db, { commands: [{ type: 'settings_update', uuid: 'e2e-balk-000001', args: { id: settingsId, general: { bottom_tabs: ['notes', 'today', 'notifications'] } } }] }, alice.id);
+  await evaluate(`document.getElementById('sync-status').click()`);
+  await waitFor(`[...document.querySelectorAll('#bottom-nav .bnav-item')].map((b) => b.dataset.tab).join() === 'notes,today,notifications,browse'`, 'de eigen balk', 10_000);
+  assert.deepEqual((await barState()).labels, ['Notities', 'Vandaag', 'Meldingen', 'Bladeren']);
+  assert.equal((await barState()).clipped, 0, 'ook met "Meldingen" niets afgekapt');
+  await evaluate(`document.querySelector('#bottom-nav [data-tab="notes"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Notities' && document.querySelector('#bottom-nav [data-tab="notes"]').getAttribute('aria-current') === 'page'`, 'Notities via de balk');
+  handleSync(db, { commands: [{ type: 'settings_update', uuid: 'e2e-balk-000002', args: { id: settingsId, general: null } }] }, alice.id);
+  await evaluate(`document.getElementById('sync-status').click()`);
+  await waitFor(`[...document.querySelectorAll('#bottom-nav .bnav-item')].map((b) => b.dataset.tab).join() === 'inbox,today,upcoming,browse'`, 'weer de standaardbalk', 10_000);
+  await nav('Thuis');
+  await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'terug in Thuis');
   // ook op een smal toestel (360 pixels) met grote letters (125 %) past "Aankomend"
   await send('Emulation.setDeviceMetricsOverride', { width: 360, height: 740, deviceScaleFactor: 3, mobile: true });
   await evaluate(`document.documentElement.style.fontSize = '20px'`);

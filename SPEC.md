@@ -521,7 +521,8 @@ Zoals bij Todoist kies je per lijst hoe de taken staan: een project, Vandaag of 
 - `date_recognition`: `false` = `parseQuickAdd(…, { dates: false })` slaat datums in gewone taal en tijdsbereiken over; `{deadline}`, `!herinnering`, `#`, `/`, `@`, `p1` en `=duur` blijven werken. Geldt ook op de server (`POST /api/v1/quick_add`, dus Android, widgets en de extensie).
 - Adres: `#view=inbox|today|upcoming|notes` opent die plek, `#note=new` een nieuwe notitie (`viewFromHash`; ook als je nog niet klaar bent met de eerste sync). De snelkoppelingen onder het app-icoon op Android (`AppShortcuts.kt`: Taak toevoegen in het kleine venster, Vandaag, Nieuwe notitie) gebruiken dit via `DeepLink.view`.
 - `week_start`: 1 (maandag, standaard), 6 (zaterdag) of 7 (zondag): de eerste kolom van de kalender (maand en week, `setWeekStart`/`startOfCalendarWeek` in `core/calendar.js`). Weeknummers blijven ISO (van de maandag in de rij); weekdoelen, reeksen en de server rekenen met ISO-weken; "volgende week" in snel toevoegen blijft de maandag.
-- `sidebar_hidden`: een deel van `upcoming`, `completed`, `notifications`, `notes`, `filters`, `labels`. Verborgen via `body[data-hide-nav]` (Aankomend ook in de onderbalk) en in `ui/find.js` voor filters en labels; de schermen zelf blijven bereikbaar.
+- `bottom_tabs`: precies drie verschillende uit `inbox`, `today`, `upcoming`, `notes`, `notifications`, `completed`, `filters`, `labels` (standaard de eerste drie): de knoppen van de balk onderaan op een telefoon, met Bladeren altijd rechts (`tabsFor`, `routeOfTab`, `activeTab` in `core/bottomNav.js`; een scherm zonder eigen knop hoort bij Bladeren).
+- `sidebar_hidden`: een deel van `upcoming`, `completed`, `notifications`, `notes`, `filters`, `labels`. Verborgen via `body[data-hide-nav]` (de balk onderaan stel je apart in) en in `ui/find.js` voor filters en labels; de schermen zelf blijven bereikbaar.
 
 ## 5n. Je eigen account verwijderen
 

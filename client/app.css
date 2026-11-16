@@ -928,7 +928,11 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 @media (pointer: coarse) { .quick-suggest-item { min-height: 44px; } }
 
 /* onderdelen van de zijbalk die je hebt verborgen (Instellingen › Algemeen); app.js zet body[data-hide-nav] */
-body[data-hide-nav~="upcoming"] [data-fk="nav-upcoming"], body[data-hide-nav~="upcoming"] [data-tab="upcoming"],
+body[data-hide-nav~="upcoming"] [data-fk="nav-upcoming"],
 body[data-hide-nav~="completed"] [data-fk="nav-completed"],
 body[data-hide-nav~="notifications"] [data-fk="nav-notifications"],
 body[data-hide-nav~="notes"] [data-fk="nav-notes"], body[data-hide-nav~="notes"] .nav-sub-notes { display: none; }
+
+/* Instellingen › Algemeen: de drie keuzes voor de balk onderaan naast elkaar (op een smal scherm onder elkaar) */
+.general-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 480px) { .general-tabs { grid-template-columns: 1fr; } }

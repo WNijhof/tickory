@@ -8,7 +8,7 @@
 import { isArchivedProject, isForeignLabel } from './selectors.js';
 import { canEditProject } from './access.js';
 
-/** De knoppen van de balk, van links naar rechts. */
+/** De knoppen van de balk zoals ze standaard staan, van links naar rechts (zie `tabsFor` voor de eigen keuze). */
 export const TABS = ['inbox', 'today', 'upcoming', 'browse'];
 
 /**
@@ -17,12 +17,37 @@ export const TABS = ['inbox', 'today', 'upcoming', 'browse'];
  * @param {{ inboxId?: string | null, browseOpen?: boolean }} options  `browseOpen`: het scherm Bladeren staat open
  * @returns {'inbox' | 'today' | 'upcoming' | 'browse'}
  */
-export function activeTab(route, { inboxId = null, browseOpen = false } = {}) {
+export function activeTab(route, { inboxId = null, browseOpen = false, tabs = TABS } = {}) {
   if (browseOpen) return 'browse';
-  if (route?.type === 'today') return 'today';
-  if (route?.type === 'upcoming') return 'upcoming';
-  if (route?.type === 'project' && inboxId && route.id === inboxId) return 'inbox';
-  return 'browse';
+  const tab = tabOfRoute(route, inboxId);
+  return tab && tabs.includes(tab) ? tab : 'browse';
+}
+
+/** De knoppen voor een eigen keuze (Instellingen › Algemeen, `bottom_tabs`): de drie gekozen, met Bladeren rechts. */
+export const tabsFor = (chosen) => [...chosen, 'browse'];
+
+/** Bij welke knop een scherm hoort (of null: dan bij Bladeren). */
+function tabOfRoute(route, inboxId) {
+  switch (route?.type) {
+    case 'today': return 'today';
+    case 'upcoming': return 'upcoming';
+    case 'project': return inboxId && route.id === inboxId ? 'inbox' : null;
+    case 'notes': return 'notes';
+    case 'notifications': return 'notifications';
+    case 'completed': return route.id ? null : 'completed';
+    case 'filters': case 'filter': return 'filters';
+    case 'labels': case 'label': return 'labels';
+    default: return null;
+  }
+}
+
+/** Het scherm van een knop; null voor Bladeren, of de Inbox zolang die nog niet bekend is. */
+export function routeOfTab(tab, inboxId) {
+  switch (tab) {
+    case 'inbox': return inboxId ? { type: 'project', id: inboxId } : null;
+    case 'today': case 'upcoming': case 'notes': case 'notifications': case 'completed': case 'filters': case 'labels': return { type: tab };
+    default: return null;
+  }
 }
 
 /**
