@@ -3,6 +3,9 @@
 // er met @Naam genoemd is (`mentions`), staat gemarkeerd. In een gedeeld project opent @ een keuzelijst met de leden (ui/mentionPicker.js).
 
 import { linkify } from '../core/commentText.js';
+import { canRecord, recordAudio } from './noteFiles.js';
+import { emojiButton } from './emojiPicker.js';
+import { NOTE_AUDIO_MIMES } from '../../shared/notes.js';
 import { getLocale, t } from '../core/i18n.js';
 import { mentionIds, mentionParts } from '../core/mentions.js';
 import { commentsOf, membersOf } from '../core/selectors.js';
@@ -50,7 +53,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const fileInput = h('input', { type: 'file', multiple: true, hidden: true, 'aria-hidden': 'true', tabIndex: -1, dataset: { fk: 'comment-file-input' } });
   const chips = h('div', { class: 'comment-files-chosen' });
   const drawChosen = () => {
-    replace(chips, chosenFiles.map((f, i) => h('span', { class: 'comment-file-chip' }, icon('paperclip'), h('span', {}, f.name),
+    replace(chips, chosenFiles.map((f, i) => h('span', { class: 'comment-file-chip' }, icon(f.type?.startsWith('audio/') ? 'mic' : 'paperclip'), h('span', {}, f.name),
       h('button', { type: 'button', class: 'comment-file-remove', 'aria-label': t('comment.fileRemove', { name: f.name }), onclick: () => { chosenFiles.splice(i, 1); drawChosen(); } }, '×'))));
     post.disabled = !input.value.trim() && chosenFiles.length === 0;
   };
@@ -59,11 +62,25 @@ export function commentsSection({ target, store, actions, heading = true }) {
     type: 'button', class: 'icon-button comment-attach', 'aria-label': t('comment.attach'), title: t('comment.attach'), dataset: { fk: 'comment-attach' },
     onclick: () => fileInput.click(),
   }, icon('paperclip'));
-  const previews = new Map(); // bijlage-id -> blob-URL
+  // een spraakbericht: opnemen met de microfoon (hetzelfde venster als bij notities); het wordt een bijlage bij de opmerking
+  const recordButton = runtime && canRecord() && h('button', {
+    type: 'button', class: 'icon-button comment-record', 'aria-label': t('comment.record'), title: t('comment.record'), dataset: { fk: 'comment-record' },
+    onclick: async () => {
+      const file = await recordAudio();
+      if (!file) return;
+      chosenFiles = [...chosenFiles, file];
+      drawChosen();
+      input.focus();
+    },
+  }, icon('mic'));
+  const isAudio = (a) => NOTE_AUDIO_MIMES.includes(a.mime);
+  const previews = new Map(); // bijlage-id -> blob-URL (afbeelding of geluid)
   const loadPreview = (a) => {
-    if (previews.has(a.id) || !isPreviewMime(a.mime) || a.size > 8_000_000) return;
+    const audio = isAudio(a);
+    if (previews.has(a.id) || !(isPreviewMime(a.mime) || audio) || a.size > (audio ? 25_000_000 : 8_000_000)) return;
     previews.set(a.id, null);
-    runtime.manager.fetchBlob(a.id).then((blob) => { previews.set(a.id, URL.createObjectURL(blob)); drawn = null; draw(); }).catch(() => {});
+    // geluid met zijn eigen type (de server geeft een download), zodat de speler het herkent; alleen voor bekende geluidstypen
+    runtime.manager.fetchBlob(a.id).then((blob) => { previews.set(a.id, URL.createObjectURL(audio ? new Blob([blob], { type: a.mime }) : blob)); drawn = null; draw(); }).catch(() => {});
   };
   const openFile = async (a) => {
     try {
@@ -83,6 +100,13 @@ export function commentsSection({ target, store, actions, heading = true }) {
     return h('ul', { class: 'comment-files' },
       saved.map((a) => {
         const url = previews.get(a.id);
+        if (isAudio(a)) {
+          // een spraakbericht: meteen af te spelen, en op te slaan via de naam
+          return h('li', { class: 'comment-file comment-voice', dataset: { id: a.id } },
+            url ? h('audio', { controls: true, preload: 'metadata', src: url, 'aria-label': a.name }) : h('span', { class: 'hint' }, t('common.loading')),
+            h('button', { type: 'button', class: 'comment-file-open', 'aria-label': t('attachment.saveLabel', { name: a.name }), title: a.name, onclick: () => openFile(a) },
+              icon('mic'), h('span', { class: 'comment-file-name' }, a.name)));
+        }
         return h('li', { class: 'comment-file', dataset: { id: a.id } },
           h('button', { type: 'button', class: 'comment-file-open', 'aria-label': t('attachment.saveLabel', { name: a.name }), title: a.name, onclick: () => openFile(a) },
             url ? h('img', { src: url, alt: '' }) : icon('paperclip'), h('span', { class: 'comment-file-name' }, a.name)));
@@ -213,14 +237,15 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const unsubscribe = store.subscribe(draw);
   const unsubscribeFiles = runtime ? runtime.manager.subscribe(draw) : () => {};
   draw();
+  const compose = h('div', { class: 'comment-compose' }, input, picker.node); // de emoji-kiezer opent hierboven
   const node = h('section', { class: 'comments', 'aria-label': t('comment.heading') },
     heading && title,
     list,
     // geen <form>: de opmerkingen staan ook in het taakvenster, en formulieren mogen niet in elkaar
     h('div', { class: 'comment-form' },
-      h('div', { class: 'comment-compose' }, input, picker.node),
+      compose,
       chips,
-      h('div', { class: 'comment-buttons' }, attachButton, fileInput, h('span', { class: 'comment-tip' }, people().length > 1 ? t('comment.tipMention') : t('comment.tip')), post)));
+      h('div', { class: 'comment-buttons' }, emojiButton({ input, host: compose, fk: 'comment-emoji' }), attachButton, recordButton, fileInput, h('span', { class: 'comment-tip' }, people().length > 1 ? t('comment.tipMention') : t('comment.tip')), post)));
   const dispose = () => {
     unsubscribe();
     unsubscribeFiles();

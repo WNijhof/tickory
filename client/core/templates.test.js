@@ -375,14 +375,14 @@ test('de voorbeeldweergave: eerste regels, secties, aantal dat er niet bij staat
 
 // ---------- de meegeleverde sjablonen ----------
 
-test('meegeleverde sjablonen: zes projecten en twee taken in elke taal, gelijk van opbouw, geldig, 8 tot 20 taken, met secties en relatieve datums', () => {
+test('meegeleverde sjablonen: negen projecten en vier taken in elke taal, gelijk van opbouw, geldig, 8 tot 20 taken, met secties en relatieve datums', () => {
   const all = { nl: starterTemplates('nl'), en: starterTemplates('en') };
   assert.deepEqual(all.nl.map((x) => x.id), all.en.map((x) => x.id), 'dezelfde sjablonen in beide talen');
-  assert.deepEqual(all.nl.map((x) => x.id), ['starter:moving', 'starter:holiday', 'starter:menu', 'starter:birthday', 'starter:onboarding', 'starter:renovation', 'starter:gift', 'starter:meeting']);
-  assert.deepEqual(all.nl.map((x) => x.name), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing', 'Cadeau regelen', 'Vergadering voorbereiden']);
+  assert.deepEqual(all.nl.map((x) => x.id), ['starter:moving', 'starter:holiday', 'starter:menu', 'starter:birthday', 'starter:onboarding', 'starter:renovation', 'starter:cleaning', 'starter:weekly-review', 'starter:job-search', 'starter:gift', 'starter:meeting', 'starter:doctor', 'starter:invoice']);
+  assert.deepEqual(all.nl.map((x) => x.name), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing', 'Schoonmaakrooster', 'Weekafsluiting', 'Solliciteren', 'Cadeau regelen', 'Vergadering voorbereiden', 'Afspraak bij de huisarts of specialist', 'Factuur versturen en opvolgen']);
   const nl = all.nl.filter((x) => x.kind === 'project');
   const en = all.en.filter((x) => x.kind === 'project');
-  assert.equal(nl.length, 6);
+  assert.equal(nl.length, 9);
   for (const tpl of [...all.nl, ...all.en]) {
     assert.equal(checkTemplateContent(tpl.content), null, tpl.id);
     assert.ok(tpl.builtin);
@@ -428,7 +428,7 @@ test('elk meegeleverd sjabloon is toe te passen op de server, in beide talen, zo
     assert.deepEqual(c.errors, [], lang);
     assert.equal(c.store.queueLength, 0);
     const mine = [...c.store.view.projects.values()].filter((p) => !p.parent_id && p.id !== inbox(c));
-    assert.equal(mine.length, 7, 'zes projecten uit sjablonen en het doelproject');
+    assert.equal(mine.length, 10, 'negen projecten uit sjablonen en het doelproject');
     // elke herhalende taak begint op de goede weekdag
     for (const task of c.store.view.tasks.values()) {
       const rec = task.due?.recurrence;

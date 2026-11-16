@@ -194,6 +194,68 @@ export async function attachmentScenario(c: any): Promise<void> {
   assert.equal(serverAttachments().filter((a: any) => a.comment_id).length, 0, 'het bestand ging mee met de opmerking');
   step('bijlagen bij een opmerking: kiezen met de paperclip, met voorbeeld onder de opmerking (niet bij de taak), en weg met de opmerking');
 
+  // ---- een spraakbericht: opnemen (de microfoon nagebootst met een toon uit de browser zelf) en afspelen onder de opmerking ----
+  await evaluate(`(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const ctx = new AudioContext();
+      await ctx.resume();
+      const osc = ctx.createOscillator();
+      const dest = ctx.createMediaStreamDestination();
+      osc.connect(dest);
+      osc.start();
+      return dest.stream;
+    };
+  })()`);
+  await waitFor(`document.querySelector('${dlg} [data-fk="comment-record"]')`, 'de microfoonknop naast de paperclip');
+  await evaluate(`document.querySelector('${dlg} [data-fk="comment-record"]').click()`);
+  await waitFor(`document.querySelector('[data-fk="note-rec-stop"]')`, 'het venster Opnemen');
+  await sleep(1500);
+  await evaluate(`document.querySelector('[data-fk="note-rec-stop"]').click()`);
+  await waitFor(`document.querySelector('${dlg} .comment-file-chip')?.textContent.startsWith('Opname ')`, 'de opname als chip bij de nieuwe opmerking');
+  await evaluate(`[...document.querySelectorAll('${dlg} .comment-form .button-primary')].at(-1).click()`);
+  await waitFor(`document.querySelector('${dlg} .comment-voice audio')?.src.startsWith('blob:')`, 'een speler onder de opmerking', 20_000);
+  await waitFor(`document.querySelector('${dlg} .comment-voice audio').readyState >= 1`, 'het geluid laadt (juist type, CSP staat blob: toe)', 10_000);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const voice = serverAttachments().filter((a: any) => a.comment_id);
+  assert.equal(voice.length, 1);
+  assert.match(voice[0].mime, /^audio\//, `een geluidsbestand: ${voice[0].mime}`);
+  assert.ok(voice[0].size > 200, `met inhoud: ${voice[0].size} bytes`);
+  await evaluate(`[...document.querySelectorAll('${dlg} .comment')].find((c) => c.querySelector('.comment-voice')).querySelector('.comment-tools button:last-child').click()`);
+  await waitFor(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger')`, 'bevestiging');
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(`!document.querySelector('${dlg} .comment-voice')`, 'het spraakbericht is weg');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  step('een spraakbericht bij een opmerking: opnemen met de microfoonknop, als speler onder de opmerking, en weg met de opmerking');
+
+  // ---- de emoji-kiezer bij een opmerking: zoeken (Nederlands of Engels), kiezen met Enter of een klik, Escape sluit alleen het paneel ----
+  const commentInput = `document.querySelector('${dlg} .comment-input')`;
+  await evaluate(`(() => { const i = ${commentInput}; i.focus(); i.value = 'Lekker '; i.setSelectionRange(7, 7); i.dispatchEvent(new Event('input')); })()`);
+  await evaluate(`document.querySelector('${dlg} [data-fk="comment-emoji"]').click()`);
+  await waitFor(`document.querySelector('${dlg} [data-fk="emoji-picker"]') && document.activeElement?.dataset.fk === 'emoji-search'`, 'het paneel met de focus in het zoekveld');
+  await evaluate(`(() => { const s = document.activeElement; s.value = 'koffie'; s.dispatchEvent(new Event('input')); })()`);
+  await waitFor(`document.querySelector('${dlg} .emoji-item')?.dataset.char === '☕'`, 'koffie gevonden');
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+  await waitFor(`!document.querySelector('${dlg} [data-fk="emoji-picker"]')`, 'het paneel dicht na de keuze');
+  assert.equal(await evaluate(`${commentInput}.value`), 'Lekker ☕');
+  assert.equal(await evaluate(`document.activeElement === ${commentInput}`), true, 'de focus terug in het veld');
+  // nog eens: nu staat ☕ bij Laatst gebruikt; een klik op een andere groep en een emoji
+  await evaluate(`document.querySelector('${dlg} [data-fk="comment-emoji"]').click()`);
+  await waitFor(`document.querySelector('${dlg} .emoji-tab.active')?.dataset.group === 'recent' && document.querySelector('${dlg} .emoji-item')?.dataset.char === '☕'`, 'Laatst gebruikt met koffie');
+  await evaluate(`document.querySelector('${dlg} .emoji-tab[data-group="activities"]').click()`);
+  await evaluate(`document.querySelector('${dlg} .emoji-item[data-char="🎉"]').click()`);
+  assert.equal(await evaluate(`${commentInput}.value`), 'Lekker ☕🎉');
+  assert.equal(await evaluate(`document.querySelector('${dlg} .comment-form .button-primary:last-child, ${dlg} .comment-buttons .button-primary').disabled`), false, 'Plaatsen kan');
+  // Escape sluit het paneel, niet het taakvenster
+  await evaluate(`document.querySelector('${dlg} [data-fk="comment-emoji"]').click()`);
+  await waitFor(`document.querySelector('${dlg} [data-fk="emoji-picker"]')`, 'weer open');
+  await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await waitFor(`!document.querySelector('${dlg} [data-fk="emoji-picker"]')`, 'het paneel dicht');
+  assert.ok(await evaluate(`Boolean(document.querySelector('${dlg}')?.open)`), 'het taakvenster is nog open');
+  await evaluate(`(() => { const i = ${commentInput}; i.value = ''; i.dispatchEvent(new Event('input')); })()`);
+  step('emoji bij een opmerking: zoeken op "koffie" en Enter, daarna bij Laatst gebruikt; een groep en een klik; Escape sluit alleen het paneel');
+
   await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
 }

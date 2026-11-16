@@ -104,6 +104,7 @@ await startServer();
 const browser = spawn(browserPath, [
   '--headless=new', `--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${workDir}profile`,
   '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860',
+  '--autoplay-policy=no-user-gesture-required', // de nagebootste microfoon (een toon uit een AudioContext) moet zonder klik lopen
   ...(process.env.E2E_BROWSER_LANG ? [`--lang=${process.env.E2E_BROWSER_LANG}`] : []), 'about:blank',
 ], { stdio: 'ignore' });
 

@@ -936,3 +936,23 @@ body[data-hide-nav~="notes"] [data-fk="nav-notes"], body[data-hide-nav~="notes"]
 /* Instellingen › Algemeen: de drie keuzes voor de balk onderaan naast elkaar (op een smal scherm onder elkaar) */
 .general-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 480px) { .general-tabs { grid-template-columns: 1fr; } }
+
+/* een spraakbericht onder een opmerking: de speler met de naam eronder */
+.comment-voice { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.comment-voice audio { width: min(320px, 100%); height: 36px; }
+
+/* de emoji-kiezer (ui/emojiPicker.js): een paneel boven het invoerveld */
+.comment-compose { position: relative; }
+.emoji-picker {
+  position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 30; width: min(336px, calc(100vw - 32px));
+  display: flex; flex-direction: column; gap: 6px; padding: 8px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+}
+.emoji-tabs { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.emoji-tab { flex: none; width: 34px; height: 34px; border: 0; border-radius: 8px; background: none; font-size: 1.1rem; cursor: pointer; }
+.emoji-tab.active, .emoji-tab:hover { background: var(--bg-soft); }
+.emoji-tab.active { box-shadow: inset 0 -2px 0 var(--accent); }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 2px; max-height: 216px; overflow-y: auto; }
+.emoji-item { aspect-ratio: 1; min-width: 0; border: 0; border-radius: 8px; background: none; font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0; }
+.emoji-item:hover, .emoji-item:focus-visible { background: var(--bg-soft); }
+.emoji-none { grid-column: 1 / -1; margin: 8px 4px; }

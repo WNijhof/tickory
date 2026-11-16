@@ -51,7 +51,7 @@ export async function templatesScenario(c: any) {
   assert.equal(await evaluate(`document.querySelector('[data-fk="nav-from-template"]').getAttribute('aria-label')`), 'Project uit sjabloon…', 'de knop bij Projecten heeft een naam voor schermlezers');
   await openPicker();
   assert.equal(await dialogTitle(), 'Project uit sjabloon');
-  assert.deepEqual(await items(), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing']);
+  assert.deepEqual(await items(), ['Verhuizen', 'Op vakantie gaan (inpaklijst)', 'Weekmenu en boodschappen', 'Kinderverjaardag organiseren', 'Nieuwe medewerker inwerken', 'Verbouwing', 'Schoonmaakrooster', 'Weekafsluiting', 'Solliciteren']);
   assert.equal(await selectedName(), 'Verhuizen', 'het eerste sjabloon is gekozen');
   let text = await dialogText();
   assert.ok(text.includes('16 taken, verdeeld over 5 secties'), text);
@@ -182,7 +182,7 @@ export async function templatesScenario(c: any) {
   await waitFor(`document.querySelector('dialog[open] .quick-template')`, 'knop Taak uit sjabloon');
   await clickText('Taak uit sjabloon…', `document.querySelector('dialog[open]')`);
   await waitFor(`document.querySelector('dialog[open] .tpl-layout') && document.querySelector('dialog[open] h2')?.textContent === 'Taken uit een sjabloon'`, 'sjablonen voor taken');
-  assert.deepEqual(await items(), ['Cadeau regelen', 'Vergadering voorbereiden', 'Boodschappenlijst'], 'alleen taaksjablonen: de meegeleverde en de eigen');
+  assert.deepEqual(await items(), ['Cadeau regelen', 'Vergadering voorbereiden', 'Afspraak bij de huisarts of specialist', 'Factuur versturen en opvolgen', 'Boodschappenlijst'], 'alleen taaksjablonen: de meegeleverde en de eigen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="tpl-project"] option:checked').textContent`), 'Inbox', 'het project van waaruit je kwam');
   await choose('Cadeau regelen');
   await setDate(addDays(todayString(), 2));
