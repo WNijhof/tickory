@@ -42,7 +42,7 @@ export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 /** Versie van de tabelindeling; staat in `meta` zodat een nieuwere server een oudere database kan herkennen en bijwerken. */
 // 3: plaatsen, 4: bijlagen, 5: sjablonen, 6: meldingen bij samenwerken, 7: rollen (lezer) en het activiteitenlogboek,
 // 8: tweestapsverificatie en het soort apparaat per sessie, 9: inloggen via OIDC (gekoppelde identiteiten en eenmalige inlogcodes),
-// 10: persoonlijke voorkeuren in een gedeeld project (project_prefs)
+// 10: persoonlijke voorkeuren in een gedeeld project (project_prefs) en uitnodigingslinks (project_invites)
 // (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
 export const SCHEMA_VERSION = 10;
 
@@ -218,6 +218,12 @@ export function createSchema(db: DatabaseSync): void {
       }
     }
   }
+  // Uitnodigen via een link (invites.ts): alleen de hash van het token. Geen entiteit, geen sync.
+  db.exec(`CREATE TABLE IF NOT EXISTS project_invites (
+    id TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, project_id TEXT NOT NULL, role TEXT NOT NULL,
+    created_by TEXT NOT NULL, created_at TEXT NOT NULL, expires_at TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, uses INTEGER NOT NULL DEFAULT 0
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS project_invites_project ON project_invites (project_id)');
   db.exec('CREATE INDEX IF NOT EXISTS tasks_project ON tasks (project_id, is_deleted)');
   // De volgordesleutel van een nieuwe rij is "de hoogste van de lijst + 1" (nextKey in sync.ts). Met deze indexen is dat een
   // opzoeking in plaats van een scan van alle taken van het project, waardoor toevoegen niet langzamer wordt naarmate een lijst groeit.

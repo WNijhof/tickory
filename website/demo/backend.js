@@ -922,6 +922,14 @@ export class DemoServer {
         info: demoOnly,
         create: demoOnly,
       },
+      // uitnodigen via een link kan niet in de demo: er is maar één echte gebruiker
+      invites: {
+        list: async () => ({ invites: [] }),
+        create: demoOnly,
+        revoke: demoOnly,
+        preview: demoOnly,
+        accept: demoOnly,
+      },
       activity: async (projectId, q) => this.activityPage(projectId, q),
       stats: async (q) => this.statsPage(q),
       noteRevisions: async (noteId) => this.revisionsPage(noteId),

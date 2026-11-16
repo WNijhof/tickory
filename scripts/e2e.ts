@@ -44,6 +44,7 @@ import { quickScenario } from './e2e-quick.ts';
 import { timelineScenario } from './e2e-timeline.ts';
 import { swipeScenario } from './e2e-swipe.ts';
 import { repeatScenario } from './e2e-repeat.ts';
+import { inviteScenario } from './e2e-invite.ts';
 import { notesScenario } from './e2e-notes.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
@@ -451,6 +452,13 @@ try {
     };
     const noDialog = () => waitFor(`!document.querySelector('dialog[open]')`, 'alle vensters gesloten');
     try { await rolesScenario({ ...notifyCtx(), openTask, noDialog, buttons, texts }); console.log('ALLEEN ROLLEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-rollen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // uitnodigen via een link (scripts/e2e-invite.ts); met E2E_INVITE_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_INVITE_ONLY) {
+    try { await inviteScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN UITNODIGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-uitnodigen'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -899,7 +907,7 @@ try {
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
   assert.deepEqual(await texts('dialog[open] .device-info'), ['Aliceyou@alice · owner', 'Bob@bob · can edit']);
-  assert.deepEqual(await buttons(), ['Make owner', 'Remove', 'Share', 'Close']);
+  assert.deepEqual(await buttons(), ['Make owner', 'Remove', 'Share', 'Create link', 'Close']);
   assert.deepEqual(await evaluate(`[document.querySelector('dialog[open] input').placeholder, document.querySelector('dialog[open] input').getAttribute('aria-label')]`), ['Username', "The person's username"]);
   await typeInto(`dialog[open] input[aria-label="The person's username"]`, 'niemand-bekend');
   await submit('dialog[open] form.subtask-row');
@@ -1603,6 +1611,7 @@ try {
   await timelineScenario({ ...notifyCtx(), startServer, stopServer });
   await swipeScenario({ ...notifyCtx(), startServer, stopServer });
   await repeatScenario({ ...notifyCtx(), startServer, stopServer });
+  await inviteScenario({ ...notifyCtx(), startServer, stopServer });
 
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
   await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });

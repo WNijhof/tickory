@@ -120,6 +120,7 @@ export function deleteAccount(db: DatabaseSync, userId: string, removeFiles: (id
       // alleen je eigen lidmaatschap: de sporen van oud-leden blijven, zodat hun apparaten nog horen dat het project weg is
       del(`DELETE FROM project_members WHERE project_id IN (${inList(part)}) AND user_id = ?`, ...part, userId);
       if (tableExists(db, 'project_prefs')) del(`DELETE FROM project_prefs WHERE project_id IN (${inList(part)})`, ...part);
+      if (tableExists(db, 'project_invites')) del(`DELETE FROM project_invites WHERE project_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM activity WHERE project_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM projects WHERE id IN (${inList(part)})`, ...part);
     });
@@ -138,6 +139,7 @@ export function deleteAccount(db: DatabaseSync, userId: string, removeFiles: (id
     for (const table of ['reminder_deliveries', 'push_subscriptions', 'sessions', 'recovery_codes', 'oidc_identities', 'login_codes', 'command_log', 'notification_outbox', 'project_prefs']) {
       if (tableExists(db, table)) del(`DELETE FROM ${table} WHERE user_id = ?`, userId);
     }
+    if (tableExists(db, 'project_invites')) del('DELETE FROM project_invites WHERE created_by = ?', userId);
     del('DELETE FROM attachment_files WHERE user_id = ? AND linked = 0', userId);
     del('DELETE FROM users WHERE id = ?', userId);
     db.exec('COMMIT');

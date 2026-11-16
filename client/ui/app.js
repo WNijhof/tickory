@@ -38,6 +38,7 @@ import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
+import { openPendingInvite, takeInviteFromHash } from './inviteLinks.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
@@ -482,7 +483,7 @@ const handlers = {
   },
 
   async shareProject(project) {
-    const outcome = await openShareDialog({ store, actions, project });
+    const outcome = await openShareDialog({ store, actions, project, api });
     if (outcome === 'left') navigate({ type: 'project', id: inboxId() });
   },
 
@@ -776,6 +777,11 @@ function openPendingTask() {
 function openTaskFromHash() {
   if (location.hash) userNavigated = true; // een link (melding, snelkoppeling) gaat voor de startpagina
   if (openShareFromHash()) return;
+  // een uitnodigingslink (#invite=…): na het inloggen en de eerste sync vragen of je meedoet
+  if (takeInviteFromHash()) {
+    runInvite();
+    return;
+  }
   // #view=today …: een snelkoppeling onder het app-icoon (Android) of een bladwijzer; #note=new: een nieuwe notitie
   const view = viewFromHash(location.hash);
   if (view || location.hash === '#note=new') {
@@ -808,6 +814,12 @@ let pendingShare = null;
  * (nog niet ingelogd, eerste sync loopt) of staat er een venster open, dan wacht het tot het kan: je kunt het nog aanpassen of annuleren.
  * @returns {boolean} of dit adres over delen ging
  */
+/** Een uitnodigingslink afhandelen (ui/inviteLinks.js); doet pas iets als je ingelogd bent en de eerste sync er is. */
+function runInvite() {
+  if (backend.demo) return;
+  openPendingInvite({ api, store, sync, navigate });
+}
+
 function openShareFromHash() {
   if (!/^#share=/.test(location.hash)) return false;
   const draft = shareFromHash(location.hash);
@@ -932,6 +944,7 @@ async function boot() {
   store.subscribe(openPendingTask);
   store.subscribe(openPendingPlace);
   store.subscribe(openPendingShare);
+  store.subscribe(runInvite); // een onthouden uitnodigingslink, zodra je ingelogd bent
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat

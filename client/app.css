@@ -452,6 +452,13 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .prop-label { font-size: 0.78rem; font-weight: 600; color: var(--text-soft); }
 .task-col-side .field { background: var(--bg); }
 .quick-dates { display: flex; flex-wrap: wrap; gap: 5px; margin-top: -6px; }
+/* uitnodigen met een link in het deelvenster (ui/inviteLinks.js) */
+.invite-section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; }
+.invite-section .subheading { margin-top: 0; }
+.invite-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.invite-row .field { width: auto; flex: 0 1 auto; }
+.invite-url { flex: 1 1 auto; min-width: 0; font-family: var(--mono, ui-monospace, monospace); font-size: 0.8rem; }
+.invite-made { margin: 8px 0; }
 /* de herhalingskiezer onder de snelle datums (ui/repeatPicker.js) */
 .repeat-panel[hidden], .repeat-panel [hidden] { display: none !important; }
 .repeat-panel { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-soft); padding: 10px; display: flex; flex-direction: column; gap: 10px; }

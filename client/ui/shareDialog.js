@@ -5,15 +5,16 @@ import { t } from '../core/i18n.js';
 import { membersOf, roleIn } from '../core/selectors.js';
 import { DEFAULT_SHARE_ROLE, SHARE_ROLES } from '../../shared/roles.js';
 import { confirmDialog, h, openDialog, replace } from './dom.js';
+import { inviteSection } from './inviteLinks.js';
 
 const ROLE_LABEL = { owner: () => t('share.owner'), member: () => t('share.member'), viewer: () => t('share.viewer') };
 const roleLabel = (role) => (Object.hasOwn(ROLE_LABEL, role) ? ROLE_LABEL[role]() : role);
 
 /**
- * @param {{ store: import('../core/store.js').Store, actions: object, project: object }} options
+ * @param {{ store: import('../core/store.js').Store, actions: object, project: object, api?: object }} options
  * @returns {Promise<'left' | null>} 'left' als je het project hebt verlaten
  */
-export function openShareDialog({ store, actions, project }) {
+export function openShareDialog({ store, actions, project, api = null }) {
   let unsubscribe = () => {};
   return openDialog((finish) => {
     const list = h('ul', { class: 'device-list' });
@@ -99,6 +100,8 @@ export function openShareDialog({ store, actions, project }) {
     unsubscribe = store.subscribe(draw);
     draw();
     shown = true;
+    // uitnodigen met een link (alleen de eigenaar; de links staan op de server, niet in de sync)
+    const links = api && roleIn(store.view, project.id, store.userId) === 'owner' ? inviteSection({ api, project }) : null;
     return h('div', { class: 'dialog-form' },
       h('h2', {}, t('share.title', { name: project.name })),
       h('p', { class: 'hint' }, t('share.intro')),
@@ -106,6 +109,7 @@ export function openShareDialog({ store, actions, project }) {
       list,
       inviteRow,
       note,
+      links,
       footer);
   }, { wide: true, onClose: () => unsubscribe() });
 }

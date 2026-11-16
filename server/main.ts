@@ -23,6 +23,8 @@
 //   POST /api/v1/quick-add                {text, project_id?, uuid, typed_at, tz, …} -> {task, preview}: snel toevoegen (zie quickadd.ts)
 //   GET  /api/v1/events                   server-sent events: "sync_needed" zodra er iets veranderde
 //   GET  /api/v1/admin/users              (beheerder)   POST /api/v1/admin/users, /update, /password, /2fa-reset
+//   GET  /api/v1/projects/{id}/invites    (eigenaar) uitnodigingslinks; POST {role, days} -> {…, token}; DELETE …/invites/{inviteId} (invites.ts)
+//   GET  /api/v1/invites/{token}          wat de link is; POST /api/v1/invites/{token}/accept: lid worden
 //   GET  /api/v1/admin/backup             (beheerder) -> {download, auto}: downloaden en de automatische back-ups (autoBackup.ts)
 //   POST /api/v1/admin/backup             (beheerder) {password, code?} -> {ticket}; GET /api/v1/admin/backup/download?ticket=… het archief
 //   GET  /api/v1/push/key                 de publieke sleutel om meldingen in de browser aan te zetten
@@ -60,6 +62,7 @@ import type { DeviceKind, SessionPolicy, UserRow } from './users.ts';
 import { cleanCode, cleanRecoveryCode, createSecretBox, matchStep, newRecoveryCodes, newSecret, otpauthUri, base32Encode } from './totp.ts';
 import { createBackupArchive, removeStaleTemp } from './backupArchive.ts';
 import { autoBackupConfig, createAutoBackup } from './autoBackup.ts';
+import { acceptInvite, createInvite, InviteError, listInvites, previewInvite, revokeInvite } from './invites.ts';
 import type { AutoBackup } from './autoBackup.ts';
 import { createOidcClient, oidcConfigFrom } from './oidc.ts';
 import type { OidcClient } from './oidc.ts';
@@ -158,6 +161,8 @@ const PENDING_MS = 15 * 60_000;
 /** Een downloadbewijs voor een back-up: eenmalig en een minuut geldig. Hooguit 5 back-ups per beheerder per uur, één tegelijk. */
 const TICKET_MS = 60_000;
 const BACKUPS_PER_HOUR = 5;
+/** Zoveel keer per tien minuten mag iemand een uitnodigingslink bekijken of aannemen. */
+const INVITE_TRIES = 30;
 
 export interface App {
   server: Server;
@@ -270,6 +275,8 @@ export function createApp(opts: AppOptions): App {
   /** Downloadbewijzen voor een back-up, per (gehasht) bewijs. */
   const tickets = new Map<string, { userId: string; sessionId: string; expires: number }>();
   const backupsByUser = new Map<string, number[]>();
+  /** Pogingen een uitnodigingslink te bekijken of aan te nemen, per gebruiker (zie invites.ts). */
+  const inviteTries = new Map<string, number[]>();
   let backupRunning = false;
   const hashToken = (s: string): string => createHash('sha256').update(s).digest('hex');
   const forget = (map: Map<string, { expires: number }>, max: number): void => {
@@ -781,7 +788,7 @@ export function createApp(opts: AppOptions): App {
       const isAttachments = attachments !== null && (path === '/api/v1/attachments' || path.startsWith('/api/v1/attachments/'));
       const known = isAttachments || path === '/api/v1/sync' || path === '/api/v1/events' || path.startsWith('/api/v1/auth/') || path.startsWith('/api/v1/admin/users')
         || path === '/api/v1/admin/backup' || (push !== null && path.startsWith('/api/v1/push/')) || path.startsWith('/api/v1/projects/') || path.startsWith('/api/v1/notes/') || path === '/api/v1/stats' || path === '/api/v1/completed/recurring'
-        || path === '/api/v1/quick-add';
+        || path === '/api/v1/quick-add' || path.startsWith('/api/v1/invites/');
       if (!known) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
       const caller = authenticate(req);
       if (!caller) return send(res, 401, { error_code: 'UNAUTHORIZED', error: 'ongeldige of ontbrekende aanmelding' });
@@ -899,6 +906,45 @@ export function createApp(opts: AppOptions): App {
           return send(res, 200, m[2] ? getRevision(db, caller.user.id, m[1], m[2]) : listRevisions(db, caller.user.id, m[1], { before: url.searchParams.get('before') }));
         } catch (err) {
           if (err instanceof SyncError) return send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
+          throw err;
+        }
+      }
+
+      // Uitnodigen via een link (invites.ts): de eigenaar beheert de links van een project; wie een link heeft, bekijkt en neemt hem aan.
+      const invitesOf = /^\/api\/v1\/projects\/([^/]+)\/invites(?:\/([^/]+))?$/.exec(path);
+      const invitePath = /^\/api\/v1\/invites\/([^/]+)(\/accept)?$/.exec(path);
+      if (invitesOf || invitePath || path.startsWith('/api/v1/invites/')) {
+        try {
+          if (invitesOf) {
+            const projectId = decodeURIComponent(invitesOf[1]);
+            if (invitesOf[2]) {
+              if (req.method !== 'DELETE') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik DELETE' });
+              return send(res, 200, revokeInvite(db, caller.user.id, projectId, decodeURIComponent(invitesOf[2])));
+            }
+            if (req.method === 'GET') return send(res, 200, listInvites(db, caller.user.id, projectId, clock()));
+            if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET of POST' });
+            return send(res, 200, createInvite(db, caller.user.id, projectId, await readJson(req), clock()));
+          }
+          if (!invitePath) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
+          // een paar pogingen per persoon: een token is niet te raden, maar wie het probeert, hoeft niet door te kunnen
+          const recent = (inviteTries.get(caller.user.id) ?? []).filter((t) => t > clock() - 600_000);
+          if (recent.length >= INVITE_TRIES) return send(res, 429, { error_code: 'TOO_MANY_REQUESTS', error: 'te veel pogingen; probeer het over een paar minuten opnieuw' }, { 'Retry-After': '600' });
+          inviteTries.set(caller.user.id, [...recent, clock()]);
+          const token = decodeURIComponent(invitePath[1]);
+          if (!invitePath[2]) {
+            if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
+            return send(res, 200, previewInvite(db, caller.user.id, token, clock()));
+          }
+          if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
+          const before = currentRev(db);
+          const result = acceptInvite(db, caller.user.id, token, clock());
+          if (currentRev(db) !== before) {
+            broadcast(null, null, audienceSince(db, before, caller.user.id));
+            push?.flushNotifications().catch((e) => console.error('meldingen versturen mislukt', e));
+          }
+          return send(res, 200, result);
+        } catch (err) {
+          if (err instanceof InviteError || err instanceof SyncError) return send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
           throw err;
         }
       }

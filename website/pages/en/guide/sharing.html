@@ -14,7 +14,17 @@ description: Sharing a project in Tickory: adding someone by username, the roles
   <li>Choose the <a href="#roles">role</a>: <x-ui k="share.member"></x-ui> or <x-ui k="share.viewer"></x-ui>.</li>
   <li>The person is listed right away, with the role, and sees the project with everything in it, including what was already there. There is no invitation that has to be accepted first.</li>
 </ol>
-<p>If the username does not exist, or that account is blocked, you get the message “Couldn't share the project. There's no user with that username.” Inviting by link or by e-mail is not possible; someone without an account first needs one from an <a href="managing-users.html">administrator</a>.</p>
+<p>If the username does not exist, or that account is blocked, you get the message “Couldn't share the project. There's no user with that username.” You can also <a href="#link">send a link</a>. Someone without an account first needs one from an <a href="managing-users.html">administrator</a>.</p>
+
+<h2 id="link">Inviting with a link</h2>
+<p>Handy if you do not know the username, or want to post the invitation in a group chat. As the owner: open <x-ui k="project.share"></x-ui> and under <x-ui k="invite.heading"></x-ui> choose the role and how long the link works (1, 7 or 30 days), then <x-ui k="invite.create"></x-ui>. Copy the link right away with <x-ui k="invite.copy"></x-ui>: it cannot be shown again afterwards, only revoked.</p>
+<ul>
+  <li>Whoever opens the link and has an account on this server sees, after signing in, who invites them, to which project and with which role, and chooses <x-ui k="invite.join"></x-ui>. The project is then in the sidebar, also in the <a href="android-app.html">Android app</a>. Open the link in the browser; the Android app itself cannot open a link.</li>
+  <li>A link works for several people, until it expires. The share window shows the links that still work and how often they were used, and <x-ui k="invite.revoke"></x-ui> revokes one. At most 20 at a time per project.</li>
+  <li>If you make someone else the <a href="#make-owner">owner</a>, or delete the project, your links stop working.</li>
+  <li>A link does not create an account. Someone without an account gets the sign-in screen after opening it; ask the <a href="managing-users.html">administrator</a> for an account.</li>
+</ul>
+<p>Treat a link like a key: whoever has it (and an account) can join. So prefer <x-ui k="share.viewer"></x-ui> or a short validity when you share it widely.</p>
 <p>You recognise a shared project in the sidebar by the sign with two figures. Above the tasks you see who you share it with.</p>
 
 <h2 id="roles">Roles: owner, can edit, view only</h2>

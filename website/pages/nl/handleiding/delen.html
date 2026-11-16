@@ -14,7 +14,17 @@ description: Een project delen in Tickory: iemand toevoegen op gebruikersnaam, d
   <li>Kies de <a href="#rollen">rol</a>: <x-ui k="share.member"></x-ui> of <x-ui k="share.viewer"></x-ui>.</li>
   <li>De persoon staat meteen in de lijst, met de rol erbij, en ziet het project met alles wat erin staat, ook wat er al stond. Er is geen uitnodiging die eerst geaccepteerd moet worden.</li>
 </ol>
-<p>Bestaat de gebruikersnaam niet, of is dat account geblokkeerd, dan krijg je de melding “Deze gebruiker bestaat niet”. Uitnodigen via een link of per e-mail kan niet; iemand zonder account heeft eerst een account nodig van een <a href="gebruikers-beheren.html">beheerder</a>.</p>
+<p>Bestaat de gebruikersnaam niet, of is dat account geblokkeerd, dan krijg je de melding “Deze gebruiker bestaat niet”. Je kunt ook een <a href="#link">link sturen</a>. Iemand zonder account heeft eerst een account nodig van een <a href="gebruikers-beheren.html">beheerder</a>.</p>
+
+<h2 id="link">Uitnodigen met een link</h2>
+<p>Handig als je de gebruikersnaam niet weet, of als je de uitnodiging in een groepsapp wilt zetten. Als eigenaar: open <x-ui k="project.share"></x-ui> en kies onder <x-ui k="invite.heading"></x-ui> de rol en hoe lang de link werkt (1, 7 of 30 dagen), en dan <x-ui k="invite.create"></x-ui>. Kopieer de link meteen met <x-ui k="invite.copy"></x-ui>: hij is daarna niet meer te zien, alleen in te trekken.</p>
+<ul>
+  <li>Wie de link opent en een account op deze server heeft, ziet na het inloggen wie uitnodigt, voor welk project en met welke rol, en kiest <x-ui k="invite.join"></x-ui>. Daarna staat het project in de zijbalk, ook in de <a href="android-app.html">Android-app</a>. Open de link in de browser; in de Android-app zelf kun je geen link openen.</li>
+  <li>Een link werkt voor meer mensen, tot hij verloopt. In het deelvenster zie je de links die nog werken, hoe vaak ze gebruikt zijn, en trek je er een in met <x-ui k="invite.revoke"></x-ui>. Hooguit 20 tegelijk per project.</li>
+  <li>Maak je iemand anders <a href="#eigenaar-maken">eigenaar</a>, of verwijder je het project, dan werken je links niet meer.</li>
+  <li>Een link maakt geen account aan. Wie geen account heeft, krijgt na het openen het inlogscherm; vraag de <a href="gebruikers-beheren.html">beheerder</a> om een account.</li>
+</ul>
+<p>Behandel een link als een sleutel: wie hem heeft (en een account), kan meedoen. Kies daarom liever <x-ui k="share.viewer"></x-ui> of een korte geldigheid als je hem breed deelt.</p>
 <p>Een gedeeld project herken je in de zijbalk aan het teken met twee poppetjes. Boven de taken staat met wie je het deelt.</p>
 
 <h2 id="rollen">Rollen: eigenaar, kan bewerken, alleen lezen</h2>

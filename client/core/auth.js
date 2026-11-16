@@ -30,7 +30,8 @@ function ownMessage(action, code) {
     case 'INVALID_CODE': return t('api.invalidCode');
     case 'CHALLENGE_EXPIRED': return t('api.challengeExpired');
     case 'TOO_MANY_ATTEMPTS': return t('api.tooManyAttempts');
-    case 'TOO_MANY_REQUESTS': return action === 'admin.backup' ? t('api.tooManyBackups') : action === 'pairing.create' ? t('api.tooManyPairCodes') : null;
+    case 'TOO_MANY_REQUESTS': return action === 'admin.backup' ? t('api.tooManyBackups') : action === 'pairing.create' ? t('api.tooManyPairCodes') : action.startsWith('invites.') ? t('invite.tooManyTries') : null;
+    case 'LIMIT_REACHED': return action === 'invites.create' ? t('invite.tooMany') : null;
     case 'BUSY': return t('api.busy');
     case 'PASSWORD_LOGIN_OFF': return t('api.passwordLoginOff');
     case 'CODE_INVALID': return t('sso.error.expired');
@@ -40,8 +41,9 @@ function ownMessage(action, code) {
     case 'FORBIDDEN':
       if (action === 'changePassword') return t('api.wrongCurrentPassword');
       if (action.startsWith('twoFactor.') || action === 'admin.backup' || action === 'sso.start' || action === 'pairing.create') return t('api.wrongPassword');
+      if (action.startsWith('invites.')) return t('invite.ownerOnly');
       return admin ? t('api.adminOnly') : t('error.forbidden');
-    case 'NOT_FOUND': return action === 'revokeSession' ? t('api.sessionGone') : admin ? t('api.userGone') : null;
+    case 'NOT_FOUND': return action === 'revokeSession' ? t('api.sessionGone') : admin ? t('api.userGone') : action === 'invites.preview' || action === 'invites.accept' ? t('invite.gone') : null;
     case 'DUPLICATE': return action === 'admin.createUser' ? t('api.usernameTaken') : null;
     case 'CONFLICT':
       if (action === 'admin.updateUser') return t('api.lastAdmin');
@@ -130,6 +132,14 @@ export function createApi({ baseUrl = '', fetch: fetchFn = globalThis.fetch, get
       info: () => call('pairing.info', 'GET', '/api/v1/auth/pair-code'),
       /** Een nieuwe code: `{ code, expires_in }`. Eenmalig; vervangt een eerdere code die nog openstond. */
       create: (password, code) => call('pairing.create', 'POST', '/api/v1/auth/pair-code', { ...(password ? { password } : {}), ...(code ? { code } : {}) }),
+    },
+    /** Uitnodigen via een link (server/invites.ts): de eigenaar beheert de links, wie een link heeft bekijkt en neemt hem aan. */
+    invites: {
+      list: (projectId) => call('invites.list', 'GET', `/api/v1/projects/${encodeURIComponent(projectId)}/invites`),
+      create: (projectId, { role, days }) => call('invites.create', 'POST', `/api/v1/projects/${encodeURIComponent(projectId)}/invites`, { role, days }),
+      revoke: (projectId, id) => call('invites.revoke', 'DELETE', `/api/v1/projects/${encodeURIComponent(projectId)}/invites/${encodeURIComponent(id)}`),
+      preview: (token) => call('invites.preview', 'GET', `/api/v1/invites/${encodeURIComponent(token)}`),
+      accept: (token) => call('invites.accept', 'POST', `/api/v1/invites/${encodeURIComponent(token)}/accept`, {}),
     },
     /** Een pagina van het activiteitenlogboek van een project (server/activity.ts): `{ entries, next }`, de nieuwste eerst. */
     activity: (projectId, { before = null, limit = null, kinds = null } = {}) => {
