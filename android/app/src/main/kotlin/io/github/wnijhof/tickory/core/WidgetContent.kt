@@ -120,9 +120,20 @@ object WidgetContentBuilder {
 
     private fun dayOf(task: WidgetTask): LocalDate? = Planner.localDate(task.due)
 
+    /** Zoals applyDayOrder in shared/dayOrder.js: eerst de taken uit je eigen volgorde (in die volgorde), dan de rest zoals ze stonden. */
+    fun applyDayOrder(tasks: List<WidgetTask>, order: List<String>): List<WidgetTask> {
+        if (order.isEmpty()) return tasks
+        val index = HashMap<String, Int>()
+        order.forEachIndexed { i, id -> index.putIfAbsent(id, i) }
+        return tasks.filter { it.id in index }.sortedBy { index.getValue(it.id) } + tasks.filter { it.id !in index }
+    }
+
     private fun today(ctx: Ctx, open: List<WidgetTask>, maxRows: Int): WidgetContent {
         val dated = open.mapNotNull { t -> dayOf(t)?.let { t to it } }.filter { (_, day) -> day <= ctx.today }
-        val sorted = dated.map { it.first }.sortedWith(byDue)
+        // zoals Vandaag in de web-app: eerst wat te laat is, dan vandaag; elk op tijdstip en prioriteit, met je eigen volgorde erover
+        val overdue = dated.filter { (_, day) -> day < ctx.today }.map { it.first }.sortedWith(byDue)
+        val dueToday = dated.filter { (_, day) -> day == ctx.today }.map { it.first }.sortedWith(byDue)
+        val sorted = applyDayOrder(overdue, ctx.snapshot.dayOrder) + applyDayOrder(dueToday, ctx.snapshot.dayOrder)
         val rows = sorted.map { item(ctx, it, sourceIsProject = false, depth = 0, timeOnly = true) }
         return WidgetContent(ContentKind.TODAY, null, rows.take(maxRows), rows.size)
     }

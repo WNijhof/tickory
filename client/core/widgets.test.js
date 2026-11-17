@@ -109,6 +109,20 @@ test('widgetFingerprint verandert bij alles wat in de widgets staat en niet bij 
     await c.sync.syncNow();
     assert.notEqual(widgetFingerprint(c.store.view), before, name);
   }
+  // de widget Vandaag volgt je eigen volgorde, en alleen zolang Vandaag op de standaardsortering staat
+  for (const [name, changes] of [
+    ['eigen volgorde in Vandaag', { day_order: [task, id] }],
+    ['andere sortering van Vandaag', { view_options: { today: { sort: 'priority', dir: 'asc', group: 'default' } } }],
+  ]) {
+    before = widgetFingerprint(c.store.view);
+    await c.actions.updateSettings(changes);
+    await c.sync.syncNow();
+    assert.notEqual(widgetFingerprint(c.store.view), before, name);
+  }
+  before = widgetFingerprint(c.store.view);
+  await c.actions.updateSettings({ goal_daily: 7 });
+  await c.sync.syncNow();
+  assert.equal(widgetFingerprint(c.store.view), before, 'een dagdoel staat niet in een widget');
 });
 
 test('Android hoort een wijziging voor de widgets één keer per reeks, en niet buiten de app', async () => {

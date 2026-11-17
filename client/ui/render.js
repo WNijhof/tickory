@@ -21,6 +21,7 @@ import {
 } from '../core/selectors.js';
 import { comparator, groupRows, sortTasks } from '../core/listOptions.js';
 import { isDefaultOptions, optionsFor, viewKey } from '../../shared/viewOptions.js';
+import { applyDayOrder } from '../../shared/dayOrder.js';
 import { formatDayHeading } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
 import { rowModel } from '../core/rowModel.js';
@@ -374,7 +375,7 @@ export function resetRowCache() {
 
 const count = (n) => h('span', { class: 'group-count' }, String(n));
 
-export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null, description = '' }) {
+export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null, dayOrder = null, description = '' }) {
   const head = title && h('div', { class: 'group-head' },
     collapsible && h('button', {
       class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
@@ -384,8 +385,10 @@ export function group({ title, rows, total, collapsible = null, extra = null, fo
     total > 0 && count(total),
     extra);
   const collapsed = collapsible?.collapsed;
-  // `drop`: hier kunnen taken heen gesleept worden (project en sectie), zie ui/dragdrop.js
-  return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}`, dataset: drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : {} },
+  // `drop`: hier kunnen taken heen gesleept worden (project en sectie); `dayOrder`: een groep van Vandaag die je zelf op volgorde zet
+  // ('overdue' of 'today'). Zie ui/dragdrop.js.
+  const dataset = drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : dayOrder ? { dayOrder } : {};
+  return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}`, dataset },
     head,
     // de beschrijving van een sectie, met opmaak (Markdown), onder de kop; ingeklapt niet
     !collapsed && String(description ?? '').trim() && h('div', { class: 'section-desc', role: 'note', 'aria-label': t('section.descriptionLabel', { name: title }) }, renderMarkdown(String(description).trim())),
@@ -439,6 +442,13 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     const list = todayView(view, today);
     const total = list.overdue.length + list.today.length;
     const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
+    if (opts.sort === 'manual') {
+      // je eigen volgorde (slepen of Alt + pijl), daarna wat er nieuw bij kwam in de gewone volgorde
+      const order = mySettings(view, me?.id).day_order;
+      list.overdue = applyDayOrder(list.overdue, order);
+      list.today = applyDayOrder(list.today, order);
+    }
+    const ordering = isDefaultOptions(opts); // alleen dan is de volgorde die je ziet ook de volgorde die je zet
     const lctx = { view, today, me, userName };
     const sort = (tasks) => sortTasks(tasks, opts, lctx).map((task) => ({ task }));
     const grouped = groupRows(sort([...list.overdue, ...list.today]), opts.group, lctx);
@@ -452,14 +462,14 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
         : [
           handlers.todaySummary?.({ view, today }), // hoeveel je vandaag afvinkte tegenover je doel (ui/productivity.js)
           list.overdue.length > 0 && group({
-            title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length,
+            title: t('view.overdue'), rows: rows(sort(list.overdue), true), total: list.overdue.length, dayOrder: ordering ? 'overdue' : null,
             // zoals Todoist: alle te late taken in één keer naar een andere dag (met ongedaan maken)
             extra: list.overdue.some((x) => canEditProject(view, x.project_id, me?.id)) && h('button', {
               class: 'link-button group-action', type: 'button', dataset: { fk: 'overdue-reschedule' }, onclick: () => handlers.rescheduleOverdue(),
             }, t('view.reschedule')),
           }),
           group({
-            title: formatDayHeading(today, today), rows: rows(sort(list.today), true), total: list.today.length,
+            title: formatDayHeading(today, today), rows: rows(sort(list.today), true), total: list.today.length, dayOrder: ordering ? 'today' : null,
             footer: addInline(handlers, { due: 'today' }),
           }),
           total === 0 && emptyState({ title: t('view.todayEmptyTitle'), text: t('view.todayEmpty') }),

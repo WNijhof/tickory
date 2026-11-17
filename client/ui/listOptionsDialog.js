@@ -20,14 +20,18 @@ const GROUP_TEXT = {
 const DIR_TEXT = { asc: () => t('listopt.dir.asc'), desc: () => t('listopt.dir.desc') };
 
 /**
- * @param {{ route: { type: string, id?: string }, view: any, userId: string | null, update: (viewOptions: object) => Promise<unknown> | void }} options
+ * @param {{ route: { type: string, id?: string }, view: any, userId: string | null, update: (viewOptions: object) => Promise<unknown> | void,
+ *   clearDayOrder?: (() => Promise<unknown> | void) | null }} options
+ * `clearDayOrder`: alleen in Vandaag; een knop die je eigen volgorde (slepen, `settings.day_order`) weer weghaalt.
  */
-export function listOptionsDialog({ route, view, userId, update }) {
+export function listOptionsDialog({ route, view, userId, update, clearDayOrder = null }) {
   const key = viewKey(route);
   const isProject = route.type === 'project';
   // de laatst bewaarde stand houden we zelf bij: `view` is de toestand van het moment van openen, en een tweede keuze mag de eerste niet ongedaan maken
   let stored = mySettings(view, userId).view_options ?? null;
   const state = { ...optionsFor({ view_options: stored }, key) };
+  const dayOrder = mySettings(view, userId).day_order;
+  const hasDayOrder = Boolean(clearDayOrder) && Array.isArray(dayOrder) && dayOrder.length > 0;
   const save = (change) => {
     stored = withOptions(stored, key, change);
     update(stored);
@@ -58,7 +62,9 @@ export function listOptionsDialog({ route, view, userId, update }) {
         dirSelect,
         select('group', groupChoices(route.type), t('listopt.group'), groupLabel, (v) => apply({ group: v }))),
       h('p', { class: 'hint' }, t('listopt.hint')),
+      hasDayOrder && h('p', { class: 'hint' }, t('listopt.dayOrderHint')),
       h('div', { class: 'dialog-buttons' },
+        hasDayOrder && h('button', { type: 'button', class: 'button', dataset: { fk: 'listopt:clear-day-order' }, onclick: () => { clearDayOrder(); finish(null); } }, t('listopt.clearDayOrder')),
         h('button', { type: 'button', class: 'button', dataset: { fk: 'listopt:reset' }, onclick: () => { save({ sort: 'manual', group: 'default' }); finish(null); } }, t('listopt.reset')),
         h('button', { type: 'button', class: 'button button-primary', onclick: () => finish(null) }, t('common.close'))));
   });

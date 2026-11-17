@@ -53,6 +53,23 @@ class WidgetContentTest {
     }
 
     @Test
+    fun `vandaag - je eigen volgorde uit de web-app, per groep, nieuwe taken erna`() {
+        val tasks = listOf(
+            task("ochtend", "2026-11-13"), task("middag", "2026-11-13"), task("avond", "2026-11-13"), task("nieuw", "2026-11-13T07:00"),
+            task("oud1", "2026-11-10"), task("oud2", "2026-11-11"),
+        )
+        val s = snapshot(tasks, dayOrder = listOf("avond", "oud2", "weg", "ochtend", "oud1"))
+        // te laat blijft boven vandaag; binnen elke groep je eigen volgorde, onbekende id's tellen niet, "nieuw" komt erna
+        assertEquals(listOf("oud2", "oud1", "avond", "ochtend", "middag", "nieuw"), ids(build(s, WidgetSource.Today)))
+        assertEquals("zonder eigen volgorde: de gewone (hier op volgordesleutel)", listOf("oud1", "oud2", "avond", "middag", "ochtend", "nieuw"), ids(build(snapshot(tasks), WidgetSource.Today)))
+        assertEquals(
+            "alleen Vandaag, niet Aankomend",
+            ids(build(snapshot(listOf(task("x", "2026-11-14"), task("y", "2026-11-14"))), WidgetSource.Upcoming)),
+            ids(build(snapshot(listOf(task("x", "2026-11-14"), task("y", "2026-11-14")), dayOrder = listOf("y", "x")), WidgetSource.Upcoming)),
+        )
+    }
+
+    @Test
     fun `vandaag - volgorde zoals de web-app - tijdstip, dan prioriteit, dan eigen volgorde`() {
         val s = snapshot(
             listOf(

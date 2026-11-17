@@ -103,6 +103,26 @@ class WidgetDataTest {
             labels = listOf(WidgetLabel("l1", "bellen")),
         )
         assertEquals(s, WidgetCodec.decode(WidgetCodec.encode(s)))
+        val ordered = snapshot(tasks = listOf(task("a", "2026-11-13"), task("b", "2026-11-13")), dayOrder = listOf("b", "a"))
+        assertEquals("ook je eigen volgorde in Vandaag", ordered, WidgetCodec.decode(WidgetCodec.encode(ordered)))
+    }
+
+    @Test
+    fun `je eigen volgorde in Vandaag komt uit je instellingen, alleen bij de standaardsortering`() {
+        fun parse(settings: String?): List<String> {
+            val body = WidgetFixtures.syncBody().trimEnd().dropLast(1) + (if (settings != null) ",\"settings\":$settings}" else "}")
+            return WidgetParser.parse(body)!!.dayOrder
+        }
+        val me = "\"owner_id\":\"user-anna-0001\",\"is_deleted\":false"
+        assertEquals(listOf("t2", "t1"), parse("""[{"id":"s1",$me,"day_order":["t2","t1"],"view_options":null}]"""))
+        assertEquals("expliciet de standaard", listOf("t2"), parse("""[{"id":"s1",$me,"day_order":["t2"],"view_options":{"today":{"sort":"manual","dir":"asc","group":"default"}}}]"""))
+        assertEquals("een andere sortering: niet", emptyList<String>(), parse("""[{"id":"s1",$me,"day_order":["t2"],"view_options":{"today":{"sort":"priority"}}}]"""))
+        assertEquals("een andere lijst gesorteerd: wel", listOf("t2"), parse("""[{"id":"s1",$me,"day_order":["t2"],"view_options":{"upcoming":{"sort":"name"}}}]"""))
+        assertEquals("rommel en dubbele overgeslagen", listOf("t1", "t2"), parse("""[{"id":"s1",$me,"day_order":["t1",3,"met spatie","t1","t2",null]}]"""))
+        assertEquals("van iemand anders: niet", emptyList<String>(), parse("""[{"id":"s9","owner_id":"user-bob","is_deleted":false,"day_order":["t1"]}]"""))
+        assertEquals("geen instellingen", emptyList<String>(), parse(null))
+        assertEquals("day_order is null", emptyList<String>(), parse("""[{"id":"s1",$me,"day_order":null}]"""))
+        assertEquals("geen lijst", emptyList<String>(), parse("""[{"id":"s1",$me,"day_order":"t1"}]"""))
     }
 
     @Test

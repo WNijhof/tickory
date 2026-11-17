@@ -348,6 +348,8 @@ export default {
   'listopt.group': 'Group by',
   'listopt.hint': 'Your choice applies only to you, on all your devices. With your own sort or grouping you cannot drag tasks within the list.',
   'listopt.reset': 'Restore default',
+  'listopt.clearDayOrder': 'Clear your own order',
+  'listopt.dayOrderHint': 'You dragged tasks in Today into your own order. Clear that order to see the default again: first without a time, then by time and priority.',
   'listopt.sort.manual': 'Manual order',
   'listopt.sort.standard': 'Default (date and priority)',
   'listopt.sort.name': 'Name',

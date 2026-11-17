@@ -543,6 +543,25 @@ test('instellingen: één rij per gebruiker, alleen van jezelf en alleen te wijz
   assert.equal(rows(run(db, alice, []), 'settings')[0].auto_reminder, -1, 'ongewijzigd');
 });
 
+test('instellingen: je eigen volgorde in Vandaag (day_order) wordt gecontroleerd en bewaard zoals gestuurd', () => {
+  const { db, alice } = world();
+  const mine = `settings-${alice.id}`;
+  assert.equal(rows(run(db, alice, []), 'settings')[0].day_order, null, 'standaard geen eigen volgorde');
+  const good = cmd('settings_update', { id: mine, day_order: ['taak-b', 'taak-a'] });
+  ok(run(db, alice, [good]), good);
+  assert.deepEqual(rows(run(db, alice, []), 'settings')[0].day_order, ['taak-b', 'taak-a']);
+  const bad = [
+    cmd('settings_update', { id: mine, day_order: 'taak-a' }), cmd('settings_update', { id: mine, day_order: ['a', 'a'] }),
+    cmd('settings_update', { id: mine, day_order: [1] }), cmd('settings_update', { id: mine, day_order: ['x'.repeat(65)] }),
+    cmd('settings_update', { id: mine, day_order: Array.from({ length: 501 }, (_, i) => `t${i}`) }),
+  ];
+  const rb = run(db, alice, bad);
+  for (const c of bad) err(rb, c, 'INVALID_ARG');
+  const clear = cmd('settings_update', { id: mine, day_order: null });
+  ok(run(db, alice, [clear]), clear);
+  assert.equal(rows(run(db, alice, []), 'settings')[0].day_order, null, 'weer gewist');
+});
+
 test('instellingen: een account van vóór de instellingen krijgt ze bij de eerstvolgende sync, één keer', () => {
   const { db, alice } = world();
   db.prepare('DELETE FROM user_settings WHERE owner_id = ?').run(alice.id); // zoals een account uit een eerdere versie

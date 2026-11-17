@@ -4,6 +4,7 @@
 
 import assert from 'node:assert/strict';
 import { handleSync } from '../server/sync.ts';
+import { todayString } from '../client/core/format.js';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
@@ -623,6 +624,59 @@ async function scenario(c: any): Promise<void> {
     step('filters en labels in een eigen volgorde: slepen in de zijbalk en op de beheerpagina (met invoegstreep), Alt+↓ met aankondiging en de focus op zijn plek, Ctrl+Z zet het terug, en zijbalk en pagina tonen dezelfde volgorde');
     await asAlice([...F.map((id) => cmd('filter_delete', { id })), ...L.map((id) => cmd('label_delete', { id }))]);
     for (const key of ['filters', 'labels']) await evaluate(`(() => { const b = document.querySelector('[data-fk="find-toggle:${key}"]'); if (b && b.getAttribute('aria-expanded') === 'true') b.click(); })()`);
+  }
+
+  // ---------- 15. je eigen volgorde in Vandaag ----------
+  {
+    const today = todayString();
+    const DAY = ['Ochtendklus', 'Middagklus', 'Avondklus'];
+    await asAlice(DAY.map((content, i) => cmd('task_add', { id: `dnd-day-${i}`, project_id: P3, content, due: { date: today } })));
+    await nav('Vandaag');
+    const dayGroup = `document.querySelector('.group[data-day-order="today"]')`;
+    await waitFor(`${dayGroup} && [...${dayGroup}.querySelectorAll('.task-title')].some((e) => e.textContent === 'Avondklus')`, 'Vandaag met de drie taken', 15_000);
+    const dayTitles = () => evaluate<string[]>(`[...${dayGroup}.querySelectorAll('li.task')].filter((li) => Number(li.dataset.depth ?? 0) === 0).map((li) => li.querySelector('.task-title').textContent).filter((n) => n.endsWith('klus'))`);
+    const serverDayOrder = () => ((serverState().settings as any[])[0]?.day_order ?? null) as string[] | null;
+    assert.deepEqual(await dayTitles(), DAY, 'zonder eigen volgorde: de gewone volgorde (hier: zoals ze zijn toegevoegd)');
+    // slepen: Avondklus boven Ochtendklus
+    await evaluate(`window.scrollTo(0, 0)`);
+    await sleep(200);
+    const avond = await rowRect('Avondklus');
+    const ochtend = await rowRect('Ochtendklus');
+    await drag(grab(avond), at(ochtend, 0.4, 0.2), async () => {
+      assert.equal((await dragState()).line, true, 'een invoegstreep in Vandaag');
+      assert.ok(Math.abs((await lineY()) - ochtend.y) <= 3, 'boven Ochtendklus');
+      await shot('slepen-vandaag');
+    });
+    await settle();
+    assert.deepEqual(await dayTitles(), ['Avondklus', 'Ochtendklus', 'Middagklus']);
+    const order = serverDayOrder() ?? [];
+    assert.deepEqual(order.filter((id) => id.startsWith('dnd-day-')), ['dnd-day-2', 'dnd-day-0', 'dnd-day-1'], 'de volgorde staat in je instellingen op de server');
+    assert.equal((serverState().tasks as any[]).find((t) => t.id === 'dnd-day-2').project_id, P3, 'de taak zelf is niet verplaatst');
+    assert.match(await live(), /"Avondklus" staat nu op plek 1, totaal \d+\./);
+    // het toetsenbord: Alt+↓ op Avondklus, de focus blijft
+    await evaluate(`${rowExpr('Avondklus')}.querySelector('.task-body').focus()`);
+    await alt('ArrowDown');
+    await settle();
+    assert.deepEqual(await dayTitles(), ['Ochtendklus', 'Avondklus', 'Middagklus']);
+    assert.match(await live(), /"Avondklus" staat nu op plek 2, totaal \d+\./);
+    // ongedaan maken
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+    await settle();
+    assert.deepEqual(await dayTitles(), ['Avondklus', 'Ochtendklus', 'Middagklus'], 'Ctrl+Z zet de vorige volgorde terug');
+    // een nieuwe taak voor vandaag komt onderaan
+    await asAlice([cmd('task_add', { id: 'dnd-day-3', project_id: P3, content: 'Nachtklus', due: { date: today } })]);
+    await waitFor(`[...${dayGroup}.querySelectorAll('.task-title')].some((e) => e.textContent === 'Nachtklus')`, 'de nieuwe taak', 15_000);
+    assert.deepEqual(await dayTitles(), ['Avondklus', 'Ochtendklus', 'Middagklus', 'Nachtklus']);
+    // een andere sortering: geen slepen binnen de lijst, en de eigen volgorde weer wissen in het venster Sorteren
+    await evaluate(`document.querySelector('[data-fk="list-options"]').click()`);
+    await waitFor(`document.querySelector('dialog[open] [data-fk="listopt:clear-day-order"]')`, 'de knop Eigen volgorde wissen');
+    await evaluate(`document.querySelector('dialog[open] [data-fk="listopt:clear-day-order"]').click()`);
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    assert.equal(serverDayOrder(), null, 'gewist op de server');
+    assert.deepEqual(await dayTitles(), ['Ochtendklus', 'Middagklus', 'Avondklus', 'Nachtklus'], 'weer de gewone volgorde');
+    step('je eigen volgorde in Vandaag: slepen (met streep) en Alt+↓ bewaren de volgorde in je instellingen (de taak blijft waar ze is), Ctrl+Z zet terug, een nieuwe taak komt onderaan, en "Eigen volgorde wissen" geeft de gewone volgorde terug');
   }
 
   // opruimen: wat deze proef maakte, hoeft niet te blijven staan

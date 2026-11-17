@@ -18,6 +18,8 @@
 // dat nog niet aan de beurt is, niet: `data-real=false`); loslaten verzet de datum, het tijdstip en de herhaling blijven.
 // Filters en labels (core/listOrder.js): `[data-order-kind=filter|label][data-order-id]`, in de zijbalk en op de beheerpagina; alleen
 // boven of onder een ander van dezelfde soort, en een favoriet blijft bij de favorieten.
+// Vandaag: `.group[data-day-order=overdue|today]` is een groep die je zelf op volgorde zet (core/dayOrder.js); alleen de taken van het
+// hoogste niveau (`data-depth` 0) tellen, en loslaten bewaart de volgorde in `settings.day_order`.
 
 import { canReorderProject, currentProjectPlan, currentTaskPlan, planCardDrop, planCardKey, planDayDrop, planDayKey, planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey, zoneAt } from '../core/dnd.js';
 import { dayLabel } from '../core/calendar.js';
@@ -28,6 +30,8 @@ import { projectDescendantIds } from '../core/selectors.js';
 import { canEditProject } from '../core/access.js';
 import { getLocale, t } from '../core/i18n.js';
 import { ORDER_KINDS, listMoveCommands, listPosition, orderedItems, planListDrop, planListKey } from '../core/listOrder.js';
+import { nextDayOrder, planDayOrderDrop, planDayOrderKey } from '../core/dayOrder.js';
+import { mySettings } from '../core/selectors.js';
 import { h, toast } from './dom.js';
 
 const MOUSE_SLOP = 5; // px bewegen voor een muis of pen sleept
@@ -39,6 +43,9 @@ const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowRight: 'indent', ArrowLeft
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const isListKind = (kind) => Object.hasOwn(ORDER_KINDS, kind);
+const isTopRow = (row) => Number(row.dataset.depth ?? 0) === 0;
+/** De taken van één groep van Vandaag, zoals ze op het scherm staan (zonder uitgeklapte subtaken). */
+const dayGroupIds = (groupEl) => [...groupEl.querySelectorAll('li.task')].filter(isTopRow).map((li) => li.dataset.id);
 const listSelector = (kind, id) => `[data-order-kind="${CSS.escape(kind)}"][data-order-id="${CSS.escape(id)}"]`;
 /** Het filter, label, project of de taak die gesleept wordt. */
 function entityOf(view, kind, id) {
@@ -296,9 +303,19 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
         // ook net naast de lijst (in de marge) telt als boven de lijst
         const list = content.getBoundingClientRect();
         if (!content.contains(hit) && drag.x < list.left + 40 && drag.x > list.left - 60) hit = at(clamp(drag.x, list.left + 60, list.right - 60), drag.y);
-        const group = hit?.closest?.('.group[data-drop-project]');
+        const dayGroup = hit?.closest?.('.group[data-day-order]');
+        const group = dayGroup ? null : hit?.closest?.('.group[data-drop-project]');
         const row = taskRowOf(hit);
-        if (group && row && group.contains(row)) {
+        if (dayGroup && row && dayGroup.contains(row) && isTopRow(row)) {
+          // Vandaag: je eigen volgorde, alleen binnen de eigen groep
+          const r = row.getBoundingClientRect();
+          const zone = zoneAt((drag.y - r.top) / r.height, false);
+          const order = planDayOrderDrop(dayGroupIds(dayGroup), { dragId: drag.id, overId: row.dataset.id, zone });
+          if (order) {
+            plan = { dayOrder: order };
+            line = { x: r.left, y: zone === 'before' ? r.top : r.bottom, width: r.width };
+          }
+        } else if (group && row && group.contains(row)) {
           const r = row.getBoundingClientRect();
           const zone = zoneAt((drag.y - r.top) / r.height, true);
           const depth = Number(row.dataset.depth ?? 0);
@@ -482,6 +499,13 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en een melding met "Ongedaan maken" (core/undo.js). */
   async function commit(d) {
     const { view, userId } = getContext();
+    if (d.kind === 'task' && d.plan.dayOrder) {
+      const order = d.plan.dayOrder;
+      const text = t('dnd.listDropped', { name: d.name, position: order.indexOf(d.id) + 1, count: order.length });
+      await actions.track(text, () => actions.updateSettings({ day_order: nextDayOrder(view, mySettings(view, userId).day_order, order) }));
+      announce(text);
+      return;
+    }
     if (isListKind(d.kind)) {
       const { position, count } = listPosition(view, d.kind, d.id, d.plan, userId) ?? { position: 1, count: 1 };
       const text = t('dnd.listDropped', { name: d.name, position, count });
@@ -575,6 +599,11 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       if (row.dataset.real !== 'false') keyboardDay(row.dataset.taskId, command);
       return;
     }
+    if (row && content.contains(row) && row.closest('.group[data-day-order]')) {
+      e.preventDefault();
+      if ((command === 'up' || command === 'down') && isTopRow(row)) keyboardDayOrder(row, command);
+      return;
+    }
     if (row && content.contains(row) && row.closest('.group[data-drop-project]')) {
       e.preventDefault();
       keyboardTask(row.dataset.id, command);
@@ -649,6 +678,21 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     if (r.blocked) return;
     actions.track(task.content, () => actions.updateTask(id, { due: r.plan.due }));
     announce(t('dnd.dayMoved', { name: task.content, date: dayLabel(getLocale(), r.date, 'long') }));
+  }
+
+  /** Vandaag: een taak een plek omhoog of omlaag in haar groep; de volgorde komt in `settings.day_order`. */
+  function keyboardDayOrder(row, command) {
+    const { view, userId } = getContext();
+    const task = view.tasks.get(row.dataset.id);
+    if (!task) return;
+    const r = planDayOrderKey(dayGroupIds(row.closest('.group[data-day-order]')), task.id, command);
+    if (r.blocked) {
+      announceBlocked(r.blocked, task.content);
+      return;
+    }
+    const text = t('dnd.listDropped', { name: task.content, position: r.position, count: r.count });
+    actions.track(text, () => actions.updateSettings({ day_order: nextDayOrder(view, mySettings(view, userId).day_order, r.ids) }));
+    announce(text);
   }
 
   /** Een filter of label een plek omhoog of omlaag (binnen de favorieten of binnen de rest). */

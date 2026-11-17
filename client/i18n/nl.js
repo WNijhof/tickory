@@ -343,6 +343,8 @@ export default {
   'listopt.hint': 'Je keuze geldt alleen voor jou, op al je apparaten. Bij een eigen sortering of indeling kun je taken niet binnen de lijst slepen.',
   'listopt.reset': 'Standaard herstellen',
   'listopt.sort.manual': 'Eigen volgorde',
+  'listopt.clearDayOrder': 'Eigen volgorde wissen',
+  'listopt.dayOrderHint': 'Je hebt taken in Vandaag zelf op volgorde gesleept. Wis die volgorde om weer de standaard te zien: eerst zonder tijd, dan op tijd en prioriteit.',
   'listopt.sort.standard': 'Standaard (datum en prioriteit)',
   'listopt.sort.name': 'Naam',
   'listopt.sort.date': 'Datum',

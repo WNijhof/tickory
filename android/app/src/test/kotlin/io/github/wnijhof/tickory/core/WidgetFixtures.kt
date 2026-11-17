@@ -33,7 +33,8 @@ object WidgetFixtures {
         labels: List<WidgetLabel> = emptyList(),
         account: String = "user-anna-0001",
         inbox: String? = "inbox-project",
-    ) = WidgetSnapshot(account, inbox, tasks, projects, sections, labels)
+        dayOrder: List<String> = emptyList(),
+    ) = WidgetSnapshot(account, inbox, tasks, projects, sections, labels, dayOrder = dayOrder)
 
     /** Een antwoord van `POST /api/v1/sync` zoals de server het voor een gebruiker stuurt. */
     fun syncBody(

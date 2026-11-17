@@ -339,7 +339,11 @@ const handlers = {
   },
 
   /** Sorteren en groeperen van de lijst waar je nu in staat: bewaard bij je instellingen, dus op al je apparaten. */
-  viewOptions: (route) => listOptionsDialog({ route, view: store.view, userId: store.userId, update: (view_options) => actions.updateSettings({ view_options }) }),
+  viewOptions: (route) => listOptionsDialog({
+    route, view: store.view, userId: store.userId, update: (view_options) => actions.updateSettings({ view_options }),
+    // Vandaag: je eigen volgorde (slepen) weer weghalen, met ongedaan maken
+    clearDayOrder: route.type === 'today' ? () => actions.track(t('listopt.clearDayOrder'), () => actions.updateSettings({ day_order: null })) : null,
+  }),
 
   /** Lijst, bord of kalender voor een project (`view_style`), ook op je andere apparaten; in een gedeeld project alleen voor jezelf (server/projectPrefs.ts). */
   setViewStyle: (project, style) => actions.updateProject(project.id, { view_style: style }),

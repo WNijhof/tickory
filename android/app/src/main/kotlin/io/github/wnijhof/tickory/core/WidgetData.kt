@@ -71,6 +71,8 @@ data class WidgetSnapshot(
     val notes: List<WidgetNote> = emptyList(),
     val filters: List<WidgetFilter> = emptyList(),
     val users: List<WidgetUser> = emptyList(),
+    /** Je eigen volgorde in Vandaag (`settings.day_order`, zie shared/dayOrder.js); leeg als Vandaag anders gesorteerd is. */
+    val dayOrder: List<String> = emptyList(),
 ) {
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
@@ -86,6 +88,22 @@ object WidgetParser {
     /** Zoveel filters en mensen bewaren we hooguit. */
     const val MAX_FILTERS = 500
     const val MAX_USERS = 1000
+
+    /** Zoveel taken onthoudt je eigen volgorde in Vandaag hooguit (MAX_DAY_ORDER in shared/dayOrder.js). */
+    const val MAX_DAY_ORDER = 500
+
+    /**
+     * Je eigen volgorde in Vandaag uit je instellingen, zoals de web-app hem gebruikt: alleen zolang Vandaag op de standaardsortering
+     * staat (`view_options.today.sort` ontbreekt of is "manual"). Geen instellingen of een andere sortering: leeg.
+     */
+    fun dayOrderOf(raw: List<Any?>?, accountId: String): List<String> {
+        val mine = raw?.mapNotNull { Json.asObject(it) }?.firstOrNull { o ->
+            !o.flag("is_deleted") && (o.text("owner_id") ?: accountId) == accountId
+        } ?: return emptyList()
+        val sort = mine.obj("view_options")?.obj("today")?.text("sort")
+        if (sort != null && sort != "manual") return emptyList()
+        return (mine.list("day_order") ?: emptyList()).mapNotNull { (it as? String)?.takeIf { id -> Ids.isSafeId(id) } }.distinct().take(MAX_DAY_ORDER)
+    }
 
     private val FLOATING = Regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(?::\\d{2})?$")
 
@@ -204,7 +222,8 @@ object WidgetParser {
             val id = o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null
             WidgetUser(id, o.text("name") ?: "", o.text("username") ?: "")
         }.take(MAX_USERS)
-        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users)
+        val dayOrder = dayOrderOf(root.list("settings"), accountId)
+        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users, dayOrder)
     }
 }
 
@@ -235,6 +254,7 @@ object WidgetCodec {
             },
             "filters" to s.filters.map { mapOf("id" to it.id, "name" to it.name, "query" to it.query, "order" to it.orderKey) },
             "users" to s.users.map { mapOf("id" to it.id, "name" to it.name, "username" to it.username) },
+            "dayOrder" to s.dayOrder,
         ),
     )
 
@@ -278,6 +298,8 @@ object WidgetCodec {
             WidgetFilter(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("query") ?: return@mapNotNull null, o.text("order") ?: "")
         }
         val users = objects("users").mapNotNull { o -> WidgetUser(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("username") ?: "") }
-        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users)
+        // bewaard door een oudere versie: zonder "dayOrder", dan de gewone volgorde (tot de volgende verversing)
+        val dayOrder = root.list("dayOrder")?.mapNotNull { (it as? String)?.takeIf { id -> Ids.isSafeId(id) } }?.distinct()?.take(WidgetParser.MAX_DAY_ORDER) ?: emptyList()
+        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users, dayOrder)
     }
 }

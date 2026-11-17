@@ -145,7 +145,10 @@ export function widgetFingerprint(view) {
   for (const l of view.labels?.values() ?? []) labels.push([l.id, l.name].join(''));
   const reminders = [];
   for (const r of view.reminders?.values() ?? []) reminders.push([r.id, r.task_id, r.type, r.due?.date ?? '', r.minute_offset ?? '', r.is_deleted ? 1 : 0].join(''));
-  return [lines, projects, sections, notes, filters, labels, reminders].map((list) => list.sort().join('')).join('');
+  // je eigen volgorde in Vandaag (settings.day_order) en of Vandaag op de standaardsortering staat: de widget Vandaag volgt die
+  const settings = [];
+  for (const s of view.settings?.values() ?? []) settings.push([s.id, JSON.stringify(s.day_order ?? null), s.view_options?.today?.sort ?? ''].join(''));
+  return [lines, projects, sections, notes, filters, labels, reminders, settings].map((list) => list.sort().join('')).join('');
 }
 
 /**
