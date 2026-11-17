@@ -18,6 +18,8 @@
 // dat nog niet aan de beurt is, niet: `data-real=false`); loslaten verzet de datum, het tijdstip en de herhaling blijven.
 // Filters en labels (core/listOrder.js): `[data-order-kind=filter|label][data-order-id]`, in de zijbalk en op de beheerpagina; alleen
 // boven of onder een ander van dezelfde soort, en een favoriet blijft bij de favorieten.
+// Secties (core/sectionOrder.js): `[data-move-section]` is een sectie in de lijst (`.group`) of een kolom op het bord; slepen begint aan
+// de kop (`.group-head`, `.board-column-head`, niet op een knop) en landt vóór of na een andere sectie van hetzelfde project.
 // Vandaag: `.group[data-day-order=overdue|today]` is een groep die je zelf op volgorde zet (core/dayOrder.js); alleen de taken van het
 // hoogste niveau (`data-depth` 0) tellen, en loslaten bewaart de volgorde in `settings.day_order`.
 
@@ -31,6 +33,7 @@ import { canEditProject } from '../core/access.js';
 import { getLocale, t } from '../core/i18n.js';
 import { ORDER_KINDS, listMoveCommands, listPosition, orderedItems, planListDrop, planListKey } from '../core/listOrder.js';
 import { nextDayOrder, planDayOrderDrop, planDayOrderKey } from '../core/dayOrder.js';
+import { canMoveSection, planSectionDrop, planSectionKey, sectionMoveCommands, sectionPosition } from '../core/sectionOrder.js';
 import { mySettings } from '../core/selectors.js';
 import { h, toast } from './dom.js';
 
@@ -53,8 +56,11 @@ function entityOf(view, kind, id) {
   if (kind === 'project') return view.projects.get(id);
   if (kind === 'filter') return view.filters.get(id);
   if (kind === 'label') return view.labels.get(id);
+  if (kind === 'section') return view.sections.get(id);
   return undefined;
 }
+const SECTION_HEAD = '[data-move-section] > .group-head, [data-move-section] > .board-column-head';
+const sectionHeadSelector = (id) => `[data-move-section="${CSS.escape(id)}"] > .group-head, [data-move-section="${CSS.escape(id)}"] > .board-column-head`;
 
 /**
  * @param {{
@@ -137,6 +143,16 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       startPending(e, 'task', taskIdOf(row), row, Boolean(target.closest('.drag-handle')));
       return;
     }
+    const head = target.closest(SECTION_HEAD);
+    if (head && content.contains(head)) {
+      if (target.closest('button, a, input')) return; // inklappen en het menu blijven knoppen
+      const id = head.parentElement.dataset.moveSection;
+      const { view, userId } = getContext();
+      if (!canMoveSection(view, id, userId)) return;
+      startPending(e, 'section', id, head, false);
+      pending.box = content;
+      return;
+    }
     const listItem = listRowOf(target);
     if (listItem) {
       if (target.closest('.manage-buttons')) return; // de knoppen favoriet, bewerken en verwijderen op de beheerpagina
@@ -201,7 +217,8 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     const box = from.box ?? (from.kind === 'project' ? sidebar : content);
     // het scherm kan tussen indrukken en slepen opnieuw getekend zijn (een sync): dan staat de regel er als nieuw element
     if (!from.el.isConnected) {
-      const selector = from.kind === 'task' ? taskSelector(from.id) : isListKind(from.kind) ? listSelector(from.kind, from.id) : `[data-project-id="${CSS.escape(from.id)}"]`;
+      const selector = from.kind === 'task' ? taskSelector(from.id) : isListKind(from.kind) ? listSelector(from.kind, from.id)
+        : from.kind === 'section' ? sectionHeadSelector(from.id) : `[data-project-id="${CSS.escape(from.id)}"]`;
       from.el = box.querySelector(selector) ?? from.el;
     }
     const rect = from.el.getBoundingClientRect();
@@ -239,6 +256,7 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     for (const id of drag.ids) {
       const els = drag.kind === 'task' ? content.querySelectorAll(taskSelector(id))
         : isListKind(drag.kind) ? document.querySelectorAll(listSelector(drag.kind, id))
+          : drag.kind === 'section' ? content.querySelectorAll(`[data-move-section="${CSS.escape(id)}"]`)
           : [...sidebar.querySelectorAll(`[data-project-id="${CSS.escape(id)}"]`)].map((x) => x.closest('.nav-row') ?? x);
       for (const el of els) el.classList.add('dnd-source');
     }
@@ -338,6 +356,23 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
           }
         }
       }
+    } else if (drag.kind === 'section') {
+      // een sectie: vóór of na een andere sectie. In de lijst telt de bovenste helft van de kop als "ervoor" en de rest van de sectie
+      // als "erna"; op het bord de linker- of rechterhelft van de kolom.
+      const target = hit?.closest?.('[data-move-section]');
+      if (target && content.contains(target)) {
+        const r = target.getBoundingClientRect();
+        const onBoard = target.classList.contains('board-column');
+        const headEl = target.querySelector(':scope > .group-head');
+        const headMid = headEl ? headEl.getBoundingClientRect().top + headEl.getBoundingClientRect().height / 2 : r.top + r.height / 2;
+        const zone = onBoard ? (drag.x < r.left + r.width / 2 ? 'before' : 'after') : (drag.y < headMid ? 'before' : 'after');
+        plan = planSectionDrop(view, { dragId: drag.id, overId: target.dataset.moveSection, zone, userId });
+        if (plan) {
+          line = onBoard
+            ? { x: zone === 'before' ? r.left - 6 : r.right + 4, y: r.top, height: r.height, vertical: true }
+            : { x: r.left, y: zone === 'before' ? r.top : r.bottom, width: r.width };
+        }
+      }
     } else if (isListKind(drag.kind)) {
       // een filter of label: boven of onder een ander van dezelfde soort (in de zijbalk of op de beheerpagina)
       const item = listRowOf(hit);
@@ -411,7 +446,11 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       return;
     }
     drag.line ??= document.body.appendChild(h('div', { class: 'dnd-line', 'aria-hidden': 'true' }));
-    Object.assign(drag.line.style, { left: `${Math.round(line.x)}px`, top: `${Math.round(line.y - 1)}px`, width: `${Math.round(line.width)}px` });
+    // een staande streep tussen twee kolommen van het bord, anders een liggende tussen twee regels
+    drag.line.classList.toggle('dnd-line-v', Boolean(line.vertical));
+    Object.assign(drag.line.style, line.vertical
+      ? { left: `${Math.round(line.x - 1)}px`, top: `${Math.round(line.y)}px`, width: '', height: `${Math.round(line.height)}px` }
+      : { left: `${Math.round(line.x)}px`, top: `${Math.round(line.y - 1)}px`, width: `${Math.round(line.width)}px`, height: '' });
   }
 
   /** Op een telefoon is de zijbalk een lade: even bij de linkerrand blijven slepen opent hem, zodat je op een project kunt loslaten. */
@@ -447,7 +486,7 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       }
       // een bord dat breder is dan het scherm: bij de linker- of rechterrand schuift het zijwaarts
       const board = overSidebar ? null : document.querySelector('.board');
-      if (board && drag.kind === 'task') {
+      if (board && (drag.kind === 'task' || drag.kind === 'section')) {
         const b = board.getBoundingClientRect();
         let dx = 0;
         if (drag.y >= b.top && drag.y <= b.bottom && board.scrollWidth > board.clientWidth) {
@@ -499,6 +538,13 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en een melding met "Ongedaan maken" (core/undo.js). */
   async function commit(d) {
     const { view, userId } = getContext();
+    if (d.kind === 'section') {
+      const { position, count } = sectionPosition(view, d.id, d.plan) ?? { position: 1, count: 1 };
+      const text = t('dnd.sectionMoved', { name: d.name, position, count });
+      await actions.batch(sectionMoveCommands(view, d.id, d.plan), { label: text });
+      announce(text);
+      return;
+    }
     if (d.kind === 'task' && d.plan.dayOrder) {
       const order = d.plan.dayOrder;
       const text = t('dnd.listDropped', { name: d.name, position: order.indexOf(d.id) + 1, count: order.length });
@@ -579,6 +625,16 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     const command = KEYS[e.key];
     const target = e.target instanceof Element ? e.target : null;
     if (!target || target.closest('input, textarea, select, [contenteditable]')) return;
+    // de kop van een sectie (inklapknop of menu met de focus): de sectie een plek eerder of later; op het bord ook links en rechts
+    const head = target.closest(SECTION_HEAD);
+    if (head && content.contains(head)) {
+      const onBoard = head.classList.contains('board-column-head');
+      const step = onBoard ? { indent: 'right', outdent: 'left', up: 'up', down: 'down' }[command] : (command === 'up' || command === 'down' ? command : null);
+      if (!step) return;
+      e.preventDefault();
+      keyboardSection(head.parentElement.dataset.moveSection, step);
+      return;
+    }
     const row = taskRowOf(target);
     if (row && content.contains(row)) {
       const { view, userId } = getContext();
@@ -678,6 +734,21 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     if (r.blocked) return;
     actions.track(task.content, () => actions.updateTask(id, { due: r.plan.due }));
     announce(t('dnd.dayMoved', { name: task.content, date: dayLabel(getLocale(), r.date, 'long') }));
+  }
+
+  /** Een sectie een plek eerder of later (in de lijst omhoog/omlaag, op het bord ook links/rechts). */
+  function keyboardSection(id, step) {
+    const { view, userId } = getContext();
+    const section = view.sections.get(id);
+    if (!section) return;
+    const r = planSectionKey(view, id, step, { userId });
+    if (r.blocked) {
+      announceBlocked(r.blocked, section.name);
+      return;
+    }
+    const text = t('dnd.sectionMoved', { name: section.name, position: r.position, count: r.count });
+    actions.batch(sectionMoveCommands(view, id, r.plan), { label: text });
+    announce(text);
   }
 
   /** Vandaag: een taak een plek omhoog of omlaag in haar groep; de volgorde komt in `settings.day_order`. */

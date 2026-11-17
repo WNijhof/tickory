@@ -40,6 +40,7 @@ import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { openPendingInvite, takeInviteFromHash } from './inviteLinks.js';
 import { createUpdates } from './updates.js';
+import { planSectionKey, sectionMoveCommands } from '../core/sectionOrder.js';
 import { notificationsDialog } from './reminderUi.js';
 import { createAttachmentManager, IdbFiles, MemoryFiles } from '../core/attachments.js';
 import { configureAttachments, rejectionText } from './attachments.js';
@@ -497,15 +498,25 @@ const handlers = {
   },
 
   async sectionMenu(section) {
+    // een plek eerder of later (ook te slepen aan de kop, of Alt + pijl); alleen wat kan
+    const earlier = planSectionKey(store.view, section.id, 'up', { userId: store.userId });
+    const later = planSectionKey(store.view, section.id, 'down', { userId: store.userId });
     const choice = await menuDialog({
       title: section.name,
       items: [
         { value: 'rename', label: t('common.rename') },
         { value: 'description', label: t('section.descriptionEdit') },
+        ...(earlier.plan ? [{ value: 'earlier', label: t('section.moveEarlier') }] : []),
+        ...(later.plan ? [{ value: 'later', label: t('section.moveLater') }] : []),
         { value: 'delete', label: t('section.delete'), danger: true },
       ],
     });
-    if (choice === 'description') {
+    if (choice === 'earlier' || choice === 'later') {
+      const r = choice === 'earlier' ? earlier : later;
+      const text = t('dnd.sectionMoved', { name: section.name, position: r.position, count: r.count });
+      const { entry } = await actions.batch(sectionMoveCommands(store.view, section.id, r.plan), { label: text });
+      undoToast(text, entry);
+    } else if (choice === 'description') {
       const description = await sectionDescriptionDialog(section);
       if (description !== null && description !== (section.description ?? '')) await actions.updateSection(section.id, { description });
     } else if (choice === 'rename') {

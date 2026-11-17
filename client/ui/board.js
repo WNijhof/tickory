@@ -9,7 +9,8 @@
 //   ul.board-cards                  de lijst kaarten in een kolom: hier laat je een kaart vallen.   data-column, data-section-id, data-project-id
 //   li.task.task-card               een kaart.                                         data-task-id (en data-id), data-section-id van de kolom
 //   button.card-move                het menu "Verplaats naar…" van een kaart (blijft het toetsenbord- en telefoon-alternatief voor slepen)
-//   div.board-column-head           de kop van een kolom (titel, teller, menu)
+//   div.board-column-head           de kop van een kolom (titel, teller, menu); met data-move-section op de kolom is die aan de kop
+//                                   te verslepen (core/sectionOrder.js)
 // Verplaatsen gaat met `actions.moveTask(taskId, { project_id, section_id, beforeId })`; `beforeId` zet de kaart vóór een andere
 // kaart, zonder `beforeId` komt ze achteraan. De kaarten staan in de volgorde van `order_key`.
 // Na een verplaatsing tekent de app alles opnieuw; kaarten worden hergebruikt (zelfde element per taak zolang de gegevens gelijk zijn).
@@ -35,7 +36,7 @@ export function boardView({ project, columns, readOnly = false, handlers, cards 
     for (const node of nodes) node.dataset.sectionId = sectionId;
     return h('section', {
       class: `board-column${section ? '' : ' board-column-none'}`, 'aria-label': name,
-      dataset: { projectId: project.id, column: id, sectionId },
+      dataset: { projectId: project.id, column: id, sectionId, ...(section && !readOnly ? { moveSection: section.id } : {}) },
     },
     h('div', { class: 'board-column-head' },
       h('h2', { class: 'board-column-title' }, name),

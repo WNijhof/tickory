@@ -679,6 +679,74 @@ async function scenario(c: any): Promise<void> {
     step('je eigen volgorde in Vandaag: slepen (met streep) en Alt+↓ bewaren de volgorde in je instellingen (de taak blijft waar ze is), Ctrl+Z zet terug, een nieuwe taak komt onderaan, en "Eigen volgorde wissen" geeft de gewone volgorde terug');
   }
 
+  // ---------- 16. secties verplaatsen: in de lijst, met het toetsenbord, via het menu en als kolom op het bord ----------
+  {
+    const byKey = (a: any, b: any) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : 1);
+    const K1 = 'dnd-section-kolom1', K2 = 'dnd-section-kolom2';
+    await asAlice([cmd('section_add', { id: K1, project_id: P3, name: 'Kolom een' }), cmd('section_add', { id: K2, project_id: P3, name: 'Kolom twee' })]);
+    const sectionOrder = () => (serverState().sections as any[]).filter((s) => s.project_id === P3 && !s.is_deleted && !s.is_archived).sort(byKey).map((s) => s.name);
+    const headExpr = (id: string, cls = 'group-head') => `document.querySelector('[data-move-section="${id}"] > .${cls}')`;
+    await nav('Naburig');
+    await waitFor(`document.querySelectorAll('.group[data-move-section]').length === 2`, 'twee secties om te verslepen', 15_000);
+    await evaluate(`window.scrollTo(0, 0)`);
+    await sleep(200);
+    assert.deepEqual(sectionOrder(), ['Kolom een', 'Kolom twee']);
+    // slepen aan de kop: Kolom twee boven Kolom een
+    const daarna = await rectOf(headExpr(K2));
+    const eerst = await rectOf(headExpr(K1));
+    await drag({ x: Math.round(daarna.x + 50), y: Math.round(daarna.y + daarna.h / 2) }, { x: Math.round(eerst.x + 50), y: Math.round(eerst.y + eerst.h * 0.25) }, async () => {
+      const s = await dragState();
+      assert.equal(s.ghost && s.line, true, 'een kopie van de kop en een invoegstreep');
+      assert.ok(Math.abs((await lineY()) - eerst.y) <= 3, 'de streep staat boven de sectie Kolom een');
+      await shot('slepen-sectie');
+    });
+    await settle();
+    assert.deepEqual(sectionOrder(), ['Kolom twee', 'Kolom een'], 'de server heeft de nieuwe volgorde');
+    assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('.group[data-move-section] .group-title')].map((e) => e.textContent)`), ['Kolom twee', 'Kolom een']);
+    assert.match(await live(), /Sectie "Kolom twee" staat nu op plek 1, totaal 2\./);
+    // het toetsenbord: Alt+↓ op het inklappijltje van Kolom twee, de focus blijft
+    await evaluate(`document.querySelector('[data-fk="section:${K2}"]').focus()`);
+    await alt('ArrowDown');
+    await settle();
+    assert.deepEqual(sectionOrder(), ['Kolom een', 'Kolom twee']);
+    await waitFor(`document.activeElement?.dataset.fk === 'section:${K2}'`, 'de focus blijft op de sectie');
+    assert.match(await live(), /Sectie "Kolom twee" staat nu op plek 2, totaal 2\./);
+    await alt('ArrowDown');
+    await sleep(200);
+    assert.match(await live(), /"Kolom twee" staat al onderaan/);
+    // het menu: alleen wat kan, en met ongedaan maken
+    await evaluate(`document.querySelector('[data-fk="sectionmenu:${K2}"]').click()`);
+    await waitFor(`document.querySelector('dialog[open] .menu-item')`, 'het menu van de sectie');
+    const items = await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .menu-item')].map((b) => b.textContent)`);
+    assert.ok(items.includes('Een plek naar voren') && !items.includes('Een plek naar achteren'), `de laatste sectie kan alleen naar voren: ${items}`);
+    await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].find((b) => b.textContent === 'Een plek naar voren').click()`);
+    await settle();
+    assert.deepEqual(sectionOrder(), ['Kolom twee', 'Kolom een']);
+    await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent.startsWith('Sectie "Kolom twee" staat nu op plek 1'))`, 'een melding met ongedaan maken');
+    // op het bord: de kolom Kolom een links van Kolom twee, met een staande streep
+    await asAlice([cmd('project_update', { id: P3, view_style: 'board' })]);
+    await waitFor(`document.querySelectorAll('.board-column[data-move-section]').length === 2`, 'het bord met twee kolommen om te verslepen', 15_000);
+    await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
+    await sleep(200);
+    const colHead = await rectOf(headExpr(K1, 'board-column-head'));
+    const target = await rectOf(`document.querySelector('.board-column[data-move-section="${K2}"]')`);
+    await drag({ x: Math.round(colHead.x + 30), y: Math.round(colHead.y + colHead.h / 2) }, { x: Math.round(target.x + target.w * 0.25), y: Math.round(target.y + 60) }, async () => {
+      assert.equal(await evaluate(`Boolean(document.querySelector('.dnd-line.dnd-line-v'))`), true, 'een staande streep tussen de kolommen');
+      await shot('slepen-kolom');
+    });
+    await settle();
+    assert.deepEqual(sectionOrder(), ['Kolom een', 'Kolom twee']);
+    assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('.board-column[data-move-section] .board-column-title')].map((e) => e.textContent)`), ['Kolom een', 'Kolom twee']);
+    // Alt+→ op het menu van de kolom Kolom een: een plek naar rechts
+    await evaluate(`document.querySelector('[data-fk="sectionmenu:${K1}"]').focus()`);
+    await alt('ArrowRight');
+    await settle();
+    assert.deepEqual(sectionOrder(), ['Kolom twee', 'Kolom een']);
+    await asAlice([cmd('project_update', { id: P3, view_style: 'list' })]);
+    await waitFor(`document.querySelectorAll('.group[data-move-section]').length === 2`, 'weer de lijst', 15_000);
+    step('secties verplaatsen: slepen aan de kop in de lijst en als kolom op het bord (met liggende of staande streep), Alt+pijl op de kop met aankondiging en de focus op zijn plek, en "Een plek naar voren" in het menu met ongedaan maken');
+  }
+
   // opruimen: wat deze proef maakte, hoeft niet te blijven staan
   await asAlice([P, P2, P3, LONG].map((id) => cmd('project_delete', { id })));
   asBob([cmd('project_delete', { id: 'dnd-bobs-project' })]);

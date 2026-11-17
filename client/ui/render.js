@@ -375,7 +375,7 @@ export function resetRowCache() {
 
 const count = (n) => h('span', { class: 'group-count' }, String(n));
 
-export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null, dayOrder = null, description = '' }) {
+export function group({ title, rows, total, collapsible = null, extra = null, footer = null, drop = null, dayOrder = null, moveSection = null, description = '' }) {
   const head = title && h('div', { class: 'group-head' },
     collapsible && h('button', {
       class: 'group-toggle', type: 'button', 'aria-expanded': String(!collapsible.collapsed), dataset: { fk: collapsible.fk },
@@ -386,8 +386,8 @@ export function group({ title, rows, total, collapsible = null, extra = null, fo
     extra);
   const collapsed = collapsible?.collapsed;
   // `drop`: hier kunnen taken heen gesleept worden (project en sectie); `dayOrder`: een groep van Vandaag die je zelf op volgorde zet
-  // ('overdue' of 'today'). Zie ui/dragdrop.js.
-  const dataset = drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : dayOrder ? { dayOrder } : {};
+  // ('overdue' of 'today'); `moveSection`: de sectie zelf is aan haar kop te verslepen (het id). Zie ui/dragdrop.js.
+  const dataset = { ...(drop ? { dropProject: drop.projectId, dropSection: drop.sectionId ?? '' } : dayOrder ? { dayOrder } : {}), ...(moveSection ? { moveSection } : {}) };
   return h('section', { class: `group${collapsed ? ' group-collapsed' : ''}`, dataset },
     head,
     // de beschrijving van een sectie, met opmaak (Markdown), onder de kop; ingeklapt niet
@@ -575,9 +575,10 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     return group({
       title: section.name, rows: items, total: g.tasks.length, description: section.description,
       collapsible: readOnly ? null : { collapsed: Boolean(section.is_collapsed), fk: `section:${section.id}`, toggle: () => handlers.toggleSection(section) },
-      extra: !readOnly && h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), onclick: () => handlers.sectionMenu(section) }, icon('more')),
+      extra: !readOnly && h('button', { class: 'icon-button group-more', type: 'button', 'aria-label': t('section.editLabel', { name: section.name }), title: t('section.editLabel', { name: section.name }), dataset: { fk: `sectionmenu:${section.id}` }, onclick: () => handlers.sectionMenu(section) }, icon('more')),
       footer: !archived && addInline(handlers, addTarget(section)),
       drop: dropHere({ projectId: project.id, sectionId: section.id }),
+      moveSection: !readOnly && dropHere(section.id),
     });
   });
   return finish({
