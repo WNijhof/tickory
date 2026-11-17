@@ -103,6 +103,10 @@ body.select-mode .task-card .card-move { grid-column: 4; }
 .completed-tools .field { max-width: 100%; }
 .completed-tools select.field { flex: 0 1 260px; }
 .completed-tools input.field { flex: 1 1 220px; min-width: 160px; }
+.completed-tools select.field[data-fk="completed-period"] { flex: 0 1 180px; }
+.completed-range { padding-top: 0; }
+.completed-range-part { display: flex; flex-direction: row; align-items: center; gap: 8px; margin: 0; }
+.completed-tools .completed-range-part input.field { flex: 0 0 auto; width: 170px; min-width: 0; }
 .completed-note { margin: 0 0 8px; }
 .task-completed-line { display: flex; align-items: center; gap: 6px; }
 /* in Voltooid: de knop Terugzetten staat rechts naast het project, op dezelfde regel */

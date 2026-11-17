@@ -119,7 +119,13 @@ export async function productivityScenario(c: any) {
   // een verversing die nog loopt (na de wijziging van de doelen) zet de knop even uit: wachten tot hij weer kan, dan pas klikken
   await waitFor(`!document.querySelector('[data-fk="productivity-refresh"]').disabled`, 'de knop Vernieuwen kan weer', 10_000);
   await click('[data-fk="productivity-refresh"]');
-  await waitFor(`document.querySelector('.stats-status').textContent.startsWith('Geen verbinding. Dit is het overzicht van')`, 'zonder verbinding: het laatste overzicht', 10_000);
+  // begon er net een automatische verversing, dan ging de klik naar een knop die uit stond: klik opnieuw zodra hij weer kan
+  await waitFor(`(() => {
+    const offline = document.querySelector('.stats-status').textContent.startsWith('Geen verbinding. Dit is het overzicht van');
+    const b = document.querySelector('[data-fk="productivity-refresh"]');
+    if (!offline && !b.disabled) b.click();
+    return offline;
+  })()`, 'zonder verbinding: het laatste overzicht', 10_000);
   assert.equal(await evaluate(`document.querySelectorAll('.stat-tile').length`), 4, 'de tegels blijven staan');
   assert.ok(await evaluate(`Boolean(JSON.parse(localStorage.getItem('tickory.stats')).data.per_day)`), 'het laatste antwoord is bewaard');
   await startServer();

@@ -11,7 +11,8 @@ description: The overview of everything you ticked off, per day with the newest 
 <ul>
   <li><strong>Per day.</strong> The groups are the days on which you ticked tasks off, in the time zone of the device you are looking at. Within a day the latest is at the top. Each task shows its project (with the section) and the time you ticked it off.</li>
   <li><strong>All projects, or one.</strong> Use the list at the top to choose a project (with the number of completed tasks behind it). The project menu <x-ui k="project.menu"></x-ui> also has <x-ui k="project.completedMenu"></x-ui> for that.</li>
-  <li><strong>Search.</strong> Type in the search field: titles and descriptions are searched, ignoring capitals and accents (<em>cafe</em> finds <em>Café</em>).</li>
+  <li id="period"><strong>A period.</strong> With the second list you only see what you ticked off in that time: <x-ui k="completed.periodToday"></x-ui>, <x-ui k="completed.periodYesterday"></x-ui>, <x-ui k="completed.periodWeek"></x-ui> or <x-ui k="completed.periodLastWeek"></x-ui> (the week starts on the day from <a href="general-settings.html">General</a>), <x-ui k="completed.periodMonth"></x-ui> or <x-ui k="completed.periodLastMonth"></x-ui>. With <x-ui k="completed.periodCustom"></x-ui> you choose a first and last day yourself; leave one empty and the period runs on at that side.</li>
+  <li><strong>Search.</strong> Type in the search field: titles and descriptions are searched, ignoring capitals and accents (<em>cafe</em> finds <em>Café</em>). Project, period and search work together.</li>
   <li><strong>Lots of tasks.</strong> 100 rows are shown at a time; at the bottom a <em>Show more</em> button gives the next ones. With thousands of completed tasks the screen stays smooth.</li>
 </ul>
 <p>Tasks from <strong>archived projects</strong> are not in it, nor are tasks from a project you are no longer a member of. A subtask that was ticked off together with her task is not listed separately: her task is already there.</p>
@@ -29,7 +30,3 @@ description: The overview of everything you ticked off, per day with the newest 
 <h2 id="repeating">Repeating tasks</h2>
 <p>A repeating task does not disappear when you tick it off: it moves on to its next date and stays open. Still, every time it was ticked off (the last three months) is listed in <x-ui k="nav.completed"></x-ui>, on the day it was ticked off and marked <x-ui k="completed.recurringChip"></x-ui>. You cannot restore such a line (the task is still open); a click opens the task itself. In <a href="productivity.html">Productivity</a> every time counts as well. If you undid ticking off such a task, the old date is back.</p>
 
-<h2>What it cannot do yet</h2>
-<ul>
-  <li>Choosing completed tasks from a particular period; search by name and look per day.</li>
-</ul>

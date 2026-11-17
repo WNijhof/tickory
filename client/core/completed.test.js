@@ -159,3 +159,37 @@ test('afvinkingen van terugkerende taken: alleen uit een zichtbaar, niet gearchi
   const task = { id: 'task-9999', completed_at: '2026-11-15T12:00:00.000Z' };
   assert.deepEqual(mergeCompleted([task], got).map((x) => x.id), ['9', 'task-9999', '6']);
 });
+
+test('een periode kiezen: vandaag, gisteren, deze en vorige week, deze en vorige maand, en een eigen periode', async () => {
+  const { PERIODS, inPeriod, periodRange } = await import('./completed.js');
+  const { setWeekStart } = await import('./calendar.js');
+  assert.deepEqual(PERIODS, ['all', 'today', 'yesterday', 'week', 'lastWeek', 'month', 'lastMonth', 'custom']);
+  const today = '2026-11-17'; // een dinsdag
+  assert.equal(periodRange('all', today), null);
+  assert.equal(periodRange('onbekend', today), null);
+  assert.deepEqual(periodRange('today', today), { from: today, to: today });
+  assert.deepEqual(periodRange('yesterday', today), { from: '2026-11-16', to: '2026-11-16' });
+  assert.deepEqual(periodRange('week', today), { from: '2026-11-16', to: '2026-11-22' }, 'maandag tot zondag');
+  assert.deepEqual(periodRange('lastWeek', today), { from: '2026-11-09', to: '2026-11-15' });
+  assert.deepEqual(periodRange('month', today), { from: '2026-11-01', to: '2026-11-30' });
+  assert.deepEqual(periodRange('lastMonth', '2026-03-31'), { from: '2026-02-01', to: '2026-02-28' }, 'februari, ook vanaf de 31e');
+  assert.deepEqual(periodRange('lastMonth', '2026-01-15'), { from: '2025-12-01', to: '2025-12-31' }, 'over de jaargrens');
+  setWeekStart(7);
+  try {
+    assert.deepEqual(periodRange('week', today), { from: '2026-11-15', to: '2026-11-21' }, 'de week begint op zondag');
+  } finally {
+    setWeekStart(1);
+  }
+  assert.deepEqual(periodRange('custom', today, { from: '2026-11-01', to: '2026-11-05' }), { from: '2026-11-01', to: '2026-11-05' });
+  assert.deepEqual(periodRange('custom', today, { from: '2026-11-05', to: '2026-11-01' }), { from: '2026-11-01', to: '2026-11-05' }, 'omgedraaid');
+  assert.deepEqual(periodRange('custom', today, { from: '2026-11-05' }), { from: '2026-11-05', to: null }, 'open einde');
+  assert.equal(periodRange('custom', today, { from: 'rommel', to: '' }), null, 'niets ingevuld: alles');
+
+  const at = (day, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`).toISOString(); // middag op dit apparaat
+  const items = [{ id: 'a', completed_at: at('2026-11-17') }, { id: 'b', completed_at: at('2026-11-16', 0) }, { id: 'c', completed_at: at('2026-11-02') }, { id: 'd', completed_at: 'kapot' }];
+  assert.deepEqual(inPeriod(items, null).map((x) => x.id), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(inPeriod(items, periodRange('today', today)).map((x) => x.id), ['a']);
+  assert.deepEqual(inPeriod(items, periodRange('yesterday', today)).map((x) => x.id), ['b'], 'net na middernacht telt als die dag');
+  assert.deepEqual(inPeriod(items, periodRange('week', today)).map((x) => x.id), ['a', 'b']);
+  assert.deepEqual(inPeriod(items, periodRange('custom', today, { to: '2026-11-10' })).map((x) => x.id), ['c'], 'zonder tijdstip doet niet mee');
+});

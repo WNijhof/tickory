@@ -11,7 +11,8 @@ description: Het overzicht van alles wat je hebt afgevinkt, per dag van afvinken
 <ul>
   <li><strong>Per dag.</strong> De groepen zijn de dagen waarop je afvinkte, in de tijdzone van het apparaat waarop je kijkt. Binnen een dag staat de laatste bovenaan. Bij elke taak staat het project (met de sectie), en het tijdstip van afvinken.</li>
   <li><strong>Alle projecten, of één.</strong> Met de keuzelijst bovenaan kies je een project (met het aantal voltooide taken erachter). Ook het projectmenu <x-ui k="project.menu"></x-ui> heeft daarvoor <x-ui k="project.completedMenu"></x-ui>.</li>
-  <li><strong>Zoeken.</strong> Typ in het zoekveld: de titel en de beschrijving worden doorzocht, zonder op hoofdletters of accenten te letten (<em>cafe</em> vindt <em>Café</em>).</li>
+  <li id="periode"><strong>Een periode.</strong> Met de tweede keuzelijst zie je alleen wat je in die tijd afvinkte: <x-ui k="completed.periodToday"></x-ui>, <x-ui k="completed.periodYesterday"></x-ui>, <x-ui k="completed.periodWeek"></x-ui> of <x-ui k="completed.periodLastWeek"></x-ui> (de week begint op de dag uit <a href="algemeen.html">Algemeen</a>), <x-ui k="completed.periodMonth"></x-ui> of <x-ui k="completed.periodLastMonth"></x-ui>. Met <x-ui k="completed.periodCustom"></x-ui> kies je zelf een eerste en laatste dag; laat je er een leeg, dan loopt de periode aan die kant door.</li>
+  <li><strong>Zoeken.</strong> Typ in het zoekveld: de titel en de beschrijving worden doorzocht, zonder op hoofdletters of accenten te letten (<em>cafe</em> vindt <em>Café</em>). Project, periode en zoeken werken samen.</li>
   <li><strong>Veel taken.</strong> Er worden steeds 100 regels getoond; onderaan staat een knop <em>Meer tonen</em> voor de volgende. Met duizenden voltooide taken blijft het scherm vlot.</li>
 </ul>
 <p>Wie een taak afvinkte en wanneer, staat per project in <a href="activiteit.html">Activiteit</a>.</p>
@@ -28,7 +29,3 @@ description: Het overzicht van alles wat je hebt afgevinkt, per dag van afvinken
 <h2 id="terugkerend">Terugkerende taken</h2>
 <p>Een terugkerende taak verdwijnt niet als je haar afvinkt: ze schuift door naar de volgende keer en blijft open. Toch staat elke keer dat ze is afgevinkt (de laatste drie maanden) in <x-ui k="nav.completed"></x-ui>, op de dag van afvinken en met het label <x-ui k="completed.recurringChip"></x-ui>. Zo'n regel kun je niet terugzetten (de taak staat nog open); een klik opent de taak zelf. In <a href="productiviteit.html">Productiviteit</a> telt elke keer ook mee. Maakte je het afvinken van zo'n taak ongedaan, dan staat de oude datum er weer.</p>
 
-<h2>Wat nog niet kan</h2>
-<ul>
-  <li>Voltooide taken van een bepaalde periode kiezen; zoek op naam en kijk per dag.</li>
-</ul>

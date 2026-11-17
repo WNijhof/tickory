@@ -5,7 +5,7 @@
 //
 // Het scherm tekent maar een deel van de lijst (`PAGE` taken, daarna "Meer tonen"): een lijst van duizenden voltooide taken blijft zo vlot.
 
-import { completedGroups, completedProjects, completedTasks, completedTime, mergeCompleted, recurringEntries } from '../core/completed.js';
+import { PERIODS, completedGroups, completedProjects, completedTasks, completedTime, inPeriod, mergeCompleted, periodRange, recurringEntries } from '../core/completed.js';
 import { renderInline } from './markdown.js';
 import { formatDayHeading } from '../core/format.js';
 import { t } from '../core/i18n.js';
@@ -27,7 +27,7 @@ export const isCompletedRoute = (route) => Boolean(route) && route.type === 'com
  * }} options `header`: een kop boven de lijst bij alle projecten (de cijfers van ui/productivity.js)
  */
 export function installCompleted({ store, handlers, getRoute, header = null, api = null }) {
-  const state = { query: '', limit: PAGE };
+  const state = { query: '', limit: PAGE, period: 'all', from: '', to: '' };
   // De afvinkingen van terugkerende taken komen van de server; hooguit eens per minuut opnieuw gevraagd, en opnieuw na een afvinking.
   const recurring = { entries: [], at: 0, loading: false, mark: '' };
   const markOf = () => [...store.view.tasks.values()].reduce((sum, t) => sum + (t.completed_count ?? 0), 0);
@@ -76,6 +76,20 @@ export function installCompleted({ store, handlers, getRoute, header = null, api
     state.query = search.value;
     if (!composing) refreshSoon();
   });
+  // een eigen periode: twee datumvelden die (net als het zoekveld) hetzelfde element blijven
+  const dateField = (key, fk) => {
+    const input = h('input', { class: 'field', type: 'date', min: '1900-01-01', max: '9999-12-31', dataset: { fk } });
+    input.addEventListener('change', () => { state[key] = input.value; refreshSoon(); });
+    return input;
+  };
+  const fromField = dateField('from', 'completed-from');
+  const toField = dateField('to', 'completed-to');
+  // De teksten staan als letterlijke sleutels, zodat de controle op ongebruikte en ontbrekende teksten ze kan vinden.
+  const PERIOD_TEXT = {
+    all: () => t('completed.periodAll'), today: () => t('completed.periodToday'), yesterday: () => t('completed.periodYesterday'),
+    week: () => t('completed.periodWeek'), lastWeek: () => t('completed.periodLastWeek'), month: () => t('completed.periodMonth'),
+    lastMonth: () => t('completed.periodLastMonth'), custom: () => t('completed.periodCustom'),
+  };
   search.addEventListener('compositionstart', () => { composing = true; });
   search.addEventListener('compositionend', () => { composing = false; state.query = search.value; refreshSoon(); });
 
@@ -92,7 +106,9 @@ export function installCompleted({ store, handlers, getRoute, header = null, api
     const projectId = route.id && view.projects.has(route.id) ? route.id : null;
     const userId = me?.id ?? null;
     fetchRecurring();
-    const all = mergeCompleted(completedTasks(view, { projectId, query: state.query, userId }), recurringEntries(view, recurring.entries, { projectId, query: state.query }));
+    // alleen wat in de gekozen periode is afgevinkt (de dag op dit apparaat)
+    const range = periodRange(state.period, today, state);
+    const all = inPeriod(mergeCompleted(completedTasks(view, { projectId, query: state.query, userId }), recurringEntries(view, recurring.entries, { projectId, query: state.query })), range);
     const { groups, shown, total } = completedGroups(all, { limit: state.limit });
     const withCounts = completedProjects(view, { userId });
 
@@ -111,8 +127,17 @@ export function installCompleted({ store, handlers, getRoute, header = null, api
       select.append(h('option', { value: projectId, selected: true }, t('completed.projectOption', { name: view.projects.get(projectId).name, count: 0 })));
     }
 
+    const period = h('select', {
+      class: 'field', 'aria-label': t('completed.period'), dataset: { fk: 'completed-period' },
+      onchange: (e) => { state.period = e.target.value; refreshSoon(); },
+    }, PERIODS.map((p) => h('option', { value: p, selected: p === state.period }, PERIOD_TEXT[p]())));
+    fromField.setAttribute('aria-label', t('completed.periodFrom'));
+    toField.setAttribute('aria-label', t('completed.periodTo'));
+    if (fromField.value !== state.from) fromField.value = state.from;
+    if (toField.value !== state.to) toField.value = state.to;
+
     const title = projectId ? `${t('nav.completed')} · ${view.projects.get(projectId).name}` : t('nav.completed');
-    const nothingAtAll = !projectId && state.query.trim() === '' && all.length === 0;
+    const nothingAtAll = !projectId && state.query.trim() === '' && state.period === 'all' && all.length === 0;
     return {
       title,
       count: total,
@@ -120,7 +145,10 @@ export function installCompleted({ store, handlers, getRoute, header = null, api
       actions: [],
       nodes: [
         !projectId && header && header({ view, today }),
-        h('div', { class: 'completed-tools' }, select, search),
+        h('div', { class: 'completed-tools' }, select, period, search),
+        state.period === 'custom' && h('div', { class: 'completed-tools completed-range' },
+          h('label', { class: 'field-label completed-range-part' }, t('completed.periodFrom'), fromField),
+          h('label', { class: 'field-label completed-range-part' }, t('completed.periodTo'), toField)),
         h('p', { class: 'hint completed-note' }, t('completed.note')),
         ...groups.map((g) => group({
           title: g.day ? formatDayHeading(g.day, today) : t('completed.unknownDay'),

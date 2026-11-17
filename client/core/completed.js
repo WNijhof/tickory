@@ -6,7 +6,8 @@
 // afvinken open met de volgende datum; die afvinkingen komen van de server (`GET /api/v1/completed/recurring`, uit het logboek) en
 // staan met `recurringEntries` op hun dag tussen de rest.
 
-import { clockText, todayString } from './format.js';
+import { addDays, clockText, todayString } from './format.js';
+import { addMonths, endOfMonth, startOfCalendarWeek, startOfMonth } from './calendar.js';
 import { foldedField, foldText } from './fold.js';
 import { isArchivedProject } from './selectors.js';
 
@@ -72,6 +73,46 @@ export function recurringEntries(view, entries, { projectId = null, query = '' }
     out.push({ ...e, completed_at: e.at, recurring: true });
   }
   return out;
+}
+
+// ---------- een periode kiezen ----------
+
+/** De perioden in de keuzelijst; 'custom' is een eigen begin- en einddag. */
+export const PERIODS = Object.freeze(['all', 'today', 'yesterday', 'week', 'lastWeek', 'month', 'lastMonth', 'custom']);
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * De eerste en laatste dag (JJJJ-MM-DD, beide inclusief) van een periode rond `today`, of null voor "alles". De week begint op de dag
+ * uit Instellingen › Algemeen (zoals de kalender). Bij 'custom' komen `from` en `to` uit de keuze; een lege kant is open, en staan ze
+ * verkeerd om, dan worden ze omgedraaid.
+ * @returns {{ from: string | null, to: string | null } | null}
+ */
+export function periodRange(period, today, { from = '', to = '' } = {}) {
+  switch (period) {
+    case 'today': return { from: today, to: today };
+    case 'yesterday': { const y = addDays(today, -1); return { from: y, to: y }; }
+    case 'week': { const start = startOfCalendarWeek(today); return { from: start, to: addDays(start, 6) }; }
+    case 'lastWeek': { const start = addDays(startOfCalendarWeek(today), -7); return { from: start, to: addDays(start, 6) }; }
+    case 'month': return { from: startOfMonth(today), to: endOfMonth(today) };
+    case 'lastMonth': { const prev = addMonths(startOfMonth(today), -1); return { from: prev, to: endOfMonth(prev) }; }
+    case 'custom': {
+      let a = DAY.test(from) ? from : null;
+      let b = DAY.test(to) ? to : null;
+      if (a && b && a > b) [a, b] = [b, a];
+      return a || b ? { from: a, to: b } : null;
+    }
+    default: return null;
+  }
+}
+
+/** Alleen wat binnen de periode is afgevinkt (de dag van afvinken op dit apparaat). Zonder periode: alles. */
+export function inPeriod(items, range) {
+  if (!range) return items;
+  return items.filter((x) => {
+    const day = completedDay(x.completed_at);
+    return day !== null && (!range.from || day >= range.from) && (!range.to || day <= range.to);
+  });
 }
 
 /** Voltooide taken en afvinkingen van terugkerende taken samen, de nieuwste eerst. */

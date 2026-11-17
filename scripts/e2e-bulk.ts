@@ -659,6 +659,29 @@ async function scenario(c: any): Promise<void> {
     assert.equal(await evaluate(`document.activeElement?.dataset?.fk`), 'completed-search', 'de focus blijft in het zoekveld tijdens het typen');
     await evaluate(`(() => { const i = document.querySelector('[data-fk="completed-search"]'); i.value = ''; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
     await waitFor(`document.querySelectorAll('li.task').length >= 5`, 'leeg zoekveld toont alles');
+    // een periode kiezen: vandaag, gisteren, vorige maand (leeg) en een eigen periode, en weer alles
+    const setPeriod = (value: string) => evaluate(`(() => { const s = document.querySelector('[data-fk="completed-period"]'); s.value = '${value}'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    const groupTitles = () => evaluate<string[]>(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent)`);
+    assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('[data-fk="completed-period"] option')].map((o) => o.textContent)`),
+      ['Alle dagen', 'Vandaag', 'Gisteren', 'Deze week', 'Vorige week', 'Deze maand', 'Vorige maand', 'Eigen periode']);
+    await setPeriod('today');
+    await waitFor(`document.querySelectorAll('.group-title').length === 1`, 'alleen vandaag');
+    assert.match((await groupTitles())[0], /vandaag/i);
+    await setPeriod('yesterday');
+    await waitFor(`document.querySelectorAll('.group-title').length === 1 && !/vandaag/i.test(document.querySelector('.group-title').textContent)`, 'alleen gisteren');
+    assert.equal((await groupTitles())[0], heads[1], 'de groep van gisteren');
+    await setPeriod('lastMonth');
+    await waitFor(`document.querySelectorAll('li.task').length === 0 && document.querySelector('.empty')`, 'vorige maand: niets');
+    await setPeriod('custom');
+    await waitFor(`document.querySelector('[data-fk="completed-from"]') && document.querySelector('[data-fk="completed-to"]')`, 'twee datumvelden');
+    const todayC = await evaluate<string>(`new Date().toLocaleDateString('sv-SE')`);
+    await evaluate(`(() => { const i = document.querySelector('[data-fk="completed-from"]'); i.value = '${todayC}'; i.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await waitFor(`document.querySelectorAll('.group-title').length === 1 && /vandaag/i.test(document.querySelector('.group-title').textContent)`, 'vanaf vandaag');
+    await shot('voltooid-periode');
+    const fieldHeight = await evaluate<number>(`Math.round(document.querySelector('[data-fk="completed-from"]').getBoundingClientRect().height)`);
+    assert.ok(fieldHeight <= 48, `een datumveld is zo hoog als de andere velden: ${fieldHeight}px`);
+    await setPeriod('all');
+    await waitFor(`document.querySelectorAll('li.task').length >= 5 && !document.querySelector('[data-fk="completed-from"]')`, 'weer alles');
     // filter op project
     await evaluate(`(() => { const s = document.querySelector('[data-fk="completed-project"]'); s.value = '${PS}'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
     await waitFor(`document.getElementById('view-title').textContent === 'Voltooid · Samen selecteren' && document.querySelectorAll('li.task').length === 1`, 'filter op project');
@@ -696,7 +719,7 @@ async function scenario(c: any): Promise<void> {
     await dialogButton('Voltooide taken bekijken');
     await waitFor(`document.getElementById('view-title').textContent === 'Voltooid · Selectieproef'`, 'Voltooid van dit project');
     assert.deepEqual((await titles()).sort(), ['Café reserveren', 'Kind van café', 'Planten sproeien'].filter((n) => n !== 'Kind van café').sort());
-    step('Voltooid: per dag van afvinken (nieuwste eerst, tijd en project erbij), zoeken zonder accenten, filter op project, Terugzetten met melding en ongedaan maken, Heropenen voor meerdere tegelijk, gearchiveerde projecten tellen niet mee, via het projectmenu');
+    step('Voltooid: per dag van afvinken (nieuwste eerst, tijd en project erbij), zoeken zonder accenten, een periode (vandaag, gisteren, vorige maand, eigen periode), filter op project, Terugzetten met melding en ongedaan maken, Heropenen voor meerdere tegelijk, gearchiveerde projecten tellen niet mee, via het projectmenu');
   }
 
   // ---------- 11. veel voltooide taken: vlot en met "Meer tonen" ----------
