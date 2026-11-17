@@ -1651,6 +1651,7 @@ export default {
   'bulk.count': { one: '{count} taak geselecteerd', other: '{count} taken geselecteerd' },
   'bulk.none': 'Niets geselecteerd',
   'bulk.selectAll': 'Alles selecteren',
+  'bulk.selectHidden': { one: 'Ook {count} verborgen taak', other: 'Ook {count} verborgen taken' },
   'bulk.stop': 'Selecteren stoppen',
   'bulk.announceAll': { one: 'Alles geselecteerd: {count} taak.', other: 'Alles geselecteerd: {count} taken.' },
   'bulk.announceStopped': 'Selecteren gestopt.',

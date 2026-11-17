@@ -8,7 +8,7 @@ import { applyCommand, cloneState, descendantIds } from './reducer.js';
 import { taskMoveCommands, taskSiblings } from './dnd.js';
 import { MAX_DRAG_GROUP } from './selection.js';
 import { reschedule } from './quickDates.js';
-import { isShared, membersOf } from './selectors.js';
+import { byOrder, isShared, membersOf } from './selectors.js';
 import { t } from './i18n.js';
 
 /** Welke acties er zijn, voor meldingen en voor het ongedaan maken (`bulk.done.<naam>` in de woordenlijst). */
@@ -106,6 +106,19 @@ export function planMove(view, ids, { project_id, section_id = null }, order = [
 }
 
 // ---------- datum, prioriteit, labels, toewijzen ----------
+
+/**
+ * De open taken van een project die niet in beeld zijn (achter een ingeklapte sectie of taak), op volgorde; niet die in een
+ * gearchiveerde sectie (die zie je nergens). `shown`: de taken die wel op het scherm staan.
+ */
+export function hiddenProjectTasks(view, projectId, shown) {
+  const shownSet = new Set(shown);
+  const archived = new Set([...view.sections.values()].filter((s) => s.is_archived).map((s) => s.id));
+  return [...view.tasks.values()]
+    .filter((x) => x.project_id === projectId && !x.checked && !shownSet.has(x.id) && !(x.section_id && archived.has(x.section_id)))
+    .sort(byOrder)
+    .map((x) => x.id);
+}
 
 /** Een andere dag (`date` 'YYYY-MM-DD', of null voor geen datum): tijdstip en herhaling blijven, zoals bij één taak. Taken die al op die dag staan, blijven zoals ze zijn. */
 export function planDate(view, ids, date, planUpdate) {

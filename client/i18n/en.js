@@ -1654,6 +1654,7 @@ export default {
   'bulk.count': { one: '{count} task selected', other: '{count} tasks selected' },
   'bulk.none': 'Nothing selected',
   'bulk.selectAll': 'Select all',
+  'bulk.selectHidden': { one: 'Also {count} hidden task', other: 'Also {count} hidden tasks' },
   'bulk.stop': 'Stop selecting',
   'bulk.announceAll': { one: 'All selected: {count} task.', other: 'All selected: {count} tasks.' },
   'bulk.announceStopped': 'Stopped selecting.',

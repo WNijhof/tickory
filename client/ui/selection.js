@@ -14,7 +14,7 @@
 
 import { createSelection } from '../core/selection.js';
 import {
-  assignChoices, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planLabels, planMove,
+  assignChoices, hiddenProjectTasks, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planLabels, planMove,
   planPriority, planReminder, planReopen, selectionInfo, skippedText, summarizeErrors,
 } from '../core/bulk.js';
 import { offsetText, presetOptions } from '../core/reminderText.js';
@@ -115,8 +115,9 @@ export function installSelection({ content, store, actions, handlers }) {
     if (!sel.active) { if (barKey !== '') { replace(bar); barKey = ''; } return; }
     const info = selectionInfo(store.view, sel.list());
     const some = sel.size > 0;
+    const hidden = hiddenToAdd();
     // alleen opnieuw opbouwen als er iets verandert: anders raakt wie met Tab op een knop van de balk staat zijn plek kwijt bij elke sync
-    const key = [t('bulk.barLabel'), sel.size, info.open > 0, info.done > 0, info.shared].join('|');
+    const key = [t('bulk.barLabel'), sel.size, info.open > 0, info.done > 0, info.shared, hidden.length].join('|');
     if (key === barKey) return;
     barKey = key;
     const button = (key, iconName, label, run, { danger = false, disabled = !some } = {}) => h('button', {
@@ -136,6 +137,7 @@ export function installSelection({ content, store, actions, handlers }) {
         button('delete', 'trash', t('bulk.delete'), () => run.remove(), { danger: true })),
       h('div', { class: 'bulk-side' },
         h('button', { class: 'bulk-small', type: 'button', dataset: { bulk: 'all' }, onclick: () => selectAllInView() }, t('bulk.selectAll')),
+        hidden.length > 0 && h('button', { class: 'bulk-small', type: 'button', dataset: { bulk: 'project' }, onclick: () => selectHiddenToo() }, t('bulk.selectHidden', { count: hidden.length })),
         h('button', { class: 'icon-button bulk-close', type: 'button', 'aria-label': t('bulk.stop'), title: t('bulk.stop'), dataset: { bulk: 'stop' }, onclick: () => { sel.clear(); announce(t('bulk.announceStopped')); } }, icon('close'))));
   }
 
@@ -160,6 +162,22 @@ export function installSelection({ content, store, actions, handlers }) {
 
   const selectAllInView = () => {
     const ids = order();
+    sel.selectAll(ids);
+    announce(t('bulk.announceAll', { count: ids.length }));
+  };
+  // In een project: de open taken die niet in beeld zijn (ingeklapte sectie of taak) en nog niet gekozen; alleen als je er iets mee mag.
+  const currentProject = () => {
+    const m = /^project:(.+)$/.exec(afterRender.route ?? '');
+    return m && store.view.projects.has(m[1]) && canEditProject(store.view, m[1], store.userId) ? m[1] : null;
+  };
+  const hiddenToAdd = () => {
+    const projectId = currentProject();
+    if (!projectId || !sel.active) return [];
+    const chosenNow = new Set(sel.list());
+    return hiddenProjectTasks(store.view, projectId, order()).filter((id) => !chosenNow.has(id));
+  };
+  const selectHiddenToo = () => {
+    const ids = [...new Set([...sel.list(), ...order(), ...hiddenToAdd()])];
     sel.selectAll(ids);
     announce(t('bulk.announceAll', { count: ids.length }));
   };

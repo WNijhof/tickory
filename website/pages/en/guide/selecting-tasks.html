@@ -14,7 +14,7 @@ description: Pick several tasks at once and change them together: with Ctrl clic
   <li><strong>With the keyboard:</strong> <kbd>x</kbd> picks the task under the pointer, or the one with focus if you last moved with <kbd>Tab</kbd>. Once you are picking, <kbd>Space</kbd> does the same. <kbd>Ctrl</kbd>+<kbd>A</kbd> picks all tasks in view and <kbd>Esc</kbd> stops. In an input field these keys do nothing.</li>
   <li><strong>On a phone:</strong> press and hold a task. It is picked and the bar appears at the bottom; a tap then picks more. If you keep moving after the long press, you drag the task instead of picking it (see <a href="#dragging">Dragging</a>).</li>
 </ul>
-<p>The bar shows how many tasks are picked; a screen reader reads that out, and <em>All selected</em> after <kbd>Ctrl</kbd>+<kbd>A</kbd>. <x-ui k="bulk.selectAll"></x-ui> in the bar does the same as that key. Going to another screen clears the picks, and a task that disappears (for example because someone else deletes it) drops out by itself. Tasks that are not in view do not take part: a collapsed section, or a subtask behind a closed arrow, is not picked.</p>
+<p>The bar shows how many tasks are picked; a screen reader reads that out, and <em>All selected</em> after <kbd>Ctrl</kbd>+<kbd>A</kbd>. <x-ui k="bulk.selectAll"></x-ui> in the bar does the same as that key. Going to another screen clears the picks, and a task that disappears (for example because someone else deletes it) drops out by itself. Tasks that are not in view do not take part: a collapsed section, or a subtask behind a closed arrow, is not picked. If you do want them in a project, there is a button <em>Also … hidden tasks</em> next to <x-ui k="bulk.selectAll"></x-ui>: it adds the open tasks of the project that are not in view.</p>
 
 <h2 id="the-bar">What you can do with them</h2>
 <p>On a computer the bar is at the top of the list; on a phone it sits fixed at the bottom of the screen. A button is grey while nothing is picked.</p>
@@ -44,6 +44,5 @@ description: Pick several tasks at once and change them together: with Ctrl clic
 
 <h2>What it cannot do yet</h2>
 <ul>
-  <li>Pick all tasks of a project that are not in view (for example behind a collapsed section): expand first.</li>
   <li>Keep a selection or take it from one screen to another.</li>
 </ul>

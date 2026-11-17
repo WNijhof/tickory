@@ -12,7 +12,7 @@ import { createUndo } from './undo.js';
 import { inverseCommands } from './inverse.js';
 import { createSelection, rangeBetween } from './selection.js';
 import {
-  assignChoices, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planGroupDrop, planLabels,
+  assignChoices, hiddenProjectTasks, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planGroupDrop, planLabels,
   planMove, planPriority, planReminder, planReopen, selectionInfo, skippedText, summarizeErrors, topLevel,
 } from './bulk.js';
 import { MAX_DRAG_GROUP } from './selection.js';
@@ -578,4 +578,19 @@ test('afvinken slaat afgevinkte taken over en heropenen alleen die', async () =>
   assert.deepEqual(reopen.commands.map((c) => c.args.id), [w.ids[1]]);
   const info = selectionInfo(v, [w.ids[0], w.ids[1], w.ids[2]]);
   assert.deepEqual([info.count, info.open, info.done], [3, 2, 1]);
+});
+
+test('verborgen taken van een project: niet in beeld, open, niet in een gearchiveerde sectie, op volgorde', async () => {
+  const w = await setup();
+  const view = w.a.store.view;
+  const all = [...view.tasks.values()].filter((x) => x.project_id === w.P && !x.checked).map((x) => x.id);
+  assert.deepEqual(hiddenProjectTasks(view, w.P, all), [], 'alles in beeld: niets verborgen');
+  const shown = all.filter((id) => view.tasks.get(id).section_id !== w.S);
+  const hidden = hiddenProjectTasks(view, w.P, shown);
+  assert.deepEqual(hidden.sort(), all.filter((id) => view.tasks.get(id).section_id === w.S).sort(), 'de taken in de ingeklapte sectie');
+  await w.a.actions.completeTask(w.ids[1]);
+  assert.ok(!hiddenProjectTasks(w.a.store.view, w.P, shown).includes(w.ids[1]), 'afgevinkt telt niet');
+  await w.a.actions.updateSection(w.S, { is_archived: true });
+  assert.deepEqual(hiddenProjectTasks(w.a.store.view, w.P, shown), [], 'een gearchiveerde sectie telt niet');
+  assert.deepEqual(hiddenProjectTasks(w.a.store.view, w.Q, []), [], 'een leeg project');
 });

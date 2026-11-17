@@ -189,6 +189,23 @@ async function scenario(c: any): Promise<void> {
     await key('x');
     assert.equal(await evaluate(`document.getElementById('bulk-bar').hidden`), true, 'in een invoerveld is x gewoon een letter');
     await evaluate(`document.getElementById('quick-input').blur(); document.getElementById('quick-input').value = ''`);
+    // taken achter een ingeklapte sectie: "Alles selecteren" kiest wat in beeld is, de knop ernaast ook de rest van het project
+    await stopSelecting();
+    await evaluate(`document.querySelector('[data-fk="section:${S1}"]').click()`);
+    await waitFor(`!${rowExpr('Ijsjes kopen')}`, 'de sectie Week is ingeklapt');
+    await clickAt(mid(await titleRect('Boodschappen doen')), 2);
+    await evaluate(`document.querySelector('#bulk-bar [data-bulk="all"]').click()`);
+    await waitFor(`document.querySelector('#bulk-bar [data-bulk="project"]')`, 'de knop voor de verborgen taken');
+    const inView = (await selected()).length;
+    assert.match(await evaluate<string>(`document.querySelector('#bulk-bar [data-bulk="project"]').textContent`), /^Ook \d+ verborgen ta(ak|ken)$/);
+    await evaluate(`document.querySelector('#bulk-bar [data-bulk="project"]').click()`);
+    await waitFor(`!document.querySelector('#bulk-bar [data-bulk="project"]')`, 'alles gekozen');
+    const total = Number(/\d+/.exec((await bar()).count)?.[0] ?? 0);
+    assert.ok(total >= inView + 2, `ook Ijsjes kopen en Planten sproeien in Week: ${total} tegen ${inView} in beeld`);
+    await stopSelecting();
+    await evaluate(`document.querySelector('[data-fk="section:${S1}"]').click()`);
+    await waitFor(`${rowExpr('Ijsjes kopen')}`, 'Week weer open');
+    await settle();
     step('toetsenbord: x kiest de taak onder de aanwijzer of focus, Spatie tijdens het kiezen, Ctrl+A kiest alles in beeld (aangekondigd), Esc stopt, in een invoerveld doen ze niets');
   }
 
