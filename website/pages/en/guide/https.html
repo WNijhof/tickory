@@ -44,6 +44,7 @@ description: Making Tickory reachable over HTTPS: with Tailscale, with a reverse
 <p>Behind your own reverse proxy, put this in <code>.env</code>:</p>
 <pre><code>TRUST_PROXY=1</code></pre>
 <p>and restart with <code>docker compose up -d</code>. The server then counts the visitor's address (from the <code>X-Forwarded-For</code> header the proxy adds) when limiting sign-in attempts, instead of the address of the proxy.</p>
+<p>Is there more than one proxy in front, for example a CDN and then nginx? Set <code>TRUST_PROXY</code> to the number of proxies (<code>TRUST_PROXY=2</code>). The server then takes the address that many places from the end of <code>X-Forwarded-For</code>. With <code>1</code> while there are two proxies, all visitors share the address of the first proxy and one person with many wrong attempts can block signing in for everyone.</p>
 <div class="note warn">
   <span class="note-label">Careful</span>
   <p><strong>Only</strong> switch <code>TRUST_PROXY</code> on when there really is a proxy in front and Tickory cannot be reached directly. Otherwise a visitor can supply an address themselves and get around the limit on sign-in attempts that way.</p>

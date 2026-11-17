@@ -111,8 +111,12 @@ export interface AppOptions {
   clientDir?: string | null;
   /** Map met de modules die server en client delen; bereikbaar onder /shared/. */
   sharedDir?: string;
-  /** Alleen aanzetten achter een eigen reverse proxy: dan telt het adres uit X-Forwarded-For (de laatste waarde, van de proxy). */
-  trustProxy?: boolean;
+  /**
+   * Alleen aanzetten achter een eigen reverse proxy: dan telt het adres uit X-Forwarded-For. `true` of 1 = de laatste waarde (de
+   * proxy die direct voor Tickory staat); een getal N = de N-de van achteren, voor N proxy's achter elkaar (bijvoorbeeld een CDN
+   * en nginx: 2). Bij te weinig waarden telt het adres van de verbinding zelf.
+   */
+  trustProxy?: boolean | number;
   /** Voor tests: eigen beperking van inlogpogingen. */
   limiter?: LoginLimiter;
   /** Voor tests: eigen beperking van pogingen het huidige wachtwoord te raden bij een wachtwoordwijziging. */
@@ -232,6 +236,17 @@ export async function staticResponse(
   return { status: 200, headers: { ...headers, 'Content-Length': content.length }, body: content };
 }
 
+/**
+ * TRUST_PROXY: het aantal reverse proxy's voor Tickory. `1` (of `true`) = één proxy, `2` = twee achter elkaar (bijvoorbeeld een CDN
+ * en nginx), `0`, leeg of iets anders = geen proxy (het adres van de verbinding telt). Hooguit 10.
+ */
+export function trustProxyFrom(raw: string | undefined): boolean | number {
+  const text = (raw ?? '').trim().toLowerCase();
+  if (text === 'true') return 1;
+  const n = Number(text);
+  return text !== '' && Number.isInteger(n) && n > 0 ? Math.min(n, 10) : false;
+}
+
 const STATUS_FOR: Record<string, number> = {
   UNAUTHORIZED: 401, FORBIDDEN: 403, NOT_FOUND: 404, TIMEOUT: 408, LENGTH_REQUIRED: 411, TOO_LARGE: 413, LIMIT_REACHED: 409, ABORTED: 400, STORAGE_FULL: 507, TOO_MANY_ATTEMPTS: 429, TOO_MANY_CONNECTIONS: 429, BUSY: 503, DUPLICATE: 409, CONFLICT: 409,
   TOO_MANY_REQUESTS: 429,
@@ -322,10 +337,13 @@ export function createApp(opts: AppOptions): App {
   };
 
   const clientIp = (req: IncomingMessage): string => {
-    if (opts.trustProxy) {
+    const hops = opts.trustProxy === true ? 1 : typeof opts.trustProxy === 'number' && Number.isInteger(opts.trustProxy) ? opts.trustProxy : 0;
+    if (hops > 0) {
       const fwd = req.headers['x-forwarded-for'];
-      const last = (Array.isArray(fwd) ? fwd.join(',') : fwd ?? '').split(',').pop()?.trim();
-      if (last) return last;
+      const list = (Array.isArray(fwd) ? fwd.join(',') : fwd ?? '').split(',');
+      // de N-de van achteren: wat vóór de eerste vertrouwde proxy staat, kan de bezoeker zelf verzinnen
+      const given = list[list.length - hops]?.trim();
+      if (given) return given;
     }
     return req.socket.remoteAddress ?? 'onbekend';
   };
@@ -1379,7 +1397,7 @@ if (import.meta.main) {
     const updateCheck = updateCheckEnabled(process.env) ? createUpdateCheck() : null;
     if (!updateCheck) console.log('Kijken naar nieuwe versies staat uit (UPDATE_CHECK=0).');
     const app = createApp({
-      db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: process.env.TRUST_PROXY === '1',
+      db, push, attachments, corsOrigin: process.env.CORS_ORIGIN || undefined, trustProxy: trustProxyFrom(process.env.TRUST_PROXY),
       sessionPolicy: sessionPolicyFrom(process.env), secretKey, oidc, autoBackup, updateCheck,
       // de tijdelijke kopie voor een back-up staat naast de database: in Docker is /tmp een (kleine) geheugenschijf
       backup: { tmpDir: dataDir, attachmentsDir: attachments.dir },

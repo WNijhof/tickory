@@ -25,7 +25,7 @@ Only the latest released version receives fixes. Update before you report, if yo
 ## What to know when you run Tickory
 
 - Put HTTPS in front of it (see the guide, "HTTPS"). Without HTTPS the password and the session token travel unencrypted.
-- Only set `TRUST_PROXY=1` when there really is a reverse proxy in front.
+- Only set `TRUST_PROXY=1` when there really is a reverse proxy in front. With more than one proxy in a row (a CDN and nginx, say), set it to the number of proxies (`TRUST_PROXY=2`), otherwise all visitors share one sign-in limit.
 - A backup contains all tasks of all users, the password hashes and the server's keys for notifications (the VAPID private key and the secret that signs the notification buttons): keep it as carefully as the database. That also goes for the backup an administrator downloads in the app (User management, "Backup"): it asks for the password again (and a code with two-step verification), the download link works once and for one minute, at most five per hour, and every download is logged.
 - Two-step verification (TOTP) keeps its secrets encrypted with a key from `secret.key` (next to the database, or `SECRET_KEY_FILE`). That file is deliberately not in the database or in a backup, so a stolen backup does not give away the second factor. Keep your own copy of it, separately from your backups; without it, two-step verification has to be turned off per user after a restore on a new server (`node server/main.ts user reset-2fa <name>`).
 - Sessions expire after 90 days without use and 365 days after signing in (`SESSION_IDLE_DAYS`, `SESSION_MAX_DAYS`; 0 turns a limit off). Signing out all other devices is one button under Account.

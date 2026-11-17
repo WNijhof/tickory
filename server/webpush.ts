@@ -107,8 +107,13 @@ export function encryptPayload(plaintext: Uint8Array, uaPublic: Buffer, authSecr
 
 // ---------- toegestane pushdiensten ----------
 
-/** Eindigt de hostnaam op een van deze achtervoegsels, dan is het een bekende pushdienst. */
-const KNOWN_PUSH_SUFFIXES = ['.googleapis.com', '.push.services.mozilla.com', '.notify.windows.com', '.push.apple.com'];
+/**
+ * Eindigt de hostnaam op een van deze achtervoegsels, dan is het een bekende pushdienst. Google staat er bewust als exacte host
+ * (hieronder), niet als `.googleapis.com`: dat achtervoegsel omvat ook adressen die iedereen kan krijgen, zoals
+ * `<bucket>.storage.googleapis.com`.
+ */
+const KNOWN_PUSH_SUFFIXES = ['.push.services.mozilla.com', '.notify.windows.com', '.push.apple.com'];
+const KNOWN_PUSH_HOSTS = ['fcm.googleapis.com'];
 
 export function isAllowedEndpoint(endpoint: string, extraSuffixes: string[] = []): boolean {
   let u: URL;
@@ -120,6 +125,7 @@ export function isAllowedEndpoint(endpoint: string, extraSuffixes: string[] = []
   if (u.protocol !== 'https:' || (u.port !== '' && u.port !== '443') || u.username || u.password) return false;
   const host = u.hostname.toLowerCase();
   if (/^[0-9.]+$/.test(host) || host.includes(':') || host === 'localhost') return false; // geen IP-adressen
+  if (KNOWN_PUSH_HOSTS.includes(host)) return true;
   return [...KNOWN_PUSH_SUFFIXES, ...extraSuffixes.map((s) => (s.startsWith('.') ? s : `.${s}`).toLowerCase())].some((s) => host.endsWith(s));
 }
 

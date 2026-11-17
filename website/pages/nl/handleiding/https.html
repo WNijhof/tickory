@@ -44,6 +44,7 @@ description: Tickory via HTTPS bereikbaar maken: met Tailscale, met een reverse 
 <p>Zet achter een eigen reverse proxy in <code>.env</code>:</p>
 <pre><code>TRUST_PROXY=1</code></pre>
 <p>en herstart met <code>docker compose up -d</code>. De server telt dan het adres van de bezoeker (uit de kopregel <code>X-Forwarded-For</code> die de proxy toevoegt) bij het beperken van inlogpogingen, in plaats van het adres van de proxy.</p>
+<p>Staat er meer dan één proxy voor, bijvoorbeeld een CDN en daarna nginx? Zet <code>TRUST_PROXY</code> dan op het aantal proxy's (<code>TRUST_PROXY=2</code>). De server neemt dan het adres dat zoveel plaatsen van achteren in <code>X-Forwarded-For</code> staat. Met <code>1</code> terwijl er twee proxy's staan, delen alle bezoekers het adres van de eerste proxy en kan één persoon met veel foute pogingen het inloggen voor iedereen blokkeren.</p>
 <div class="note warn">
   <span class="note-label">Let op</span>
   <p>Zet <code>TRUST_PROXY</code> <strong>alleen</strong> aan als er echt een proxy voor staat en Tickory niet rechtstreeks bereikbaar is. Anders kan een bezoeker zelf een adres opgeven en zo de beperking op inlogpogingen omzeilen.</p>

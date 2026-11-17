@@ -144,7 +144,9 @@ test('alleen bekende pushdiensten zijn toegestaan als bestemming', () => {
   const bad = [
     'http://fcm.googleapis.com/x', 'https://192.168.1.10/x', 'https://127.0.0.1/x', 'https://localhost/x', 'https://[::1]/x',
     'https://intern.nas.lan/x', 'https://evil.com/fcm.googleapis.com', 'https://fcm.googleapis.com.evil.com/x',
-    'https://notfcm.googleapis.com.evil.nl/x', 'https://fcm.googleapis.com:8443/x', 'https://user:pw@fcm.googleapis.com/x', 'geen-url', '',
+    'https://notfcm.googleapis.com.evil.nl/x', 'https://fcm.googleapis.com:8443/x',
+    // andere Google-diensten zijn geen pushdienst: een opslagbak (bucket) kan iedereen aanmaken
+    'https://storage.googleapis.com/x', 'https://mijn-bak.storage.googleapis.com/x', 'https://www.googleapis.com/x', 'https://sub.fcm.googleapis.com/x', 'https://user:pw@fcm.googleapis.com/x', 'geen-url', '',
   ];
   for (const e of bad) assert.equal(isAllowedEndpoint(e), false, e);
   assert.equal(isAllowedEndpoint('https://push.mijnserver.nl/up/abc'), false);
