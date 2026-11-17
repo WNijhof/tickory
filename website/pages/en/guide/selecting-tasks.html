@@ -28,6 +28,7 @@ description: Pick several tasks at once and change them together: with Ctrl clic
       <tr><td><x-ui k="bulk.priority"></x-ui></td><td class="wrap-ok">All picked tasks get P1 to P4.</td></tr>
       <tr><td><x-ui k="bulk.labels"></x-ui></td><td class="wrap-ok">A list of your labels, each with a box: ticking adds the label to all picked tasks, unticking removes it; a label that is on part of the tasks stays as it is until you tick or untick it. Type a new label by name (several, separated by commas).</td></tr>
       <tr><td><x-ui k="bulk.assign"></x-ui></td><td class="wrap-ok">Only when a shared project is involved. Choose a member, or nobody. A task in a project that person is not a member of is skipped (the message names it) and the rest goes ahead.</td></tr>
+      <tr><td><x-ui k="bulk.more"></x-ui></td><td class="wrap-ok"><x-ui k="bulk.deadline"></x-ui> (a day, or <x-ui k="bulk.deadlineNone"></x-ui>), <x-ui k="bulk.duration"></x-ui> (15 minutes to 4 hours, or <x-ui k="bulk.durationNone"></x-ui>) or <x-ui k="bulk.comment"></x-ui>: the same comment is added to every chosen task, as a comment of its own.</td></tr>
       <tr><td><x-ui k="bulk.delete"></x-ui></td><td class="wrap-ok">First a question with the number of tasks and subtasks. Afterwards you can still <a href="undo.html">undo</a> it for a few minutes.</td></tr>
     </tbody>
   </table>
@@ -44,6 +45,6 @@ description: Pick several tasks at once and change them together: with Ctrl clic
 <h2>What it cannot do yet</h2>
 <ul>
   <li>Pick all tasks of a project that are not in view (for example behind a collapsed section): expand first.</li>
-  <li>Set reminders, deadlines or a duration for several tasks at once, or give them a comment together.</li>
+  <li>Set reminders for several tasks at once.</li>
   <li>Keep a selection or take it from one screen to another.</li>
 </ul>

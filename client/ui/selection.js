@@ -14,16 +14,19 @@
 
 import { createSelection } from '../core/selection.js';
 import {
-  assignChoices, nameList, planAssign, planComplete, planDate, planDelete, planLabels, planMove, planPriority, planReopen, selectionInfo, skippedText, summarizeErrors,
+  assignChoices, nameList, planAssign, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planLabels, planMove, planPriority, planReopen,
+  selectionInfo, skippedText, summarizeErrors,
 } from '../core/bulk.js';
+import { newId } from '../core/actions.js';
+import { formatDuration } from '../core/duration.js';
 import { describeCommandError } from '../core/messages.js';
 import { formatDate, todayString } from '../core/format.js';
 import { isTyping } from '../core/shortcuts.js';
 import { t } from '../core/i18n.js';
 import { labelList } from '../core/selectors.js';
 import { canEditProject } from '../core/access.js';
-import { assignDialog, dateDialog, labelsDialog, moveDialog, priorityDialog } from './bulkDialogs.js';
-import { confirmDialog, h, replace, toast } from './dom.js';
+import { assignDialog, dateDialog, durationDialog, labelsDialog, moveDialog, priorityDialog } from './bulkDialogs.js';
+import { confirmDialog, h, menuDialog, promptDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
 
 const ROW = 'li.task, li.cal-item';
@@ -128,6 +131,7 @@ export function installSelection({ content, store, actions, handlers }) {
         button('priority', 'flag', t('bulk.priority'), () => run.priority()),
         button('labels', 'tag', t('bulk.labels'), () => run.labels()),
         info.shared ? button('assign', 'users', t('bulk.assign'), () => run.assign()) : null,
+        button('more', 'more', t('bulk.more'), () => run.more()),
         button('delete', 'trash', t('bulk.delete'), () => run.remove(), { danger: true })),
       h('div', { class: 'bulk-side' },
         h('button', { class: 'bulk-small', type: 'button', dataset: { bulk: 'all' }, onclick: () => selectAllInView() }, t('bulk.selectAll')),
@@ -319,6 +323,37 @@ export function installSelection({ content, store, actions, handlers }) {
       const plan = planAssign(store.view, ids, picked.userId);
       const name = picked.userId ? store.userName(picked.userId) ?? t('common.someone') : '';
       await perform(plan, picked.userId ? t('bulk.doneAssign', { count: plan.count, name }) : t('bulk.doneUnassign', { count: plan.count }), t('bulk.assign'));
+    },
+    /** Meer: een deadline, een duur of dezelfde opmerking voor alle gekozen taken. */
+    async more() {
+      const ids = chosen();
+      const choice = await menuDialog({
+        title: t('bulk.moreTitle', { count: ids.length }),
+        items: [
+          { value: 'deadline', label: t('bulk.deadline') },
+          { value: 'duration', label: t('bulk.duration') },
+          { value: 'comment', label: t('bulk.comment') },
+        ],
+      });
+      const info = selectionInfo(store.view, ids);
+      if (choice === 'deadline') {
+        const picked = await dateDialog({ today: todayString(), hasDue: info.withDeadline > 0, count: ids.length, title: t('bulk.deadlineTitle', { count: ids.length }), noneLabel: t('bulk.deadlineNone') });
+        if (!picked) return;
+        const plan = planDeadline(store.view, ids, picked.date);
+        const text = picked.date ? t('bulk.doneDeadline', { count: plan.count, date: formatDate(picked.date, todayString()) }) : t('bulk.doneDeadlineNone', { count: plan.count });
+        await perform(plan, text, t('bulk.deadline'));
+      } else if (choice === 'duration') {
+        const picked = await durationDialog({ count: ids.length, hasDuration: info.withDuration > 0 });
+        if (!picked) return;
+        const plan = planDuration(store.view, ids, picked.minutes);
+        const text = picked.minutes ? t('bulk.doneDuration', { count: plan.count, duration: formatDuration(picked.minutes) }) : t('bulk.doneDurationNone', { count: plan.count });
+        await perform(plan, text, t('bulk.duration'));
+      } else if (choice === 'comment') {
+        const content = await promptDialog({ title: t('bulk.commentTitle', { count: ids.length }), label: t('bulk.commentLabel'), okText: t('bulk.commentAdd') });
+        if (!content) return;
+        const plan = planComment(store.view, ids, content, newId);
+        await perform(plan, t('bulk.doneComment', { count: plan.count }), t('bulk.comment'));
+      }
     },
     async remove() {
       const ids = chosen();

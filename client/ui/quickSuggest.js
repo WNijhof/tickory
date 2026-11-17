@@ -29,6 +29,7 @@ export function attachQuickSuggest({ input, source }) {
     if (!state && list.hidden) return;
     state = null;
     list.hidden = true;
+    replace(list); // geen verborgen keuzes (met aria-selected) achterlaten
     input.setAttribute('aria-expanded', 'false');
     input.removeAttribute('aria-activedescendant');
   };

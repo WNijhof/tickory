@@ -12,7 +12,8 @@ import { createUndo } from './undo.js';
 import { inverseCommands } from './inverse.js';
 import { createSelection, rangeBetween } from './selection.js';
 import {
-  assignChoices, nameList, planAssign, planComplete, planDate, planDelete, planGroupDrop, planLabels, planMove, planPriority, planReopen, selectionInfo, skippedText, summarizeErrors, topLevel,
+  assignChoices, nameList, planAssign, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planGroupDrop, planLabels, planMove, planPriority,
+  planReopen, selectionInfo, skippedText, summarizeErrors, topLevel,
 } from './bulk.js';
 import { MAX_DRAG_GROUP } from './selection.js';
 import { planTaskDrop, planTaskDropOnGroup } from './dnd.js';
@@ -217,6 +218,48 @@ test('datum: tijdstip en herhaling blijven, een taak die er al staat doet niet m
   await w.a.actions.runUndo(entry);
   await settle(w.a);
   assert.deepEqual(snapshot(w.a.store.view).tasks.map((t) => [t.id, t.due]), before.tasks.map((t) => [t.id, t.due]));
+});
+
+test('deadline, duur en opmerking: alleen wat verandert, weghalen, via de server, en ongedaan maken', async () => {
+  const w = await setup();
+  await w.a.actions.updateTask(w.ids[0], { deadline: '2026-12-01', duration: 30 });
+  await settle(w.a);
+  const before = snapshot(w.a.store.view);
+  let info = selectionInfo(w.a.store.view, w.ids);
+  assert.equal(info.withDeadline, 1);
+  assert.equal(info.withDuration, 1);
+  const deadline = planDeadline(w.a.store.view, w.ids, '2026-12-01');
+  assert.equal(deadline.count, 4, 'de eerste heeft die deadline al');
+  assert.ok(deadline.commands.every((c) => c.type === 'task_update' && c.args.deadline === '2026-12-01'));
+  const duration = planDuration(w.a.store.view, w.ids, 45);
+  assert.equal(duration.count, 5);
+  const comment = planComment(w.a.store.view, [w.ids[1], w.ids[2], 'weg'], '  Even nakijken  ', () => `c${String(++counter).padStart(10, '0')}`);
+  assert.equal(comment.count, 2, 'een taak die er niet (meer) is, doet niet mee');
+  assert.ok(comment.commands.every((c) => c.type === 'comment_add' && c.args.content === 'Even nakijken'));
+  assert.equal(new Set(comment.commands.map((c) => c.args.id)).size, 2, 'elk een eigen id');
+  assert.deepEqual(planComment(w.a.store.view, w.ids, '   ', () => 'x'), { commands: [], count: 0 }, 'lege tekst: niets');
+  const { entry } = await w.a.actions.batch([...deadline.commands, ...duration.commands, ...comment.commands], { label: 'meer' });
+  await settle(w.a);
+  assert.deepEqual(w.a.errors, []);
+  const server = handleSync(w.db, { sync_token: '*' }, w.alice.id);
+  for (const id of w.ids) {
+    const task = server.tasks.find((t) => t.id === id);
+    assert.equal(task.deadline, '2026-12-01');
+    assert.equal(task.duration, 45);
+  }
+  assert.equal(server.comments.filter((c) => c.content === 'Even nakijken').length, 2);
+  info = selectionInfo(w.a.store.view, w.ids);
+  assert.equal(info.withDeadline, 5);
+  // weghalen
+  assert.equal(planDeadline(w.a.store.view, w.ids, null).count, 5);
+  assert.equal(planDuration(w.a.store.view, w.ids, null).count, 5);
+  // ongedaan maken: alles terug, ook de opmerkingen weg
+  await w.a.actions.runUndo(entry);
+  await settle(w.a);
+  assert.deepEqual(w.a.errors, []);
+  const after = snapshot(w.a.store.view);
+  assert.deepEqual(after.tasks.map((t) => [t.id, t.deadline, t.duration]), before.tasks.map((t) => [t.id, t.deadline, t.duration]));
+  assert.equal([...w.a.store.view.comments.values()].filter((c) => c.content === 'Even nakijken').length, 0);
 });
 
 test('prioriteit en labels: alleen taken waar iets verandert; labels erbij en eraf', async () => {

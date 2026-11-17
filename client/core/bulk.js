@@ -44,6 +44,8 @@ export function selectionInfo(view, ids) {
     open: tasks.filter((x) => !x.checked).length,
     done: tasks.filter((x) => x.checked).length,
     withDue: tasks.filter((x) => x.due).length,
+    withDeadline: tasks.filter((x) => x.deadline).length,
+    withDuration: tasks.filter((x) => x.duration).length,
     projects: [...projects],
     shared: [...projects].some((p) => isShared(view, p)),
     /** Per label: op hoeveel gekozen taken het staat. */
@@ -117,6 +119,26 @@ export function planDate(view, ids, date, planUpdate) {
     count += 1;
   }
   return { commands, count };
+}
+
+/** Een deadline (`date` 'YYYY-MM-DD', of null om hem weg te halen); taken die die deadline al hebben, blijven zoals ze zijn. */
+export function planDeadline(view, ids, date) {
+  const todo = existing(view, ids).filter((id) => (view.tasks.get(id).deadline ?? null) !== (date ?? null));
+  return { commands: todo.map((id) => ({ type: 'task_update', args: { id, deadline: date ?? null } })), count: todo.length };
+}
+
+/** Een duur in minuten (of null: geen duur); taken met die duur blijven zoals ze zijn. */
+export function planDuration(view, ids, minutes) {
+  const todo = existing(view, ids).filter((id) => (view.tasks.get(id).duration ?? null) !== (minutes ?? null));
+  return { commands: todo.map((id) => ({ type: 'task_update', args: { id, duration: minutes ?? null } })), count: todo.length };
+}
+
+/** Dezelfde opmerking bij elke gekozen taak, één per taak (`makeId` geeft de nieuwe id's). Lege tekst: niets. */
+export function planComment(view, ids, content, makeId) {
+  const text = String(content ?? '').trim();
+  if (!text) return { commands: [], count: 0 };
+  const todo = existing(view, ids);
+  return { commands: todo.map((task_id) => ({ type: 'comment_add', args: { id: makeId(), task_id, content: text } })), count: todo.length };
 }
 
 export function planPriority(view, ids, priority) {

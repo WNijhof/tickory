@@ -2,6 +2,7 @@
 // Elk venster geeft de keuze terug of null bij sluiten; wat er daarna gebeurt, regelt ui/selection.js.
 
 import { formatDate } from '../core/format.js';
+import { DURATION_CHOICES, formatDuration } from '../core/duration.js';
 import { foldText } from '../core/fold.js';
 import { t } from '../core/i18n.js';
 import { quickDates } from '../core/quickDates.js';
@@ -52,7 +53,7 @@ export function moveDialog({ view, count }) {
  * Een dag: vandaag, morgen, dit weekend, volgende week, geen datum, of een eigen datum.
  * @returns {Promise<{ date: string | null } | null>}
  */
-export function dateDialog({ today, hasDue, count, title = null }) {
+export function dateDialog({ today, hasDue, count, title = null, noneLabel = null }) {
   const d = quickDates(today);
   return openDialog((finish) => {
     const item = (date, label) => h('button', { type: 'button', class: 'menu-item', dataset: { date: date ?? '' }, onclick: () => finish({ date }) }, date ? `${label} · ${formatDate(date, today)}` : label);
@@ -67,10 +68,23 @@ export function dateDialog({ today, hasDue, count, title = null }) {
     h('h2', {}, title ?? t('bulk.dateTitle', { count })),
     h('div', { class: 'menu' },
       item(d.today, t('task.quickToday')), item(d.tomorrow, t('task.quickTomorrow')), item(d.weekend, t('task.quickWeekend')), item(d.nextWeek, t('task.quickNextWeek')),
-      hasDue && item(null, t('task.quickNone'))),
+      hasDue && item(null, noneLabel ?? t('task.quickNone'))),
     h('label', { class: 'field-label' }, t('bulk.dateCustom'), h('span', { class: 'bulk-custom-date' }, custom, h('button', { type: 'submit', class: 'button button-primary' }, t('bulk.dateApply')))),
     h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel'))));
   }, { className: 'dialog-bulk' });
+}
+
+/** Een duur: de vaste keuzes van het taakvenster, en "geen duur" als een gekozen taak er een heeft. @returns {Promise<{ minutes: number | null } | null>} */
+export async function durationDialog({ count, hasDuration }) {
+  const choice = await menuDialog({
+    title: t('bulk.durationTitle', { count }),
+    items: [
+      ...DURATION_CHOICES.map((m) => ({ value: String(m), label: formatDuration(m) })),
+      ...(hasDuration ? [{ value: 'none', label: t('bulk.durationNone') }] : []),
+    ],
+  });
+  if (!choice) return null;
+  return { minutes: choice === 'none' ? null : Number(choice) };
 }
 
 /** Een prioriteit, 1 (hoogst) tot 4 (geen). @returns {Promise<number | null>} */

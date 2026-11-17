@@ -127,7 +127,7 @@ async function scenario(c: any): Promise<void> {
     await key('Escape');
     await waitFor(`document.getElementById('bulk-bar').hidden && document.querySelectorAll('li.task.is-selected').length === 0`, 'Esc stopt het selecteren');
     assert.equal(await evaluate(`document.body.classList.contains('select-mode')`), false);
-    assert.equal(await evaluate(`document.querySelectorAll('[aria-selected]').length`), 0, 'geen aria-selected meer buiten het selecteren');
+    assert.deepEqual(await evaluate(`[...document.querySelectorAll('[aria-selected]')].map((e) => e.outerHTML.slice(0, 160))`), [], 'geen aria-selected meer buiten het selecteren');
     step('selecteren met Ctrl-klik en Shift-klik (bereik, ook omhoog), het aantal staat in de balk en in de aria-live, een Ctrl-klik opent het taakvenster niet, Esc stopt en ruimt alle aria-selected op');
   }
 
@@ -138,7 +138,7 @@ async function scenario(c: any): Promise<void> {
     await waitFor(`document.body.classList.contains('select-mode') && !document.getElementById('bulk-bar').hidden`, 'selectiemodus aan');
     assert.equal(await evaluate(`document.querySelector('.bulk-toggle').getAttribute('aria-pressed')`), 'true');
     assert.equal((await bar()).count, 'Niets geselecteerd');
-    assert.deepEqual((await bar()).buttons.filter((x) => x.endsWith('!')).sort(), ['date!', 'delete!', 'labels!', 'move!', 'priority!'].concat(['complete!']).sort(), 'zonder keuze staan de acties uit');
+    assert.deepEqual((await bar()).buttons.filter((x) => x.endsWith('!')).sort(), ['date!', 'delete!', 'labels!', 'more!', 'move!', 'priority!'].concat(['complete!']).sort(), 'zonder keuze staan de acties uit');
     assert.ok(await evaluate(`getComputedStyle(${rowExpr('Fiets maken')}.querySelector('.sel-box')).display !== 'none'`), 'elke regel heeft een vakje');
     // het afvinkrondje blijft afvinken
     await evaluate(`${rowExpr('Planten sproeien')}.querySelector('.check').click()`);
@@ -249,6 +249,62 @@ async function scenario(c: any): Promise<void> {
     for (const n of ['Boodschappen doen', 'Ijsjes kopen']) assert.deepEqual(serverTaskById(T(n)).labels, [], `${n}: labels weer weg`);
     await closeToasts();
     step('bulkacties prioriteit, datum en labels (ook nieuwe labels op naam) komen op de server aan en gaan terug met de knop in de melding en met Ctrl+Z');
+
+    // Meer: een deadline, een duur en dezelfde opmerking voor meerdere taken
+    const more = async (item: string) => {
+      await bulkButton('more');
+      await waitFor(`document.querySelector('dialog[open] .menu')`, 'het menu Meer');
+      assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .menu-item')].map((b) => b.textContent)`), ['Deadline', 'Duur', 'Opmerking']);
+      await dialogButton(item);
+    };
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Deadline');
+    await waitFor(`document.querySelector('dialog[open] [data-date]')`, 'een deadline kiezen');
+    assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === 'Geen deadline')`), false, 'geen van beide heeft een deadline');
+    await evaluate(`document.querySelector('dialog[open] [data-date]:not([data-date=""])').click()`); // vandaag
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    const todayD = (await evaluate<string>(`new Date().toLocaleDateString('sv-SE')`));
+    for (const n of ['Boodschappen doen', 'Fiets maken']) assert.equal(serverTaskById(T(n)).deadline, todayD, n);
+    assert.ok((await toastTexts()).some((x) => x.startsWith('Deadline van 2 taken gezet op')), (await toastTexts()).join(' | '));
+    await closeToasts();
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Duur');
+    await waitFor(`document.querySelector('dialog[open] .menu-item')`, 'een duur kiezen');
+    await dialogButton('45 min');
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    for (const n of ['Boodschappen doen', 'Fiets maken']) assert.equal(serverTaskById(T(n)).duration, 45, n);
+    await closeToasts();
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Opmerking');
+    await waitFor(`document.querySelector('dialog[open] input')`, 'een opmerking typen');
+    await evaluate(`(() => { const i = document.querySelector('dialog[open] input'); i.value = 'Samen oppakken'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await evaluate(`document.querySelector('dialog[open] form').requestSubmit()`);
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    const comments = (state().comments as any[]).filter((c) => c.content === 'Samen oppakken' && !c.is_deleted);
+    assert.deepEqual(comments.map((c) => c.task_id).sort(), [T('Boodschappen doen'), T('Fiets maken')].sort(), 'één opmerking per taak');
+    await undoToast();
+    assert.equal((state().comments as any[]).filter((c) => c.content === 'Samen oppakken' && !c.is_deleted).length, 0, 'ongedaan gemaakt');
+    // deadline en duur weer weg
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Deadline');
+    await waitFor(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === 'Geen deadline')`, 'Geen deadline');
+    await dialogButton('Geen deadline');
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Duur');
+    await waitFor(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === 'Geen duur')`, 'Geen duur');
+    await dialogButton('Geen duur');
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    for (const n of ['Boodschappen doen', 'Fiets maken']) {
+      assert.equal(serverTaskById(T(n)).deadline, null, n);
+      assert.equal(serverTaskById(T(n)).duration, null, n);
+    }
+    await closeToasts();
+    step('bulk Meer: een deadline (en weer geen), een duur (en weer geen) en dezelfde opmerking bij elke gekozen taak komen op de server aan; de opmerkingen gaan weg met Ongedaan maken');
   }
 
   // verplaatsen, afvinken, verwijderen
