@@ -309,7 +309,7 @@ export async function templatesScenario(c: any) {
   await setField(`tplrow:${n}:deadline`, '2');
   await setField(`tplrow:${n}:reminder`, '10');
   await shot('sjabloon-bewerken');
-  await submit(`${editor} form`);
+  await submit('dialog[open] form.tpl-editor');
   await waitFor(`!document.querySelector('dialog[open] .tpl-editor')`, 'bewerkscherm dicht');
   await waitFor(SYNCED, 'gesynchroniseerd');
   const edited = templates().find((x) => x.name === 'Boodschappen op zaterdag');
