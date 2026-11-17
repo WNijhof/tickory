@@ -8,6 +8,8 @@
 // 3. De balk bovenaan. De tekst staat al in de pagina (Nederlands); is de taal Engels, dan wordt de balk Engels en wijst de
 //    link terug naar de Engelse pagina's. De namen van knoppen komen uit de woordenlijst van de app zelf.
 // 4. Geen meldingen (zie onderaan).
+// 5. Elke twee uur vers. Wie de demo langer open laat staan, krijgt na twee uur opnieuw de voorbeeldgegevens (met de datums van
+//    dat moment): de pagina laadt opnieuw. Ook als het tabblad lang op de achtergrond stond (dan lopen timers niet op tijd).
 
 import { LANGUAGE_KEY, getLanguage } from './core/i18n.js';
 import en from './i18n/en.js';
@@ -28,6 +30,16 @@ if (wanted === 'nl' || wanted === 'en') {
   } catch { /* geen opslag: de app volgt dan de taal van de browser */ }
 }
 addEventListener('pagehide', forget);
+
+const FRESH_MS = 2 * 60 * 60 * 1000;
+const startedAt = Date.now();
+const freshAgain = () => {
+  if (Date.now() - startedAt < FRESH_MS) return;
+  forget();
+  location.reload();
+};
+setInterval(freshAgain, 60_000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') freshAgain(); });
 
 // 4. Geen meldingen. Ze komen van een server, en de demo heeft er geen. Zonder PushManager denkt de app dat deze browser geen
 //    pushmeldingen kan ontvangen en biedt hij ze niet aan: er gaat geen verzoek naar de server, en de browser vraagt niet om
@@ -52,7 +64,7 @@ if (bar && language === 'en') {
       ['Open ', strong('Huishouden'), ' (the sample household), choose ', strong(en['project.shared']), ' and add the username ', code('kees'), '.'],
       ['Tick off a repeating task (↻): its date moves to the next time.'],
       ['Notifications only come from your own server. In the demo you can see the reminders and the settings (', strong(en['settings.notifications']), '), but nothing goes off.'],
-      ['Reloading the page starts over with the sample data.'],
+      ['Reloading the page starts over with the sample data, and after two hours the demo starts fresh by itself.'],
     ]),
   );
   const back = bar.querySelector('.demo-bar-link');

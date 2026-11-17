@@ -794,7 +794,7 @@ if (wants('demo')) {
     };
     assert.deepEqual(statsOf(sides.demo), statsOf(sides.real), 'de demo telt de afvinkingen zoals de echte server');
     assert.equal(statsOf(sides.real).mine.reduce((n: number, [, c]: any) => n + c, 0), 1, 'één afvinking in het eigen project');
-    assert.throws(() => demo.statsPage({ days: 181 }), (err: any) => err.status === 400 && err.code === 'INVALID_ARG');
+    assert.throws(() => demo.statsPage({ days: 366 }), (err: any) => err.status === 400 && err.code === 'INVALID_ARG');
     assert.throws(() => demo.statsPage({ tz: 'Mars/Olympus' }), (err: any) => err.status === 400 && err.code === 'INVALID_ARG');
     assert.deepEqual(a.templates.map((x: any) => [x.id, x.name, x.kind, x.description, x.color]), [[TP1, 'Nieuwe naam', 'project', 'Klus aan huis', 'brown']], 'het sjabloon is gewijzigd, het andere is verwijderd');
     assert.deepEqual(a.places.map((p: any) => [p.id, p.name, p.radius]), [[PL2, 'Werk', 500]], 'de verwijderde plaats is weg, de andere staat er nog');

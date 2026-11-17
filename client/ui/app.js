@@ -562,7 +562,7 @@ const handlers = {
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'productivity') navigate({ type: 'productivity' });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
-    else if (choice === 'export') await exportDialog({ store, bridge });
+    else if (choice === 'export') await exportDialog({ store, bridge, attachments });
     else if (choice === 'import') announceImport(await importDialog({ store, actions }), navigate);
     else if (choice === 'templates') await templatesUi().manage();
     else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo });

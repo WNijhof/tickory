@@ -107,6 +107,30 @@ object AttachmentFiles {
         }
     }
 
+    /** Zo lang mag de base64-tekst van een zip zijn (de web-app stuurt hooguit 40 MB, base64 is een derde groter). */
+    const val MAX_BASE64_CHARS = 60_000_000
+
+    /** Een binair bestand uit base64 (een zip van de export) klaarzetten om op te slaan; te groot of onleesbaar: null. */
+    fun prepareBase64(context: Context, name: String?, mime: String?, base64: String?): Ready? {
+        if (base64 == null || base64.length > MAX_BASE64_CHARS) return null
+        val bytes = try {
+            java.util.Base64.getDecoder().decode(base64)
+        } catch (e: IllegalArgumentException) {
+            return null
+        }
+        val clean = AttachmentName.clean(name)
+        val folder = File(File(context.cacheDir, DIR), randomName())
+        val target = File(folder, clean)
+        return try {
+            folder.mkdirs()
+            target.writeBytes(bytes)
+            Ready(target, clean, AttachmentName.mime(mime))
+        } catch (e: java.io.IOException) {
+            folder.deleteRecursively()
+            null
+        }
+    }
+
     private fun randomName(): String {
         val bytes = ByteArray(8)
         SecureRandom().nextBytes(bytes)

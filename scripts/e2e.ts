@@ -725,7 +725,7 @@ try {
   await typeInto('#quick-input', '');
 
   // exporteren: de bestanden worden op het apparaat gemaakt (een blob-download); hier onderscheppen we ze
-  await evaluate(`window.__downloads = []; const orig = URL.createObjectURL.bind(URL); URL.createObjectURL = (blob) => { blob.arrayBuffer().then((buf) => window.__downloads.push({ type: blob.type, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(buf) })); return orig(blob); }; HTMLAnchorElement.prototype.click = function () { window.__downloads.names = [...(window.__downloads.names || []), this.download]; };`);
+  await evaluate(`window.__downloads = []; const orig = URL.createObjectURL.bind(URL); URL.createObjectURL = (blob) => { (window.__blobs = window.__blobs || []).push(blob); blob.arrayBuffer().then((buf) => window.__downloads.push({ type: blob.type, text: new TextDecoder('utf-8', { ignoreBOM: true }).decode(buf) })); return orig(blob); }; HTMLAnchorElement.prototype.click = function () { window.__downloads.names = [...(window.__downloads.names || []), this.download]; };`);
   await openMenu('Alice');
   await clickText('Gegevens exporteren');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Gegevens exporteren'`, 'exportscherm');
@@ -743,6 +743,27 @@ try {
   assert.ok(exported[1].text.startsWith('﻿PROJECT,TYPE,CONTENT,DESCRIPTION,PRIORITY,INDENT,AUTHOR,RESPONSIBLE,DATE,DATE_LANG,TIMEZONE\r\n'), 'CSV met BOM en kopregel');
   const someTask = parsed.tasks.find((t: any) => !t.is_deleted && t.content);
   assert.ok(someTask && exported[1].text.includes(someTask.content), 'een taak uit de JSON staat ook in de CSV');
+  // elk project als eigen CSV in een zip, terug te lezen met de zip-lezer van de app
+  await click('dialog[open] [data-role="export-zip-projects"]');
+  await waitFor(`window.__downloads.length === 3`, 'de zip met projecten');
+  assert.match((await evaluate<string[]>(`window.__downloads.names`))[2], /^tickory-projecten-\d{4}-\d{2}-\d{2}\.zip$/);
+  const zipped = await evaluate<{ ok: boolean; names: string[]; thuis: string }>(`(async () => {
+    const { readZip } = await import('/core/zip.js');
+    const z = await readZip(new Uint8Array(await window.__blobs[2].arrayBuffer()));
+    const thuis = z.files?.find((f) => f.name === 'Thuis.csv');
+    return { ok: z.ok, names: (z.files ?? []).map((f) => f.name), thuis: thuis ? new TextDecoder('utf-8', { ignoreBOM: true }).decode(thuis.bytes) : '' };
+  })()`);
+  assert.equal(zipped.ok, true);
+  assert.ok(zipped.names.includes('Thuis.csv') && zipped.names.every((n) => n.endsWith('.csv')), `een CSV per project: ${zipped.names}`);
+  assert.ok(zipped.thuis.startsWith('﻿TYPE,CONTENT'), 'met BOM en kopregel');
+  // de bijlagen zelf: een zip, of een melding als er (nog) geen zijn
+  await click('dialog[open] [data-role="export-zip-attachments"]');
+  await waitFor(`window.__downloads.length === 4 || document.querySelector('dialog[open] .export-status').textContent !== ''`, 'bijlagen geëxporteerd of geen bijlagen', 30_000);
+  if (await evaluate<number>(`window.__downloads.length`) === 4) {
+    assert.equal(await evaluate(`(async () => { const { readZip } = await import('/core/zip.js'); return (await readZip(new Uint8Array(await window.__blobs[3].arrayBuffer()), { limits: { fileBytes: 2 ** 30, totalBytes: 2 ** 30, archiveBytes: 2 ** 30 } })).ok; })()`), true, 'de zip met bijlagen is leesbaar');
+  } else {
+    assert.equal(await evaluate(`document.querySelector('dialog[open] .export-status').textContent`), 'Er zijn geen bijlagen om te exporteren.');
+  }
   await clickText('Sluiten');
   await waitFor(`!document.querySelector('dialog[open]')`, 'exportscherm gesloten');
   await evaluate(`delete HTMLAnchorElement.prototype.click`);

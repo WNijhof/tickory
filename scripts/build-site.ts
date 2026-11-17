@@ -341,7 +341,7 @@ const DEMO_BAR = `  <div class="demo-bar" id="demo-bar" role="note">
           <li>Open <strong>Huishouden</strong>, kies <strong>${escapeHtml(String(dictionaries.nl['project.shared']))}</strong> en voeg de gebruikersnaam <code>kees</code> toe.</li>
           <li>Vink een taak met een herhaling (↻) af: de datum schuift door naar de volgende keer.</li>
           <li>Meldingen komen alleen van je eigen server. In de demo zie je de herinneringen en de instellingen (<strong>${escapeHtml(String(dictionaries.nl['settings.notifications']))}</strong>), maar er gaat niets af.</li>
-          <li>Herlaad je de pagina, dan begint de demo opnieuw met de voorbeeldgegevens.</li>
+          <li>Herlaad je de pagina, dan begint de demo opnieuw met de voorbeeldgegevens; na twee uur gebeurt dat vanzelf.</li>
         </ul>
       </div>
     </details>

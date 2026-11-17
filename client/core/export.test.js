@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { allProjectsCsv, csvCell, csvLine, exportFileName, exportJson, projectCsv, projectRows } from './export.js';
+import { allProjectsCsv, attachmentEntries, csvCell, csvLine, exportFileName, exportJson, projectCsv, projectFiles, projectRows } from './export.js';
 
 const m = (rows) => new Map(rows.map((r) => [r.id, r]));
 const view = () => ({
@@ -89,4 +89,37 @@ test('exportFileName: veilig en met de datum', () => {
   assert.equal(exportFileName('../../etc/passwd', 'csv', d), 'tickory-etcpasswd-2026-11-14.csv');
   assert.equal(exportFileName('', 'csv', d), 'tickory-2026-11-14.csv');
   assert.equal(exportFileName('x'.repeat(200), 'csv', d).length < 90, true);
+});
+
+test('projectFiles: elk project een eigen CSV met BOM, het pad in de naam, unieke en veilige namen', () => {
+  const v = view();
+  v.projects.set('p4', { id: 'p4', name: 'Huishouden', order_key: 'c' });
+  v.projects.set('p5', { id: 'p5', name: 'Werk: "Q4"/plan', order_key: 'd' });
+  const files = projectFiles(v, names);
+  assert.deepEqual(files.map((f) => f.name).sort(), ['Huishouden (2).csv', 'Huishouden.csv', 'Vakantie Texel - Fietsroute.csv', 'Vakantie Texel.csv', 'Werk_ _Q4__plan.csv']);
+  const huis = files.find((f) => f.name === 'Huishouden.csv');
+  assert.ok(huis.data.startsWith('﻿TYPE,CONTENT'), 'met BOM en kopregel');
+  assert.ok(huis.data.includes('Rekening betalen'));
+  assert.ok(files.find((f) => f.name === 'Vakantie Texel - Fietsroute.csv').data.includes('Route plannen'));
+});
+
+test('attachmentEntries: per project en taak, notities apart, alleen wat er nog is, unieke paden', () => {
+  const v = view();
+  v.attachments = m([
+    { id: 'a1', task_id: 't1', name: 'factuur.pdf', size: 1200, order_key: 'a' },
+    { id: 'a2', task_id: 't1', name: 'factuur.pdf', size: 900, order_key: 'b' },
+    { id: 'a3', task_id: 't6', name: 'kaart.png', size: 50, order_key: 'c' },
+    { id: 'a4', task_id: 't5', name: 'weg.txt', size: 1, order_key: 'd' },
+    { id: 'a5', task_id: 't1', name: 'oud.txt', size: 1, is_deleted: true, order_key: 'e' },
+  ]);
+  v.notes = m([{ id: 'n1', title: 'Recepten / soep' }, { id: 'n2', title: 'Weg', is_deleted: true }]);
+  v.note_files = m([{ id: 'f1', note_id: 'n1', name: 'foto.jpg', size: 3000 }, { id: 'f2', note_id: 'n2', name: 'x.jpg', size: 1 }]);
+  const entries = attachmentEntries(v, { notesFolder: 'Notities' });
+  assert.deepEqual(entries.map((e) => [e.id, e.path, e.size]), [
+    ['a1', 'Huishouden/Rekening betalen/factuur.pdf', 1200],
+    ['a2', 'Huishouden/Rekening betalen/factuur (2).pdf', 900],
+    ['a3', 'Vakantie Texel - Fietsroute/Route plannen/kaart.png', 50],
+    ['f1', 'Notities/Recepten _ soep/foto.jpg', 3000],
+  ]);
+  assert.deepEqual(attachmentEntries({ projects: new Map(), tasks: new Map() }), [], 'zonder bijlagen of notities');
 });

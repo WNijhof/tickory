@@ -10,13 +10,15 @@ description: Een kopie van je taken: alles als JSON om te bewaren, of taken als 
   <li><strong><x-ui k="export.json"></x-ui></strong>: al je projecten, secties, taken, labels, opmerkingen, herinneringen, filters en plaatsen, met alle velden, in één JSON-bestand. Bedoeld om te bewaren (een eigen back-up van je lijsten) of om met een script te bewerken.</li>
   <li><strong><x-ui k="export.csvAll"></x-ui></strong>: één CSV-bestand met een kolom <code>PROJECT</code> en daarachter de kolommen van het sjabloonformaat van Todoist: <code>TYPE</code>, <code>CONTENT</code>, <code>DESCRIPTION</code>, <code>PRIORITY</code>, <code>INDENT</code>, <code>AUTHOR</code>, <code>RESPONSIBLE</code>, <code>DATE</code>, <code>DATE_LANG</code>, <code>TIMEZONE</code>.</li>
   <li><strong><x-ui k="export.csvProject"></x-ui></strong>: dezelfde kolommen voor één project, zonder de kolom <code>PROJECT</code>.</li>
+  <li><strong><x-ui k="export.zipProjects"></x-ui></strong>: één zip-bestand met voor elk project zo'n bestand, met de naam van het project (een subproject als <em>Vakantie - Fietsroute.csv</em>).</li>
+  <li id="bijlagen"><strong><x-ui k="export.zipAttachments"></x-ui></strong>: de bestanden zelf, in een zip met een map per project en taak (en de foto's en geluiden van notities onder een map Notities). Ze worden eerst opgehaald, met een teller in beeld. In een browser kan dat tot 1 GB in één keer, in de Android-app tot 40 MB; voor meer gebruik je de web-app in een browser of de <a href="back-up.html">back-up</a> van de server.</li>
 </ul>
 
 <h2>Hoe de CSV is opgebouwd</h2>
 <ul>
   <li>Eerst de taken zonder sectie, daarna per sectie een regel met <code>section</code> en zijn taken, in de volgorde van de app.</li>
   <li>Een subtaak staat onder zijn taak, met <code>INDENT</code> 2, 3 of 4 (dieper dan vier niveaus wordt 4).</li>
-  <li>Een opmerking staat als regel <code>note</code> onder zijn taak. Opmerkingen bij een heel project en bijlagen (de bestanden zelf) zitten er niet in; de JSON heeft de lijst van bijlagen wel.</li>
+  <li>Een opmerking staat als regel <code>note</code> onder zijn taak. Opmerkingen bij een heel project zitten er niet in; de bijlagen zelf staan in <x-ui k="export.zipAttachments"></x-ui>.</li>
   <li>Labels staan achter de titel als <code>@label</code>; spaties in een labelnaam worden <code>_</code>.</li>
   <li><code>DATE</code> is bij een herhaling de tekst zoals je hem typte (<code>elke maandag</code>), en anders de datum zelf (<code>2026-11-20</code> of <code>2026-11-20T09:30</code>); <code>DATE_LANG</code> is <code>nl</code> of <code>en</code>.</li>
   <li>Het bestand is UTF-8, met een merkteken voor Excel, zodat letters als é en ï goed blijven.</li>
@@ -32,7 +34,3 @@ description: Een kopie van je taken: alles als JSON om te bewaren, of taken als 
 <h2 id="weer-importeren">Weer importeren</h2>
 <p>Beide bestanden lees je weer in met <x-ui k="settings.import"></x-ui> (zie <a href="overstappen-van-todoist.html#eigen-export">Overstappen van Todoist</a>), bijvoorbeeld als je naar een andere server verhuist: projecten met subprojecten, secties, open taken met subtaken, labels, opmerkingen en datums komen mee. Bij de CSV haalt Tickory de <code>'</code> voor formules dan weer weg. Een gewone datum staat in de CSV als datum (<code>2026-11-20</code>), een herhaling als tekst (<code>elke maandag</code>), zodat opnieuw importeren dezelfde datums geeft.</p>
 
-<h2>Wat nog niet kan</h2>
-<ul>
-  <li>Een bestand per project in één keer, of een export van de bijlagen zelf.</li>
-</ul>

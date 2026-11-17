@@ -59,6 +59,9 @@ export function androidBridge(host = globalThis.window?.TickoryAndroid) {
     openSignIn: (url) => call('openSignIn', url),
     canSaveText: () => typeof host?.saveText === 'function',
     saveText: (name, mime, text) => call('saveText', name, mime, text),
+    /** Een binair bestand (een zip van de export) opslaan, als base64. Een oudere versie van de app kan dat niet. */
+    canSaveBase64: () => typeof host?.saveBase64 === 'function',
+    saveBase64: (name, mime, base64) => call('saveBase64', name, mime, base64),
 
     // ---- herinneringen op een locatie (zie locationStatusText in core/places.js voor de vorm van de status) ----
     /**

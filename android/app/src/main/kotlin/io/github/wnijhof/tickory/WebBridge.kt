@@ -121,6 +121,13 @@ class WebBridge(private val activity: MainActivity) {
         activity.runOnUiThread { activity.saveText(name, mime, text) }
     }
 
+    /** Een binair bestand van de web-app (een zip van de export, als base64) opslaan op een plek naar keuze. */
+    @JavascriptInterface
+    fun saveBase64(name: String?, mime: String?, base64: String?) {
+        if (!activity.isTrustedPage()) return
+        activity.runOnUiThread { activity.saveBase64(name, mime, base64) }
+    }
+
     /** Een bijlage ophalen en opslaan op een plek naar keuze. */
     @JavascriptInterface
     fun saveAttachment(id: String?, name: String?, mime: String?) {

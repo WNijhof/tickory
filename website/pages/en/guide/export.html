@@ -10,13 +10,15 @@ description: A copy of your tasks: everything as JSON to keep, or tasks as CSV (
   <li><strong><x-ui k="export.json"></x-ui></strong>: all your projects, sections, tasks, labels, comments, reminders, filters and places, with all fields, in one JSON file. Meant for keeping (your own backup of your lists) or for editing with a script.</li>
   <li><strong><x-ui k="export.csvAll"></x-ui></strong>: one CSV file with a <code>PROJECT</code> column followed by the columns of the Todoist template format: <code>TYPE</code>, <code>CONTENT</code>, <code>DESCRIPTION</code>, <code>PRIORITY</code>, <code>INDENT</code>, <code>AUTHOR</code>, <code>RESPONSIBLE</code>, <code>DATE</code>, <code>DATE_LANG</code>, <code>TIMEZONE</code>.</li>
   <li><strong><x-ui k="export.csvProject"></x-ui></strong>: the same columns for one project, without the <code>PROJECT</code> column.</li>
+  <li><strong><x-ui k="export.zipProjects"></x-ui></strong>: one zip file with such a file for each project, named after the project (a subproject as <em>Holiday - Bike route.csv</em>).</li>
+  <li id="attachments"><strong><x-ui k="export.zipAttachments"></x-ui></strong>: the files themselves, in a zip with a folder per project and task (and the photos and sounds of notes under a Notes folder). They are fetched first, with a counter on screen. In a browser this can do up to 1 GB at once, in the Android app up to 40 MB; for more, use the web app in a browser or the <a href="backup.html">backup</a> of the server.</li>
 </ul>
 
 <h2>How the CSV is built</h2>
 <ul>
   <li>First the tasks without a section, then for each section a <code>section</code> line and its tasks, in the order of the app.</li>
   <li>A subtask sits under its task, with <code>INDENT</code> 2, 3 or 4 (deeper than four levels becomes 4).</li>
-  <li>A comment is a <code>note</code> line under its task. Comments on a whole project and attachments (the files themselves) are not included; the JSON has the list of attachments.</li>
+  <li>A comment is a <code>note</code> line under its task. Comments on a whole project are not included; the attachments themselves are in <x-ui k="export.zipAttachments"></x-ui>.</li>
   <li>Labels follow the title as <code>@label</code>; spaces in a label name become <code>_</code>.</li>
   <li><code>DATE</code> is, for a recurrence, the text as you typed it (<code>elke maandag</code>), and otherwise the date itself (<code>2026-11-20</code> or <code>2026-11-20T09:30</code>); <code>DATE_LANG</code> is <code>nl</code> or <code>en</code>.</li>
   <li>The file is UTF-8, with a marker for Excel so letters such as é and ï stay intact.</li>
@@ -32,7 +34,3 @@ description: A copy of your tasks: everything as JSON to keep, or tasks as CSV (
 <h2 id="importing-again">Importing again</h2>
 <p>You read both files back in with <x-ui k="settings.import"></x-ui> (see <a href="switching-from-todoist.html#own-export">Switching from Todoist</a>), for example when you move to another server: projects with sub-projects, sections, open tasks with sub-tasks, labels, comments and dates come along. For the CSV, Tickory then removes the <code>'</code> in front of formulas again. A plain date is in the CSV as a date (<code>2026-11-20</code>), a recurrence as text (<code>elke maandag</code>), so importing again gives the same dates.</p>
 
-<h2>What it cannot do yet</h2>
-<ul>
-  <li>One file per project in one go, or an export of the attachments themselves.</li>
-</ul>

@@ -2,7 +2,10 @@
 // Todoist (TYPE, CONTENT, DESCRIPTION, PRIORITY, INDENT, AUTHOR, RESPONSIBLE, DATE, DATE_LANG, TIMEZONE), zodat de bestanden ook
 // elders te gebruiken zijn. Alles gebeurt op het toestel uit de lokale gegevens: er gaat niets naar een server, het werkt ook
 // zonder internet, en je krijgt alleen wat je zelf mag zien (taken van gedeelde projecten, niet van andermans privé-gegevens).
-// Bijlagen (de bestanden zelf) zitten er niet in; de lijst van namen wel.
+// Bijlagen (de bestanden zelf) zitten niet in de JSON; de lijst van namen wel. Voor een zip (ui/exportDialog.js, core/zipWrite.js)
+// geeft `projectFiles` elk project als eigen CSV en `attachmentEntries` de bijlagen met hun plek in de zip.
+
+import { safeFileName, uniquePath } from './zipWrite.js';
 
 export const EXPORT_FORMAT = 'tickory-export';
 export const EXPORT_VERSION = 1;
@@ -98,6 +101,53 @@ export function allProjectsCsv(view, nameOf = () => '') {
     for (const r of projectRows(view, p.id, nameOf)) lines.push(csvLine([pathOf(p), ...r]));
   }
   return `${lines.join('\r\n')}\r\n`;
+}
+
+/** Het pad van een project ("Vakantie / Fietsroute"), voor een zip als losse namen. */
+function projectPath(byId, p) {
+  const parts = [];
+  for (let cur = p, guard = 0; cur && guard < 10; cur = byId.get(cur.parent_id), guard += 1) parts.unshift(cur.name);
+  return parts;
+}
+
+/**
+ * Elk project als eigen CSV, voor in één zip: `{ name, data }` met een unieke, veilige naam ("Vakantie Texel - Fietsroute.csv").
+ * Met BOM, zodat Excel de tekens goed leest.
+ */
+export function projectFiles(view, nameOf = () => '') {
+  const projects = [...view.projects.values()].filter((p) => !p.is_deleted);
+  const byId = new Map(projects.map((p) => [p.id, p]));
+  const taken = new Set();
+  return [...projects].sort(byKey).map((p) => ({
+    name: uniquePath(taken, `${safeFileName(projectPath(byId, p).join(' - '), 'project')}.csv`),
+    data: `﻿${projectCsv(view, p.id, nameOf)}`,
+  }));
+}
+
+/**
+ * De bijlagen voor een zip: die van taken (ook bij een opmerking) in een map per project en taak, die van notities in een map
+ * per notitie onder `notesFolder`. Alleen wat er nog is. `{ id, path, size }`, met unieke paden.
+ */
+export function attachmentEntries(view, { notesFolder = 'Notes' } = {}) {
+  const projects = new Map([...view.projects.values()].filter((p) => !p.is_deleted).map((p) => [p.id, p]));
+  const taken = new Set();
+  const out = [];
+  for (const a of [...(view.attachments?.values() ?? [])].sort(byKey)) {
+    if (a.is_deleted) continue;
+    const task = view.tasks.get(a.task_id);
+    const project = task ? projects.get(task.project_id) : null;
+    if (!task || task.is_deleted || !project) continue;
+    const folder = `${safeFileName(projectPath(projects, project).join(' - '), 'project')}/${safeFileName(task.content, 'task')}`;
+    out.push({ id: a.id, size: Number(a.size) || 0, path: uniquePath(taken, `${folder}/${safeFileName(a.name, 'file')}`) });
+  }
+  for (const f of [...(view.note_files?.values() ?? [])].sort(byKey)) {
+    if (f.is_deleted) continue;
+    const note = view.notes?.get(f.note_id);
+    if (!note || note.is_deleted) continue;
+    const folder = `${safeFileName(notesFolder, 'Notes')}/${safeFileName(note.title, 'note')}`;
+    out.push({ id: f.id, size: Number(f.size) || 0, path: uniquePath(taken, `${folder}/${safeFileName(f.name, 'file')}`) });
+  }
+  return out;
 }
 
 /** Een veilige bestandsnaam met de datum, bijvoorbeeld tickory-export-2026-11-14.json of tickory-Huishouden-2026-11-14.csv. */

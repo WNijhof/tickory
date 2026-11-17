@@ -731,6 +731,15 @@ class MainActivity : ComponentActivity() {
         saveToDevice(ready)
     }
 
+    fun saveBase64(name: String?, mime: String?, base64: String?) {
+        val ready = AttachmentFiles.prepareBase64(this, name, mime, base64)
+        if (ready == null) {
+            Toast.makeText(this, R.string.attachment_save_failed, Toast.LENGTH_LONG).show()
+            return
+        }
+        saveToDevice(ready)
+    }
+
     private fun saveToDevice(ready: AttachmentFiles.Ready) {
         pendingSave?.file?.parentFile?.deleteRecursively()
         pendingSave = ready
