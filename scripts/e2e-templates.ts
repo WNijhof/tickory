@@ -303,7 +303,7 @@ export async function templatesScenario(c: any) {
   const n = before;
   const setField = (fk: string, value: string, event = 'change') => evaluate(`(() => { const i = ${editor}.querySelector('[data-fk="${fk}"]'); i.value = ${js(value)}; i.dispatchEvent(new Event('${event}', { bubbles: true })); })()`);
   await setField(`tplrow:${n}:text`, 'Kassabon bewaren', 'input');
-  await evaluate(`${editor}.querySelectorAll('.tpl-row-more')[${n}].open = true`);
+  await evaluate(`${editor}.querySelector('[data-fk="tplrow:${n}:text"]').closest('.tpl-row').querySelector('.tpl-row-more').open = true`);
   await setField(`tplrow:${n}:day`, '1');
   await setField(`tplrow:${n}:time`, '09:00');
   await setField(`tplrow:${n}:deadline`, '2');
