@@ -67,7 +67,8 @@ const onlyPersonal = (args, row) => {
   return keys.some((k) => PERSONAL_PROJECT_FIELDS.includes(k))
     && keys.every((k) => PERSONAL_PROJECT_FIELDS.includes(k) || JSON.stringify(args[k] ?? null) === JSON.stringify(row[k] ?? null));
 };
-const editedProject = (state, name, row) => (name === 'project' ? row.id : name === 'section' || name === 'task' ? row.project_id : name === 'attachment' ? state.tasks.get(row.task_id)?.project_id ?? null : null);
+const editedProject = (state, name, row) => (name === 'project' ? row.id : name === 'section' || name === 'task' ? row.project_id
+  : name === 'attachment' ? (row.task_id ? state.tasks.get(row.task_id)?.project_id ?? null : row.project_id ?? null) : null);
 
 /** Het project en al zijn subprojecten (alle niveaus), de wortel eerst. */
 function projectTree(state, rootId) {
@@ -449,12 +450,12 @@ export class DemoServer {
         if (p) this.record(p, 'comment_deleted', at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? a.tasks.get(c.task_id)?.content : null });
         return;
       }
-      case 'attachment_add': { const x = b.attachments.get(args.id); if (x) this.record(taskProject(b, x.task_id), 'attachment_added', at, { attachment_id: x.id, task_id: x.task_id, title: x.name }); return; }
+      case 'attachment_add': { const x = b.attachments.get(args.id); if (x) this.record(x.task_id ? taskProject(b, x.task_id) : x.project_id, 'attachment_added', at, { attachment_id: x.id, task_id: x.task_id ?? null, title: x.name }); return; }
       case 'attachment_delete': {
         const x = a.attachments.get(args.id);
         if (!x) return;
         for (const e of this.activity) if (e.attachment_id === x.id) e.title = null; // de naam van een verwijderde bijlage verdwijnt
-        this.record(taskProject(a, x.task_id), 'attachment_deleted', at, { attachment_id: x.id, task_id: x.task_id });
+        this.record(x.task_id ? taskProject(a, x.task_id) : x.project_id, 'attachment_deleted', at, { attachment_id: x.id, task_id: x.task_id ?? null });
         return;
       }
       case 'project_transfer': {
@@ -569,8 +570,8 @@ export class DemoServer {
     }
     if (e.name === 'comment' && row.author_id !== null && row.author_id !== this.me.id) fail('FORBIDDEN', 'je kunt alleen je eigen opmerkingen wijzigen of verwijderen');
     if (e.name === 'attachment' && row.creator_id !== this.me.id) {
-      const task = state.tasks.get(row.task_id);
-      if (!task || roleOf(state, this.me.id, task.project_id) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
+      const projectId = row.task_id ? state.tasks.get(row.task_id)?.project_id : row.project_id;
+      if (!projectId || roleOf(state, this.me.id, projectId) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
     }
   }
 
@@ -637,14 +638,21 @@ export class DemoServer {
         if (((v.task_id ?? null) === null) === ((v.project_id ?? null) === null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
         break;
       case 'attachment': {
-        if (v.comment_id && requireLive(state, 'comment', v.comment_id, 'attachment.comment_id').task_id !== v.task_id) fail('CONFLICT', 'de opmerking hoort bij een andere taak');
+        // zoals de server: bij een taak, of bij een opmerking op een project (dan met comment_id)
+        const onProject = (v.project_id ?? null) !== null;
+        if (onProject === ((v.task_id ?? null) !== null)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
+        if (onProject && !v.comment_id) fail('INVALID_ARG', 'een bijlage bij een project hoort bij een opmerking (comment_id)');
+        if (v.comment_id) {
+          const c = requireLive(state, 'comment', v.comment_id, 'attachment.comment_id');
+          if (onProject ? c.project_id !== v.project_id : c.task_id !== v.task_id) fail('CONFLICT', onProject ? 'de opmerking hoort bij een ander project' : 'de opmerking hoort bij een andere taak');
+        }
         // zoals de server: het bestand moet eerst zijn geüpload en moet kloppen met wat hier wordt opgegeven
         const f = this.files.get(id);
-        if (!f || f.task_id !== v.task_id || f.linked) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
+        if (!f || (onProject ? f.project_id !== v.project_id : f.task_id !== v.task_id) || f.linked) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
         if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
         let count = 0;
-        for (const a of state.attachments.values()) if (a.task_id === v.task_id) count += 1;
-        if (count >= MAX_ATTACHMENTS_PER_TASK) fail('LIMIT_REACHED', `bijlagen per taak: de grens van ${MAX_ATTACHMENTS_PER_TASK} is bereikt`);
+        for (const a of state.attachments.values()) if (onProject ? a.project_id === v.project_id : a.task_id === v.task_id) count += 1;
+        if (count >= MAX_ATTACHMENTS_PER_TASK) fail('LIMIT_REACHED', onProject ? `bijlagen bij opmerkingen op een project: de grens van ${MAX_ATTACHMENTS_PER_TASK} is bereikt` : `bijlagen per taak: de grens van ${MAX_ATTACHMENTS_PER_TASK} is bereikt`);
         f.linked = true;
         break;
       }
@@ -806,7 +814,7 @@ export class DemoServer {
     drop('sections', (s) => left.has(s.project_id));
     drop('members', (m) => left.has(m.project_id));
     drop('comments', (c) => left.has(c.project_id) || tasks.has(c.task_id));
-    drop('attachments', (a) => tasks.has(a.task_id));
+    drop('attachments', (a) => tasks.has(a.task_id) || left.has(a.project_id));
     drop('reminders', (r) => tasks.has(r.task_id));
     drop('notifications', (n) => left.has(n.project_id) || tasks.has(n.task_id)); // en de meldingen erover (zie server/notify.ts)
     drop('projects', (p) => left.has(p.id));
@@ -841,9 +849,30 @@ export class DemoServer {
     };
     return {
       limits: async () => ({ max_upload_bytes: this.maxUploadBytes, quota_bytes: this.quotaBytes, used_bytes: used(), per_task: MAX_ATTACHMENTS_PER_TASK }),
-      upload: async ({ id, taskId = null, noteId = null, blob, mime, onProgress = () => {} }) => {
+      upload: async ({ id, taskId = null, noteId = null, projectId = null, blob, mime, onProgress = () => {} }) => {
         if (typeof id !== 'string' || !ID_RE.test(id)) throw refuse(400, 'INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
         if (noteId) return uploadForNote({ id, noteId, blob, mime, onProgress });
+        if (projectId) {
+          // bij een opmerking op een project (zoals de server)
+          if (!this.state.projects.has(projectId)) throw refuse(404, 'NOT_FOUND', 'dit project bestaat niet');
+          if (!canEditRole(roleOf(this.state, this.me.id, projectId))) throw refuse(403, 'FORBIDDEN', 'je kunt dit project alleen lezen');
+          if (blob.size === 0) throw refuse(400, 'INVALID_ARG', 'het bestand is leeg');
+          if (blob.size > this.maxUploadBytes) throw refuse(413, 'TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(this.maxUploadBytes / 1_000_000)} MB)`);
+          const hash = await sha256(blob);
+          const have = this.files.get(id);
+          if (have) {
+            if (have.project_id === projectId && have.sha256 === hash && have.size === blob.size) return { id, size: have.size, sha256: hash, mime: have.mime };
+            throw refuse(409, 'CONFLICT', 'er is al een ander bestand met dit id geüpload');
+          }
+          if (used() + blob.size > this.quotaBytes) throw refuse(409, 'LIMIT_REACHED', 'je opslagruimte voor bijlagen is vol; verwijder eerst een bijlage');
+          let count = [...this.files.values()].filter((f) => f.project_id === projectId && !f.linked).length;
+          for (const a of this.state.attachments.values()) if (a.project_id === projectId) count += 1;
+          if (count >= MAX_ATTACHMENTS_PER_TASK) throw refuse(409, 'LIMIT_REACHED', `opmerkingen op een project kunnen samen hooguit ${MAX_ATTACHMENTS_PER_TASK} bijlagen hebben`);
+          const effective = effectiveMime(mime, new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
+          this.files.set(id, { blob, task_id: null, project_id: projectId, size: blob.size, sha256: hash, mime: effective, linked: false });
+          onProgress(1);
+          return { id, size: blob.size, sha256: hash, mime: effective };
+        }
         if (!this.state.tasks.has(taskId)) throw refuse(404, 'NOT_FOUND', 'deze taak bestaat niet');
         if (blob.size === 0) throw refuse(400, 'INVALID_ARG', 'het bestand is leeg');
         if (blob.size > this.maxUploadBytes) throw refuse(413, 'TOO_LARGE', `het bestand is te groot (maximaal ${Math.floor(this.maxUploadBytes / 1_000_000)} MB)`);

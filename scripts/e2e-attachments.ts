@@ -258,4 +258,31 @@ export async function attachmentScenario(c: any): Promise<void> {
 
   await click(`${dlg} .dialog-buttons .button:not(.button-primary):not(.button-danger):not(.button-small)`);
   await noDialog();
+
+  // ---- een bestand bij een opmerking op het project: met project_id, zonder taak; weg met de opmerking ----
+  await click('.view-actions .btn-comments');
+  const pdlg = '[...document.querySelectorAll("dialog[open]")].at(-1)';
+  await waitFor(`${pdlg}?.querySelector('[data-fk="comment-file-input"]')`, 'de paperclip bij de opmerkingen van het project');
+  await choose([files.png], 'dialog[open] [data-fk="comment-file-input"]');
+  await waitFor(`${pdlg}.querySelector('.comment-file-chip')?.textContent.includes('foto van de keuken.png')`, 'het gekozen bestand als chip');
+  await evaluate(`(() => { const i = ${pdlg}.querySelector('.comment-input'); i.value = 'Plattegrond van het huis'; i.dispatchEvent(new Event('input')); })()`);
+  await evaluate(`${pdlg}.querySelector('.comment-buttons .button-primary').click()`);
+  await waitFor(`${pdlg}.querySelector('.comment-files .comment-file img')`, 'het bestand met voorbeeld onder de opmerking op het project', 20_000);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const onProject = serverAttachments().filter((a: any) => a.project_id);
+  assert.equal(onProject.length, 1, 'een bijlage bij het project');
+  assert.equal(onProject[0].task_id, null);
+  assert.ok(onProject[0].comment_id, 'bij de opmerking');
+  assert.equal((await get(bobToken, onProject[0].id)).status, 200, 'een lid van het project haalt het op');
+  assert.equal((await get(strangerToken, onProject[0].id)).status, 404, 'een vreemde niet');
+  await shot('bijlage-projectopmerking');
+  await evaluate(`[...${pdlg}.querySelectorAll('.comment')].find((c) => c.textContent.includes('Plattegrond van het huis')).querySelector('.comment-tools button:last-child').click()`);
+  await waitFor(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger')`, 'bevestiging');
+  await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  await waitFor(`!${pdlg}?.querySelector('.comment-files')`, 'de opmerking met bestand is weg');
+  assert.equal(serverAttachments().filter((a: any) => a.project_id).length, 0, 'het bestand ging mee met de opmerking');
+  await evaluate(`${pdlg}?.close()`);
+  await noDialog();
+  step('bijlagen bij een opmerking op het project: met de paperclip, zonder taak (project_id), te zien voor leden, niet voor een vreemde, en weg met de opmerking');
 }

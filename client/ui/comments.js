@@ -47,8 +47,9 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const input = h('textarea', { class: 'field comment-input', rows: 2, maxLength: 16000, placeholder: t('comment.placeholder'), 'aria-label': t('comment.inputLabel') });
   const post = h('button', { class: 'button button-primary button-small', type: 'button', disabled: true, onclick: () => submit() }, t('comment.post'));
 
-  // ---- bijlagen bij een opmerking (alleen bij een taak, zoals Todoist; core/attachments.js met comment_id) ----
-  const runtime = target.taskId ? attachmentRuntime() : null;
+  // ---- bijlagen bij een opmerking (bij een taak of op een project, zoals Todoist; core/attachments.js met comment_id) ----
+  const runtime = target.taskId || target.projectId ? attachmentRuntime() : null;
+  const pendingOf = (commentId) => (target.taskId ? runtime.manager.pendingFor(target.taskId, { commentId }) : runtime.manager.pendingForProject(target.projectId, { commentId }));
   let chosenFiles = [];
   const fileInput = h('input', { type: 'file', multiple: true, hidden: true, 'aria-hidden': 'true', tabIndex: -1, dataset: { fk: 'comment-file-input' } });
   const chips = h('div', { class: 'comment-files-chosen' });
@@ -94,7 +95,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
   const filesOf = (c) => {
     if (!runtime) return null;
     const saved = [...(store.view.attachments?.values() ?? [])].filter((a) => a.comment_id === c.id).sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
-    const pending = runtime.manager.pendingFor(target.taskId, { commentId: c.id });
+    const pending = pendingOf(c.id);
     if (saved.length === 0 && pending.length === 0) return null;
     for (const a of saved) loadPreview(a);
     return h('ul', { class: 'comment-files' },
@@ -181,7 +182,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
     const comments = commentsOf(store.view, target);
     // Alleen opnieuw tekenen als er iets veranderd is: zo blijft een opmerking die je net bewerkt met rust als er een sync binnenkomt.
     const files = runtime ? [...(store.view.attachments?.values() ?? [])].filter((a) => a.comment_id && comments.some((c) => c.id === a.comment_id)).map((a) => [a.id, previews.get(a.id) ?? null])
-      .concat(comments.flatMap((c) => runtime.manager.pendingFor(target.taskId, { commentId: c.id }).map((p) => [p.id, p.status, Math.round((p.progress || 0) * 10)]))) : [];
+      .concat(comments.flatMap((c) => pendingOf(c.id).map((p) => [p.id, p.status, Math.round((p.progress || 0) * 10)]))) : [];
     const signature = JSON.stringify([editing?.id ?? null, comments.map((c) => [c.id, c.content, c.updated_at, authorName(c), (c.mentions ?? []).map(nameOf)]), files]);
     if (signature === drawn) return;
     drawn = signature;
@@ -220,7 +221,7 @@ export function commentsSection({ target, store, actions, heading = true }) {
     post.disabled = true;
     const id = await actions.addComment(target, content, mentions);
     if (files.length > 0 && runtime) {
-      const { rejected } = await runtime.manager.stage(target.taskId, files, { commentId: id });
+      const { rejected } = await runtime.manager.stage(target.taskId ?? null, files, { commentId: id, projectId: target.projectId ?? null });
       if (rejected.length) toast(rejected.map(rejectionText).join(' '), { kind: 'error' });
     }
     list.lastElementChild?.scrollIntoView?.({ block: 'nearest' });

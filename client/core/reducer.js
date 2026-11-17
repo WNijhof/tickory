@@ -96,12 +96,20 @@ function add(state, e, args, now, userId) {
     row.mentions = onlyMembers(state, row, row.mentions);
   }
   if (e.name === 'attachment') {
-    // hoort bij een bestaande taak, en een taak heeft hooguit zoveel bijlagen (zoals de server; zie server/limits.ts)
-    if (!state.tasks.has(row.task_id)) return;
-    if (row.comment_id && state.comments.get(row.comment_id)?.task_id !== row.task_id) return; // bij een opmerking op dezelfde taak
-    let count = 0;
-    for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
-    if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+    // hoort bij een bestaande taak, of (bij een opmerking op een project) bij een bestaand project; en hooguit zoveel bijlagen
+    // per taak of per project (zoals de server; zie server/limits.ts)
+    if (row.project_id) {
+      if (row.task_id || !state.projects.has(row.project_id) || state.comments.get(row.comment_id)?.project_id !== row.project_id) return;
+      let count = 0;
+      for (const a of state.attachments.values()) if (a.project_id === row.project_id) count += 1;
+      if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+    } else {
+      if (!state.tasks.has(row.task_id)) return;
+      if (row.comment_id && state.comments.get(row.comment_id)?.task_id !== row.task_id) return; // bij een opmerking op dezelfde taak
+      let count = 0;
+      for (const a of state.attachments.values()) if (a.task_id === row.task_id) count += 1;
+      if (count >= MAX_ATTACHMENTS_PER_TASK) return;
+    }
   }
   if (e.name === 'note_file') {
     // bij een bestaande notitie, en hooguit zoveel per notitie (zoals de server)
@@ -206,7 +214,7 @@ function editedProject(state, entityName, row) {
   switch (entityName) {
     case 'project': return row.id;
     case 'section': case 'task': return row.project_id;
-    case 'attachment': return state.tasks.get(row.task_id)?.project_id ?? null;
+    case 'attachment': return row.task_id ? state.tasks.get(row.task_id)?.project_id ?? null : row.project_id ?? null;
     default: return null;
   }
 }
@@ -313,6 +321,7 @@ function remove(state, e, args, now, userId) {
       deleteTaskTree(state, [...state.tasks.values()].filter((t) => gone.has(t.project_id)).map((t) => t.id));
       removeWhere(state, 'sections', (s) => gone.has(s.project_id));
       removeWhere(state, 'comments', (c) => gone.has(c.project_id));
+      removeWhere(state, 'attachments', (a) => gone.has(a.project_id)); // bij opmerkingen op het project
       removeWhere(state, 'members', (m) => gone.has(m.project_id));
       removeWhere(state, 'notifications', (n) => gone.has(n.project_id));
       for (const p of projects) state.projects.delete(p);

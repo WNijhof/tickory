@@ -62,7 +62,7 @@ export function createAttachmentsApi({ getToken, baseUrl = '', fetch: fetchFn = 
      * @param {{ id: string, taskId?: string | null, noteId?: string | null, blob: Blob, mime: string, signal?: AbortSignal, onProgress?: (fraction: number) => void }} input
      * @returns {Promise<{ id: string, size: number, sha256: string, mime: string }>}
      */
-    upload({ id, taskId = null, noteId = null, blob, mime, signal, onProgress = () => {} }) {
+    upload({ id, taskId = null, noteId = null, projectId = null, blob, mime, signal, onProgress = () => {} }) {
       return new Promise((resolve, reject) => {
         let headers;
         try {
@@ -72,8 +72,8 @@ export function createAttachmentsApi({ getToken, baseUrl = '', fetch: fetchFn = 
           return;
         }
         const xhr = new XHR();
-        // bij een taak of, voor een foto of geluid bij een notitie, bij een notitie
-        const target = noteId ? `note_id=${encodeURIComponent(noteId)}` : `task_id=${encodeURIComponent(taskId)}`;
+        // bij een taak, bij een opmerking op een project, of (een foto of geluid) bij een notitie
+        const target = noteId ? `note_id=${encodeURIComponent(noteId)}` : projectId ? `project_id=${encodeURIComponent(projectId)}` : `task_id=${encodeURIComponent(taskId)}`;
         const url = `${baseUrl}/api/v1/attachments?id=${encodeURIComponent(id)}&${target}`;
         xhr.open('POST', url);
         for (const [k, v] of Object.entries({ ...headers, 'Content-Type': mime || 'application/octet-stream' })) xhr.setRequestHeader(k, v);

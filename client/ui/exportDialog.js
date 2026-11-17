@@ -102,7 +102,7 @@ export function exportDialog({ store, bridge = androidBridge(), attachments = nu
     let busy = false;
     const zipAttachments = async (button) => {
       if (busy || !attachments) return;
-      const entries = attachmentEntries(store.view, { notesFolder: t('note.title') });
+      const entries = attachmentEntries(store.view, { notesFolder: t('note.title'), commentsFolder: t('comment.heading') });
       if (entries.length === 0) {
         status.textContent = t('export.attachmentsNone');
         return;

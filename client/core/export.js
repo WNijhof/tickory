@@ -128,12 +128,20 @@ export function projectFiles(view, nameOf = () => '') {
  * De bijlagen voor een zip: die van taken (ook bij een opmerking) in een map per project en taak, die van notities in een map
  * per notitie onder `notesFolder`. Alleen wat er nog is. `{ id, path, size }`, met unieke paden.
  */
-export function attachmentEntries(view, { notesFolder = 'Notes' } = {}) {
+export function attachmentEntries(view, { notesFolder = 'Notes', commentsFolder = 'Comments' } = {}) {
   const projects = new Map([...view.projects.values()].filter((p) => !p.is_deleted).map((p) => [p.id, p]));
   const taken = new Set();
   const out = [];
   for (const a of [...(view.attachments?.values() ?? [])].sort(byKey)) {
     if (a.is_deleted) continue;
+    if (a.project_id) {
+      // bij een opmerking op het project: in een map Opmerkingen van dat project
+      const owner = projects.get(a.project_id);
+      if (!owner) continue;
+      const folder = `${safeFileName(projectPath(projects, owner).join(' - '), 'project')}/${safeFileName(commentsFolder, 'Comments')}`;
+      out.push({ id: a.id, size: Number(a.size) || 0, path: uniquePath(taken, `${folder}/${safeFileName(a.name, 'file')}`) });
+      continue;
+    }
     const task = view.tasks.get(a.task_id);
     const project = task ? projects.get(task.project_id) : null;
     if (!task || task.is_deleted || !project) continue;

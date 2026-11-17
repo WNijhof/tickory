@@ -164,13 +164,15 @@ export const ENTITIES = {
   attachment: {
     name: 'attachment', table: 'attachments', resource: 'attachments', commands: ['add', 'delete'],
     cols: [
-      { name: 'task_id', type: 'text', required: true, ref: 'task', immutable: true },
+      // bij een taak (task_id), of bij een opmerking op een project (project_id, met comment_id): precies één van beide
+      { name: 'task_id', type: 'text', nullable: true, default: null, ref: 'task', immutable: true },
+      { name: 'project_id', type: 'text', nullable: true, default: null, ref: 'project', immutable: true },
       { name: 'name', type: 'text', required: true, maxLen: MAX_NAME_LENGTH * 2, check: fileNameProblem },
       { name: 'size', type: 'int', required: true, min: 0, max: 2 ** 40 },
       { name: 'mime', type: 'text', required: true, maxLen: 255 },
       { name: 'sha256', type: 'text', required: true, maxLen: 64, check: (v) => (/^[0-9a-f]{64}$/.test(v) ? null : 'moet 64 hexadecimale tekens zijn') },
       { name: 'creator_id', type: 'text', nullable: true, default: null, serverManaged: true, stamp: true },
-      // bij een opmerking op dezelfde taak (zoals Todoist): staat dan onder die opmerking, en gaat weg met de opmerking
+      // bij een opmerking op dezelfde taak of hetzelfde project (zoals Todoist): staat dan onder die opmerking, en gaat weg met de opmerking
       { name: 'comment_id', type: 'text', nullable: true, default: null, ref: 'comment', immutable: true },
     ],
   },

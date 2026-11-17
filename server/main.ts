@@ -888,7 +888,9 @@ export function createApp(opts: AppOptions): App {
       if (attachments && path.startsWith('/api/v1/attachments')) {
         if (path === '/api/v1/attachments') {
           if (req.method !== 'POST') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik POST' });
-          const up = await attachments.upload(req, caller.user.id, { id: url.searchParams.get('id'), taskId: url.searchParams.get('task_id'), noteId: url.searchParams.get('note_id') });
+          const up = await attachments.upload(req, caller.user.id, {
+            id: url.searchParams.get('id'), taskId: url.searchParams.get('task_id'), noteId: url.searchParams.get('note_id'), projectId: url.searchParams.get('project_id'),
+          });
           return send(res, 200, up);
         }
         if (req.method !== 'GET' && req.method !== 'HEAD') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });

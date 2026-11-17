@@ -145,8 +145,8 @@ function requireMayWrite(ctx: Ctx, e: Entity, row: Row): void {
     case 'attachment': {
       // verwijderen mag de maker, en de eigenaar van het project (die ruimt zo op wat anderen erin zetten)
       if (row.creator_id === ctx.userId) break;
-      const t = ctx.db.prepare('SELECT project_id FROM tasks WHERE id = ?').get(row.task_id as string) as Row | undefined;
-      if (!t || roleOf(ctx.db, ctx.userId, t.project_id) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
+      const projectId = row.task_id ? projectOfTask(ctx.db, row.task_id) : row.project_id;
+      if (!projectId || roleOf(ctx.db, ctx.userId, projectId) !== 'owner') fail('FORBIDDEN', 'alleen de maker of de eigenaar van het project kan een bijlage verwijderen');
       break;
     }
     default:
@@ -175,7 +175,7 @@ function editedProject(db: DatabaseSync, name: EntityName, row: Row): string | n
   switch (name) {
     case 'project': return row.id as string;
     case 'section': case 'task': return row.project_id as string;
-    case 'attachment': return projectOfTask(db, row.task_id);
+    case 'attachment': return row.task_id ? projectOfTask(db, row.task_id) : ((row.project_id as string | null) ?? null);
     default: return null;
   }
 }
@@ -329,12 +329,20 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       if (has(given, 'mentions')) given.mentions = notify.onlyMembers(db, notify.commentProject(db, v), given.mentions as string[]);
       break;
     case 'attachment': {
-      // bij een opmerking: die hoort bij dezelfde taak
-      if (v.comment_id && requireLive(ctx, 'comment', v.comment_id, 'attachment.comment_id').task_id !== v.task_id) fail('CONFLICT', 'de opmerking hoort bij een andere taak');
-      // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak, en nog bij geen enkele bijlage horen. Wat de
-      // client over grootte, type en inhoud opgeeft, moet kloppen met wat de server bij de upload zelf zag.
-      const f = db.prepare('SELECT user_id, task_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
-      if (!f || f.user_id !== ctx.userId || f.task_id !== v.task_id || f.linked === 1) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
+      // bij een taak, of bij een opmerking op een project (dan met comment_id): precies één van task_id en project_id
+      const onProject = v.project_id !== null && v.project_id !== undefined;
+      if (onProject === (v.task_id !== null && v.task_id !== undefined)) fail('INVALID_ARG', 'geef precies één van task_id of project_id');
+      if (onProject && !v.comment_id) fail('INVALID_ARG', 'een bijlage bij een project hoort bij een opmerking (comment_id)');
+      // bij een opmerking: die hoort bij dezelfde taak of hetzelfde project
+      if (v.comment_id) {
+        const c = requireLive(ctx, 'comment', v.comment_id, 'attachment.comment_id');
+        if (onProject ? c.project_id !== v.project_id : c.task_id !== v.task_id) fail('CONFLICT', onProject ? 'de opmerking hoort bij een ander project' : 'de opmerking hoort bij een andere taak');
+      }
+      // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak (of dit project), en nog bij geen enkele bijlage
+      // horen. Wat de client over grootte, type en inhoud opgeeft, moet kloppen met wat de server bij de upload zelf zag.
+      const f = db.prepare('SELECT user_id, task_id, project_id, size, sha256, mime, linked FROM attachment_files WHERE id = ?').get(id) as Row | undefined;
+      const sameTarget = f && (onProject ? f.project_id === v.project_id : f.task_id === v.task_id);
+      if (!f || f.user_id !== ctx.userId || !sameTarget || f.linked === 1) fail('NOT_FOUND', 'attachment.id: het bestand is niet geüpload (of hoort al bij een bijlage)');
       if (f.size !== v.size || f.sha256 !== v.sha256 || f.mime !== v.mime) fail('CONFLICT', 'grootte, type of controlegetal komt niet overeen met het geüploade bestand');
       db.prepare('UPDATE attachment_files SET linked = 1 WHERE id = ?').run(id);
       break;
@@ -428,7 +436,8 @@ function checkLimits(ctx: Ctx, e: Entity, v: Row): void {
       break;
     }
     case 'attachment':
-      quota(ctx, `attachments:${v.task_id}`, LIMITS.attachmentsPerTask, 'bijlagen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM attachments WHERE task_id = ? AND is_deleted = 0', v.task_id as string));
+      if (v.task_id) quota(ctx, `attachments:${v.task_id}`, LIMITS.attachmentsPerTask, 'bijlagen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM attachments WHERE task_id = ? AND is_deleted = 0', v.task_id as string));
+      else quota(ctx, `attachments-project:${v.project_id}`, LIMITS.attachmentsPerTask, 'bijlagen bij opmerkingen op een project', () => countOf(db, 'SELECT COUNT(*) AS n FROM attachments WHERE project_id = ? AND is_deleted = 0', v.project_id as string));
       break;
     case 'reminder':
       quota(ctx, `reminders:t:${ctx.userId}:${v.task_id}`, LIMITS.remindersPerTask, 'herinneringen per taak', () => countOf(db, 'SELECT COUNT(*) AS n FROM reminders WHERE task_id = ? AND owner_id = ? AND is_deleted = 0', v.task_id as string, ctx.userId));
@@ -487,8 +496,8 @@ function logAdded(ctx: Ctx, name: EntityName, id: string, v: Row): void {
       break;
     }
     case 'attachment': {
-      const project = projectOfTask(ctx.db, v.task_id);
-      if (project) activity.record(ctx, project, 'attachment_added', { attachment_id: id, task_id: v.task_id as string, title: v.name });
+      const project = v.task_id ? projectOfTask(ctx.db, v.task_id) : ((v.project_id as string | null) ?? null);
+      if (project) activity.record(ctx, project, 'attachment_added', { attachment_id: id, task_id: (v.task_id as string | null) ?? null, title: v.name });
       break;
     }
     default: break;
@@ -595,6 +604,7 @@ function deleteProject(ctx: Ctx, rootId: string): void {
     deleteTaskTree(ctx, tasks);
     mark(ctx, 'sections', 'project_id = ?', [p]);
     mark(ctx, 'comments', 'project_id = ?', [p]);
+    mark(ctx, 'attachments', 'project_id = ?', [p]); // bij opmerkingen op het project
     mark(ctx, 'projects', 'id = ?', [p]);
     mark(ctx, 'project_members', 'project_id = ?', [p]);
     notify.forgetProject(ctx, p);
@@ -1043,8 +1053,9 @@ export function audienceSince(db: DatabaseSync, since: number, actor: string): S
        UNION SELECT project_id FROM comments WHERE rev > ? AND project_id IS NOT NULL
        UNION SELECT t.project_id FROM comments c JOIN tasks t ON t.id = c.task_id WHERE c.rev > ?
        UNION SELECT t.project_id FROM attachments a JOIN tasks t ON t.id = a.task_id WHERE a.rev > ?
+       UNION SELECT project_id FROM attachments WHERE rev > ? AND project_id IS NOT NULL
        UNION SELECT from_project_id FROM task_moves WHERE rev > ?)`,
-    since, since, since, since, since, since, since, since,
+    since, since, since, since, since, since, since, since, since,
   );
   // wat van één persoon is: labels, filters, herinneringen, plaatsen en instellingen
   collect(
@@ -1145,7 +1156,7 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
     case 'project': return { sql: `id IN (${MY_PROJECTS})`, params: [uid] };
     case 'section': case 'task': case 'member': return { sql: `project_id IN (${MY_PROJECTS})`, params: [uid] };
     case 'comment': return { sql: `(project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine}))`, params: [uid, uid] };
-    case 'attachment': return { sql: `task_id IN (${tasksOfMine})`, params: [uid] };
+    case 'attachment': return { sql: `(task_id IN (${tasksOfMine}) OR project_id IN (${MY_PROJECTS}))`, params: [uid, uid] };
     case 'label':
       return {
         sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
@@ -1175,7 +1186,7 @@ function inProjects(name: EntityName, uid: string, projects: string, params: (st
     case 'project': return { sql: `id IN (${projects})`, params: [...params] };
     case 'section': case 'task': case 'member': return { sql: `project_id IN (${projects})`, params: [...params] };
     case 'comment': return { sql: `(project_id IN (${projects}) OR task_id IN (${tasksIn}))`, params: [...params, ...params] };
-    case 'attachment': return { sql: `task_id IN (${tasksIn})`, params: [...params] };
+    case 'attachment': return { sql: `(task_id IN (${tasksIn}) OR project_id IN (${projects}))`, params: [...params, ...params] };
     case 'reminder': return { sql: `(owner_id = ? AND task_id IN (${tasksIn}))`, params: [uid, ...params] };
     case 'notification': return { sql: `(owner_id = ? AND (project_id IN (${projects}) OR task_id IN (${tasksIn})))`, params: [uid, ...params, ...params] };
     default: return null;

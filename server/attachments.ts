@@ -57,6 +57,13 @@ const MAX_UPLOAD_MS = 2 * 60 * 60 * 1000;
 const memberOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean =>
   db.prepare(`SELECT 1 FROM tasks t JOIN project_members m ON m.project_id = t.project_id
               WHERE t.id = ? AND t.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(taskId, userId) !== undefined;
+/** Bij een opmerking op een project: lid zijn van dat project (om te zien), en kunnen bewerken (om toe te voegen). */
+const memberOfProject = (db: DatabaseSync, userId: string, projectId: string): boolean =>
+  db.prepare(`SELECT 1 FROM projects p JOIN project_members m ON m.project_id = p.id
+              WHERE p.id = ? AND p.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(projectId, userId) !== undefined;
+const editorOfProject = (db: DatabaseSync, userId: string, projectId: string): boolean =>
+  canEditRole((db.prepare(`SELECT m.role FROM projects p JOIN project_members m ON m.project_id = p.id
+              WHERE p.id = ? AND p.is_deleted = 0 AND m.user_id = ? AND m.is_deleted = 0`).get(projectId, userId) as { role?: string } | undefined)?.role ?? null);
 /** Een bijlage toevoegen mag wie in het project kan bewerken; een lezer (shared/roles.js) ziet en downloadt alleen. */
 const editorOfTask = (db: DatabaseSync, userId: string, taskId: string): boolean =>
   canEditRole((db.prepare(`SELECT m.role FROM tasks t JOIN project_members m ON m.project_id = t.project_id
@@ -112,6 +119,11 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
   const perTaskCount = (taskId: string): number => Number((db.prepare(
     `SELECT (SELECT COUNT(*) FROM attachments WHERE task_id = ? AND is_deleted = 0)
           + (SELECT COUNT(*) FROM attachment_files WHERE task_id = ? AND linked = 0) AS n`).get(taskId, taskId) as Row).n);
+
+  /** Bijlagen bij opmerkingen op een project, plus de uploads die er nog op wachten. */
+  const perProjectCount = (projectId: string): number => Number((db.prepare(
+    `SELECT (SELECT COUNT(*) FROM attachments WHERE project_id = ? AND is_deleted = 0)
+          + (SELECT COUNT(*) FROM attachment_files WHERE project_id = ? AND linked = 0) AS n`).get(projectId, projectId) as Row).n);
 
   /** Bestanden bij een notitie, plus de uploads die er nog op wachten. */
   const perNoteCount = (noteId: string): number => Number((db.prepare(
@@ -199,21 +211,29 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
      * Neemt een upload aan. Alle controles die zonder de inhoud kunnen, gebeuren vóór het eerste byte wordt gelezen: een
      * onbekende taak, een taak van een ander project, een volle schijf van de gebruiker. Wat de server niet mag zien is "niet gevonden".
      */
-    async upload(req: IncomingMessage, userId: string, params: { id: unknown; taskId: unknown; noteId?: unknown }): Promise<Uploaded> {
+    async upload(req: IncomingMessage, userId: string, params: { id: unknown; taskId: unknown; noteId?: unknown; projectId?: unknown }): Promise<Uploaded> {
       const raw = req.headers['content-length'];
       if (typeof raw !== 'string' || !/^\d{1,15}$/.test(raw)) throw new SyncError('LENGTH_REQUIRED', 'geef de grootte van het bestand op (Content-Length)');
       const length = Number(raw);
       // Wat zonder de inhoud te beoordelen kan, gebeurt vóór we haar bewaren. Daarna lezen we de body toch weg (zonder te bewaren):
       // antwoorden terwijl de afzender nog verstuurt, geeft bij hem vaak een verbroken verbinding in plaats van een bruikbare melding.
       const id = params.id;
-      // bij een taak (task_id) of bij een notitie (note_id), nooit allebei
+      // bij een taak (task_id), bij een notitie (note_id) of bij een opmerking op een project (project_id): precies één
+      const given = (v: unknown) => v !== null && v !== undefined;
       const noteId = params.noteId ?? null;
-      const forNote = noteId !== null && noteId !== undefined;
-      const taskId = forNote ? null : params.taskId;
+      const projectId = params.projectId ?? null;
+      const forNote = given(noteId);
+      const forProject = !forNote && given(projectId);
+      const taskId = forNote || forProject ? null : params.taskId;
       let problem: SyncError | null = null;
       if (typeof id !== 'string' || !ID_RE.test(id)) problem = new SyncError('INVALID_ARG', 'id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
-      else if (forNote && params.taskId !== null && params.taskId !== undefined) problem = new SyncError('INVALID_ARG', 'geef task_id of note_id, niet allebei');
-      else if (forNote) {
+      else if (forNote && given(params.taskId)) problem = new SyncError('INVALID_ARG', 'geef task_id of note_id, niet allebei');
+      else if ([params.taskId, noteId, projectId].filter(given).length > 1) problem = new SyncError('INVALID_ARG', 'geef één van task_id, note_id en project_id');
+      else if (forProject) {
+        if (typeof projectId !== 'string' || !ID_RE.test(projectId)) problem = new SyncError('INVALID_ARG', 'project_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
+        else if (!memberOfProject(db, userId, projectId)) problem = new SyncError('NOT_FOUND', 'dit project bestaat niet');
+        else if (!editorOfProject(db, userId, projectId)) problem = new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
+      } else if (forNote) {
         if (typeof noteId !== 'string' || !ID_RE.test(noteId)) problem = new SyncError('INVALID_ARG', 'note_id moet 8-40 tekens uit [A-Za-z0-9_-] zijn');
         else if (!seesNote(db, userId, noteId)) problem = new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
         else if (!editorOfNote(db, userId, noteId)) problem = new SyncError('FORBIDDEN', 'je kunt deze notitie alleen lezen');
@@ -229,7 +249,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         else if (db.prepare('SELECT 1 FROM attachment_files WHERE id = ?').get(id) === undefined) {
           // een herhaling van een upload die er al is, telt niet nog eens mee
           if (forNote && perNoteCount(noteId as string) >= LIMITS.filesPerNote) problem = new SyncError('LIMIT_REACHED', `een notitie kan hooguit ${LIMITS.filesPerNote} bestanden hebben`);
-          else if (!forNote && perTaskCount(taskId as string) >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+          else if (forProject && perProjectCount(projectId as string) >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `opmerkingen op een project kunnen samen hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
+          else if (!forNote && !forProject && perTaskCount(taskId as string) >= LIMITS.attachmentsPerTask) problem = new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
         }
       }
       if (problem) {
@@ -243,8 +264,9 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         throw problem;
       }
       const uploadId = id as string;
-      const uploadTask = forNote ? '' : (taskId as string); // de kolom task_id is verplicht: leeg voor een notitie
+      const uploadTask = forNote || forProject ? '' : (taskId as string); // de kolom task_id is verplicht: leeg voor een notitie of project
       const uploadNote = forNote ? (noteId as string) : null;
+      const uploadProject = forProject ? (projectId as string) : null;
 
       inflight.set(userId, (inflight.get(userId) ?? 0) + length);
       let received;
@@ -265,10 +287,11 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
 
       // Vanaf hier niets meer dat wacht (geen await): controleren, vastleggen en op zijn plek zetten gebeurt in één keer.
       try {
-        const existing = db.prepare('SELECT user_id, task_id, note_id, size, sha256, mime FROM attachment_files WHERE id = ?').get(uploadId) as Row | undefined;
+        const existing = db.prepare('SELECT user_id, task_id, note_id, project_id, size, sha256, mime FROM attachment_files WHERE id = ?').get(uploadId) as Row | undefined;
         if (existing) {
           rmSync(tmp, { force: true });
-          if (existing.user_id === userId && existing.task_id === uploadTask && (existing.note_id ?? null) === uploadNote && existing.sha256 === sha256 && existing.size === size) {
+          if (existing.user_id === userId && existing.task_id === uploadTask && (existing.note_id ?? null) === uploadNote && (existing.project_id ?? null) === uploadProject
+            && existing.sha256 === sha256 && existing.size === size) {
             return { id: uploadId, size, sha256, mime: existing.mime as string }; // dezelfde upload nog eens: niets te doen
           }
           throw new SyncError('CONFLICT', 'er is al een ander bestand met dit id geüpload');
@@ -276,6 +299,9 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         if (uploadNote !== null) {
           if (!seesNote(db, userId, uploadNote)) throw new SyncError('NOT_FOUND', 'deze notitie bestaat niet');
           if (!editorOfNote(db, userId, uploadNote)) throw new SyncError('FORBIDDEN', 'je kunt deze notitie alleen lezen');
+        } else if (uploadProject !== null) {
+          if (!memberOfProject(db, userId, uploadProject)) throw new SyncError('NOT_FOUND', 'dit project bestaat niet');
+          if (!editorOfProject(db, userId, uploadProject)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
         } else {
           if (!memberOfTask(db, userId, uploadTask)) throw new SyncError('NOT_FOUND', 'deze taak bestaat niet');
           if (!editorOfTask(db, userId, uploadTask)) throw new SyncError('FORBIDDEN', 'je kunt dit project alleen lezen');
@@ -284,6 +310,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         // ook hier nog eens: gelijktijdige uploads voor dezelfde taak of notitie hebben de controle vooraf allemaal gepasseerd
         if (uploadNote !== null) {
           if (perNoteCount(uploadNote) >= LIMITS.filesPerNote) throw new SyncError('LIMIT_REACHED', `een notitie kan hooguit ${LIMITS.filesPerNote} bestanden hebben`);
+        } else if (uploadProject !== null) {
+          if (perProjectCount(uploadProject) >= LIMITS.attachmentsPerTask) throw new SyncError('LIMIT_REACHED', `opmerkingen op een project kunnen samen hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
         } else if (perTaskCount(uploadTask) >= LIMITS.attachmentsPerTask) {
           throw new SyncError('LIMIT_REACHED', `een taak kan hooguit ${LIMITS.attachmentsPerTask} bijlagen hebben`);
         }
@@ -291,8 +319,8 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
         mkdirSync(join(dir, key.slice(0, 2)), { recursive: true });
         renameSync(tmp, pathOf(key));
         try {
-          db.prepare('INSERT INTO attachment_files (id, user_id, task_id, note_id, size, sha256, mime, key, linked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)')
-            .run(uploadId, userId, uploadTask, uploadNote, size, sha256, mime, key, new Date(now()).toISOString());
+          db.prepare('INSERT INTO attachment_files (id, user_id, task_id, note_id, project_id, size, sha256, mime, key, linked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)')
+            .run(uploadId, userId, uploadTask, uploadNote, uploadProject, size, sha256, mime, key, new Date(now()).toISOString());
         } catch (err) {
           removeFile(key);
           throw err;
@@ -312,12 +340,14 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       const notFound = new SyncError('NOT_FOUND', 'deze bijlage bestaat niet');
       if (!ID_RE.test(id)) throw notFound;
       const f = db.prepare(
-        `SELECT f.key, f.size, f.mime, f.task_id, f.note_id, f.user_id, f.linked, COALESCE(a.name, nf.name) AS name,
+        `SELECT f.key, f.size, f.mime, f.task_id, f.note_id, f.project_id, f.user_id, f.linked, COALESCE(a.name, nf.name) AS name,
                 COALESCE(a.is_deleted, nf.is_deleted) AS is_deleted
          FROM attachment_files f LEFT JOIN attachments a ON a.id = f.id LEFT JOIN note_files nf ON nf.id = f.id WHERE f.id = ?`).get(id) as Row | undefined;
       if (!f) throw notFound;
       // bij een notitie wie haar ziet (eigenaar of met wie ze gedeeld is); bij een taak de leden van het project
-      const allowed = f.note_id ? seesNote(db, userId, f.note_id as string) : memberOfTask(db, userId, f.task_id as string);
+      const allowed = f.note_id ? seesNote(db, userId, f.note_id as string)
+        : f.project_id ? memberOfProject(db, userId, f.project_id as string)
+          : memberOfTask(db, userId, f.task_id as string);
       if (f.linked === 1) {
         if (f.is_deleted !== 0 || !allowed) throw notFound;
       } else if (f.user_id !== userId || !allowed) throw notFound;

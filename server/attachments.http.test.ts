@@ -903,3 +903,76 @@ test('de tijdslimiet voor een hele upload werkt los van het stilvallen: druppele
     assert.equal(status(r.data), 408);
   } finally { await w.close(); }
 });
+
+test('bijlagen bij een opmerking op een project: uploaden, koppelen, zien en downloaden; een lezer voegt niets toe; weg met de opmerking en met het project', async () => {
+  const w = await world();
+  try {
+    const C = 'comment-proj-0001';
+    const setup = [
+      cmd('project_share', { project_id: w.P, username: 'bob' }), cmd('project_share', { project_id: w.P, username: 'carol', role: 'viewer' }),
+      cmd('comment_add', { id: C, project_id: w.P, content: 'Plattegrond' }), cmd('comment_add', { id: 'comment-task-0001', task_id: w.T, content: 'Bij de taak' }),
+    ];
+    const r0 = w.sync('alice', setup);
+    for (const c of setup) assert.equal(r0.sync_status[c.uuid], 'ok', JSON.stringify(r0.sync_status[c.uuid]));
+    const up = async (as: 'alice' | 'bob' | 'carol', id: string, query: string, body: Buffer) => {
+      const res = await fetch(`${w.base}/api/v1/attachments?id=${id}&${query}`, { method: 'POST', headers: { Authorization: `Bearer ${w.tokens[as]}`, 'Content-Type': 'image/png' }, body });
+      return { status: res.status, json: await res.json() as Row };
+    };
+    const A = 'att-project-00001';
+    const u = await up('alice', A, `project_id=${w.P}`, PNG);
+    assert.equal(u.status, 200, JSON.stringify(u.json));
+    assert.equal((await up('alice', 'att-project-00009', `project_id=${w.P}&task_id=${w.T}`, PNG)).json.error_code, 'INVALID_ARG', 'niet bij een taak én een project');
+    assert.equal((await up('carol', 'att-project-00002', `project_id=${w.P}`, PNG)).status, 403, 'een lezer voegt niets toe');
+    assert.equal((await up('alice', 'att-project-00003', 'project_id=project-onbekend-1', PNG)).status, 404);
+    const meta = { name: 'plattegrond.png', size: PNG.length, mime: 'image/png', sha256: sha(PNG) };
+    // fout: zonder opmerking, met taak én project, of met een opmerking van een taak
+    for (const [args, code] of [
+      [{ id: A, project_id: w.P, ...meta }, 'INVALID_ARG'],
+      [{ id: A, project_id: w.P, task_id: w.T, comment_id: C, ...meta }, 'INVALID_ARG'],
+      [{ id: A, project_id: w.P, comment_id: 'comment-task-0001', ...meta }, 'CONFLICT'],
+    ] as [Row, string][]) {
+      const bad = cmd('attachment_add', args);
+      assert.equal(w.sync('alice', [bad]).sync_status[bad.uuid].error_code, code, JSON.stringify(args));
+    }
+    const add = cmd('attachment_add', { id: A, project_id: w.P, comment_id: C, ...meta });
+    assert.equal(w.sync('alice', [add]).sync_status[add.uuid], 'ok');
+    for (const who of ['bob', 'carol'] as const) {
+      const seen = (w.sync(who, []).attachments as Row[]).find((a) => a.id === A);
+      assert.ok(seen && seen.project_id === w.P && seen.task_id === null && seen.comment_id === C, `${who} ziet de bijlage`);
+      assert.equal((await w.get(who, `/api/v1/attachments/${A}`)).status, 200, `${who} kan hem downloaden`);
+    }
+    // de opmerking weg: de bijlage ook
+    const del = cmd('comment_delete', { id: C });
+    assert.equal(w.sync('alice', [del]).sync_status[del.uuid], 'ok');
+    assert.equal((w.db.prepare('SELECT is_deleted FROM attachments WHERE id = ?').get(A) as Row).is_deleted, 1);
+    assert.equal((await w.get('bob', `/api/v1/attachments/${A}`)).status, 404);
+    // een tweede op een nieuwe opmerking; het project weg: ook die bijlage
+    const B = 'att-project-00004';
+    assert.equal((await up('bob', B, `project_id=${w.P}`, PNG)).status, 200);
+    const more = [cmd('comment_add', { id: 'comment-proj-0002', project_id: w.P, content: 'Nog een' }), cmd('attachment_add', { id: B, project_id: w.P, comment_id: 'comment-proj-0002', ...meta })];
+    const r1 = w.sync('bob', more);
+    for (const c of more) assert.equal(r1.sync_status[c.uuid], 'ok', JSON.stringify(r1.sync_status[c.uuid]));
+    const gone = cmd('project_delete', { id: w.P });
+    assert.equal(w.sync('alice', [gone]).sync_status[gone.uuid], 'ok');
+    assert.equal((w.db.prepare('SELECT is_deleted FROM attachments WHERE id = ?').get(B) as Row).is_deleted, 1, 'weg met het project');
+  } finally {
+    await w.close();
+  }
+});
+
+test('een database van vóór versie 11: de tabel attachments wordt opnieuw opgebouwd (task_id niet meer verplicht), met dezelfde rijen', async () => {
+  const { createSchema } = await import('./schema.ts');
+  const db = freshDb();
+  db.exec('DROP TABLE attachments');
+  db.exec(`CREATE TABLE attachments (id TEXT PRIMARY KEY, task_id TEXT NOT NULL, name TEXT NOT NULL, size INTEGER NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL,
+    creator_id TEXT, comment_id TEXT, rev INTEGER NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+  db.prepare("INSERT INTO attachments (id, task_id, name, size, mime, sha256, creator_id, comment_id, rev, created_at, updated_at) VALUES ('att-oud-00000001', 'taak-1234567', 'oud.pdf', 3, 'application/pdf', ?, 'u1', NULL, 7, 'x', 'y')").run('a'.repeat(64));
+  createSchema(db);
+  const cols = db.prepare("SELECT name, \"notnull\" AS nn FROM pragma_table_info('attachments')").all() as Row[];
+  assert.equal(cols.find((c) => c.name === 'task_id').nn, 0, 'task_id mag leeg');
+  assert.ok(cols.some((c) => c.name === 'project_id'), 'met project_id');
+  const row = db.prepare('SELECT * FROM attachments').get() as Row;
+  assert.deepEqual([row.id, row.task_id, row.name, row.size, row.rev, row.project_id], ['att-oud-00000001', 'taak-1234567', 'oud.pdf', 3, 7, null]);
+  createSchema(db); // nog eens: niets meer te doen
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM attachments').get() as Row).n, 1);
+});

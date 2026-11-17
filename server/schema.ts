@@ -44,7 +44,7 @@ export { ID_RE, INBOX_ID, INBOX_PREFIX, isInboxId, RESOURCE_NAMES, settingsId };
 // 8: tweestapsverificatie en het soort apparaat per sessie, 9: inloggen via OIDC (gekoppelde identiteiten en eenmalige inlogcodes),
 // 10: persoonlijke voorkeuren in een gedeeld project (project_prefs) en uitnodigingslinks (project_invites)
 // (alle komen er met CREATE TABLE IF NOT EXISTS of een nieuwe, optionele kolom bij)
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 'REAL', bool: 'INTEGER', json: 'TEXT' };
 
@@ -53,6 +53,28 @@ const SQL_TYPE: Record<ColType, string> = { text: 'TEXT', int: 'INTEGER', real: 
  * Een nieuwe database bevat daarna nog geen gebruikers en geen projecten: gebruikers komen uit `createUser`
  * (zie users.ts), en elke gebruiker krijgt daarbij een eigen Inbox.
  */
+/** Bouwt de tabel van een entiteit opnieuw op volgens het schema van nu (bijvoorbeeld als een kolom niet meer verplicht is), met dezelfde rijen. */
+function rebuildTable(db: DatabaseSync, e: (typeof ENTITY_LIST)[number]): void {
+  const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
+  const have = new Set((db.prepare(`SELECT name FROM pragma_table_info('${e.table}')`).all() as { name: string }[]).map((r) => r.name));
+  const copy = ['id', ...e.cols.map((c) => c.name), 'rev', 'is_deleted', 'created_at', 'updated_at'].filter((n) => have.has(n));
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec(`CREATE TABLE ${e.table}_new (
+      id TEXT PRIMARY KEY, ${cols},
+      rev INTEGER NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    )`);
+    db.exec(`INSERT INTO ${e.table}_new (${copy.join(', ')}) SELECT ${copy.join(', ')} FROM ${e.table}`);
+    db.exec(`DROP TABLE ${e.table}`);
+    db.exec(`ALTER TABLE ${e.table}_new RENAME TO ${e.table}`);
+    db.exec(`CREATE INDEX IF NOT EXISTS ${e.table}_rev ON ${e.table} (rev)`);
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+}
+
 export function createSchema(db: DatabaseSync): void {
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
@@ -186,6 +208,9 @@ export function createSchema(db: DatabaseSync): void {
     db.exec('ALTER TABLE attachment_files ADD COLUMN note_id TEXT');
   }
   db.exec('CREATE INDEX IF NOT EXISTS attachment_files_note ON attachment_files (note_id)');
+  if (!(db.prepare("SELECT name FROM pragma_table_info('attachment_files')").all() as { name: string }[]).some((r) => r.name === 'project_id')) {
+    db.exec('ALTER TABLE attachment_files ADD COLUMN project_id TEXT'); // bij een opmerking op een project (versie 11)
+  }
 
   for (const e of ENTITY_LIST) {
     const cols = e.cols.map((c) => `${c.name} ${SQL_TYPE[c.type]}${c.required ? ' NOT NULL' : ''}`).join(', ');
@@ -196,6 +221,10 @@ export function createSchema(db: DatabaseSync): void {
     addMissingColumns(db, e);
     db.exec(`CREATE INDEX IF NOT EXISTS ${e.table}_rev ON ${e.table} (rev)`);
   }
+  // Versie 11. Bijlagen bij een opmerking op een project: task_id mag leeg zijn (dan project_id). Een database van daarvoor heeft
+  // task_id NOT NULL; die tabel wordt één keer opnieuw opgebouwd, met dezelfde rijen.
+  const taskCol = db.prepare("SELECT \"notnull\" AS nn FROM pragma_table_info('attachments') WHERE name = 'task_id'").get() as { nn?: number } | undefined;
+  if (taskCol?.nn === 1) rebuildTable(db, ENTITIES.attachment);
   // Versie 10. Persoonlijke voorkeuren in een gedeeld project (projectPrefs.ts): favoriet, ingeklapt, weergave en de plek in de
   // zijbalk van een lid dat geen eigenaar is. Geen entiteit: de sync legt ze over het project heen.
   const hadPrefs = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'project_prefs'").get() !== undefined;
@@ -238,6 +267,7 @@ export function createSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS tasks_parent ON tasks (parent_id)');
   db.exec('CREATE INDEX IF NOT EXISTS comments_task ON comments (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS attachments_task ON attachments (task_id, is_deleted)');
+  db.exec('CREATE INDEX IF NOT EXISTS attachments_project ON attachments (project_id, is_deleted)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_task ON reminders (task_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_owner ON reminders (owner_id)');
   db.exec('CREATE INDEX IF NOT EXISTS reminders_place ON reminders (place_id)');

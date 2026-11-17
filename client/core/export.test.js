@@ -111,14 +111,16 @@ test('attachmentEntries: per project en taak, notities apart, alleen wat er nog 
     { id: 'a3', task_id: 't6', name: 'kaart.png', size: 50, order_key: 'c' },
     { id: 'a4', task_id: 't5', name: 'weg.txt', size: 1, order_key: 'd' },
     { id: 'a5', task_id: 't1', name: 'oud.txt', size: 1, is_deleted: true, order_key: 'e' },
+    { id: 'a6', task_id: null, project_id: 'p1', comment_id: 'c3', name: 'plattegrond.png', size: 70, order_key: 'f' },
   ]);
   v.notes = m([{ id: 'n1', title: 'Recepten / soep' }, { id: 'n2', title: 'Weg', is_deleted: true }]);
   v.note_files = m([{ id: 'f1', note_id: 'n1', name: 'foto.jpg', size: 3000 }, { id: 'f2', note_id: 'n2', name: 'x.jpg', size: 1 }]);
-  const entries = attachmentEntries(v, { notesFolder: 'Notities' });
+  const entries = attachmentEntries(v, { notesFolder: 'Notities', commentsFolder: 'Opmerkingen' });
   assert.deepEqual(entries.map((e) => [e.id, e.path, e.size]), [
     ['a1', 'Huishouden/Rekening betalen/factuur.pdf', 1200],
     ['a2', 'Huishouden/Rekening betalen/factuur (2).pdf', 900],
     ['a3', 'Vakantie Texel - Fietsroute/Route plannen/kaart.png', 50],
+    ['a6', 'Huishouden/Opmerkingen/plattegrond.png', 70],
     ['f1', 'Notities/Recepten _ soep/foto.jpg', 3000],
   ]);
   assert.deepEqual(attachmentEntries({ projects: new Map(), tasks: new Map() }), [], 'zonder bijlagen of notities');
