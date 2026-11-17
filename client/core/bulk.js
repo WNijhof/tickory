@@ -141,6 +141,35 @@ export function planComment(view, ids, content, makeId) {
   return { commands: todo.map((task_id) => ({ type: 'comment_add', args: { id: makeId(), task_id, content: text } })), count: todo.length };
 }
 
+const hasTime = (task) => typeof task.due?.date === 'string' && task.due.date.length > 10;
+const mineOf = (view, taskIds, userId) => [...view.reminders.values()].filter((r) => taskIds.has(r.task_id) && (!userId || !r.owner_id || r.owner_id === userId));
+
+/**
+ * Een herinnering `minutes` minuten vóór het tijdstip van elke gekozen open taak (0 = op het tijdstip). Alleen een taak met een tijd
+ * kan dat; de andere staan in `skipped` (`noTime`). Een taak die al zo'n herinnering van jou heeft, blijft zoals ze is.
+ */
+export function planReminder(view, ids, minutes, { userId = null, makeId }) {
+  const commands = [];
+  const skipped = [];
+  for (const id of existing(view, ids)) {
+    const task = view.tasks.get(id);
+    if (task.checked) continue;
+    if (!hasTime(task)) {
+      skipped.push({ id, reason: 'noTime' });
+      continue;
+    }
+    if (mineOf(view, new Set([id]), userId).some((r) => r.type === 'relative' && r.minute_offset === minutes)) continue;
+    commands.push({ type: 'reminder_add', args: { id: makeId(), task_id: id, type: 'relative', minute_offset: minutes } });
+  }
+  return { commands, count: commands.length, skipped };
+}
+
+/** Al je eigen herinneringen bij de gekozen taken weghalen (die van anderen blijven). `count` is het aantal taken. */
+export function planClearReminders(view, ids, { userId = null } = {}) {
+  const mine = mineOf(view, new Set(existing(view, ids)), userId);
+  return { commands: mine.map((r) => ({ type: 'reminder_delete', args: { id: r.id } })), count: new Set(mine.map((r) => r.task_id)).size };
+}
+
 export function planPriority(view, ids, priority) {
   const todo = existing(view, ids).filter((id) => view.tasks.get(id).priority !== priority);
   return { commands: todo.map((id) => ({ type: 'task_update', args: { id, priority } })), count: todo.length };
@@ -264,7 +293,9 @@ export function skippedText(skipped, nameOf) {
   const out = [];
   for (const [reason, names] of by) {
     const list = nameList(names.filter(Boolean));
-    out.push(reason === 'notMember' ? t('bulk.skipNotMember', { count: names.length, names: list }) : t('bulk.skipAlready', { count: names.length, names: list }));
+    if (reason === 'notMember') out.push(t('bulk.skipNotMember', { count: names.length, names: list }));
+    else if (reason === 'noTime') out.push(t('bulk.skipNoTime', { count: names.length, names: list }));
+    else out.push(t('bulk.skipAlready', { count: names.length, names: list }));
   }
   return out.join(' ');
 }

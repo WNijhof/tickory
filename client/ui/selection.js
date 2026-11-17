@@ -14,9 +14,10 @@
 
 import { createSelection } from '../core/selection.js';
 import {
-  assignChoices, nameList, planAssign, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planLabels, planMove, planPriority, planReopen,
-  selectionInfo, skippedText, summarizeErrors,
+  assignChoices, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planLabels, planMove,
+  planPriority, planReminder, planReopen, selectionInfo, skippedText, summarizeErrors,
 } from '../core/bulk.js';
+import { offsetText, presetOptions } from '../core/reminderText.js';
 import { newId } from '../core/actions.js';
 import { formatDuration } from '../core/duration.js';
 import { describeCommandError } from '../core/messages.js';
@@ -332,6 +333,7 @@ export function installSelection({ content, store, actions, handlers }) {
         items: [
           { value: 'deadline', label: t('bulk.deadline') },
           { value: 'duration', label: t('bulk.duration') },
+          { value: 'reminder', label: t('bulk.reminder') },
           { value: 'comment', label: t('bulk.comment') },
         ],
       });
@@ -348,6 +350,24 @@ export function installSelection({ content, store, actions, handlers }) {
         const plan = planDuration(store.view, ids, picked.minutes);
         const text = picked.minutes ? t('bulk.doneDuration', { count: plan.count, duration: formatDuration(picked.minutes) }) : t('bulk.doneDurationNone', { count: plan.count });
         await perform(plan, text, t('bulk.duration'));
+      } else if (choice === 'reminder') {
+        // een vaste tijd vooraf (zoals in het taakvenster), of je eigen herinneringen bij deze taken weer weg
+        const clear = planClearReminders(store.view, ids, { userId: store.userId });
+        const picked = await menuDialog({
+          title: t('bulk.reminderTitle', { count: ids.length }),
+          items: [
+            ...presetOptions().map((o) => ({ value: String(o.minutes), label: o.label })),
+            ...(clear.commands.length > 0 ? [{ value: 'none', label: t('bulk.reminderNone') }] : []),
+          ],
+        });
+        if (!picked) return;
+        if (picked === 'none') {
+          await perform(clear, t('bulk.doneReminderNone', { count: clear.count }), t('bulk.reminder'));
+          return;
+        }
+        const minutes = Number(picked);
+        const plan = planReminder(store.view, ids, minutes, { userId: store.userId, makeId: newId });
+        await perform(plan, t('bulk.doneReminder', { count: plan.count, when: offsetText(minutes) }), t('bulk.reminder'));
       } else if (choice === 'comment') {
         const content = await promptDialog({ title: t('bulk.commentTitle', { count: ids.length }), label: t('bulk.commentLabel'), okText: t('bulk.commentAdd') });
         if (!content) return;

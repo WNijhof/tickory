@@ -12,8 +12,8 @@ import { createUndo } from './undo.js';
 import { inverseCommands } from './inverse.js';
 import { createSelection, rangeBetween } from './selection.js';
 import {
-  assignChoices, nameList, planAssign, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planGroupDrop, planLabels, planMove, planPriority,
-  planReopen, selectionInfo, skippedText, summarizeErrors, topLevel,
+  assignChoices, nameList, planAssign, planClearReminders, planComment, planComplete, planDate, planDeadline, planDelete, planDuration, planGroupDrop, planLabels,
+  planMove, planPriority, planReminder, planReopen, selectionInfo, skippedText, summarizeErrors, topLevel,
 } from './bulk.js';
 import { MAX_DRAG_GROUP } from './selection.js';
 import { planTaskDrop, planTaskDropOnGroup } from './dnd.js';
@@ -260,6 +260,42 @@ test('deadline, duur en opmerking: alleen wat verandert, weghalen, via de server
   const after = snapshot(w.a.store.view);
   assert.deepEqual(after.tasks.map((t) => [t.id, t.deadline, t.duration]), before.tasks.map((t) => [t.id, t.deadline, t.duration]));
   assert.equal([...w.a.store.view.comments.values()].filter((c) => c.content === 'Even nakijken').length, 0);
+});
+
+test('herinnering voor meerdere taken: alleen met een tijd, niet dubbel, weghalen alleen de eigen, en ongedaan maken', async () => {
+  setLanguage('nl');
+  const w = await setup();
+  await w.a.actions.updateTask(w.ids[0], { due: { date: '2026-12-01T09:00' } });
+  await w.a.actions.updateTask(w.ids[1], { due: { date: '2026-12-01T10:30' } });
+  await w.a.actions.updateTask(w.ids[2], { due: { date: '2026-12-01' } });
+  await settle(w.a);
+  const makeId = () => `r${String(++counter).padStart(10, '0')}`;
+  const plan = planReminder(w.a.store.view, w.ids.slice(0, 3), 10, { userId: w.alice.id, makeId });
+  assert.equal(plan.count, 2, 'twee taken met een tijd');
+  assert.deepEqual(plan.skipped, [{ id: w.ids[2], reason: 'noTime' }]);
+  assert.match(skippedText(plan.skipped, (id) => w.a.store.view.tasks.get(id)?.content), /1 taak heeft geen tijd en is overgeslagen \(“Bellen: crème”\)/);
+  const { entry } = await w.a.actions.batch(plan.commands, { label: 'herinnering' });
+  await settle(w.a);
+  assert.deepEqual(w.a.errors, []);
+  const server = handleSync(w.db, { sync_token: '*' }, w.alice.id);
+  const tenBefore = server.reminders.filter((r) => r.type === 'relative' && r.minute_offset === 10 && !r.is_deleted).map((r) => r.task_id).sort();
+  assert.deepEqual(tenBefore, [w.ids[0], w.ids[1]].sort());
+  assert.equal(planReminder(w.a.store.view, w.ids.slice(0, 3), 10, { userId: w.alice.id, makeId }).count, 0, 'niet dubbel');
+  // een herinnering van Bob op dezelfde taak blijft staan bij weghalen
+  await settle(w.b);
+  await w.b.actions.addReminder(w.ids[0], { type: 'relative', minute_offset: 60 });
+  await settle(w.b, w.a);
+  const clear = planClearReminders(w.a.store.view, w.ids, { userId: w.alice.id });
+  assert.equal(clear.count, 2, 'de twee taken met een eigen herinnering (10 minuten, en de automatische)');
+  assert.ok(clear.commands.every((c) => c.type === 'reminder_delete'));
+  const bobs = [...w.a.store.view.reminders.values()].filter((r) => r.owner_id === w.bob.id).map((r) => r.id);
+  assert.ok(clear.commands.every((c) => !bobs.includes(c.args.id)), 'niet die van Bob');
+  await w.a.actions.runUndo(entry);
+  await settle(w.a);
+  assert.deepEqual(w.a.errors, []);
+  const after = handleSync(w.db, { sync_token: '*' }, w.alice.id).reminders.filter((r) => r.type === 'relative' && r.minute_offset === 10 && !r.is_deleted);
+  assert.equal(after.length, 0, 'ongedaan gemaakt');
+  assert.ok(handleSync(w.db, { sync_token: '*' }, w.bob.id).reminders.some((r) => r.task_id === w.ids[0] && r.minute_offset === 60 && !r.is_deleted), 'die van Bob staat er nog');
 });
 
 test('prioriteit en labels: alleen taken waar iets verandert; labels erbij en eraf', async () => {

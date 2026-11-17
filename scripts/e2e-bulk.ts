@@ -254,7 +254,7 @@ async function scenario(c: any): Promise<void> {
     const more = async (item: string) => {
       await bulkButton('more');
       await waitFor(`document.querySelector('dialog[open] .menu')`, 'het menu Meer');
-      assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .menu-item')].map((b) => b.textContent)`), ['Deadline', 'Duur', 'Opmerking']);
+      assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .menu-item')].map((b) => b.textContent)`), ['Deadline', 'Duur', 'Herinnering', 'Opmerking']);
       await dialogButton(item);
     };
     await pick('Boodschappen doen', 'Fiets maken');
@@ -275,6 +275,23 @@ async function scenario(c: any): Promise<void> {
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     await settle();
     for (const n of ['Boodschappen doen', 'Fiets maken']) assert.equal(serverTaskById(T(n)).duration, 45, n);
+    await closeToasts();
+    // een herinnering: een taak met een tijd krijgt hem, een taak zonder tijd wordt overgeslagen (met de naam in de melding)
+    await asAlice([cmd('task_update', { id: T('Boodschappen doen'), due: { date: '2030-01-07T09:00' } })]);
+    await settle();
+    await pick('Boodschappen doen', 'Fiets maken');
+    await more('Herinnering');
+    await waitFor(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === '10 minuten vooraf')`, 'een tijd vooraf kiezen');
+    await dialogButton('10 minuten vooraf');
+    await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+    await settle();
+    assert.ok((state().reminders as any[]).some((r) => r.task_id === T('Boodschappen doen') && r.type === 'relative' && r.minute_offset === 10 && !r.is_deleted), 'de herinnering staat op de server');
+    assert.ok(!(state().reminders as any[]).some((r) => r.task_id === T('Fiets maken') && r.minute_offset === 10 && !r.is_deleted), 'zonder tijd geen herinnering');
+    assert.ok((await toastTexts()).some((x) => x.includes('Herinnering (10 minuten vooraf) bij 1 taak gezet.') && x.includes('geen tijd en is overgeslagen')), (await toastTexts()).join(' | '));
+    await undoToast();
+    assert.ok(!(state().reminders as any[]).some((r) => r.task_id === T('Boodschappen doen') && r.minute_offset === 10 && !r.is_deleted), 'ongedaan gemaakt');
+    await asAlice([cmd('task_update', { id: T('Boodschappen doen'), due: null })]);
+    await settle();
     await closeToasts();
     await pick('Boodschappen doen', 'Fiets maken');
     await more('Opmerking');
