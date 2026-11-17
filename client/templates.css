@@ -14,6 +14,29 @@
 .tpl-item input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .tpl-item:hover { background: var(--bg-hover); }
 .tpl-item.selected { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* het bewerkscherm (ui/templateEditor.js) */
+.tpl-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: min(52dvh, 520px); overflow-y: auto; }
+.tpl-row { border-bottom: 1px solid var(--line); padding: 4px 0; }
+.tpl-row[data-depth="2"] { padding-left: 24px; }
+.tpl-row[data-depth="3"] { padding-left: 48px; }
+.tpl-row[data-depth="4"] { padding-left: 72px; }
+.tpl-row-main { display: flex; align-items: center; gap: 2px; }
+.tpl-row-main .tpl-row-text { flex: 1 1 auto; min-width: 0; }
+.tpl-row-section .tpl-row-text { font-weight: 700; }
+.tpl-row-more { margin: 2px 0 2px 64px; font-size: 0.86rem; }
+.tpl-row-more > summary { cursor: pointer; color: var(--text-soft); }
+.tpl-row-fields { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 6px 0; }
+.tpl-row-field { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.tpl-row-field .field-small { width: auto; min-width: 7em; }
+.tpl-row-field .hint { font-size: 0.75rem; }
+.tpl-row-add { display: flex; gap: 8px; flex-wrap: wrap; padding: 8px 0; }
+@media (max-width: 760px) {
+  .tpl-row[data-depth="2"] { padding-left: 12px; }
+  .tpl-row[data-depth="3"] { padding-left: 24px; }
+  .tpl-row[data-depth="4"] { padding-left: 36px; }
+  .tpl-row-more { margin-left: 0; }
+}
 .tpl-item:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; }
 .tpl-item-text { display: flex; flex-direction: column; min-width: 0; }
 .tpl-item-name { font-weight: 600; overflow-wrap: anywhere; }

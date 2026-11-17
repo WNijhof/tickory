@@ -11,7 +11,7 @@ import { setLanguage } from './i18n.js';
 import { MemoryAdapter, Store } from './store.js';
 import { SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
-import { dateSpan, previewLines, quotaProblem, relativeDayText, taskDate, templateFromProject, templateFromTask, templateList } from './templates.js';
+import { dateSpan, planTemplate, previewLines, quotaProblem, relativeDayText, taskDate, templateFromProject, templateFromTask, templateList } from './templates.js';
 import { starterTemplates } from './starters/index.js';
 import { exportTemplate, parseTemplateFile, templateFileName } from './templateFile.js';
 
@@ -265,7 +265,7 @@ test('een project met 10.000 taken wijst een sjabloon met taken vooraf af (tasks
   assert.equal(quotaProblem(view, c.store.userId, { projectId: pid, sections: 0, tasks: 1, labels: 0, reminders: 0 }), null);
 });
 
-test('project als sjabloon bewaren: open taken, secties, labels op naam, datums relatief, herhaling blijft, herinneringen en opmerkingen niet', async () => {
+test('project als sjabloon bewaren: open taken, secties, labels op naam, datums relatief, herhaling, deadline en eigen herinneringen blijven, opmerkingen en toewijzing niet', async () => {
   const c = await ready(makeClient());
   const pid = await c.actions.addProject({ name: 'Verbouwing', color: 'brown' });
   const sec = await c.actions.addSection(pid, 'Keuken');
@@ -287,16 +287,46 @@ test('project als sjabloon bewaren: open taken, secties, labels op naam, datums 
     v: 1,
     tasks: [{ content: 'Wekelijks', day: 10, recurrence: { freq: 'weekly', byweekday: [5] }, repeat_text: 'elke vrijdag' }],
     sections: [{ name: 'Keuken', tasks: [{
-      content: 'Offerte', description: 'drie stuks', priority: 2, labels: ['klus'], duration: 30, day: 0, time: '10:00',
-      subtasks: [{ content: 'Meten', day: 2 }],
+      content: 'Offerte', description: 'drie stuks', priority: 2, labels: ['klus'], duration: 30, deadline_day: 4, day: 0, time: '10:00',
+      reminders: [10, 30], subtasks: [{ content: 'Meten', day: 2 }],
     }] }],
   });
   const json = JSON.stringify(r.template);
-  for (const verboden of ['opmerking', 'deadline', 'assignee', 'reminder', 'Klaar', c.store.userId]) assert.ok(!json.includes(verboden), `${verboden} hoort niet in een sjabloon`);
+  for (const verboden of ['opmerking', 'assignee', 'Klaar', c.store.userId]) assert.ok(!json.includes(verboden), `${verboden} hoort niet in een sjabloon`);
   const plain = templateFromProject(c.store.view, pid, { name: 'Zonder datums', dates: false });
   const wk = plain.template.content.tasks[0];
   assert.deepEqual([wk.day, wk.recurrence.freq], [0, 'weekly'], 'zonder datums blijft een herhaling bestaan');
   assert.equal(plain.template.content.sections[0].tasks[0].day, undefined);
+  assert.equal(plain.template.content.sections[0].tasks[0].deadline_day, undefined, 'zonder datums ook geen deadline');
+  assert.equal(plain.template.content.sections[0].tasks[0].reminders, undefined, 'zonder tijd geen herinneringen');
+});
+
+test('een sjabloon met deadline en herinneringen toepassen: de deadline vanaf de startdatum, de eigen herinneringen in plaats van de automatische', async () => {
+  const c = await ready(makeClient());
+  const template = { kind: 'project', name: 'Met deadline', content: { v: 1, sections: [], tasks: [
+    { content: 'Aangifte', day: 2, time: '09:00', deadline_day: 10, reminders: [0, 60] },
+    { content: 'Zonder', day: 1, time: '08:00' },
+    { content: 'Alleen deadline', deadline_day: -1 },
+  ] } };
+  assert.equal(checkTemplateContent(template.content), null);
+  let n = 0;
+  const plan = planTemplate(c.store.view, template, {
+    mode: 'project', projectName: 'X', startDate: '2026-12-01', today: '2026-11-17', userId: c.store.userId, autoReminder: 30,
+    makeId: () => `id-sjabloon-${String(++n).padStart(4, '0')}`, labels: { byName: new Map(), commands: [] },
+  });
+  const added = plan.commands.filter((x) => x.type === 'task_add').map((x) => x.args);
+  assert.deepEqual(added.map((x) => [x.content, x.due?.date ?? null, x.deadline ?? null]), [
+    ['Aangifte', '2026-12-03T09:00', '2026-12-11'], ['Zonder', '2026-12-02T08:00', null], ['Alleen deadline', null, '2026-11-30'],
+  ]);
+  const reminders = plan.commands.filter((x) => x.type === 'reminder_add').map((x) => [added.find((a) => a.id === x.args.task_id).content, x.args.minute_offset]);
+  assert.deepEqual(reminders, [['Aangifte', 0], ['Aangifte', 60], ['Zonder', 30]], 'eigen herinneringen, anders de automatische');
+  assert.equal(plan.counts.reminders, 3);
+  const noStart = planTemplate(c.store.view, template, {
+    mode: 'project', projectName: 'Y', startDate: null, today: '2026-11-17', userId: c.store.userId, autoReminder: 30,
+    makeId: () => `id-sjabloon-${String(++n).padStart(4, '0')}`, labels: { byName: new Map(), commands: [] },
+  });
+  assert.ok(noStart.commands.filter((x) => x.type === 'task_add').every((x) => !x.args.deadline && !x.args.due), 'zonder startdatum geen datum en geen deadline');
+  assert.equal(noStart.commands.filter((x) => x.type === 'reminder_add').length, 0);
 });
 
 test('taak als sjabloon bewaren: met subtaken, dag 0 is de datum van de taak, de sectie gaat mee op verzoek', async () => {

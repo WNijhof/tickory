@@ -82,6 +82,11 @@ function convertTask(view, task, ctx) {
   }
   if (names.length > 0) node.labels = names;
   if (task.duration) node.duration = task.duration;
+  // de deadline als dag ten opzichte van dag 0, zoals de datum
+  if (ctx.dates && ctx.base && typeof task.deadline === 'string') {
+    const day = daysBetween(ctx.base, task.deadline.slice(0, 10));
+    if (day !== null && day >= TEMPLATE_LIMITS.dayMin && day <= TEMPLATE_LIMITS.dayMax) node.deadline_day = day;
+  }
   const due = task.due;
   if (due) {
     const time = due.date.length > 10 ? due.date.slice(11, 16) : null;
@@ -100,6 +105,14 @@ function convertTask(view, task, ctx) {
       node.recurrence = structuredClone(due.recurrence);
       if (due.string && due.string.length <= TEMPLATE_LIMITS.repeatText && !/[\u0000-\u001f\u007f]/u.test(due.string)) node.repeat_text = due.string;
     }
+  }
+  // je eigen herinneringen vooraf (minuten vóór het tijdstip); alleen bij een taak die in het sjabloon een tijd heeft
+  if (node.time && ctx.view) {
+    const offsets = [...new Set([...ctx.view.reminders.values()]
+      .filter((r) => r.task_id === task.id && r.type === 'relative' && Number.isInteger(r.minute_offset) && (!ctx.userId || !r.owner_id || r.owner_id === ctx.userId))
+      .map((r) => r.minute_offset)
+      .filter((m) => m >= 0 && m <= TEMPLATE_LIMITS.reminderMax))].sort((a, b) => a - b).slice(0, TEMPLATE_LIMITS.remindersPerTask);
+    if (offsets.length > 0) node.reminders = offsets;
   }
   return node;
 }
@@ -121,9 +134,9 @@ function finish(template) {
 }
 
 /**
- * Maakt een sjabloon van een project: de secties, open taken en subtaken. Afgevinkte taken, herinneringen, opmerkingen,
- * toewijzingen en deadlines gaan niet mee; herhalingsregels wel. Met `dates` worden datums relatieve dagen: de vroegste datum
- * is dag 0.
+ * Maakt een sjabloon van een project: de secties, open taken en subtaken. Afgevinkte taken, opmerkingen en toewijzingen gaan
+ * niet mee; herhalingsregels wel, en met `dates` ook deadlines en je eigen herinneringen vooraf. Met `dates` worden datums
+ * relatieve dagen: de vroegste datum is dag 0.
  * @param {object} view
  * @param {string} projectId
  * @param {{ name: string, description?: string, dates?: boolean, userId?: string | null }} options
@@ -135,7 +148,7 @@ export function templateFromProject(view, projectId, { name, description = '', d
   const sections = [...view.sections.values()].filter((s) => s.project_id === projectId && !s.is_archived).sort(byOrder);
   const open = (x) => !x.checked && x.project_id === projectId;
   const inScope = [...view.tasks.values()].filter((x) => open(x) && (!x.section_id || sections.some((s) => s.id === x.section_id)));
-  const ctx = { dates, userId, all: false, base: earliestDate(inScope) };
+  const ctx = { dates, userId, all: false, base: earliestDate(inScope), view };
   const top = (sectionId) => [...view.tasks.values()].filter((x) => open(x) && !x.parent_id && (x.section_id ?? null) === sectionId).sort(byOrder);
   const content = {
     v: TEMPLATE_VERSION,
@@ -154,7 +167,7 @@ export function templateFromTask(view, taskId, { name, description = '', dates =
   const root = view.tasks.get(taskId);
   if (!root) return { problem: { code: 'gone' } };
   const all = Boolean(root.checked); // een afgevinkte taak neemt haar (ook afgevinkte) subtaken mee, anders zou er niets overblijven
-  const ctx = { dates, userId, all, base: null };
+  const ctx = { dates, userId, all, base: null, view };
   const subtree = [root, ...flatten(view, childrenOf(view, root.id, all), all)];
   ctx.base = root.due ? root.due.date.slice(0, 10) : earliestDate(subtree);
   const tasks = convertTasks(view, [root], ctx);
@@ -302,12 +315,18 @@ export function planTemplate(view, template, options) {
           if (task.repeat_text) Object.assign(args.due, { string: task.repeat_text, lang: 'nl' });
         }
       }
+      // de deadline: alleen met een startdatum, net als de datum
+      if (task.deadline_day !== undefined && startDate) {
+        const deadline = addDays(startDate, task.deadline_day);
+        if (isValidDate(deadline)) args.deadline = deadline;
+      }
       commands.push({ type: 'task_add', args });
       tasks += 1;
       if (!parentId && !newSectionIds.includes(sectionId)) rootTaskIds.push(id); // wat in een nieuwe sectie staat, verdwijnt met die sectie
-      // zoals bij een los toegevoegde taak: een taak met een tijd krijgt de automatische herinnering
-      if (date && date.length > 10 && autoReminder >= 0) {
-        commands.push({ type: 'reminder_add', args: { id: makeId(), task_id: id, type: 'relative', minute_offset: autoReminder } });
+      // de herinneringen uit het sjabloon; anders, zoals bij een los toegevoegde taak, de automatische bij een taak met een tijd
+      const offsets = date && date.length > 10 ? (task.reminders ?? (autoReminder >= 0 ? [autoReminder] : [])) : [];
+      for (const minute_offset of offsets) {
+        commands.push({ type: 'reminder_add', args: { id: makeId(), task_id: id, type: 'relative', minute_offset } });
         reminders += 1;
       }
       if (task.subtasks) addTasks(task.subtasks, null, id);

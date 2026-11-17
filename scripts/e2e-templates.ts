@@ -290,6 +290,38 @@ export async function templatesScenario(c: any) {
   await waitFor(`document.querySelector('dialog[open] .tpl-title')?.textContent === 'Boodschappen op zaterdag' || [...document.querySelectorAll('dialog[open] .tpl-item-name')].some((e) => e.textContent === 'Boodschappen op zaterdag')`, 'nieuwe naam in de lijst');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.ok(templates().some((x) => x.name === 'Boodschappen op zaterdag'));
+  // bewerken in de app: een taak hernoemen, een nieuwe taak met dag, tijd, deadline en herinnering, en bewaren
+  await choose('Boodschappen op zaterdag');
+  await evaluate(`document.querySelector('dialog[open] [data-fk="tpl-edit"]').click()`);
+  await waitFor(`document.querySelector('dialog[open] .tpl-editor')`, 'het bewerkscherm');
+  const editor = `[...document.querySelectorAll('dialog[open]')].at(-1)`;
+  const before = await evaluate<number>(`${editor}.querySelectorAll('.tpl-row').length`);
+  assert.ok(before > 0, 'de regels van het sjabloon');
+  await evaluate(`(() => { const i = ${editor}.querySelector('[data-fk="tplrow:0:text"]'); i.value = i.value + ' (bewerkt)'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await evaluate(`${editor}.querySelector('[data-fk="tpl-add-task"]').click()`);
+  await waitFor(`${editor}.querySelectorAll('.tpl-row').length === ${before + 1}`, 'een regel erbij');
+  const n = before;
+  const setField = (fk: string, value: string, event = 'change') => evaluate(`(() => { const i = ${editor}.querySelector('[data-fk="${fk}"]'); i.value = ${js(value)}; i.dispatchEvent(new Event('${event}', { bubbles: true })); })()`);
+  await setField(`tplrow:${n}:text`, 'Kassabon bewaren', 'input');
+  await evaluate(`${editor}.querySelectorAll('.tpl-row-more')[${n}].open = true`);
+  await setField(`tplrow:${n}:day`, '1');
+  await setField(`tplrow:${n}:time`, '09:00');
+  await setField(`tplrow:${n}:deadline`, '2');
+  await setField(`tplrow:${n}:reminder`, '10');
+  await shot('sjabloon-bewerken');
+  await submit(`${editor} form`);
+  await waitFor(`!document.querySelector('dialog[open] .tpl-editor')`, 'bewerkscherm dicht');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  const edited = templates().find((x) => x.name === 'Boodschappen op zaterdag');
+  const flat: any[] = [];
+  const walk = (list: any[]) => { for (const x of list ?? []) { flat.push(x); walk(x.subtasks); } };
+  walk(edited.content.tasks);
+  for (const sec of edited.content.sections) walk(sec.tasks);
+  assert.ok(flat.some((x) => x.content.endsWith(' (bewerkt)')), 'de hernoemde taak staat op de server');
+  const extra = flat.find((x) => x.content === 'Kassabon bewaren');
+  assert.deepEqual([extra?.day, extra?.time, extra?.deadline_day, extra?.reminders], [1, '09:00', 2, [10]], 'de nieuwe taak met dag, tijd, deadline en herinnering');
+  step('Sjablonen: bewerken in de app (een taak hernoemen, een taak toevoegen met dag, tijd, deadline en herinnering) en bewaren op de server');
+
   await choose('Boodschappen op zaterdag');
   await clickText('Verwijderen', `document.querySelector('dialog[open] .tpl-manage')`);
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((h) => h.textContent === 'Sjabloon verwijderen?')`, 'bevestiging');

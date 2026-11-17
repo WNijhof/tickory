@@ -117,3 +117,18 @@ test('templateStats en walkTemplate: tellen, volgorde (eerst zonder sectie, dan 
   assert.deepEqual(templateStats(content), { tasks: 5, sections: 2, subtasks: 1, dated: 3, recurring: 1, timed: 1, labels: ['x', 'y', 'z'], minDay: -3, maxDay: 2 });
   assert.deepEqual(templateStats({ v: 1, tasks: [{ content: 'a' }], sections: [] }).minDay, null);
 });
+
+test('deadline_day en reminders: gehele dagen, minuten vooraf alleen met een tijd, hooguit vijf en niet dubbel', () => {
+  const ok = (task) => checkTemplateContent({ v: 1, sections: [], tasks: [{ content: 'x', ...task }] });
+  assert.equal(ok({ deadline_day: 3 }), null);
+  assert.equal(ok({ deadline_day: -3650 }), null);
+  assert.match(ok({ deadline_day: 1.5 }), /deadline_day/);
+  assert.match(ok({ deadline_day: 99999 }), /deadline_day/);
+  assert.equal(ok({ day: 0, time: '09:00', reminders: [0, 30, 1440] }), null);
+  assert.match(ok({ day: 0, reminders: [30] }), /heeft time nodig/);
+  assert.match(ok({ day: 0, time: '09:00', reminders: [30, 30] }), /dubbele/);
+  assert.match(ok({ day: 0, time: '09:00', reminders: [1, 2, 3, 4, 5, 6] }), /hooguit 5/);
+  assert.match(ok({ day: 0, time: '09:00', reminders: [-1] }), /minuten vooraf/);
+  assert.match(ok({ day: 0, time: '09:00', reminders: [60 * 24 * 29] }), /minuten vooraf/);
+  assert.match(ok({ day: 0, time: '09:00', reminders: 'veel' }), /lijst/);
+});

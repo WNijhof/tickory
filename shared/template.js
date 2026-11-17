@@ -1,12 +1,14 @@
 // Sjablonen voor projecten en taken: het formaat van de inhoud en de controle erop. Gedeeld door de server (die de inhoud bij
 // elk `template_add` en `template_update` controleert), de web-app en de demo. Zie SPEC.md, hoofdstuk 5c.
 //
-// Een sjabloon is een boom van secties, taken en subtaken zonder id's, eigenaren, toewijzingen, herinneringen en opmerkingen.
-// Datums zijn relatief: `day` is het aantal dagen na de startdatum die je kiest bij het gebruiken (0 = de startdatum zelf).
+// Een sjabloon is een boom van secties, taken en subtaken zonder id's, eigenaren, toewijzingen en opmerkingen.
+// Datums zijn relatief: `day` is het aantal dagen na de startdatum die je kiest bij het gebruiken (0 = de startdatum zelf), net als
+// `deadline_day`. Herinneringen zijn minuten vóór het tijdstip van de taak (dus alleen bij een taak met `time`).
 //
 //   inhoud  = { v: 1, tasks: [taak], sections: [{ name, tasks: [taak] }] }
 //   taak    = { content, description?, priority? (1-3; 4 = geen), labels? (namen), duration? (minuten),
-//               day? (gehele dagen), time? ("HH:MM", alleen met day), recurrence? (alleen met day), repeat_text?, subtasks? }
+//               day? (gehele dagen), time? ("HH:MM", alleen met day), recurrence? (alleen met day), repeat_text?,
+//               deadline_day? (gehele dagen), reminders? (minuten vooraf, alleen met time), subtasks? }
 //
 // De inhoud kan van buiten komen (een geïmporteerd bestand, een commando van een willekeurige client): alles wordt streng gecontroleerd,
 // onbekende velden zijn een fout, en er is een bovengrens aan diepte, lengtes en grootte. De controle gebruikt geen netwerk, geen HTML
@@ -44,6 +46,9 @@ export const TEMPLATE_LIMITS = Object.freeze({
   dayMin: -3650,
   dayMax: 3650,
   durationMax: 60 * 24 * 7,
+  /** Herinneringen per taak, en hoe ver vooraf (vier weken). */
+  remindersPerTask: 5,
+  reminderMax: 60 * 24 * 28,
 });
 
 /**
@@ -60,7 +65,7 @@ export const APPLY_LIMITS = Object.freeze({
   templatesPerUser: 100,
 });
 
-const TASK_KEYS = ['content', 'description', 'priority', 'labels', 'duration', 'day', 'time', 'recurrence', 'repeat_text', 'subtasks'];
+const TASK_KEYS = ['content', 'description', 'priority', 'labels', 'duration', 'day', 'time', 'recurrence', 'repeat_text', 'deadline_day', 'reminders', 'subtasks'];
 const SECTION_KEYS = ['name', 'tasks'];
 const CONTENT_KEYS = ['v', 'tasks', 'sections'];
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -124,6 +129,15 @@ function checkTask(task, depth, where, tally) {
     if (task.recurrence === undefined) return `${where}.repeat_text: hoort bij een herhaling`;
     p = textProblem(task.repeat_text, { max: TEMPLATE_LIMITS.repeatText });
     if (p) return `${where}.repeat_text: ${p}`;
+  }
+  if (task.deadline_day !== undefined && !(Number.isInteger(task.deadline_day) && task.deadline_day >= TEMPLATE_LIMITS.dayMin && task.deadline_day <= TEMPLATE_LIMITS.dayMax)) {
+    return `${where}.deadline_day: een geheel aantal dagen`;
+  }
+  if (task.reminders !== undefined) {
+    if (task.time === undefined) return `${where}.reminders: heeft time nodig`;
+    if (!Array.isArray(task.reminders) || task.reminders.length > TEMPLATE_LIMITS.remindersPerTask) return `${where}.reminders: een lijst van hooguit ${TEMPLATE_LIMITS.remindersPerTask} getallen`;
+    for (const m of task.reminders) if (!(Number.isInteger(m) && m >= 0 && m <= TEMPLATE_LIMITS.reminderMax)) return `${where}.reminders: minuten vooraf, 0 tot ${TEMPLATE_LIMITS.reminderMax}`;
+    if (new Set(task.reminders).size !== task.reminders.length) return `${where}.reminders: bevat dubbele tijden`;
   }
   if (task.subtasks !== undefined) {
     if (!Array.isArray(task.subtasks)) return `${where}.subtasks: moet een lijst zijn`;

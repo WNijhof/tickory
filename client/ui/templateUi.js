@@ -14,6 +14,7 @@ import { TEMPLATE_LIMITS, templateStats } from '../../shared/template.js';
 import { nameKey } from '../../shared/text.js';
 import { confirmDialog, h, openDialog, promptDialog, replace, toast } from './dom.js';
 import { saveTextFile } from './exportDialog.js';
+import { editTemplateDialog } from './templateEditor.js';
 import { icon } from './icons.js';
 
 const INDENT = String.fromCharCode(160, 160);
@@ -348,6 +349,7 @@ export function templatesDialog({ store, actions, mode, context = {} }) {
     let sectionSelect = null;
     const manageButtons = (tpl) => h('div', { class: 'tpl-manage' },
       h('button', { type: 'button', class: 'button button-small', onclick: () => shareTemplateDialog(tpl) }, icon('move'), t('template.share.open')),
+      !tpl.builtin && h('button', { type: 'button', class: 'button button-small', dataset: { fk: 'tpl-edit' }, onclick: () => editTemplateDialog({ template: tpl, actions }) }, icon('pencil'), t('template.edit.open')),
       !tpl.builtin && h('button', { type: 'button', class: 'button button-small', onclick: async () => {
         const name = await promptDialog({ title: t('common.rename'), label: t('common.name'), value: tpl.name });
         if (name && name !== tpl.name) await actions.updateTemplate(tpl.id, { name });

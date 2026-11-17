@@ -47,7 +47,7 @@ description: Templates in Tickory: create a project or tasks in one go from a bu
   <li><strong>From a project:</strong> in the project's menu choose <x-ui k="template.menu.save"></x-ui>. Give it a name and, if you like, a description. With the tick for dates, the dates become relative days (the earliest date becomes day 0); untick it to keep just the tasks.</li>
   <li><strong>From a task:</strong> open the task and click <x-ui k="template.save.button"></x-ui>. The task goes with its subtasks and, if you want, the name of the section it is in.</li>
 </ul>
-<p>Included: sections, open tasks and subtasks, with description, priority, labels (by name), duration and recurrence. <strong>Not included</strong>: completed tasks, deadlines, reminders, comments and assignments. So a template contains no names of people either.</p>
+<p>Included: sections, open tasks and subtasks, with description, priority, labels (by name), duration and recurrence, and (with dates) the deadline and your own reminders in advance. Like a date, a deadline becomes a day relative to the start date; a reminder belongs to the time of the task. <strong>Not included</strong>: completed tasks, comments and assignments. So a template contains no names of people either.</p>
 <p>A template holds at most 1,000 tasks and you can keep 100 templates. If a project is too large, the app says so before anything happens.</p>
 
 <h2 id="sharing">Sharing templates</h2>
@@ -61,12 +61,13 @@ description: Templates in Tickory: create a project or tasks in one go from a bu
 <p>In the Android app you choose the file with Android's own file picker and save it with Android's save screen. Copying and pasting the text works everywhere.</p>
 
 <h2 id="managing">Managing templates</h2>
-<p>Under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> you find all templates, with the kind next to each. You can look at one, share it, rename it or delete it (with confirmation), and import. A deleted template cannot be brought back; projects you made from it stay.</p>
+<p>Under <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> you find all templates, with the kind next to each. You can look at one, share it, edit it, rename it or delete it (with confirmation), and import.</p>
+<p id="editing"><x-ui k="template.edit.open"></x-ui> opens your template as lines: the sections and the tasks below them. The arrows on the left make a task a subtask (or not), the arrows on the right move it, and the bin removes it. Under <x-ui k="template.edit.more"></x-ui> are the day (0 = the start date, 1 = the day after), the time, the priority, the deadline (also as a day) and a reminder in advance (only with a time). Labels, description, duration and recurrence stay as they were. Saving checks everything with the same rules as the server.</p>
+<p> A deleted template cannot be brought back; projects you made from it stay.</p>
 
 <h2>What is not possible yet</h2>
 <ul>
   <li>Sharing a template with another user of your server without a file.</li>
-  <li>Editing the content of a template in the app. To change one, make a project from it and save that as a template again.</li>
-  <li>Deadlines, reminders, comments and assignments in a template.</li>
+  <li>Comments and assignments in a template, and changing labels or a recurrence in the editor.</li>
   <li>Taking over dates from a Todoist CSV.</li>
 </ul>

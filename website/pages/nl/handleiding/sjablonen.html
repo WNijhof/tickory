@@ -47,7 +47,7 @@ description: Sjablonen in Tickory: een project of taken in één keer aanmaken u
   <li><strong>Van een project:</strong> kies in het menu van het project <x-ui k="template.menu.save"></x-ui>. Geef een naam en eventueel een omschrijving. Met het vinkje bij de datums worden de datums relatieve dagen (de vroegste datum wordt dag 0); haal het weg om alleen de taken te bewaren.</li>
   <li><strong>Van een taak:</strong> open de taak en klik op <x-ui k="template.save.button"></x-ui>. De taak gaat mee met haar subtaken, en als je wilt met de naam van de sectie waar ze in staat.</li>
 </ul>
-<p>Mee gaan: secties, open taken en subtaken, met beschrijving, prioriteit, labels (op naam), duur en herhaling. <strong>Niet mee</strong>: afgevinkte taken, deadlines, herinneringen, opmerkingen en toewijzingen. Een sjabloon bevat dus ook geen namen van mensen.</p>
+<p>Mee gaan: secties, open taken en subtaken, met beschrijving, prioriteit, labels (op naam), duur en herhaling, en (met datums) de deadline en je eigen herinneringen vooraf. Een deadline wordt net als een datum een dag ten opzichte van de startdatum; een herinnering hoort bij het tijdstip van de taak. <strong>Niet mee</strong>: afgevinkte taken, opmerkingen en toewijzingen. Een sjabloon bevat dus ook geen namen van mensen.</p>
 <p>Een sjabloon heeft hooguit 1.000 taken en je kunt er 100 bewaren. Is een project te groot, dan zegt de app dat voordat er iets gebeurt.</p>
 
 <h2 id="delen">Sjablonen delen</h2>
@@ -61,12 +61,13 @@ description: Sjablonen in Tickory: een project of taken in één keer aanmaken u
 <p>In de Android-app kies je het bestand met de bestandskiezer van Android en bewaar je het via het opslaan-scherm van Android. Kopiëren en plakken van de tekst werkt overal.</p>
 
 <h2 id="beheren">Sjablonen beheren</h2>
-<p>Onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> staan alle sjablonen, met de soort erbij. Je kunt er een bekijken, delen, de naam wijzigen of verwijderen (met bevestiging), en importeren. Een verwijderd sjabloon is niet terug te halen; projecten die je ervan maakte, blijven staan.</p>
+<p>Onder <x-ui k="settings.title"></x-ui> › <x-ui k="settings.templates"></x-ui> staan alle sjablonen, met de soort erbij. Je kunt er een bekijken, delen, bewerken, de naam wijzigen of verwijderen (met bevestiging), en importeren.</p>
+<p id="bewerken"><x-ui k="template.edit.open"></x-ui> opent je sjabloon als regels: de secties en de taken eronder. Met de pijltjes links maak je van een taak een subtaak (of weer niet), met de pijltjes rechts verplaats je haar, en de prullenbak haalt haar weg. Onder <x-ui k="template.edit.more"></x-ui> staan de dag (0 = de startdatum, 1 = de dag erna), het tijdstip, de prioriteit, de deadline (ook als dag) en een herinnering vooraf (alleen met een tijdstip). Labels, beschrijving, duur en herhaling blijven zoals ze waren. Bewaren controleert alles met dezelfde regels als de server.</p>
+<p> Een verwijderd sjabloon is niet terug te halen; projecten die je ervan maakte, blijven staan.</p>
 
 <h2>Wat nog niet kan</h2>
 <ul>
   <li>Een sjabloon delen met een andere gebruiker van je server zonder bestand.</li>
-  <li>De inhoud van een sjabloon in de app bewerken. Pas het aan door er een project van te maken en dat opnieuw als sjabloon te bewaren.</li>
-  <li>Deadlines, herinneringen, opmerkingen en toewijzingen in een sjabloon.</li>
+  <li>Opmerkingen en toewijzingen in een sjabloon, en labels of een herhaling wijzigen in het bewerkscherm.</li>
   <li>Datums uit een Todoist-CSV overnemen.</li>
 </ul>
