@@ -161,8 +161,20 @@ export function calendarModel({ tasks, mode, anchor, today }) {
     }
   }
   overdue.sort((a, b) => (a.due.date < b.due.date ? -1 : a.due.date > b.due.date ? 1 : byDay({ task: a, time: null }, { task: b, time: null })));
+  // deadlines als eigen item op hun dag (een open taak met een deadline in het bereik), naast de taak zelf op haar datum
+  const perDeadline = new Map();
+  for (const task of tasks) {
+    if (task.checked || typeof task.deadline !== 'string') continue;
+    const day = task.deadline.slice(0, 10);
+    if (day < from || day > to) continue;
+    if (!perDeadline.has(day)) perDeadline.set(day, []);
+    perDeadline.get(day).push(task);
+  }
   const days = [];
-  for (let day = from; day <= to; day = addDays(day, 1)) days.push({ date: day, entries: (perDay.get(day) ?? []).sort(byDay) });
+  for (let day = from; day <= to; day = addDays(day, 1)) {
+    const deadlines = (perDeadline.get(day) ?? []).sort((a, b) => (a.priority ?? 4) - (b.priority ?? 4) || (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : 0));
+    days.push({ date: day, entries: (perDay.get(day) ?? []).sort(byDay), deadlines });
+  }
   return { from, to, days, overdue, total };
 }
 

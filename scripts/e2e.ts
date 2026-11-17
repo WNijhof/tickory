@@ -2052,6 +2052,20 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(serverTask('Belastingformulier invullen').checked, true);
 
+  // een deadline staat als eigen regel met een vlaggetje op haar dag; openen kan, afvinken niet
+  assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-cal-deadline-add', args: { id: 'e2ecaldeadline01', project_id: thuisId, content: 'Aangifte indienen', deadline: nextDay } }])).status, 200);
+  await waitFor(`document.querySelector('.cal-day[data-date="${nextDay}"] .cal-deadline[data-task-id="e2ecaldeadline01"]')`, 'de deadline in de kalender', 15_000);
+  assert.equal(await evaluate(`document.querySelector('.cal-deadline[data-task-id="e2ecaldeadline01"] .cal-deadline-mark').getAttribute('aria-label')`), 'Deadline');
+  assert.equal(await evaluate(`document.querySelector('.cal-deadline[data-task-id="e2ecaldeadline01"] .cal-check')`), null, 'niet af te vinken vanaf de deadline');
+  await evaluate(`document.querySelector('.cal-deadline[data-task-id="e2ecaldeadline01"] .cal-open').click()`);
+  await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster vanuit de deadline');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog textarea[aria-label="Taak"]').value`), 'Aangifte indienen');
+  await press('Escape');
+  await noDialog();
+  await shot('kalender-deadline');
+  assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_delete', uuid: 'e2e-cal-deadline-del', args: { id: 'e2ecaldeadline01' } }])).status, 200);
+  await waitFor(`!document.querySelector('.cal-deadline[data-task-id="e2ecaldeadline01"]')`, 'weer weg', 15_000);
+
   // bladeren: vorige, volgende, vandaag, en de weekweergave
   await click('[data-fk="cal-next"]');
   await waitFor(`document.querySelector('.cal-title').textContent !== ${js(periodTitle('month', today, 'nl-NL'))}`, 'volgende maand');
@@ -2683,6 +2697,16 @@ try {
   assert.equal(await evaluate(`${findItem('Dringend bellen')}.querySelector('.find-count').textContent`), String(expectedMatches));
   assert.equal(await evaluate(`Boolean(${findItem('Dringend bellen')}.querySelector('.find-star'))`), true, 'favoriet is gemarkeerd');
   await shot('filter');
+  // als kalender: dezelfde taken op hun dag; de keuze blijft per filter op dit apparaat
+  assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('.view-actions .view-switch-button')].map((b) => b.textContent)`), ['Lijst', 'Kalender']);
+  await click('[data-fk="viewstyle:calendar"]');
+  await waitFor(`document.querySelector('.cal[data-calendar^="filter:"]')`, 'het filter als kalender');
+  assert.ok(await evaluate(`[...document.querySelectorAll('.cal .cal-item, .cal .task')].some((e) => e.textContent.includes('Tandarts bellen'))`), 'een taak van het filter staat in de kalender');
+  assert.match(await evaluate<string>(`localStorage.getItem('tickory.filterStyles')`), /"calendar"/);
+  await shot('filter-kalender');
+  await click('[data-fk="viewstyle:list"]');
+  await waitFor(`!document.querySelector('.cal') && document.querySelectorAll('.task').length === ${expectedMatches}`, 'weer als lijst');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.filterStyles')`), '{}');
   // bewerken: dezelfde zoekopdracht met Engelse woorden geeft hetzelfde
   await click('.btn-edit');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Filter bewerken'`, 'bewerken');

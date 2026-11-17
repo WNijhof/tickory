@@ -7,10 +7,31 @@ import { filterOutcome, labelCounts, labelTasks } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
 import { orderedItems } from '../core/listOrder.js';
 import { isForeignLabel, labelList } from '../core/selectors.js';
+import { canEditProject } from '../core/access.js';
+import { calendarView } from './calendar.js';
 import { h } from './dom.js';
 import { errorBlock, filterContext } from './filterDialog.js';
 import { icon } from './icons.js';
 import { dot } from './render.js';
+import { viewSwitch } from './viewSwitch.js';
+
+// Lijst of kalender per filter, alleen op dit apparaat (zoals Lijst of Kalender in Aankomend). Zonder opslag: altijd de lijst.
+const STYLE_KEY = 'tickory.filterStyles';
+function readStyles() {
+  try {
+    const value = JSON.parse(localStorage.getItem(STYLE_KEY) ?? '{}');
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  } catch {
+    return {};
+  }
+}
+export const filterStyle = (id) => (readStyles()[id] === 'calendar' ? 'calendar' : 'list');
+export function setFilterStyle(id, style) {
+  const styles = readStyles();
+  if (style === 'calendar') styles[id] = 'calendar';
+  else delete styles[id];
+  try { localStorage.setItem(STYLE_KEY, JSON.stringify(styles)); } catch { /* geen opslag: dan blijft het bij deze keer */ }
+}
 
 const headButton = (cls, iconName, label, onclick, extra = {}) => h('button', { class: `button button-small button-ghost find-action ${cls}`, type: 'button', onclick, ...extra },
   icon(iconName), h('span', { class: 'btn-label' }, label));
@@ -20,14 +41,16 @@ const gone = (ctx, title) => ({ title, count: null, lead: null, actions: [], nod
 // ---------- één filter ----------
 
 export function filterView(ctx, api) {
-  const { view, route, rows, group, emptyState } = ctx;
+  const { view, route, rows, group, emptyState, today, me, handlers } = ctx;
   const filter = view.filters.get(route.id);
   if (!filter) return gone(ctx, t('filter.gone'));
   const outcome = filterOutcome(filter, filterContext(api.store));
+  const style = outcome.ok ? filterStyle(filter.id) : 'list';
   const actions = [
+    outcome.ok && viewSwitch({ styles: ['list', 'calendar'], current: style, onChange: (next) => { setFilterStyle(filter.id, next); handlers.refresh(); } }),
     headButton('btn-edit', 'pencil', t('filter.editButton'), () => api.editFilter(filter)),
     headButton('btn-menu', 'more', t('filter.more'), () => api.filterMenu(filter)),
-  ];
+  ].filter(Boolean);
   const summary = h('p', { class: 'filter-summary' }, icon('funnel'), h('code', { class: 'filter-query' }, filter.query));
   const lead = dot(filter.color, 'dot-large');
   if (!outcome.ok) {
@@ -45,6 +68,20 @@ export function filterView(ctx, api) {
     };
   }
   const lists = outcome.groups.length > 1 ? outcome.groups : [{ name: null, tasks: outcome.tasks }];
+  if (style === 'calendar') {
+    // de taken van het filter (alle lijsten samen, elk één keer) op hun dag; een herhaling ook op de komende keren
+    const tasks = [...new Map(lists.flatMap((g) => g.tasks).map((task) => [task.id, task])).values()];
+    return {
+      title: filter.name, count: outcome.count, lead, actions,
+      nodes: [
+        summary,
+        calendarView({
+          calendarKey: `filter:${filter.id}`, tasks, view, today, handlers, showProject: true, addTarget: {},
+          canEdit: (task) => canEditProject(view, task.project_id, me?.id),
+        }),
+      ],
+    };
+  }
   const nodes = lists.map((g) => group({ title: g.name, rows: rows(g.tasks.map((task) => ({ task })), true), total: g.tasks.length }));
   return {
     title: filter.name, count: outcome.count, lead, actions,

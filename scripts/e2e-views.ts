@@ -284,7 +284,9 @@ export async function boardTouchScenario(c: any): Promise<void> {
     await settle();
     assert.equal(serverTask(name).section_id ?? null, null);
   } finally {
-    await send(c, 'Emulation.setTouchEmulationEnabled', { enabled: false });
+    // eerst de vinger los (anders kan het uitzetten van aanraken blijven hangen en zie je de eigenlijke fout niet)
+    await Promise.race([touch('touchEnd', 0, 0), new Promise((r) => setTimeout(r, 2000))]).catch(() => {});
+    await Promise.race([send(c, 'Emulation.setTouchEmulationEnabled', { enabled: false }), new Promise((r) => setTimeout(r, 5000))]);
   }
   step('slepen op het bord met een vinger: lang indrukken, bij de rechterrand schuift het bord mee, loslaten in de volgende kolom; het menu "Verplaats naar…" zet de kaart terug');
 }
@@ -320,7 +322,9 @@ export async function calendarTouchScenario(c: any): Promise<void> {
     assert.equal((c.serverState().tasks as any[]).find((x) => x.id === OVERLEG).due.date, `${today}T10:00`);
     await waitFor(`document.querySelector('li.cal-item[data-task-id="${OVERLEG}"][data-real="true"]')`, 'weer op vandaag');
   } finally {
-    await send(c, 'Emulation.setTouchEmulationEnabled', { enabled: false });
+    // eerst de vinger los (anders kan het uitzetten van aanraken blijven hangen en zie je de eigenlijke fout niet)
+    await Promise.race([touch('touchEnd', 0, 0), new Promise((r) => setTimeout(r, 2000))]).catch(() => {});
+    await Promise.race([send(c, 'Emulation.setTouchEmulationEnabled', { enabled: false }), new Promise((r) => setTimeout(r, 5000))]);
   }
   step('slepen in de kalender met een vinger: lang indrukken, loslaten op een andere dag in de lijst per dag; ongedaan maken zet de datum terug');
 }

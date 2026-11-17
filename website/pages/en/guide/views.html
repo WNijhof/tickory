@@ -54,6 +54,7 @@ description: A project as a list, as a board with a column per section or as a c
 <h3 id="moving-a-task-to-another-day">Moving a task to another day</h3>
 <ul>
   <li><strong>Dragging:</strong> grab a task and drop it on another day; the day lights up. The date changes, <strong>the time stays</strong> and a <strong>repeat stays</strong> as it was: for a repeating task only the current date moves. So completing remains different from moving. After dropping there is a message with <x-ui k="task.undo"></x-ui>. Tasks from the <x-ui k="view.overdue"></x-ui> block can be dragged to today or another day in the same way. On a phone you press and hold the task first.</li>
+  <li id="deadlines-in-the-calendar"><strong>Deadlines:</strong> if an open task has a deadline, that day also shows a line with a flag and the name of the task. Click it to open the task; completing and moving is done with the task itself on its date.</li>
   <li><strong>With the keyboard:</strong> put the focus on a task and press <kbd>Alt</kbd>+<kbd>←</kbd> or <kbd>Alt</kbd>+<kbd>→</kbd> for a day earlier or later, and <kbd>Alt</kbd>+<kbd>↑</kbd> or <kbd>Alt</kbd>+<kbd>↓</kbd> for a week. The focus stays on the task.</li>
   <li>It also works without dragging: open the task and choose another date, or use the calendar button on the row in the list.</li>
 </ul>
@@ -113,6 +114,6 @@ description: A project as a list, as a board with a column per section or as a c
 <h2>What is not possible yet</h2>
 <ul>
   <li>Dropping a card on another card <strong>to make it a subtask</strong>: that is only possible in the list.</li>
-  <li><strong>Completed tasks</strong> in the calendar, deadlines as an item of their own, and a calendar of a filter.</li>
+  <li><strong>Completed tasks</strong> in the calendar.</li>
   <li>A repeating task that started more than about eleven years (daily) or 4000 occurrences ago shows no coming occurrences any more.</li>
 </ul>

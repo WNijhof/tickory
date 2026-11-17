@@ -418,6 +418,8 @@ export default {
   'calendar.more': '+{count} meer',
   'calendar.moreLabel': '{count} meer op {date}, open de weekweergave',
   'calendar.repeatTitle': '{name} (terugkerend)',
+  'calendar.deadlineHint': 'Deadline',
+  'calendar.deadlineTitle': 'Deadline van "{name}"',
   'calendar.repeatHint': 'Volgende keer van een terugkerende taak. Vink de taak af op de eerste datum.',
   'calendar.keys': 'Pijltjestoetsen: andere dag. Enter: taak toevoegen. PageUp en PageDown: vorige of volgende periode. Home: vandaag.',
   'calendar.keysReadOnly': 'Pijltjestoetsen: andere dag. PageUp en PageDown: vorige of volgende periode. Home: vandaag.',

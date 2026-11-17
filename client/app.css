@@ -685,6 +685,8 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .cal-time, .cal-when { flex: none; font-size: 0.74rem; color: var(--text-soft); font-variant-numeric: tabular-nums; }
 .cal-late .cal-when { color: var(--danger); }
 .cal-virtual { background: none; border-left-style: dashed; }
+.cal-deadline { background: none; border-left-style: dotted; }
+.cal-deadline .cal-deadline-mark { color: var(--danger, #c0392b); }
 .cal-virtual .cal-title-text { color: var(--text-soft); }
 .cal-project { flex: none; display: inline-flex; align-items: center; gap: 5px; color: var(--text-soft); font-size: 0.74rem; }
 .cal-project .dot { width: 8px; height: 8px; }

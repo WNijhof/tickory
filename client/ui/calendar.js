@@ -191,7 +191,14 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
   const longNames = weekdayNames(locale, 'long');
   // de kolommen beginnen bij de gekozen eerste dag van de week (Instellingen › Algemeen)
   const columns = Array.from({ length: 7 }, (_, i) => (getWeekStart() - 1 + i) % 7);
-  const dayCell = ({ date, entries }) => {
+  // een deadline: een eigen regel met een vlaggetje op de dag van de deadline; openen kan, afvinken en slepen niet (dat doe je met de taak)
+  const deadlineItem = (task, date) => h('li', { class: 'cal-item cal-deadline', dataset: { taskId: task.id, date, real: 'false', deadline: 'true' } },
+    h('span', { class: 'cal-repeat cal-deadline-mark', role: 'img', title: t('calendar.deadlineHint'), 'aria-label': t('calendar.deadlineHint') }, icon('flag')),
+    h('button', { class: 'cal-open', type: 'button', title: t('calendar.deadlineTitle', { name: task.content }), dataset: { fk: `caldeadline:${task.id}` }, onclick: () => handlers.open(task) },
+      h('span', { class: 'cal-title-text' }, task.content)));
+
+  const dayCell = ({ date, entries, deadlines = [] }) => {
+    const count = entries.length + deadlines.length;
     const out = monthMode && date.slice(0, 7) !== month;
     const num = Number(date.slice(8, 10));
     const showMonth = num === 1 || !monthMode; // de eerste van de maand en elke dag in de weekweergave zeggen de maand erbij
@@ -202,9 +209,9 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     if (date < today) cls.push('cal-past');
     if (weekday >= 5) cls.push('cal-weekend');
     if (out) cls.push('cal-out');
-    if (entries.length === 0) cls.push('cal-empty');
+    if (count === 0) cls.push('cal-empty');
     return h('td', {
-      class: cls.join(' '), tabindex: date === focusDay ? '0' : '-1', 'aria-label': t('calendar.dayLabel', { date: label, tasks: t('calendar.dayTasks', { count: entries.length }) }),
+      class: cls.join(' '), tabindex: date === focusDay ? '0' : '-1', 'aria-label': t('calendar.dayLabel', { date: label, tasks: t('calendar.dayTasks', { count }) }),
       'aria-current': date === today ? 'date' : null, dataset: { date, out: out ? 'true' : null, fk: `cal:${date}` },
     },
     h('div', { class: 'cal-day-head' },
@@ -214,11 +221,11 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
         class: 'cal-add', type: 'button', tabindex: '-1', 'aria-label': t('calendar.addOn', { date: dayLabel(locale, date, 'long') }), title: t('calendar.addOn', { date: dayLabel(locale, date, 'long') }),
         dataset: { date }, onclick: () => handlers.addToDay(date, addTarget),
       }, icon('plus'))),
-    h('ul', { class: 'cal-items', dataset: { date } }, entries.map((entry) => item(entry))),
-    entries.length > 4 && h('button', {
-      class: 'cal-more', type: 'button', 'aria-label': t('calendar.moreLabel', { count: entries.length - 4, date: dayLabel(locale, date, 'long') }),
+    h('ul', { class: 'cal-items', dataset: { date } }, deadlines.map((task) => deadlineItem(task, date)), entries.map((entry) => item(entry))),
+    count > 4 && h('button', {
+      class: 'cal-more', type: 'button', 'aria-label': t('calendar.moreLabel', { count: count - 4, date: dayLabel(locale, date, 'long') }),
       onclick: () => { state.mode = 'week'; state.anchor = date === today ? null : date; state.focus = date; refresh(); },
-    }, t('calendar.more', { count: entries.length - 4 })));
+    }, t('calendar.more', { count: count - 4 })));
   };
 
   const weeks = [];

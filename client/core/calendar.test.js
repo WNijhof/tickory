@@ -361,3 +361,21 @@ test('de week kan op zondag of zaterdag beginnen (Instellingen › Algemeen); we
   assert.equal(startOfCalendarWeek('2026-11-18'), '2026-11-16');
   assert.equal(startOfWeek('2026-11-18'), '2026-11-16', 'de ISO-week blijft maandag');
 });
+
+test('deadlines als eigen item op hun dag, alleen van open taken en binnen het bereik', async () => {
+  const { calendarModel } = await import('./calendar.js');
+  const tasks = [
+    { id: 'a', content: 'Offerte', due: { date: '2026-11-18' }, deadline: '2026-11-20', priority: 4, order_key: 'a' },
+    { id: 'b', content: 'Belasting', due: null, deadline: '2026-11-20', priority: 1, order_key: 'b' },
+    { id: 'c', content: 'Af', checked: true, due: null, deadline: '2026-11-20', priority: 4, order_key: 'c' },
+    { id: 'd', content: 'Later', due: null, deadline: '2027-03-01', priority: 4, order_key: 'd' },
+    { id: 'e', content: 'Rommel', due: null, deadline: 5, priority: 4, order_key: 'e' },
+  ];
+  const model = calendarModel({ tasks, mode: 'month', anchor: '2026-11-17', today: '2026-11-17' });
+  const day = (date) => model.days.find((d) => d.date === date);
+  assert.deepEqual(day('2026-11-20').deadlines.map((t) => t.id), ['b', 'a'], 'prioriteit eerst; geen afgevinkte');
+  assert.deepEqual(day('2026-11-18').entries.map((e) => e.task.id), ['a'], 'de taak zelf staat gewoon op haar datum');
+  assert.deepEqual(day('2026-11-18').deadlines, []);
+  assert.ok(model.days.every((d) => d.deadlines.every((t) => t.id !== 'd' && t.id !== 'e')), 'buiten het bereik of geen tekst: niet');
+  assert.equal(model.total, 1, 'deadlines tellen niet als voorkomen');
+});
