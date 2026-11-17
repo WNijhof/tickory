@@ -127,6 +127,11 @@ async function connect() {
       if (page) {
         ws = new WebSocket(page.webSocketDebuggerUrl);
         await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+        // valt de verbinding weg, dan krijgt alles wat nog wacht meteen een fout (anders blijft de test eeuwig hangen)
+        ws.onclose = () => {
+          for (const done of pending.values()) done({ error: { message: 'de verbinding met de browser is verbroken' } });
+          pending.clear();
+        };
         ws.onmessage = (e) => {
           const m = JSON.parse(String(e.data));
           if (m.id && pending.has(m.id)) {
@@ -153,10 +158,18 @@ async function connect() {
   }
   throw new Error('browser reageert niet op de debugpoort');
 }
+const CDP_TIMEOUT_MS = 90_000; // geen enkele opdracht aan de browser duurt zo lang; anders is de pagina of de verbinding vastgelopen
 const send = (method: string, params: object = {}): Promise<any> =>
   new Promise((resolve, reject) => {
     const id = ++seq;
-    pending.set(id, (m) => (m.error ? reject(new Error(`${method}: ${m.error.message}`)) : resolve(m.result)));
+    const timer = setTimeout(() => {
+      if (pending.delete(id)) reject(new Error(`${method}: geen antwoord van de browser binnen ${CDP_TIMEOUT_MS / 1000} s (pagina of verbinding vastgelopen)`));
+    }, CDP_TIMEOUT_MS);
+    pending.set(id, (m) => {
+      clearTimeout(timer);
+      if (m.error) reject(new Error(`${method}: ${m.error.message}`));
+      else resolve(m.result);
+    });
     ws.send(JSON.stringify({ id, method, params }));
   });
 
