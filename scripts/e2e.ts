@@ -1681,7 +1681,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak of project een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak, project, filter of label een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1808,7 +1808,7 @@ try {
   await shot('engels-nieuwe-lijst');
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Keyboard shortcuts'`, 'sneltoetsen (Engels)');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Select the task under the pointer or focus', 'Select all tasks in view', 'Stop selecting', 'Undo the last change', 'Save the task in the task window', 'Move a task or project one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Select the task under the pointer or focus', 'Select all tasks in view', 'Stop selecting', 'Undo the last change', 'Save the task in the task window', 'Move a task, project, filter or label one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
   assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+', '+', '+']);
   await noDutch('sneltoetsen', mine);
   await press('Escape');

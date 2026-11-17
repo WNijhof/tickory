@@ -9,7 +9,8 @@ import { filterOutcome, labelCounts } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
 import { labelProblemText } from '../core/labelManage.js';
 import { searchKey } from '../core/searchKeys.js';
-import { filterList, labelList, mySettings } from '../core/selectors.js';
+import { orderedItems } from '../core/listOrder.js';
+import { mySettings } from '../core/selectors.js';
 import { confirmDialog, h, menuDialog, replace, toast } from './dom.js';
 import { filterContext, openFilterDialog } from './filterDialog.js';
 import { filterHelpDialog } from './filterHelp.js';
@@ -222,10 +223,12 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
     class: 'search-field', type: 'button', 'aria-keyshortcuts': '/ Control+K', dataset: { fk: 'search-open' }, onclick: () => openSearch(),
   }, icon('search'), h('span', { class: 'search-field-text' }, t('search.fieldText')), h('kbd', { class: 'search-field-key', 'aria-hidden': 'true' }, '/'));
 
-  const navItem = ({ target, label, lead, count, extra = null, warning = false, fk }) => {
+  // `order`: dit filter of label kun je verslepen (ui/dragdrop.js, core/listOrder.js)
+  const navItem = ({ target, label, lead, count, extra = null, warning = false, fk, order = null }) => {
     const active = same(target);
+    const dataset = order ? { fk, orderKind: order.kind, orderId: order.id } : { fk };
     return h('button', {
-      class: `find-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk }, onclick: () => navigate(target),
+      class: `find-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset, onclick: () => navigate(target),
     }, lead, h('span', { class: 'find-label' }, label), extra,
     warning && h('span', { class: 'find-count find-bad', role: 'img', 'aria-label': t('filter.brokenShort'), title: t('filter.brokenShort') }, '!'),
     count !== null && count !== undefined && h('span', { class: 'find-count' }, String(count)));
@@ -249,15 +252,13 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
       h('button', { class: 'icon-button', type: 'button', 'aria-label': addText, title: addText, onclick: onAdd }, icon('plus')));
   };
 
-  const favoritesFirst = (list, favorite) => [...list.filter((x) => favorite(x)), ...list.filter((x) => !favorite(x))];
-
   function drawExtra(slot) {
     const userId = store.userId;
     const view = store.view;
     const hidden = new Set(generalOf(mySettings(view, userId)).sidebar_hidden); // Instellingen › Algemeen
-    const filters = favoritesFirst(filterList(view, userId), (f) => f.is_favorite);
+    const filters = orderedItems(view, 'filter', userId); // eerst de favorieten, dan de rest, in je eigen volgorde
     const counts = labelCounts(view);
-    const labels = favoritesFirst(labelList(view, userId).own, (x) => x.label.is_favorite);
+    const labels = orderedItems(view, 'label', userId);
     const ctx = filters.length > 0 ? filterContext(store) : null;
     const keepVisible = (target, isHidden) => isHidden && !same(target); // een ingeklapte lijst toont alleen de keuze die open staat
     replace(slot,
@@ -267,17 +268,17 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
         if (keepVisible(target, collapsed.has('filters'))) return null;
         const outcome = filterOutcome(f, ctx);
         return navItem({
-          target, label: f.name, lead: dot(f.color), fk: `filter:${f.id}`, extra: f.is_favorite && star(),
+          target, label: f.name, lead: dot(f.color), fk: `filter:${f.id}`, extra: f.is_favorite && star(), order: { kind: 'filter', id: f.id },
           count: outcome.ok && outcome.count > 0 ? outcome.count : null,
           warning: !outcome.ok,
         });
       }),
       !hidden.has('labels') && heading({ key: 'labels', title: t('labels.title'), target: { type: 'labels' }, addLabel: t('label.add'), onAdd: () => addLabel({ open: true }) }),
-      !hidden.has('labels') && labels.map(({ label }) => {
+      !hidden.has('labels') && labels.map((label) => {
         const openCount = counts.get(label.id) ?? 0;
         const target = { type: 'label', id: label.id };
         if (keepVisible(target, collapsed.has('labels'))) return null;
-        return navItem({ target, label: label.name, lead: dot(label.color), fk: `label:${label.id}`, extra: label.is_favorite && star(), count: openCount > 0 ? openCount : null });
+        return navItem({ target, label: label.name, lead: dot(label.color), fk: `label:${label.id}`, extra: label.is_favorite && star(), count: openCount > 0 ? openCount : null, order: { kind: 'label', id: label.id } });
       }));
   }
 

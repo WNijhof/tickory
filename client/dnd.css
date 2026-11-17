@@ -26,7 +26,7 @@
   .group[data-drop-project] .task-content { padding-right: 34px; }
 }
 @media (pointer: coarse) {
-  .task, .nav-item { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  .task, .nav-item, [data-order-kind] { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 }
 
 /* ---------- tijdens het slepen ---------- */

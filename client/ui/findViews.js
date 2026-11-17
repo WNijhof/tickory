@@ -5,7 +5,8 @@
 import { filterErrorText } from '../core/filterText.js';
 import { filterOutcome, labelCounts, labelTasks } from '../core/filterViews.js';
 import { t } from '../core/i18n.js';
-import { filterList, isForeignLabel, labelList } from '../core/selectors.js';
+import { orderedItems } from '../core/listOrder.js';
+import { isForeignLabel, labelList } from '../core/selectors.js';
 import { h } from './dom.js';
 import { errorBlock, filterContext } from './filterDialog.js';
 import { icon } from './icons.js';
@@ -85,8 +86,8 @@ export function labelView(ctx, api) {
 // ---------- overzichten om te beheren ----------
 
 /** Een regel in een beheerlijst: links een knop die het label of filter opent, rechts de knoppen om te wijzigen. */
-function manageRow({ fk, lead, name, detail, onOpen, buttons }) {
-  return h('li', { class: 'manage-row' },
+function manageRow({ fk, lead, name, detail, onOpen, buttons, order = null }) {
+  return h('li', { class: `manage-row${order ? ' manage-row-order' : ''}`, dataset: order ? { orderKind: order.kind, orderId: order.id } : {} },
     h('button', { class: 'manage-open', type: 'button', dataset: { fk }, onclick: onOpen },
       lead,
       h('span', { class: 'manage-text' }, h('span', { class: 'manage-name' }, name), detail)),
@@ -98,7 +99,8 @@ const favoriteToggle = (on, label, onclick) => iconAction('star', label, onclick
 
 export function labelsPage(ctx, api) {
   const { view, emptyState, me } = ctx;
-  const { own, others } = labelList(view, me?.id);
+  const { others } = labelList(view, me?.id);
+  const own = orderedItems(view, 'label', me?.id).map((label) => ({ label })); // de volgorde van de zijbalk
   const counts = labelCounts(view);
   const rowOf = ({ label }, mine) => manageRow({
     fk: `label-row:${label.id}`,
@@ -106,6 +108,7 @@ export function labelsPage(ctx, api) {
     name: `@${label.name}`,
     detail: h('span', { class: 'manage-detail' }, t('label.openCount', { count: counts.get(label.id) ?? 0 })),
     onOpen: () => api.navigate({ type: 'label', id: label.id }),
+    order: mine ? { kind: 'label', id: label.id } : null,
     buttons: mine ? [
       favoriteToggle(Boolean(label.is_favorite), t('label.favoriteLabel', { name: label.name }), () => api.toggleFavoriteLabel(label)),
       iconAction('pencil', t('label.editLabel', { name: label.name }), () => api.editLabel(label)),
@@ -117,6 +120,7 @@ export function labelsPage(ctx, api) {
     actions: [headButton('btn-add', 'plus', t('label.add'), () => api.addLabel({ open: false }))],
     nodes: [
       h('p', { class: 'hint manage-intro' }, t('labels.intro')),
+      own.length > 1 && h('p', { class: 'hint manage-intro' }, t('labels.orderHint')),
       own.length > 0 && h('ul', { class: 'manage-list' }, own.map((x) => rowOf(x, true))),
       own.length === 0 && emptyState({ title: t('labels.emptyTitle'), text: t('labels.empty') }),
       others.length > 0 && h('section', { class: 'group' },
@@ -129,7 +133,7 @@ export function labelsPage(ctx, api) {
 
 export function filtersPage(ctx, api) {
   const { view, emptyState, me } = ctx;
-  const list = filterList(view, me?.id);
+  const list = orderedItems(view, 'filter', me?.id); // de volgorde van de zijbalk
   const fctx = filterContext(api.store);
   const rowOf = (filter) => {
     const outcome = filterOutcome(filter, fctx);
@@ -144,6 +148,7 @@ export function filtersPage(ctx, api) {
           : h('span', { class: 'manage-detail manage-bad' }, t('filter.brokenShort'), ': ', filterErrorText(outcome.error)),
       ],
       onOpen: () => api.navigate({ type: 'filter', id: filter.id }),
+      order: { kind: 'filter', id: filter.id },
       buttons: [
         favoriteToggle(Boolean(filter.is_favorite), t('filter.favoriteLabel', { name: filter.name }), () => api.toggleFavoriteFilter(filter)),
         iconAction('pencil', t('filter.editLabel', { name: filter.name }), () => api.editFilter(filter)),
@@ -159,6 +164,7 @@ export function filtersPage(ctx, api) {
     ],
     nodes: [
       h('p', { class: 'hint manage-intro' }, t('filters.intro')),
+      list.length > 1 && h('p', { class: 'hint manage-intro' }, t('filters.orderHint')),
       list.length > 0 && h('ul', { class: 'manage-list' }, list.map(rowOf)),
       list.length === 0 && emptyState({ title: t('filters.emptyTitle'), text: t('filters.empty') }),
     ],

@@ -1,5 +1,5 @@
-// Slepen en verplaatsen in de interface: taken in de lijst en naar een project in de zijbalk, projecten in de zijbalk, en het
-// toetsenbord-alternatief (Alt + pijl) met aankondigingen voor schermlezers.
+// Slepen en verplaatsen in de interface: taken in de lijst en naar een project in de zijbalk, projecten in de zijbalk, filters en
+// labels (in de zijbalk en op hun beheerpagina), en het toetsenbord-alternatief (Alt + pijl) met aankondigingen voor schermlezers.
 //
 // Dit bestand regelt alleen het gebaar en het beeld (pointer events: muis, pen en aanraking; een grijper die meebeweegt, een
 // invoegstreep, automatisch scrollen). Wat er bij loslaten gebeurt, staat in core/dnd.js (getest zonder scherm), en het
@@ -16,6 +16,8 @@
 // lijst, maar alleen boven of onder een kaart (geen subtaak maken). De kalender (ui/calendar.js): `td.cal-day[data-date]` is een dag waar
 // je een taak op laat vallen en `li.cal-item[data-task-id][data-real=true]` een taak die je kunt slepen (een voorkomen van een herhaling
 // dat nog niet aan de beurt is, niet: `data-real=false`); loslaten verzet de datum, het tijdstip en de herhaling blijven.
+// Filters en labels (core/listOrder.js): `[data-order-kind=filter|label][data-order-id]`, in de zijbalk en op de beheerpagina; alleen
+// boven of onder een ander van dezelfde soort, en een favoriet blijft bij de favorieten.
 
 import { canReorderProject, currentProjectPlan, currentTaskPlan, planCardDrop, planCardKey, planDayDrop, planDayKey, planProjectDrop, planProjectDropToTop, planProjectKey, planTaskDrop, planTaskDropOnGroup, planTaskDropOnProject, planTaskKey, zoneAt } from '../core/dnd.js';
 import { dayLabel } from '../core/calendar.js';
@@ -25,6 +27,7 @@ import { MAX_DRAG_GROUP } from '../core/selection.js';
 import { projectDescendantIds } from '../core/selectors.js';
 import { canEditProject } from '../core/access.js';
 import { getLocale, t } from '../core/i18n.js';
+import { ORDER_KINDS, listMoveCommands, listPosition, orderedItems, planListDrop, planListKey } from '../core/listOrder.js';
 import { h, toast } from './dom.js';
 
 const MOUSE_SLOP = 5; // px bewegen voor een muis of pen sleept
@@ -35,6 +38,16 @@ const EDGE = 64; // px van de rand waarbinnen automatisch gescrold wordt
 const KEYS = { ArrowUp: 'up', ArrowDown: 'down', ArrowRight: 'indent', ArrowLeft: 'outdent' };
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const isListKind = (kind) => Object.hasOwn(ORDER_KINDS, kind);
+const listSelector = (kind, id) => `[data-order-kind="${CSS.escape(kind)}"][data-order-id="${CSS.escape(id)}"]`;
+/** Het filter, label, project of de taak die gesleept wordt. */
+function entityOf(view, kind, id) {
+  if (kind === 'task') return view.tasks.get(id);
+  if (kind === 'project') return view.projects.get(id);
+  if (kind === 'filter') return view.filters.get(id);
+  if (kind === 'label') return view.labels.get(id);
+  return undefined;
+}
 
 /**
  * @param {{
@@ -64,7 +77,7 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   };
 
   // ---------- gebaar ----------
-  /** @type {null | { pointerId: number, type: string, x: number, y: number, kind: 'task' | 'project', id: string, el: HTMLElement, timer: any, slop: number, startNow: boolean }} */
+  /** @type {null | { pointerId: number, type: string, x: number, y: number, kind: 'task' | 'project' | 'filter' | 'label', id: string, el: HTMLElement, box?: HTMLElement, timer: any, slop: number, startNow: boolean }} */
   let pending = null;
   /** @type {null | object} */
   let drag = null;
@@ -78,6 +91,11 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   const projectRowOf = (el) => {
     const item = el?.closest?.('#sidebar [data-project-id]');
     return item && item.dataset.list !== 'inbox' ? item : null;
+  };
+  /** Een filter of label dat je kunt verslepen: in de zijbalk of op de beheerpagina. */
+  const listRowOf = (el) => {
+    const item = el?.closest?.('[data-order-kind][data-order-id]');
+    return item && (sidebar.contains(item) || content.contains(item)) && isListKind(item.dataset.orderKind) ? item : null;
   };
 
   function startPending(e, kind, id, el, handle) {
@@ -110,6 +128,13 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       const task = view.tasks.get(taskIdOf(row));
       if (!task || !canEditProject(view, task.project_id, userId)) return; // een project dat je alleen leest: niets te slepen
       startPending(e, 'task', taskIdOf(row), row, Boolean(target.closest('.drag-handle')));
+      return;
+    }
+    const listItem = listRowOf(target);
+    if (listItem) {
+      if (target.closest('.manage-buttons')) return; // de knoppen favoriet, bewerken en verwijderen op de beheerpagina
+      startPending(e, listItem.dataset.orderKind, listItem.dataset.orderId, listItem, false);
+      pending.box = sidebar.contains(listItem) ? sidebar : content;
       return;
     }
     const item = projectRowOf(target);
@@ -164,26 +189,30 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   function beginDrag(from, x, y) {
     const { view } = getContext();
     cancelPending();
-    const entity = from.kind === 'task' ? view.tasks.get(from.id) : view.projects.get(from.id);
+    const entity = entityOf(view, from.kind, from.id);
     if (!entity) return;
+    const box = from.box ?? (from.kind === 'project' ? sidebar : content);
     // het scherm kan tussen indrukken en slepen opnieuw getekend zijn (een sync): dan staat de regel er als nieuw element
-    if (!from.el.isConnected) from.el = (from.kind === 'task' ? content.querySelector(taskSelector(from.id)) : sidebar.querySelector(`[data-project-id="${CSS.escape(from.id)}"]`)) ?? from.el;
+    if (!from.el.isConnected) {
+      const selector = from.kind === 'task' ? taskSelector(from.id) : isListKind(from.kind) ? listSelector(from.kind, from.id) : `[data-project-id="${CSS.escape(from.id)}"]`;
+      from.el = box.querySelector(selector) ?? from.el;
+    }
     const rect = from.el.getBoundingClientRect();
     const group = from.kind === 'task' && selection ? selection.dragSet(from.id) : [from.id];
-    const ids = from.kind === 'task' ? [...new Set(group.flatMap((g) => [g, ...descendantIds(view, [g])]))] : [from.id, ...projectDescendantIds(view, from.id)];
+    const ids = from.kind === 'task' ? [...new Set(group.flatMap((g) => [g, ...descendantIds(view, [g])]))] : from.kind === 'project' ? [from.id, ...projectDescendantIds(view, from.id)] : [from.id];
     const ghost = from.el.cloneNode(true);
     ghost.classList.add('dnd-ghost');
     ghost.classList.remove('dnd-source');
     ghost.removeAttribute('id');
     ghost.setAttribute('aria-hidden', 'true');
     for (const n of ghost.querySelectorAll('[data-fk]')) n.removeAttribute('data-fk');
-    for (const n of ghost.querySelectorAll('.task-actions, .drag-handle, .card-move')) n.remove();
+    for (const n of ghost.querySelectorAll('.task-actions, .drag-handle, .card-move, .manage-buttons')) n.remove();
     ghost.style.width = `${Math.min(rect.width, 520)}px`;
-    if (from.kind === 'project') ghost.classList.add('dnd-ghost-project');
+    if (from.kind === 'project' || box === sidebar) ghost.classList.add('dnd-ghost-project');
     if (group.length > 1) ghost.dataset.count = String(group.length); // een teller op de gesleepte regel (dnd.css)
     document.body.append(ghost);
     drag = {
-      pointerId: from.pointerId, kind: from.kind, id: from.id, ids: new Set(ids), group, ghost, offX: x - rect.left, offY: y - rect.top, x, y, type: from.type,
+      pointerId: from.pointerId, kind: from.kind, id: from.id, ids: new Set(ids), group, ghost, box, offX: x - rect.left, offY: y - rect.top, x, y, type: from.type,
       plan: null, target: null, line: null, marked: [], drawerTimer: null, name: entity.content ?? entity.name, startX: x, startY: y, moved: false,
     };
     // het signaal blijft bij een vast element, ook als het scherm tijdens het slepen opnieuw wordt getekend
@@ -201,7 +230,9 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
 
   const markSource = () => {
     for (const id of drag.ids) {
-      const els = drag.kind === 'task' ? content.querySelectorAll(taskSelector(id)) : [...sidebar.querySelectorAll(`[data-project-id="${CSS.escape(id)}"]`)].map((x) => x.closest('.nav-row') ?? x);
+      const els = drag.kind === 'task' ? content.querySelectorAll(taskSelector(id))
+        : isListKind(drag.kind) ? document.querySelectorAll(listSelector(drag.kind, id))
+          : [...sidebar.querySelectorAll(`[data-project-id="${CSS.escape(id)}"]`)].map((x) => x.closest('.nav-row') ?? x);
       for (const el of els) el.classList.add('dnd-source');
     }
   };
@@ -216,7 +247,7 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
   /** Waar valt het neer? Zoekt boven welk deel van welke regel de aanwijzer staat, en vraagt core/dnd.js wat dat betekent. */
   function update() {
     const { view, userId } = getContext();
-    const stillThere = drag.kind === 'task' ? view.tasks.has(drag.id) : view.projects.has(drag.id);
+    const stillThere = Boolean(entityOf(view, drag.kind, drag.id));
     if (!stillThere) { finish(false); return; }
     markSource();
     for (const el of document.querySelectorAll('.dnd-target, .dnd-target-child')) el.classList.remove('dnd-target', 'dnd-target-child');
@@ -290,6 +321,15 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
           }
         }
       }
+    } else if (isListKind(drag.kind)) {
+      // een filter of label: boven of onder een ander van dezelfde soort (in de zijbalk of op de beheerpagina)
+      const item = listRowOf(hit);
+      if (item && item.dataset.orderKind === drag.kind) {
+        const r = item.getBoundingClientRect();
+        const zone = zoneAt((drag.y - r.top) / r.height, false);
+        plan = planListDrop(view, { kind: drag.kind, dragId: drag.id, overId: item.dataset.orderId, zone, userId });
+        if (plan) line = listLine(sidebar.contains(item) ? sidebar : content, drag.kind, drag.id, plan);
+      }
     } else {
       const item = projectRowOf(hit) ?? (hit?.closest?.('#sidebar [data-project-id][data-list="inbox"]') ?? null);
       const heading = hit?.closest?.('#sidebar [data-drop-top]');
@@ -323,6 +363,23 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     drag.ghost.classList.toggle('dnd-nodrop', !plan);
     drawLine(line);
     maybeOpenDrawer();
+  }
+
+  /**
+   * De invoegstreep voor een filter of label: boven het item waar het vóór komt, of onder het laatste van zijn groep. Zo staat de
+   * streep ook goed als je een gewoon filter boven een favoriet loslaat (het komt dan vooraan bij de rest).
+   */
+  function listLine(box, kind, dragId, plan) {
+    const { view, userId } = getContext();
+    const items = orderedItems(view, kind, userId);
+    const me = items.find((x) => x.id === dragId);
+    const rest = items.filter((x) => Boolean(x.is_favorite) === Boolean(me?.is_favorite) && x.id !== dragId);
+    const targetId = plan.beforeId ?? rest.at(-1)?.id;
+    const el = targetId ? box.querySelector(listSelector(kind, targetId)) : null;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const inset = box === sidebar ? 10 : 0;
+    return { x: r.left + inset, y: plan.beforeId ? r.top : r.bottom, width: r.width - inset };
   }
 
   const containerName = (view, plan) => {
@@ -424,7 +481,14 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
 
   /** Voert het plan uit en meldt het: een toelichting voor schermlezers, en een melding met "Ongedaan maken" (core/undo.js). */
   async function commit(d) {
-    const { view } = getContext();
+    const { view, userId } = getContext();
+    if (isListKind(d.kind)) {
+      const { position, count } = listPosition(view, d.kind, d.id, d.plan, userId) ?? { position: 1, count: 1 };
+      const text = t('dnd.listDropped', { name: d.name, position, count });
+      await actions.batch(listMoveCommands(view, d.kind, d.id, d.plan, userId), { label: text });
+      announce(text);
+      return;
+    }
     if (d.kind === 'task' && d.group.length > 1) {
       if (await commitGroup(d, view)) return;
     }
@@ -516,6 +580,13 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       keyboardTask(row.dataset.id, command);
       return;
     }
+    const listItem = listRowOf(target);
+    if (listItem) {
+      if (command !== 'up' && command !== 'down') return; // filters en labels hangen niet onder elkaar
+      e.preventDefault();
+      keyboardList(listItem.dataset.orderKind, listItem.dataset.orderId, command);
+      return;
+    }
     const item = target.closest('#sidebar [data-project-id]');
     if (item && item.dataset.list !== 'inbox' && sidebar.contains(item)) {
       const { view, userId } = getContext();
@@ -578,6 +649,23 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
     if (r.blocked) return;
     actions.track(task.content, () => actions.updateTask(id, { due: r.plan.due }));
     announce(t('dnd.dayMoved', { name: task.content, date: dayLabel(getLocale(), r.date, 'long') }));
+  }
+
+  /** Een filter of label een plek omhoog of omlaag (binnen de favorieten of binnen de rest). */
+  function keyboardList(kind, id, command) {
+    const { view, userId } = getContext();
+    const entity = entityOf(view, kind, id);
+    if (!entity) return;
+    const name = entity.name;
+    const r = planListKey(view, kind, id, command, { userId });
+    if (r.blocked) {
+      if (r.blocked === 'favorites') announce(t('dnd.favoritesFirst', { name }));
+      else announceBlocked(r.blocked, name);
+      return;
+    }
+    const text = t('dnd.listDropped', { name, position: r.position, count: r.count });
+    actions.batch(listMoveCommands(view, kind, id, r.plan, userId), { label: text });
+    announce(text);
   }
 
   function keyboardProject(id, command, favoritesOnly) {

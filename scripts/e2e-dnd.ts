@@ -553,6 +553,78 @@ async function scenario(c: any): Promise<void> {
     step('"minder beweging": kopie, streep en handvat hebben geen overgang of animatie; de invoegstreep heeft in licht en donker minstens 3:1 contrast met de achtergrond');
   }
 
+  // ---------- 14. filters en labels in een eigen volgorde ----------
+  const F = ['dnd-filter-een', 'dnd-filter-twee', 'dnd-filter-drie'];
+  const L = ['dnd-label-een', 'dnd-label-twee'];
+  {
+    await asAlice([
+      cmd('filter_add', { id: F[0], name: 'Volgorde een', query: 'p1' }), cmd('filter_add', { id: F[1], name: 'Volgorde twee', query: 'p2' }),
+      cmd('filter_add', { id: F[2], name: 'Volgorde drie', query: 'p3' }),
+      cmd('label_add', { id: L[0], name: 'sleeplabel-een' }), cmd('label_add', { id: L[1], name: 'sleeplabel-twee' }),
+    ]);
+    const byKey = (a: any, b: any) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : a.id < b.id ? -1 : 1);
+    const filterOrder = () => (serverState().filters as any[]).filter((f) => F.includes(f.id) && !f.is_deleted).sort(byKey).map((f) => f.name);
+    const labelOrder = () => (serverState().labels as any[]).filter((l) => L.includes(l.id) && !l.is_deleted).sort(byKey).map((l) => l.name);
+    const sideOrder = () => evaluate<string[]>(`[...document.querySelectorAll('#sidebar [data-order-kind="filter"]')].map((b) => b.querySelector('.find-label').textContent).filter((n) => n.startsWith('Volgorde'))`);
+    await evaluate(`(() => { const b = document.querySelector('[data-fk="find-toggle:filters"]'); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); })()`);
+    await waitFor(`document.querySelector('#sidebar [data-order-id="${F[2]}"]')`, 'de nieuwe filters in de zijbalk', 15_000);
+    assert.deepEqual(await sideOrder(), ['Volgorde een', 'Volgorde twee', 'Volgorde drie']);
+    // met de muis in de zijbalk: "drie" boven "een"
+    const sideRect = (id: string) => rectOf(`document.querySelector('#sidebar [data-order-id="${id}"]')`);
+    await evaluate(`document.querySelector('#sidebar [data-order-id="${F[0]}"]').scrollIntoView({ block: 'center' })`);
+    await sleep(100);
+    const drie = await sideRect(F[2]);
+    const een = await sideRect(F[0]);
+    await drag(at(drie, 0.5, 0.5), at(een, 0.5, 0.2), async () => {
+      const s = await dragState();
+      assert.equal(s.ghost && s.line, true, 'een kopie en een invoegstreep');
+      assert.ok(Math.abs((await lineY()) - een.y) <= 3, 'de streep staat boven "Volgorde een"');
+      await shot('slepen-filter-zijbalk');
+    });
+    await settle();
+    assert.deepEqual(filterOrder(), ['Volgorde drie', 'Volgorde een', 'Volgorde twee'], 'de server heeft de nieuwe volgorde');
+    assert.deepEqual(await sideOrder(), ['Volgorde drie', 'Volgorde een', 'Volgorde twee']);
+    assert.match(await live(), /"Volgorde drie" staat nu op plek \d+, totaal \d+\./);
+    // de beheerpagina toont dezelfde volgorde; met het toetsenbord een plek omlaag, de focus blijft staan
+    await evaluate(`document.querySelector('[data-fk="find-head:filters"]').click()`);
+    await waitFor(`document.querySelector('[data-fk="filter-row:${F[2]}"]')`, 'de pagina Filters');
+    const pageOrder = () => evaluate<string[]>(`[...document.querySelectorAll('#content .manage-row[data-order-kind="filter"] .manage-name')].map((e) => e.textContent).filter((n) => n.startsWith('Volgorde'))`);
+    assert.deepEqual(await pageOrder(), ['Volgorde drie', 'Volgorde een', 'Volgorde twee']);
+    assert.ok(await evaluate(`[...document.querySelectorAll('#content .manage-intro')].some((p) => p.textContent.startsWith('Sleep een filter'))`), 'uitleg over de volgorde');
+    await evaluate(`document.querySelector('[data-fk="filter-row:${F[2]}"]').focus()`);
+    await alt('ArrowDown');
+    await settle();
+    assert.deepEqual(filterOrder(), ['Volgorde een', 'Volgorde drie', 'Volgorde twee']);
+    await waitFor(`document.activeElement?.dataset.fk === 'filter-row:${F[2]}'`, 'de focus blijft op het filter');
+    assert.deepEqual(await pageOrder(), ['Volgorde een', 'Volgorde drie', 'Volgorde twee']);
+    assert.match(await live(), /"Volgorde drie" staat nu op plek \d+, totaal \d+\./);
+    // ongedaan maken (Ctrl+Z) zet de oude volgorde terug
+    await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'z', code: 'KeyZ', windowsVirtualKeyCode: 90, modifiers: 2 });
+    await settle();
+    assert.deepEqual(filterOrder(), ['Volgorde drie', 'Volgorde een', 'Volgorde twee'], 'ongedaan gemaakt');
+    // labels: met de muis op de beheerpagina, "twee" boven "een"
+    await evaluate(`(() => { const b = document.querySelector('[data-fk="find-toggle:labels"]'); if (b && b.getAttribute('aria-expanded') === 'false') b.click(); })()`);
+    await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+    await waitFor(`document.querySelector('#content .manage-row[data-order-id="${L[1]}"]')`, 'de pagina Labels');
+    await evaluate(`document.querySelector('#content .manage-row[data-order-id="${L[0]}"]').scrollIntoView({ block: 'center' })`);
+    await sleep(100);
+    const rowRectL = (id: string) => rectOf(`document.querySelector('#content .manage-row[data-order-id="${id}"]')`);
+    const twee = await rowRectL(L[1]);
+    const eenL = await rowRectL(L[0]);
+    await drag({ x: Math.round(twee.x + 120), y: Math.round(twee.y + twee.h / 2) }, { x: Math.round(eenL.x + 120), y: Math.round(eenL.y + eenL.h * 0.2) }, async () => {
+      assert.equal((await dragState()).line, true, 'een invoegstreep op de beheerpagina');
+    });
+    await settle();
+    assert.deepEqual(labelOrder(), ['sleeplabel-twee', 'sleeplabel-een']);
+    assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Labels', 'slepen opent het label niet');
+    const sideLabels = await evaluate<string[]>(`[...document.querySelectorAll('#sidebar [data-order-kind="label"] .find-label')].map((e) => e.textContent).filter((n) => n.startsWith('sleeplabel'))`);
+    assert.deepEqual(sideLabels, ['sleeplabel-twee', 'sleeplabel-een'], 'de zijbalk volgt');
+    step('filters en labels in een eigen volgorde: slepen in de zijbalk en op de beheerpagina (met invoegstreep), Alt+↓ met aankondiging en de focus op zijn plek, Ctrl+Z zet het terug, en zijbalk en pagina tonen dezelfde volgorde');
+    await asAlice([...F.map((id) => cmd('filter_delete', { id })), ...L.map((id) => cmd('label_delete', { id }))]);
+    for (const key of ['filters', 'labels']) await evaluate(`(() => { const b = document.querySelector('[data-fk="find-toggle:${key}"]'); if (b && b.getAttribute('aria-expanded') === 'true') b.click(); })()`);
+  }
+
   // opruimen: wat deze proef maakte, hoeft niet te blijven staan
   await asAlice([P, P2, P3, LONG].map((id) => cmd('project_delete', { id })));
   asBob([cmd('project_delete', { id: 'dnd-bobs-project' })]);
