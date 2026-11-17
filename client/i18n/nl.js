@@ -1833,7 +1833,8 @@ export default {
   'productivity.daysOffHelp': 'Op een vrije dag breekt je reeks niet. Haal je het dagdoel toch, dan telt de dag gewoon mee.',
   'productivity.daysOffMax': 'Er moet minstens één dag overblijven die meetelt.',
   'productivity.note': 'Hier telt elke taak die jij afvinkte, ook elke keer dat je een terugkerende taak afvinkte, in alle projecten die je nu ziet. Zet je een taak terug, dan telt die afvinking niet meer. Wat anderen afvinken, telt niet mee en is hier niet te zien.',
-  'productivity.retention': 'Het overzicht gaat {days} dagen terug: zo lang bewaart de server wat er gebeurde.',
+  'productivity.retention': 'Het overzicht gaat {days} dagen terug (een jaar).',
+  'productivity.yearWeeks': '52 weken',
 
   // ---------- bijlagen ----------
   'quick.sharedFiles': 'Wordt bijlage: {names}',

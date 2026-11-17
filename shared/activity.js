@@ -21,7 +21,7 @@ export const ACTIVITY_KINDS = Object.values(ACTIVITY_GROUPS).flat();
 export const LOGGED_TASK_FIELDS = ['content', 'description', 'priority', 'labels', 'due', 'deadline', 'duration', 'assignee_id'];
 
 /** Zo lang blijft een regel bewaard, en zoveel regels per project (de oudste gaan eraf). */
-export const ACTIVITY_RETENTION_DAYS = 180;
+export const ACTIVITY_RETENTION_DAYS = 400; // ruim een jaar: het productiviteitsoverzicht kijkt een jaar terug
 export const MAX_ACTIVITY_PER_PROJECT = 10_000;
 
 /** Een pagina: standaard zoveel regels, hooguit zoveel. */

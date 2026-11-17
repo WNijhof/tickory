@@ -68,9 +68,9 @@ test('alleen je eigen afvinkingen tellen: ook elke keer van een terugkerende taa
   assert.deepEqual(byProject(myStats(db, bram.id, { tz: 'Europe/Amsterdam' }, NOW)), { [P]: 1, [bram.inbox_project_id]: 1 }, 'Bram ziet alleen het zijne');
   assert.equal(a.tz, 'Europe/Amsterdam');
   assert.equal(a.today, '2026-11-14');
-  assert.equal(a.from, '2026-05-19');
-  assert.equal(a.days, 180);
-  assert.equal(a.retention_days, 180);
+  assert.equal(a.from, '2025-11-15');
+  assert.equal(a.days, 365);
+  assert.equal(a.retention_days, 365);
 });
 
 test('heropenen door jezelf schrapt je afvinking; door een ander niet; een geweigerde afvinking (lezer) telt niet', () => {
@@ -115,7 +115,7 @@ test('alleen projecten die je nu ziet: na vertrekken, eruit gehaald worden of ve
 
 test('dagen in de gevraagde tijdzone, anders die uit de instellingen, anders UTC; het venster is `days` dagen tot en met vandaag', () => {
   const { db, anna } = world();
-  const at = ['2026-11-13T22:30:00Z', '2026-11-13T23:30:00Z', '2026-11-08T23:30:00Z', '2026-11-07T23:30:00Z', '2026-05-18T12:00:00Z', '2026-11-14T20:00:00Z'];
+  const at = ['2026-11-13T22:30:00Z', '2026-11-13T23:30:00Z', '2026-11-08T23:30:00Z', '2026-11-07T23:30:00Z', '2025-11-14T12:00:00Z', '2026-11-14T20:00:00Z'];
   run(db, anna, at.map((_, i) => cmd('task_add', { id: task(30 + i), project_id: Q, content: `Taak ${i}` })));
   run(db, anna, at.map((_, i) => cmd('task_complete', { id: task(30 + i) })));
   for (const [i, iso] of at.entries()) db.prepare("UPDATE activity SET at = ? WHERE task_id = ? AND kind = 'task_completed'").run(iso, task(30 + i));
@@ -126,9 +126,9 @@ test('dagen in de gevraagde tijdzone, anders die uit de instellingen, anders UTC
   assert.deepEqual(totals(myStats(db, anna.id, { tz: 'UTC', days: '7' }, NOW)), { '2026-11-08': 1, '2026-11-13': 2, '2026-11-14': 1 });
   // Tokio (+9): 14 nov 07:30 en 08:30, 9 nov, 8 nov; 14 nov 20:00 UTC is daar al morgen en telt (nog) niet
   assert.deepEqual(totals(myStats(db, anna.id, { tz: 'Asia/Tokyo', days: '7' }, NOW)), { '2026-11-08': 1, '2026-11-09': 1, '2026-11-14': 2 });
-  const half = myStats(db, anna.id, { tz: 'UTC' }, NOW);
-  assert.equal(half.from, '2026-05-19');
-  assert.equal(totals(half)['2026-05-18'], undefined, 'ouder dan 180 dagen telt niet, ook als het logboek nog niet is opgeruimd');
+  const year = myStats(db, anna.id, { tz: 'UTC' }, NOW);
+  assert.equal(year.from, '2025-11-15');
+  assert.equal(totals(year)['2025-11-14'], undefined, 'ouder dan 365 dagen telt niet, ook als het logboek het nog heeft');
   // zonder tz: settings.timezone, en zonder (of met een onbekende) UTC
   assert.equal(myStats(db, anna.id, {}, NOW).tz, 'UTC');
   run(db, anna, [cmd('settings_update', { id: `settings-${anna.id}`, timezone: 'America/New_York' })]);
@@ -136,7 +136,7 @@ test('dagen in de gevraagde tijdzone, anders die uit de instellingen, anders UTC
   assert.equal(myStats(db, anna.id, { tz: 'Asia/Tokyo' }, NOW).tz, 'Asia/Tokyo', 'de gevraagde tijdzone gaat voor');
   db.prepare("UPDATE user_settings SET timezone = 'Verdwenen/Zone' WHERE owner_id = ?").run(anna.id); // een zone die een nieuwere Intl niet meer kent
   assert.equal(myStats(db, anna.id, {}, NOW).tz, 'UTC');
-  assert.throws(() => myStats(db, anna.id, { days: '181' }, NOW), (e: any) => e.code === 'INVALID_ARG');
+  assert.throws(() => myStats(db, anna.id, { days: '366' }, NOW), (e: any) => e.code === 'INVALID_ARG');
   assert.throws(() => myStats(db, anna.id, { tz: 'Mars/Olympus' }, NOW), (e: any) => e.code === 'INVALID_ARG');
 });
 
@@ -188,7 +188,7 @@ test('HTTP: GET /api/v1/stats alleen aangemeld en alleen voor jezelf; days en tz
     assert.deepEqual(mine.body.per_day, [{ date: today, count: 1, projects: { [P]: 1 } }]);
     assert.equal(mine.body.days, 7);
     assert.deepEqual((await get('/api/v1/stats?tz=UTC', bram)).body.per_day, [], 'Bram ziet het project, maar niet wat Anna deed');
-    assert.equal((await get('/api/v1/stats', anna)).body.days, 180, 'standaard zo ver als het logboek gaat');
+    assert.equal((await get('/api/v1/stats', anna)).body.days, 365, 'standaard een jaar');
     assert.equal((await get('/api/v1/stats', null)).status, 401);
     const bad = await get('/api/v1/stats?days=0', anna);
     assert.equal(bad.status, 400);

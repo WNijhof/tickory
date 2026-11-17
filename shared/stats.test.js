@@ -95,14 +95,16 @@ test('dagen: verschuiven op de tekst, zonder zomertijd, over maand-, jaar- en sc
   assert.equal(shiftDay('2026-11-14', -179), '2026-05-19');
 });
 
-test('vraag: days 1 tot 180 (standaard 180) en een bekende tijdzone', () => {
-  assert.equal(STATS_MAX_DAYS, ACTIVITY_RETENTION_DAYS, 'zo ver gaat het logboek terug');
-  assert.deepEqual(parseStatsQuery({}), { days: 180, tz: null });
-  assert.deepEqual(parseStatsQuery({ days: '', tz: '' }), { days: 180, tz: null });
+test('vraag: days 1 tot 365 (standaard 365) en een bekende tijdzone', () => {
+  assert.equal(STATS_MAX_DAYS, 365);
+  assert.ok(ACTIVITY_RETENTION_DAYS >= STATS_MAX_DAYS, 'het logboek gaat minstens zo ver terug');
+  assert.deepEqual(parseStatsQuery({}), { days: 365, tz: null });
+  assert.deepEqual(parseStatsQuery({ days: '', tz: '' }), { days: 365, tz: null });
   assert.deepEqual(parseStatsQuery({ days: '1', tz: 'UTC' }), { days: 1, tz: 'UTC' });
   assert.deepEqual(parseStatsQuery({ days: '180', tz: 'Europe/Amsterdam' }), { days: 180, tz: 'Europe/Amsterdam' });
   assert.deepEqual(parseStatsQuery({ days: '007' }), { days: 7, tz: null });
-  for (const days of ['0', '181', '-1', '1.5', 'x', '1000', ' 7']) assert.match(parseStatsQuery({ days }).error ?? '', /days moet 1 tot 180/, days);
+  assert.deepEqual(parseStatsQuery({ days: '365' }), { days: 365, tz: null });
+  for (const days of ['0', '366', '-1', '1.5', 'x', '1000', ' 7']) assert.match(parseStatsQuery({ days }).error ?? '', /days moet 1 tot 365/, days);
   for (const tz of ['Mars/Olympus', 'x'.repeat(65), 'Europe/Amsterdam ']) assert.match(parseStatsQuery({ tz }).error ?? '', /tz moet/, tz);
   assert.equal(isTimeZone('Asia/Kathmandu'), true);
   assert.equal(isTimeZone(''), false);
@@ -121,7 +123,7 @@ test('telling: per dag en per project, elke afvinking van een terugkerende taak 
     done('2026-11-13T08:00:00Z', 'rec'), done('2026-11-13T09:00:00Z', 'rec'), done('2026-11-14T08:00:00Z', 'rec', 'inbox-anna'),
   ], { tz: 'Europe/Amsterdam', nowMs: now, days: 7 });
   assert.deepEqual(r, {
-    tz: 'Europe/Amsterdam', today: '2026-11-14', from: '2026-11-08', days: 7, retention_days: 180,
+    tz: 'Europe/Amsterdam', today: '2026-11-14', from: '2026-11-08', days: 7, retention_days: 365,
     per_day: [
       { date: '2026-11-12', count: 2, projects: Object.assign(Object.create(null), { 'proj-a': 1, 'proj-b': 1 }) },
       { date: '2026-11-13', count: 2, projects: Object.assign(Object.create(null), { 'proj-a': 2 }) },

@@ -23,7 +23,8 @@ import { barChart } from './charts.js';
 
 export const isProductivityRoute = (route) => Boolean(route) && route.type === 'productivity';
 
-/** Op dit apparaat: 4 of 12 weken in het weekdiagram. */
+/** Op dit apparaat: 4, 12 of 52 weken in het weekdiagram. */
+const WEEK_CHOICES = [4, 12, 52];
 const WEEKS_KEY = 'tickory.productivityWeeks';
 /** Hoe lang een antwoord vers genoeg is om bij het openen niet opnieuw te vragen. */
 const FRESH_MS = 30_000;
@@ -77,7 +78,8 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   });
   let weeks = 12;
   try {
-    if (storage?.getItem(WEEKS_KEY) === '4') weeks = 4;
+    const saved = Number(storage?.getItem(WEEKS_KEY));
+    if (WEEK_CHOICES.includes(saved)) weeks = saved;
   } catch { /* geen opslag: 12 */ }
 
   // ---------- wanneer bijwerken ----------
@@ -290,11 +292,11 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
         } catch { /* niet bewaren */ }
         handlers.refresh();
       },
-    }, n === 4 ? t('productivity.fourWeeks') : t('productivity.twelveWeeks'));
+    }, n === 4 ? t('productivity.fourWeeks') : n === 12 ? t('productivity.twelveWeeks') : t('productivity.yearWeeks'));
     return h('section', { class: 'stats-section', 'aria-labelledby': 'stats-weeks-title' },
       h('div', { class: 'stats-section-head' },
         h('h2', { class: 'stats-heading', id: 'stats-weeks-title' }, t('productivity.perWeek')),
-        h('div', { class: 'view-switch', role: 'group', 'aria-label': t('productivity.weeksLabel') }, choice(4), choice(12))),
+        h('div', { class: 'view-switch', role: 'group', 'aria-label': t('productivity.weeksLabel') }, WEEK_CHOICES.map(choice))),
       barChart({
         bars: s.weeks.map((w) => ({
           label: String(w.week), name: t('productivity.weekName', { week: w.week, range: weekRange(locale, w.start) }), value: w.count,

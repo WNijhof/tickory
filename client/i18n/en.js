@@ -1836,7 +1836,8 @@ export default {
   'productivity.daysOffHelp': 'A day off does not break your streak. If you reach the daily goal anyway, the day counts.',
   'productivity.daysOffMax': 'At least one day has to count.',
   'productivity.note': 'This counts every task you completed, including every time you completed a recurring task, in all projects you can see now. If you reopen a task, that completion no longer counts. What others complete does not count and is not shown here.',
-  'productivity.retention': 'The overview goes back {days} days: that is how long the server keeps what happened.',
+  'productivity.retention': 'The overview goes back {days} days (a year).',
+  'productivity.yearWeeks': '52 weeks',
 
   // ---------- attachments ----------
   'quick.sharedFiles': 'Becomes an attachment: {names}',

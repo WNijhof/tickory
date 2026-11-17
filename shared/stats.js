@@ -14,7 +14,7 @@
 import { ACTIVITY_RETENTION_DAYS } from './activity.js';
 
 /** Zoveel dagen kan het overzicht teruggaan: zo lang bewaart de server het logboek. Ook de standaard. */
-export const STATS_MAX_DAYS = ACTIVITY_RETENTION_DAYS;
+export const STATS_MAX_DAYS = 365; // een jaar (het logboek blijft wat langer: ACTIVITY_RETENTION_DAYS)
 
 /** De doelen en hun grenzen. `null` in de instellingen betekent: de standaard. 0 = geen doel. */
 export const GOALS = {
@@ -84,7 +84,7 @@ export function shiftDay(day, n) {
 }
 
 /**
- * Controleert de vraag naar het overzicht (`?days=<1-180>&tz=<IANA-naam>`). Geeft `{ days, tz }` (tz null: de aanroeper kiest)
+ * Controleert de vraag naar het overzicht (`?days=<1-365>&tz=<IANA-naam>`). Geeft `{ days, tz }` (tz null: de aanroeper kiest)
  * of `{ error }`.
  * @param {{ days?: string | null, tz?: string | null }} q
  */
@@ -142,5 +142,5 @@ export function tallyCompletions(entries, { tz, nowMs, days }) {
     d.projects[c.project_id] = (d.projects[c.project_id] ?? 0) + 1;
   }
   const per_day = [...perDay.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
-  return { tz, today, from, days, retention_days: ACTIVITY_RETENTION_DAYS, per_day };
+  return { tz, today, from, days, retention_days: STATS_MAX_DAYS, per_day };
 }

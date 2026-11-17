@@ -80,8 +80,16 @@ export async function productivityScenario(c: any) {
   await waitFor(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length === 4`, 'vier weken');
   assert.equal(await evaluate(`localStorage.getItem('tickory.productivityWeeks')`), '4');
   assert.equal(await evaluate(`document.querySelector('[data-fk="stats-weeks-4"]').getAttribute('aria-pressed')`), 'true');
+  // een jaar: 52 weken, en het diagram blijft binnen de breedte van het scherm
+  await click('[data-fk="stats-weeks-52"]');
+  await waitFor(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length === 52`, 'een jaar');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.productivityWeeks')`), '52');
+  assert.ok(await evaluate(`document.querySelectorAll('.chart')[1].getBoundingClientRect().right <= document.documentElement.clientWidth + 1`), 'het weekdiagram past');
+  await shot('productiviteit-jaar');
+  await click('[data-fk="stats-weeks-4"]');
+  await waitFor(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length === 4`, 'weer vier weken');
   await shot('productiviteit');
-  step('productiviteit: het scherm met tegels, de laatste 7 dagen en 12 (of 4) weken als diagram met een verborgen tabel, dagnamen in het Nederlands, per project, kleuren uit de accentkleur');
+  step('productiviteit: het scherm met tegels, de laatste 7 dagen en 4, 12 of 52 weken als diagram met een verborgen tabel, dagnamen in het Nederlands, per project, kleuren uit de accentkleur');
 
   // ---- doelen: via de sync naar de server ----
   await evaluate(`(() => { const i = document.getElementById('goal-daily'); i.focus(); i.value = '2'; i.dispatchEvent(new Event('input', { bubbles: true })); i.dispatchEvent(new Event('change', { bubbles: true })); })()`);

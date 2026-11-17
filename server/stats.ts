@@ -1,5 +1,5 @@
 // Het productiviteitsoverzicht (SPEC.md, hoofdstuk 5g): hoeveel taken de gebruiker zelf per dag afvinkte, per project, uit het
-// activiteitenlogboek (activity.ts). Eén eindpunt, `GET /api/v1/stats?days=<1-180>&tz=<IANA-naam>`, alleen voor jezelf:
+// activiteitenlogboek (activity.ts). Eén eindpunt, `GET /api/v1/stats?days=<1-365>&tz=<IANA-naam>`, alleen voor jezelf:
 //   - alleen je eigen regels (`actor_id` = jij), `task_completed` en `task_uncompleted`; wat anderen deden komt er nooit in, ook
 //     niet in de telling per project;
 //   - alleen uit projecten die je nu ziet (lid in elke rol, project niet verwijderd), zoals het logboek zelf;
