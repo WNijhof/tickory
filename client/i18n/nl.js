@@ -1745,7 +1745,7 @@ export default {
   'completed.periodMonth': 'Deze maand',
   'completed.periodLastMonth': 'Vorige maand',
   'completed.periodCustom': 'Eigen periode',
-  'completed.periodFrom': 'Van',
+  'completed.periodFrom': 'Vanaf',
   'completed.periodTo': 'Tot en met',
   'completed.allProjects': 'Alle projecten',
   'completed.projectOption': '{name} ({count})',
