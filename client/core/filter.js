@@ -16,7 +16,7 @@
 // niet bestaat is een nette fout met een positie (zie FilterError), nooit een crash en nooit een stille lege uitkomst.
 
 import { addDays, dueStatus, nowString, todayString } from './format.js';
-import { parseDateText } from './dateNl.js';
+import { parseDateText } from './dateInput.js';
 import { isValidDate } from '../../shared/recurrence.js';
 import { isLocationActive, reminderMoment } from '../../shared/reminders.js';
 import { nameKey, normalizeText } from '../../shared/text.js';
@@ -178,10 +178,10 @@ function parseDay(text, env, tok) {
     if (!day) failAt('invalid_date', tok, { term: text });
     return day;
   }
-  // de Nederlandse datumherkenner; een herhaling ("elke dag") is geen datum. Zonder (`naturalDates: false`, zoals de
+  // de datumherkenners (Engels en Nederlands); een herhaling ("elke dag") is geen datum. Zonder (`naturalDates: false`, zoals de
   // Android-app, die alleen de vaste vormen hierboven kent) is de rest geen datum.
   if (!env.naturalDates) return null;
-  const due = parseDateText(text, env.now);
+  const due = parseDateText(text, env.now, 'en'); // de filtertaal is tweetalig: Engels en Nederlands (zie core/dateInput.js)
   if (due && !due.recurrence && typeof due.date === 'string') return due.date.slice(0, 10);
   return null;
 }

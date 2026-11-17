@@ -181,9 +181,8 @@ Authelia, Keycloak of Pocket ID achter https):
 
 ## Talen
 
-Nederlands is de standaardtaal (`app/src/main/res/values/strings.xml`), Engels staat in `values-en/strings.xml`. De app
-volgt de taal van het toestel; elke andere taal dan Engels krijgt Nederlands. De build maakt van de Nederlandse teksten
-ook een map `values-nl`, anders kiest Android bij de volgorde "Nederlands, daarna Engels" voor Engels.
+Engels is de standaardtaal (`app/src/main/res/values/strings.xml`), Nederlands staat in `values-nl/strings.xml`. De app
+volgt de taal van het toestel: Nederlands als dat in de taalvolgorde van het toestel staat, anders Engels.
 Een tekst toevoegen: in beide bestanden; `./gradlew lintDebug` meldt het als er een ontbreekt.
 
 ## Bouwen

@@ -3,10 +3,10 @@
 
 import { nameKey } from '../../shared/text.js';
 import { weakPasswordReason } from '../../shared/password.js';
-import { DEFAULT_LANGUAGE, getLanguage, t } from './i18n.js';
+import { getLanguage, t } from './i18n.js';
 
 /** De taal waarin de server zijn foutteksten schrijft. */
-const SERVER_LANGUAGE = DEFAULT_LANGUAGE;
+const SERVER_LANGUAGE = 'nl'; // de meldingen van de server zijn Nederlands
 
 /** Een fout van de server met een melding in de taal van de interface, geschikt om rechtstreeks te tonen. */
 export class ApiError extends Error {

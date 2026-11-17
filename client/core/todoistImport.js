@@ -35,7 +35,7 @@ import { isColorName } from './colors.js';
 import { parseDateEn } from './dateEn.js';
 import { parseDateText } from './dateNl.js';
 import { MAX_DURATION } from './duration.js';
-import { t } from './i18n.js';
+import { getLanguage, t } from './i18n.js';
 import { csvRows } from './templateFile.js';
 import { looksLikeZip, readZip } from './zip.js';
 
@@ -125,24 +125,24 @@ const sameRule = (a, b) => {
 };
 
 /**
- * Een datum uit de kolom DATE (of DEADLINE) als `due`, of null als die niet te lezen is. Een herhaling uit het Engels krijgt een
- * Nederlandse tekst (zodat het datumveld van de app hem weer leest), maar alleen als de Nederlandse herkenner daar precies
- * dezelfde regel uit haalt; anders blijft de Engelse tekst staan.
+ * Een datum uit de kolom DATE (of DEADLINE) als `due`, of null als die niet te lezen is. Is de app Engels, dan blijft een Engelse
+ * herhaling Engels (het datumveld leest die zelf). In de Nederlandse app krijgt ze een Nederlandse tekst (zodat het datumveld hem
+ * weer leest), maar alleen als de Nederlandse herkenner daar precies dezelfde regel uit haalt; anders blijft de Engelse tekst staan.
  * @returns {{ date: string, string?: string, lang?: string, recurrence?: object } | null}
  */
-export function readDate(text, lang, now) {
+export function readDate(text, lang, now, appLanguage = getLanguage()) {
   // een back-up herhaalt dezelfde teksten ("every monday", "Jan 12") vaak: één keer uitrekenen per import (zelfde `now`)
-  const key = JSON.stringify([now.getTime(), lang, text]);
+  const key = JSON.stringify([now.getTime(), lang, text, appLanguage]);
   if (!dateCache.has(key)) {
     if (dateCache.size >= 5000) dateCache.clear();
-    dateCache.set(key, readDateOnce(text, lang, now));
+    dateCache.set(key, readDateOnce(text, lang, now, appLanguage));
   }
   const due = dateCache.get(key);
   return due && structuredClone(due);
 }
 const dateCache = new Map();
 
-function readDateOnce(text, lang, now) {
+function readDateOnce(text, lang, now, appLanguage) {
   const value = line(text);
   if (!value) return null;
   const iso = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?Z?)?$/.exec(value);
@@ -157,6 +157,7 @@ function readDateOnce(text, lang, now) {
   if (!due || !isValidDate(due.date) || (due.recurrence && !isValidRecurrence(due.recurrence))) return null;
   if (!due.recurrence) return { date: due.date }; // een vaste datum: de tekst ("morgen") zegt later iets anders
   if (due.lang === 'nl') return { date: due.date, string: due.string.slice(0, 200), lang: 'nl', recurrence: due.recurrence };
+  if (appLanguage === 'en') return { date: due.date, string: due.string.slice(0, 200), lang: 'en', recurrence: due.recurrence };
   const dutch = dutchRepeatText(due.recurrence, due.date);
   const check = dutch ? parseDateText(dutch, now) : null;
   if (check?.recurrence && sameRule(check.recurrence, due.recurrence) && check.date.slice(10) === due.date.slice(10)) {

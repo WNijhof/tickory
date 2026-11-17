@@ -2,8 +2,8 @@
 // eigenschappen (project, datum, prioriteit, labels, toegewezen aan, deadline, herinneringen). Subtaken, opmerkingen en
 // herinneringen gaan direct door; de rest wordt pas bewaard met "Opslaan" (Ctrl+Enter of Cmd+Enter), "Annuleren" verwerpt.
 
-import { parseDateText } from '../core/dateNl.js';
-import { dateLanguageNote } from '../core/dateHint.js';
+import { parseDateText } from '../core/dateInput.js';
+import { dateExamplesNote } from '../core/dateHint.js';
 import { dayOf } from '../core/timeAgo.js';
 import { DURATION_CHOICES, formatDuration } from '../core/duration.js';
 import { formatDateInput, formatDueLong } from '../core/format.js';
@@ -185,17 +185,17 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     labelInput.addEventListener('change', () => { if (labelInput.value.trim()) addLabels(); });
     drawLabels();
 
-    // Onder het datumveld: wat er nu staat of wat het wordt. In een andere taal dan de datumtaal staat er bij een leeg
-    // veld en bij een niet herkende datum bij welke notaties wel werken (dateLanguageNote is in het Nederlands leeg).
+    // Onder het datumveld: wat er nu staat of wat het wordt. In het Engels staan er bij een leeg veld en bij een niet herkende
+    // datum voorbeelden die wel werken (dateExamplesNote is in het Nederlands leeg).
     const showDueHint = () => {
       const text = due.value.trim();
       if (!text || text === initialDue) {
-        dueHint.textContent = task.due && text ? t('task.dueNow', { date: formatDueLong(task.due, today()) }) : text ? '' : dateLanguageNote();
+        dueHint.textContent = task.due && text ? t('task.dueNow', { date: formatDueLong(task.due, today()) }) : text ? '' : dateExamplesNote();
         dueHint.classList.remove('hint-bad');
         return;
       }
       const parsed = parseDateText(text, new Date());
-      dueHint.textContent = parsed ? t('task.dueBecomes', { date: formatDueLong(parsed, today()) }) : [t('task.dueUnknown'), dateLanguageNote()].filter(Boolean).join(' ');
+      dueHint.textContent = parsed ? t('task.dueBecomes', { date: formatDueLong(parsed, today()) }) : [t('task.dueUnknown'), dateExamplesNote()].filter(Boolean).join(' ');
       dueHint.classList.toggle('hint-bad', !parsed);
     };
     due.addEventListener('input', showDueHint);

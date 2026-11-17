@@ -36,3 +36,30 @@ test('datums herkennen uit (Instellingen › Algemeen): "morgen 9:00-10:30" blij
   assert.equal(p.deadline, '2026-11-20');
   assert.equal(p.priority, 1);
 });
+
+test('snel toevoegen in het Engels: datums, herhalingen, tijdsbereik, deadline en herinneringen; cijfers werken ook', () => {
+  const view = { projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }]]), sections: new Map(), labels: new Map(), tasks: new Map(), members: new Map() };
+  const now = new Date(2026, 10, 16, 8, 0); // maandag 16 november 2026
+  const quick = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'en' });
+  const a = quick('Call the dentist tomorrow at 9am p1');
+  assert.deepEqual([a.content, a.due?.date, a.due?.lang, a.priority], ['Call the dentist', '2026-11-17T09:00', 'en', 1]);
+  const b = quick('Gym every monday at 7:30');
+  assert.deepEqual([b.content, b.due?.recurrence, b.due?.date], ['Gym', { freq: 'weekly', byweekday: [1] }, '2026-11-23T07:30'], 'vandaag 7:30 is al voorbij');
+  const c = quick('Meeting tomorrow from 9 to 10:30');
+  assert.deepEqual([c.content, c.due?.date, c.duration], ['Meeting', '2026-11-17T09:00', 90]);
+  const d = quick('Workshop friday 14:00-16:00');
+  assert.deepEqual([d.content, d.due?.date, d.duration], ['Workshop', '2026-11-20T14:00', 120]);
+  const e = quick('Send report {friday} tomorrow');
+  assert.deepEqual([e.content, e.deadline, e.due?.date], ['Send report', '2026-11-20', '2026-11-17']);
+  const f = quick('Flight tomorrow at 10am !1h !(30 minutes before) !(an hour before)');
+  assert.deepEqual([f.content, f.reminders], ['Flight', [{ type: 'relative', minute_offset: 60 }, { type: 'relative', minute_offset: 30 }]]);
+  const g = quick('Pay rent 31-12 p2');
+  assert.deepEqual([g.content, g.due?.date, g.priority], ['Pay rent', '2026-12-31', 2], 'cijfers via de Nederlandse herkenner');
+  const h = quick('Wake up !(tomorrow at 6am) tomorrow at 7am');
+  assert.deepEqual([h.content, h.reminders], ['Wake up', [{ type: 'absolute', due: { date: '2026-11-17T06:00' } }]]);
+  assert.equal(quick('Buy sun cream').due, null);
+  // in het Nederlands verandert er niets
+  const nl = parseQuickAdd('Tandarts bellen morgen om 9 uur p1', { view, now, defaultProjectId: 'inbox', language: 'nl' });
+  assert.deepEqual([nl.content, nl.due?.date, nl.due?.lang], ['Tandarts bellen', '2026-11-17T09:00', 'nl']);
+  assert.equal(parseQuickAdd('Call the dentist tomorrow', { view, now, defaultProjectId: 'inbox', language: 'nl' }).due, null, 'in het Nederlands geen Engelse datums');
+});

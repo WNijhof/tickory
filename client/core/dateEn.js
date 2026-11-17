@@ -1,20 +1,24 @@
-// Een kleine Engelse datumherkenner, alleen voor het importeren uit Todoist (core/todoistImport.js). De datumherkenning van de app
-// is Nederlands (core/dateNl.js); wie Todoist in het Engels gebruikte, heeft in zijn back-up datums als "every monday",
-// "Jan 12" of "tomorrow at 9am" (kolom DATE, met DATE_LANG "en"). Dit leest de gangbare vormen; wat er niet tussen zit geeft
-// null, en de import zet die tekst dan in de beschrijving in plaats van iets te raden.
+// Een Engelse datumherkenner. Twee gebruikers:
+// - de app in het Engels (core/dateInput.js): het datumveld leest de hele tekst met parseDateEn, en snel toevoegen zoekt met
+//   parseDueEn een datum in de titel ("Call mom tomorrow at 6pm");
+// - het importeren uit Todoist (core/todoistImport.js): wie Todoist in het Engels gebruikte, heeft in zijn back-up datums als
+//   "every monday", "Jan 12" of "tomorrow at 9am" (kolom DATE, met DATE_LANG "en"). Wat er niet tussen zit geeft null, en de
+//   import zet die tekst dan in de beschrijving in plaats van iets te raden.
 //
 // Herkend (hoofdletters, komma's en een punt achter een maand doen er niet toe):
 //   eenmalig    today · tod · tomorrow · tom · yesterday · next week · next month · in 3 days · in 2 weeks · monday · next fri
 //               Jan 12 · January 12th · 12 Jan · 12th of January · Jan 12 2027 · 12 Jan 2027 · 2026-12-01 · 2026-12-01T09:30
 //   herhaling   every day · daily · every 3 days · every other week · every week · weekly · every monday · every mon, wed and fri
 //               every other monday · every weekday · every workday · every weekend · every month · every month on the 15th
-//               every 15th · every last day · every first monday · every last friday of the month · every year · every jan 12
-//               every 12 January · every year on jan 12 · every! 3 days (vanaf het afvinken) · ev / ev! als afkorting
+//               every 15th · every last day · every 2 months on the last day · every first monday · every last friday of the month
+//               every year · every jan 12 · every 12 January · every year on jan 12 · every 2 years on 12 january
+//               every! 3 days (vanaf het afvinken) · ev / ev! als afkorting
 //   tijd        at 9am · 9am · 9:30 · 9:30pm · at 14:00 · 14:00 · at noon · at midnight (overal in de tekst, hooguit één keer)
 // Een datum zonder jaar ("Jan 12") is de dichtstbijzijnde: in een back-up kan een taak al over tijd zijn, en "Nov 10" op
 // 14 november is dan vier dagen geleden, niet volgend jaar.
 
 import { isValidDate, isValidRecurrence } from '../../shared/recurrence.js';
+import { normalizeText } from '../../shared/text.js';
 import { firstOccurrence, localDate } from './dateNl.js';
 
 const WEEKDAYS = {
@@ -166,16 +170,23 @@ function recurrenceRule(body, today) {
     const day = Number(m[2]);
     return day >= 1 && day <= 31 && n && n <= 1000 ? { rule: withInterval({ freq: 'monthly', bymonthday: day }, n) } : null;
   }
-  if (/^(?:month\s+on\s+the\s+)?last\s+day(?:\s+of\s+(?:the|every)\s+month)?$/.test(body)) return { rule: { freq: 'monthly', bymonthday: 31 } };
+  m = new RegExp(`^(?:(?:(${NUM})\\s+)?months?\\s+on\\s+the\\s+)?last\\s+day(?:\\s+of\\s+(?:the|every)\\s+month)?$`).exec(body);
+  if (m) {
+    const n = readNumber(m[1] || undefined);
+    return n && n <= 1000 ? { rule: withInterval({ freq: 'monthly', bymonthday: 31 }, n) } : null;
+  }
   m = new RegExp(`^(?:months?\\s+on\\s+)?(?:the\\s+)?(${ORD})\\s+(${WD})(?:\\s+of\\s+(?:the|every)\\s+month)?$`).exec(body);
   if (m) return { rule: { freq: 'monthly', byweekday: [WEEKDAYS[m[2]]], nth: ORDINALS[m[1]] } };
-  const yearBody = body.replace(/^year\s+on\s+/, '');
+  const everyYears = new RegExp(`^(?:(${NUM})\\s+)?years?\\s+on\\s+(.+)$`).exec(body);
+  const years = everyYears ? readNumber(everyYears[1] || undefined) : 1;
+  if (!years || years > 1000) return null;
+  const yearBody = everyYears ? everyYears[2] : body;
   m = MONTH_DAY.exec(yearBody);
   const md = m ? { day: Number(m[2]), month: MONTHS[m[1]] } : (m = DAY_MONTH.exec(yearBody)) ? { day: Number(m[1]), month: MONTHS[m[2]] } : null;
   if (md && !m[3]) {
     // de eerstvolgende keer, vandaag meegeteld
     for (const y of [today.getFullYear(), today.getFullYear() + 1, today.getFullYear() + 2, today.getFullYear() + 3, today.getFullYear() + 4]) {
-      if (validYmd(y, md.month, md.day) && new Date(y, md.month - 1, md.day) >= today) return { rule: { freq: 'yearly', bymonthday: md.day }, anchor: new Date(y, md.month - 1, md.day) };
+      if (validYmd(y, md.month, md.day) && new Date(y, md.month - 1, md.day) >= today) return { rule: withInterval({ freq: 'yearly', bymonthday: md.day }, years), anchor: new Date(y, md.month - 1, md.day) };
     }
   }
   return null;
@@ -222,4 +233,69 @@ export function parseDateEn(text, now = new Date()) {
   if (!day) return null;
   const date = stamp(day);
   return isValidDate(date) ? { date, string: original, lang: 'en' } : null;
+}
+
+// ---------- een datum in de titel van een taak (snel toevoegen in het Engels) ----------
+
+// Korte vormen die ook gewone woorden of namen zijn ("Call Tom", "Buy sun cream") tellen in een titel niet los als datum:
+// "tom" en "tod" nooit, een afgekorte weekdag alleen na next/this/on/every/each/ev, na "and" of "&", of na een andere weekdag.
+const NEVER_INLINE = new Set(['tom', 'tod']);
+const SHORT_WEEKDAYS = new Set(['mon', 'tue', 'tues', 'wed', 'thu', 'thur', 'thurs', 'fri', 'sat', 'sun']);
+const INTRO = new Set(['next', 'this', 'on', 'every', 'every!', 'each', 'ev', 'ev!', 'and', '&']);
+// Snelle voorselectie: zonder cijfer of een van deze woorden staat er zeker geen datum in.
+const HINT = new RegExp(`\\d|(?:^|[^\\p{L}])(?:today|tomorrow|tmrw?|yesterday|next|every|ev|each|daily|weekly|monthly|yearly|annually|noon|midday|midnight|${WD}|${MON})(?!\\p{L})`, 'iu');
+const MAX_WORDS = 10; // "every last friday of the month at 9am" is er acht
+
+const bareWord = (word) => word.toLowerCase().replace(/[,.]+$/, '');
+
+function allowedInTitle(words) {
+  for (let i = 0; i < words.length; i++) {
+    const w = bareWord(words[i]);
+    if (NEVER_INLINE.has(w)) return false;
+    if (SHORT_WEEKDAYS.has(w)) {
+      const before = i > 0 ? bareWord(words[i - 1]) : null;
+      if (!before || !(INTRO.has(before) || Object.hasOwn(WEEKDAYS, before))) return false;
+    }
+  }
+  return true;
+}
+
+const tidy = (s) => s.replace(/\s+/g, ' ').replace(/\s+([,.])/g, '$1').replace(/[\s,]+$/, '').trim();
+
+/**
+ * Zoekt een Engelse datum of herhaling in de titel van een taak, zoals core/dateNl.js dat in het Nederlands doet:
+ * "Call mom tomorrow at 6pm", "Gym every mon, wed and fri at 7am", "Report next friday", "Pay rent every 1st".
+ * Het langste stuk dat als datum te lezen is wint; bij gelijke lengte het laatste. Een tilde ervoor ("Watch ~Tomorrow")
+ * betekent: geen datum, en de tilde verdwijnt; een tilde aan het begin van de regel geldt voor de hele regel.
+ * @param {string} text
+ * @param {Date} [now]
+ * @returns {{ content: string, due: object | null, range: [number, number] | null } | null}
+ */
+export function parseDueEn(text, now = new Date()) {
+  if (typeof text !== 'string') return null;
+  const source = normalizeText(text);
+  if (!source.trim() || source.length > 500) return null;
+  if (source.trimStart().startsWith('~')) return { content: tidy(source.trimStart().slice(1)), due: null, range: null }; // de hele regel: geen datum
+  if (!HINT.test(source)) return null;
+  const words = [...source.matchAll(/\S+/g)].map((m) => ({ word: m[0], start: m.index, end: m.index + m[0].length }));
+  let best = null;
+  for (let i = 0; i < words.length; i++) {
+    const escaped = words[i].word.startsWith('~');
+    for (let j = Math.min(words.length, i + MAX_WORDS); j > i; j--) {
+      if (best && j - i < best.length) break; // korter dan wat er al gevonden is
+      const part = words.slice(i, j).map((w) => w.word);
+      if (escaped) part[0] = part[0].slice(1);
+      if (!allowedInTitle(part)) continue;
+      const due = parseDateEn(part.join(' '), now);
+      if (!due) continue;
+      best = { i, j, length: j - i, due, escaped }; // even lang als het vorige: dit staat verder naar rechts en wint
+      break;
+    }
+  }
+  if (!best) return null;
+  const start = words[best.i].start;
+  const end = words[best.j - 1].end;
+  if (best.escaped) return { content: tidy(source.slice(0, start) + source.slice(start + 1)), due: null, range: null };
+  const string = source.slice(start, end).replace(/[,.]+$/, '');
+  return { content: tidy(`${source.slice(0, start)} ${source.slice(end)}`), due: { ...best.due, string }, range: [start, start + string.length] };
 }

@@ -64,7 +64,7 @@ test('het manifest voor Chrome en Edge: Manifest V3 met de verplichte velden, en
   assert.equal(chrome.version, pkg.version);
   assert.match(chrome.version, /^\d+(\.\d+){0,3}$/);
   assert.equal(version(), pkg.version);
-  assert.equal(chrome.default_locale, 'nl', 'Nederlands is de standaard');
+  assert.equal(chrome.default_locale, 'en', 'Engels is de standaard (de basistaal)');
   for (const key of ['name', 'description']) assert.match(chrome[key], /^__MSG_\w+__$/, key);
   assert.ok(chrome.name.length <= 75 && chrome.short_name.length <= 12);
   assert.deepEqual(Object.keys(chrome.icons).map(Number), ICON_SIZES);

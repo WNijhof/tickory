@@ -170,6 +170,13 @@ test('datum: wat de Nederlandse datumherkenner kent werkt ook (donderdag, overmo
   assert.deepEqual(hits('vóór: donderdag', DATES), where((d) => d < '2026-11-12'));
 });
 
+test('datum: ook de Engelse datumherkenner (thursday, in 2 days, before: next thursday), in elke taal van de app', () => {
+  assert.deepEqual(hits('thursday', DATES), ['tomorrow']);
+  assert.deepEqual(hits('in 2 days', DATES), ['rec']);
+  assert.deepEqual(hits('before: thursday', DATES), where((d) => d < '2026-11-12'));
+  assert.deepEqual(hits('after: next thursday', DATES), where((d) => d > '2026-11-12'));
+});
+
 test('vóór: en na: vergelijken op dag, zonder tijdstip', () => {
   for (const [nl, en] of [['vóór', 'before'], ['voor', 'before'], ['VÓÓR', 'Before']]) {
     assert.deepEqual(hits(`${nl}: 31-12`, DATES), where((d) => d < '2026-12-31'), nl);

@@ -19,9 +19,13 @@
     "width": 2240,
     "height": 2000
   },
+  "tijdlijn-week": {
+    "width": 2240,
+    "height": 2000
+  },
   "snel-toevoegen": {
     "width": 1680,
-    "height": 732
+    "height": 736
   },
   "taak-bewerken": {
     "width": 2056,
@@ -29,7 +33,7 @@
   },
   "taak-toevoegen": {
     "width": 1336,
-    "height": 856
+    "height": 880
   },
   "projectmenu": {
     "width": 976,
@@ -37,7 +41,7 @@
   },
   "project-bewerken": {
     "width": 976,
-    "height": 846
+    "height": 1092
   },
   "sneltoetsen": {
     "width": 976,
@@ -45,7 +49,7 @@
   },
   "zoeken": {
     "width": 1456,
-    "height": 772
+    "height": 688
   },
   "filter-fout": {
     "width": 1296,
@@ -65,15 +69,15 @@
   },
   "herinneringen": {
     "width": 558,
-    "height": 720
+    "height": 694
   },
   "delen": {
     "width": 1296,
-    "height": 1044
+    "height": 1340
   },
   "instellingen": {
     "width": 976,
-    "height": 1490
+    "height": 1594
   },
   "meldingen": {
     "width": 1296,
@@ -81,7 +85,7 @@
   },
   "account": {
     "width": 1296,
-    "height": 1532
+    "height": 1938
   },
   "gebruikersbeheer": {
     "width": 1296,
@@ -121,146 +125,142 @@
   },
   "productiviteit": {
     "width": 1680,
-    "height": 3000
+    "height": 3030
   },
   "telefoon-productiviteit": {
     "width": 780,
     "height": 1560
   },
-  "en/vandaag": {
+  "nl/vandaag": {
     "width": 2240,
     "height": 1440
   },
-  "en/binnenkort": {
+  "nl/binnenkort": {
     "width": 2240,
     "height": 1440
   },
-  "en/project": {
+  "nl/project": {
     "width": 2240,
     "height": 1440
   },
-  "en/bord": {
+  "nl/bord": {
     "width": 1950,
     "height": 950
   },
-  "en/kalender": {
+  "nl/kalender": {
     "width": 2240,
     "height": 2000
   },
-  "en/snel-toevoegen": {
-    "width": 1680,
-    "height": 732
+  "nl/tijdlijn-week": {
+    "width": 2240,
+    "height": 2000
   },
-  "en/taak-bewerken": {
+  "nl/snel-toevoegen": {
+    "width": 1680,
+    "height": 736
+  },
+  "nl/taak-bewerken": {
     "width": 2056,
     "height": 2016
   },
-  "en/taak-toevoegen": {
+  "nl/taak-toevoegen": {
     "width": 1336,
-    "height": 856
+    "height": 880
   },
-  "en/projectmenu": {
+  "nl/projectmenu": {
     "width": 976,
     "height": 1388
   },
-  "en/project-bewerken": {
+  "nl/project-bewerken": {
     "width": 976,
-    "height": 846
+    "height": 1092
   },
-  "en/sneltoetsen": {
+  "nl/sneltoetsen": {
     "width": 976,
-    "height": 2348
+    "height": 2376
   },
-  "en/zoeken": {
+  "nl/zoeken": {
     "width": 1456,
     "height": 772
   },
-  "en/filter-fout": {
+  "nl/filter-fout": {
     "width": 1296,
     "height": 1252
   },
-  "en/filter-venster": {
+  "nl/filter-venster": {
     "width": 1296,
     "height": 1154
   },
-  "en/filter": {
+  "nl/filter": {
     "width": 2240,
     "height": 1440
   },
-  "en/labels": {
+  "nl/labels": {
     "width": 2240,
     "height": 1440
   },
-  "en/herinneringen": {
+  "nl/herinneringen": {
     "width": 558,
-    "height": 694
+    "height": 720
   },
-  "en/delen": {
+  "nl/delen": {
     "width": 1296,
-    "height": 1044
+    "height": 1340
   },
-  "en/instellingen": {
+  "nl/instellingen": {
     "width": 976,
-    "height": 1490
+    "height": 1594
   },
-  "en/meldingen": {
+  "nl/meldingen": {
     "width": 1296,
     "height": 1550
   },
-  "en/account": {
+  "nl/account": {
     "width": 1296,
-    "height": 1532
+    "height": 1938
   },
-  "en/gebruikersbeheer": {
+  "nl/gebruikersbeheer": {
     "width": 1296,
     "height": 1428
   },
-  "en/telefoon-vandaag": {
+  "nl/telefoon-vandaag": {
     "width": 780,
     "height": 1560
   },
-  "en/telefoon-project": {
+  "nl/telefoon-project": {
     "width": 780,
     "height": 1560
   },
-  "en/telefoon-bord": {
+  "nl/telefoon-bord": {
     "width": 780,
     "height": 1560
   },
-  "en/telefoon-kalender": {
+  "nl/telefoon-kalender": {
     "width": 780,
     "height": 1560
   },
-  "en/telefoon-menu": {
+  "nl/telefoon-menu": {
     "width": 780,
     "height": 1560
   },
-  "en/telefoon-zoeken": {
+  "nl/telefoon-zoeken": {
     "width": 780,
     "height": 1560
   },
-  "en/selecteren": {
+  "nl/selecteren": {
     "width": 2240,
     "height": 1440
   },
-  "en/voltooid": {
+  "nl/voltooid": {
     "width": 2240,
     "height": 1440
   },
-  "en/productiviteit": {
+  "nl/productiviteit": {
     "width": 1680,
-    "height": 3030
+    "height": 3000
   },
-  "en/telefoon-productiviteit": {
+  "nl/telefoon-productiviteit": {
     "width": 780,
     "height": 1560
-  },
-  "tijdlijn-week": {
-    "width": 2240,
-    "height": 2000
-  },
-  "en/tijdlijn-week": {
-    "width": 2240,
-    "height": 2000
   }
 }

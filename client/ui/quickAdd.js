@@ -1,7 +1,7 @@
 // Snel toevoegen: de voorvertoning onder het invoerveld (voor de balk bovenaan en voor het venster "Taak toevoegen"),
 // en dat venster zelf.
 
-import { dateLanguageNote, mentionsEnglishDate } from '../core/dateHint.js';
+import { dateExamplesNote, mentionsEnglishDate } from '../core/dateHint.js';
 import { clockText, formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
 import { getLanguage, t } from '../core/i18n.js';
 import { offsetText } from '../core/reminderText.js';
@@ -27,9 +27,9 @@ export function previewChips(text, { view, context }) {
   const p = parseQuickAdd(text, { view, now: new Date(), ...context });
   const today = todayString();
   const chip = (kind, label) => h('span', { class: `chip chip-${kind}` }, label);
-  // Typt iemand een Engelse datum ("tomorrow") die niet is herkend, dan zeggen we erbij dat datums in gewone taal nu alleen
-  // in het Nederlands werken. In het Nederlands is die uitleg leeg en verandert er niets.
-  const dateNote = (!p.due || p.due === context.defaultDue) && mentionsEnglishDate(p.content) ? dateLanguageNote() : '';
+  // Typt iemand in het Engels iets dat op een datum lijkt maar niet is herkend ("tonight"), dan staan er voorbeelden die wel
+  // werken. In het Nederlands is die uitleg leeg en verandert er niets.
+  const dateNote = (!p.due || p.due === context.defaultDue) && mentionsEnglishDate(p.content) ? dateExamplesNote() : '';
   return [
     chip('title', p.content || t('quick.noName')),
     p.due && p.due !== context.defaultDue && chip('due', formatDue(p.due, today)),

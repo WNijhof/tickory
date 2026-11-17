@@ -3,8 +3,8 @@
 // wat erbij past en hoe het wordt ingevuld; ui/quickSuggest.js tekent de lijst.
 
 import { foldText } from './fold.js';
-import { parseDateText } from './dateNl.js';
-import { t } from './i18n.js';
+import { parseDateText } from './dateInput.js';
+import { getLanguage, t } from './i18n.js';
 
 /** Zo lang mag wat na het teken staat zijn om nog naar suggesties te zoeken (namen mogen spaties hebben). */
 const MAX_QUERY = 40;
@@ -67,14 +67,15 @@ export function suggestions(token, { projects = [], sections = [], labels = [], 
     }
     case '{': {
       if (!now) return [];
-      // letterlijke sleutels: wat er in de tekst komt is Nederlands (de datumherkenning is Nederlands), het label in de taal van de app;
+      // wat er in de tekst komt is in de taal van de datumherkenning (die van de interface, zie core/dateInput.js);
       // de datum ernaast rekent de datumherkenning zelf uit, zodat die precies klopt met wat er straks wordt bewaard
+      const english = getLanguage() === 'en';
       const options = [
-        { id: 'today', words: 'vandaag', label: t('quick.deadlineToday') },
-        { id: 'tomorrow', words: 'morgen', label: t('quick.deadlineTomorrow') },
-        { id: 'friday', words: 'vrijdag', label: t('quick.deadlineFriday') },
-        { id: 'nextWeek', words: 'volgende week', label: t('quick.deadlineNextWeek') },
-        { id: 'month', words: 'over een maand', label: t('quick.deadlineMonth') },
+        { id: 'today', words: english ? 'today' : 'vandaag', label: t('quick.deadlineToday') },
+        { id: 'tomorrow', words: english ? 'tomorrow' : 'morgen', label: t('quick.deadlineTomorrow') },
+        { id: 'friday', words: english ? 'friday' : 'vrijdag', label: t('quick.deadlineFriday') },
+        { id: 'nextWeek', words: english ? 'next week' : 'volgende week', label: t('quick.deadlineNextWeek') },
+        { id: 'month', words: english ? 'in a month' : 'over een maand', label: t('quick.deadlineMonth') },
       ];
       return options.filter((o) => !q || foldText(`${o.words} ${o.label}`).includes(q))
         .map((o) => ({ kind: 'date', id: o.id, label: o.label, insert: `{${o.words}} `, hint: parseDateText(o.words, now)?.date?.slice(0, 10) }));

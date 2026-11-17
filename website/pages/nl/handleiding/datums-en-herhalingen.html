@@ -1,6 +1,6 @@
 <!--
 title: Datums en herhalingen
-description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijpt, met voorbeelden: morgen, over twee weken, elke tweede dinsdag, voor Sinterklaas, en meer.
+description: Alle datums en herhalingen die Tickory in gewoon Nederlands (en in het Engels) begrijpt, met voorbeelden: morgen, over twee weken, elke tweede dinsdag, voor Sinterklaas, en meer.
 -->
 <h1>Datums en herhalingen</h1>
 <p class="intro">Een datum typ je zoals je hem zegt. De app herkent hem in de regel waarmee je een taak toevoegt, en in het veld Datum als je een taak bewerkt.</p>
@@ -9,7 +9,7 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
 
 <div class="note">
   <span class="note-label">Goed om te weten</span>
-  <p>De app is tweetalig, maar de datumtaal is voorlopig Nederlands, ook als je de interface op Engels zet. Engelse invoer zoals <em>tomorrow</em> wordt niet herkend; Engelse datumtaal komt later. Wat in elke taal werkt: <code>31-12</code>, <code>31-12-2026</code> en, in het veld Datum, <code>2026-12-31</code> en <code>2026-12-31T14:30</code>.</p>
+  <p>Datums volgen de taal van de app. In de Nederlandse interface wordt Nederlands herkend; staat de interface op Engels, dan Engels en Nederlands (zie <a href="#in-het-engels">In het Engels</a>). Wat in elke taal werkt: <code>31-12</code>, <code>31-12-2026</code> en, in het veld Datum, <code>2026-12-31</code> en <code>2026-12-31T14:30</code>.</p>
 </div>
 
 <h2>Een dag</h2>
@@ -274,8 +274,108 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
   <li><code>elke vijfde dinsdag</code>: een vijfde dinsdag bestaat niet in elke maand. Gebruik <code>elke laatste dinsdag</code>.</li>
   <li><code>elke tweede week van de maand</code>, en herhalingen met een einddatum of een maximum aantal keren.</li>
   <li>Een herhaling “zoveel dagen nadat ik de taak heb afgevinkt”: de volgende keer hangt altijd af van de vorige datum.</li>
-  <li>Datums in het verleden, en Engelse of andere talen.</li>
+  <li>Datums in het verleden, en andere talen dan Nederlands en Engels.</li>
 </ul>
+
+<h2 id="in-het-engels">In het Engels</h2>
+<p>Staat de interface op Engels, dan typ je datums in het Engels: in de regel waarmee je een taak toevoegt, in het veld Datum, bij een {deadline} en bij een herinnering. De Nederlandse vormen hierboven werken daar ook, en cijfers als <code>31-12</code> en <code>31-12-2026</code> in beide talen. Staat er in een regel allebei, dan wint de langste datum. In de Nederlandse interface wordt alleen Nederlands herkend.</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Dat wordt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17">today</code></td><td class="wrap-ok">vandaag, dinsdag 17 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-18">tomorrow</code></td><td class="wrap-ok">morgen, woensdag 18 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-20">friday</code></td><td class="wrap-ok">de eerstvolgende vrijdag, 20 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-20">next friday</code></td><td class="wrap-ok">dezelfde vrijdag, 20 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-23">next week</code></td><td class="wrap-ok">maandag van volgende week, 23 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-01">next month</code></td><td class="wrap-ok">de eerste van volgende maand, 1 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-20">in 3 days</code></td><td class="wrap-ok">over 3 dagen: vrijdag 20 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-01">in two weeks</code></td><td class="wrap-ok">over twee weken: dinsdag 1 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-17">in a month</code></td><td class="wrap-ok">over een maand: donderdag 17 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2027-11-17">in 1 year</code></td><td class="wrap-ok">over een jaar: 17 november 2027</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-31">Dec 31</code></td><td class="wrap-ok">donderdag 31 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-31">31 December</code></td><td class="wrap-ok">dezelfde dag</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2027-01-12">January 12th</code></td><td class="wrap-ok">de dichtstbijzijnde 12 januari: in 2027</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2027-01-12">12 Jan 2027</code></td><td class="wrap-ok">dinsdag 12 januari 2027</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-31">2026-12-31</code></td><td class="wrap-ok">een ISO-datum: 31 december 2026</td></tr>
+    </tbody>
+  </table>
+</div>
+<h3>Een tijdstip in het Engels</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Dat wordt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-18T09:00">tomorrow at 9am</code></td><td class="wrap-ok">morgen om 9:00</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-20T14:30">friday at 2:30pm</code></td><td class="wrap-ok">vrijdag 20 november om 14:30</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17T14:00">at 14:00</code></td><td class="wrap-ok">vandaag om 14:00</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-18T12:00">tomorrow at noon</code></td><td class="wrap-ok">morgen om 12:00</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17T21:00">9pm</code></td><td class="wrap-ok">vandaag om 21:00</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-23T08:15">monday at 8:15</code></td><td class="wrap-ok">maandag 23 november om 8:15</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Zonder am of pm is de klok 24 uur: <code>at 9</code> is 9:00 's ochtends.</p>
+<h3>Herhalingen in het Engels</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Dat wordt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"daily"}'>every day</code></td><td class="wrap-ok">elke dag, vanaf vandaag</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"daily"}'>daily</code></td><td class="wrap-ok">hetzelfde</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"daily","interval":3}'>every 3 days</code></td><td class="wrap-ok">elke derde dag, vanaf vandaag</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"weekly","byweekday":[1,2,3,4,5]}'>every weekday</code></td><td class="wrap-ok">maandag tot en met vrijdag</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-21" data-rule='{"freq":"weekly","byweekday":[6,7]}'>every weekend</code></td><td class="wrap-ok">zaterdag en zondag, voor het eerst zaterdag 21 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-23" data-rule='{"freq":"weekly","byweekday":[1]}'>every monday</code></td><td class="wrap-ok">elke maandag, voor het eerst 23 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-18T07:00" data-rule='{"freq":"weekly","byweekday":[1,3,5]}'>every mon, wed and fri at 7am</code></td><td class="wrap-ok">drie dagen per week om 7:00, voor het eerst woensdag 18 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"weekly","interval":2}'>every other week</code></td><td class="wrap-ok">om de twee weken</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-15" data-rule='{"freq":"monthly","bymonthday":15}'>every month on the 15th</code></td><td class="wrap-ok">de 15e van elke maand, voor het eerst 15 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-30" data-rule='{"freq":"monthly","bymonthday":31}'>every last day</code></td><td class="wrap-ok">de laatste dag van elke maand, voor het eerst 30 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-07" data-rule='{"freq":"monthly","byweekday":[1],"nth":1}'>every first monday</code></td><td class="wrap-ok">de eerste maandag van de maand, voor het eerst 7 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-27" data-rule='{"freq":"monthly","byweekday":[5],"nth":-1}'>every last friday</code></td><td class="wrap-ok">de laatste vrijdag van de maand, voor het eerst 27 november</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-12-05" data-rule='{"freq":"yearly","bymonthday":5}'>every year on 5 december</code></td><td class="wrap-ok">elk jaar op 5 december</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2027-01-12" data-rule='{"freq":"yearly","bymonthday":12}'>every jan 12</code></td><td class="wrap-ok">elk jaar op 12 januari, voor het eerst in 2027</td></tr>
+      <tr><td><code class="ex" data-lang="en" data-date="2026-11-17" data-rule='{"freq":"daily","interval":3,"fromCompletion":true}'>every! 3 days</code></td><td class="wrap-ok">drie dagen nadat je hem afvinkt</td></tr>
+    </tbody>
+  </table>
+</div>
+<h3>In een regel met een taak</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Naam van de taak</th><th>Datum</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="wrap-ok"><code class="ex-title" data-lang="en" data-date="2026-11-18T09:00" data-title="Call the dentist">Call the dentist tomorrow at 9am</code></td><td class="wrap-ok">Call the dentist</td><td>wo 18 nov 9:00</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-lang="en" data-date="2026-11-18T07:00" data-rule='{"freq":"weekly","byweekday":[1,3,5]}' data-title="Gym">Gym every mon, wed and fri at 7am</code></td><td class="wrap-ok">Gym</td><td>↻ wo 18 nov 7:00</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-lang="en" data-date="2026-12-01" data-rule='{"freq":"monthly","bymonthday":1}' data-title="Pay rent">Pay rent every 1st</code></td><td class="wrap-ok">Pay rent</td><td>↻ di 1 dec</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-lang="en" data-date="2026-11-20" data-title="Send the report">Send the report next friday</code></td><td class="wrap-ok">Send the report</td><td>vr 20 nov</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-title" data-lang="en" data-date="2026-11-20T08:00" data-rule='{"freq":"daily","interval":3}' data-title="Water the plants">Water the plants every 3 days at 8am</code></td><td class="wrap-ok">Water the plants</td><td>↻ vr 20 nov 8:00</td></tr>
+    </tbody>
+  </table>
+</div>
+<h3>Wat tekst blijft</h3>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Je typt</th><th>Waarom er geen datum komt</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Call Tom">Call Tom</code></td><td class="wrap-ok"><em>tom</em> en <em>tod</em> zijn nooit kort voor tomorrow en today: het zijn ook namen.</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Buy sun cream">Buy sun cream</code></td><td class="wrap-ok">Een korte weekdag (<em>sun</em>, <em>sat</em>, <em>wed</em>) telt alleen na on, next, this, every of and.</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Plan next steps">Plan next steps</code></td><td class="wrap-ok"><em>next</em> zonder dag, week of maand is gewoon een woord.</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Read 1984">Read 1984</code></td><td class="wrap-ok">Een los getal is geen datum of tijd.</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Watch Tomorrow">Watch ~Tomorrow</code></td><td class="wrap-ok">Een <code>~</code> ervoor: geen datum, en de <code>~</code> verdwijnt.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>Nog niet in het Engels: <em>tonight</em>, <em>this weekend</em>, <em>end of the month</em>, feestdagen en dagdelen (<em>every morning</em>). Typ daarvoor de Nederlandse vorm (<code>dit weekend</code>, <code>elke ochtend</code>) of een datum.</p>
 
 <h2>Het veld Datum in het taakvenster</h2>
 <p>Klik op een taak en je vindt het veld <x-ui k="task.due"></x-ui>. Daar typ je dezelfde taal als hierboven. Onder het veld staat meteen wat de app ervan maakt (“Wordt: do 26 nov”), zodat je bij een aanduiding als “volgende week donderdag” ziet welke dag het wordt. Herkent de app de tekst niet, dan staat dat er en wordt de taak niet opgeslagen tot je het verbetert. Maak het veld leeg om de datum weg te halen. Heeft de taak al een datum, dan staat die in het veld als <code>17-11-2026 om 17:30</code> (een herhaling zoals je ze typte).</p>
@@ -291,7 +391,7 @@ description: Alle datums en herhalingen die Tickory in gewoon Nederlands begrijp
   <li><strong>Bij jaren:</strong> de datum.</li>
   <li><strong>Een tijd</strong> (niet verplicht), en <x-ui k="repeat.fromCompletion"></x-ui>: dan telt de volgende keer vanaf het moment dat je de taak afvinkt.</li>
 </ul>
-<p>Eronder staat wat het wordt en wanneer de eerste keer is (<em>Wordt: Om de 2 weken op maandag en donderdag om 9:00, voor het eerst do 19 nov 09:00</em>). Met <x-ui k="repeat.apply"></x-ui> (of Enter in een van de velden) komt de herhaling als tekst in het datumveld, bijvoorbeeld <code>elke 2 ma en do om 9:00</code>; je ziet dus ook hoe je hem de volgende keer zelf typt. Bewaard wordt pas met <x-ui k="common.save"></x-ui>. Escape sluit alleen het paneel.</p>
+<p>Eronder staat wat het wordt en wanneer de eerste keer is (<em>Wordt: Om de 2 weken op maandag en donderdag om 9:00, voor het eerst do 19 nov 09:00</em>). Met <x-ui k="repeat.apply"></x-ui> (of Enter in een van de velden) komt de herhaling als tekst in het datumveld, bijvoorbeeld <code>elke 2 ma en do om 9:00</code> (in de Engelse interface <code>every 2 mon and thu at 9:00</code>); je ziet dus ook hoe je hem de volgende keer zelf typt. Bewaard wordt pas met <x-ui k="common.save"></x-ui>. Escape sluit alleen het paneel.</p>
 
 <h2>Hoe datums in de lijst staan</h2>
 <ul>

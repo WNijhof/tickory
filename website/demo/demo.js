@@ -5,14 +5,15 @@
 //    en bij het verlaten van de pagina.
 // 2. De taal. Kom je van de Engelse website (…/demo/?lang=en), dan start de app in het Engels; zonder ?lang= volgt de app de
 //    taal van de browser, zoals altijd. In Instellingen kun je wisselen.
-// 3. De balk bovenaan. De tekst staat al in de pagina (Nederlands); is de taal Engels, dan wordt de balk Engels en wijst de
-//    link terug naar de Engelse pagina's. De namen van knoppen komen uit de woordenlijst van de app zelf.
+// 3. De balk bovenaan. De tekst staat al in de pagina (Engels, de basistaal); is de taal Nederlands, dan wordt de balk Nederlands.
+//    De link wijst terug naar de website in die taal. De namen van knoppen komen uit de woordenlijst van de app zelf.
+//    De voorbeeldgegevens volgen dezelfde taal (core/demoSeed.js, via core/backend.js).
 // 4. Geen meldingen (zie onderaan).
 // 5. Elke twee uur vers. Wie de demo langer open laat staan, krijgt na twee uur opnieuw de voorbeeldgegevens (met de datums van
 //    dat moment): de pagina laadt opnieuw. Ook als het tabblad lang op de achtergrond stond (dan lopen timers niet op tijd).
 
 import { LANGUAGE_KEY, getLanguage } from './core/i18n.js';
-import en from './i18n/en.js';
+import nl from './i18n/nl.js';
 
 const params = new URLSearchParams(location.search);
 const wanted = params.get('lang');
@@ -51,27 +52,27 @@ try {
 const bar = document.getElementById('demo-bar');
 const language = getLanguage();
 
-if (bar && language === 'en') {
-  bar.lang = 'en';
-  bar.querySelector('.demo-bar-long').textContent = 'This is a demo: changes are not saved.';
-  bar.querySelector('.demo-bar-short').textContent = 'Demo: nothing is saved.';
+if (bar && language === 'nl') {
+  bar.lang = 'nl';
+  bar.querySelector('.demo-bar-long').textContent = 'Dit is een demo: wijzigingen worden niet bewaard.';
+  bar.querySelector('.demo-bar-short').textContent = 'Demo: niets wordt bewaard.';
   bar.querySelector('.demo-tips > summary').textContent = 'Tips';
   bar.querySelector('.demo-tips-body').replaceChildren(
-    paragraph('Things to try:'),
+    paragraph('Om te proberen:'),
     list([
-      ['Type in the box at the top: ', code('Tandarts bellen morgen om 9 uur p1'), ' (call the dentist tomorrow at 9, priority 1; dates are typed in Dutch for now). A task with a time gets a reminder (🔔) by itself.'],
-      ['Open the task ', strong('Tandarts bellen voor controle'), ' to see and change its reminders.'],
-      ['Open ', strong('Huishouden'), ' (the sample household), choose ', strong(en['project.shared']), ' and add the username ', code('kees'), '.'],
-      ['Tick off a repeating task (↻): its date moves to the next time.'],
-      ['Notifications only come from your own server. In the demo you can see the reminders and the settings (', strong(en['settings.notifications']), '), but nothing goes off.'],
-      ['Reloading the page starts over with the sample data, and after two hours the demo starts fresh by itself.'],
+      ['Typ in het veld bovenaan: ', code('Tandarts bellen morgen om 9 uur p1'), '. Een taak met een tijd krijgt vanzelf een herinnering (🔔).'],
+      ['Open de taak ', strong('Tandarts bellen voor controle'), ' om haar herinneringen te zien en te wijzigen.'],
+      ['Open ', strong('Huishouden'), ', kies ', strong(nl['project.shared']), ' en voeg de gebruikersnaam ', code('kees'), ' toe.'],
+      ['Vink een taak met een herhaling (↻) af: de datum schuift door naar de volgende keer.'],
+      ['Meldingen komen alleen van je eigen server. In de demo zie je de herinneringen en de instellingen (', strong(nl['settings.notifications']), '), maar er gaat niets af.'],
+      ['Herlaad je de pagina, dan begint de demo opnieuw met de voorbeeldgegevens; na twee uur gebeurt dat vanzelf.'],
     ]),
   );
   const back = bar.querySelector('.demo-bar-link');
-  back.textContent = 'Back to the website';
-  back.href = '../en/';
-} else if (bar && wanted === 'nl') {
-  bar.querySelector('.demo-bar-link').href = '../nl/';
+  back.textContent = 'Naar de website';
+  back.href = '../nl/';
+} else if (bar && language === 'en') {
+  bar.querySelector('.demo-bar-link').href = '../en/';
 }
 
 // het tips-venster sluiten met Escape of door ernaast te klikken

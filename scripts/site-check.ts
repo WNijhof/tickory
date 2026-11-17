@@ -26,7 +26,7 @@ import { startSiteServer } from './serve-site.ts';
 import { findBrowser, js, launchBrowser, sleep } from './site-browser.ts';
 import type { Browser } from './site-browser.ts';
 import { CORNER, icon, rasterize } from './make-icons.js';
-import { parseDateText, parseDue } from '../client/core/dateNl.js';
+import { parseDateText, parseDue } from '../client/core/dateInput.js';
 import { parseQuickAdd } from '../client/core/quickadd.js';
 import { periodTitle } from '../client/core/calendar.js';
 import { todayString } from '../client/core/format.js';
@@ -174,7 +174,7 @@ if (wants('bestanden')) {
     const html = read('demo/index.html');
     assert.ok(!/\b(?:href|src)="\//.test(html), 'er staat een absoluut pad in demo/index.html');
     assert.ok(!/rel="manifest"/.test(html), 'de demo hoort geen manifest te hebben');
-    assert.match(html, /Dit is een demo: wijzigingen worden niet bewaard\./);
+    assert.match(html, /This is a demo: changes are not saved\./, 'de balk staat in de basistaal (Engels) in de pagina');
     assert.match(html, /<a class="demo-bar-link" href="\.\.\/">/);
     assert.match(html, /connect-src 'none'/, 'de pagina zelf verbiedt elk netwerkverzoek van scripts');
     assert.ok(html.indexOf('src="demo.js"') < html.indexOf('src="ui/app.js"'), 'demo.js hoort vóór de app te staan');
@@ -267,14 +267,15 @@ if (wants('bestanden')) {
   await check('datumvoorbeelden in de handleiding: elk voorbeeld geeft bij de echte herkenner precies wat erbij staat', () => {
     // De voorbeelden gaan uit van dinsdag 17 november 2026, 10:00 (dat staat ook op de pagina).
     const now = new Date(2026, 10, 17, 10, 0);
+    // de Nederlandse voorbeelden gaan uit van Thuis / Keuken en @bellen, de Engelse van Home / Kitchen en @calls
     const view = {
-      projects: new Map([['inbox-x', { id: 'inbox-x', name: 'Inbox' }], ['p-thuis', { id: 'p-thuis', name: 'Thuis' }]]),
-      sections: new Map([['s-keuken', { id: 's-keuken', project_id: 'p-thuis', name: 'Keuken' }]]),
-      labels: new Map([['l-bellen', { id: 'l-bellen', name: 'bellen' }]]),
+      projects: new Map([['inbox-x', { id: 'inbox-x', name: 'Inbox' }], ['p-thuis', { id: 'p-thuis', name: 'Thuis' }], ['p-home', { id: 'p-home', name: 'Home' }]]),
+      sections: new Map([['s-keuken', { id: 's-keuken', project_id: 'p-thuis', name: 'Keuken' }], ['s-kitchen', { id: 's-kitchen', project_id: 'p-home', name: 'Kitchen' }]]),
+      labels: new Map([['l-bellen', { id: 'l-bellen', name: 'bellen' }], ['l-calls', { id: 'l-calls', name: 'calls' }]]),
     };
     const decode = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
     const problems: string[] = [];
-    const counts = { date: 0, repeat: 0, title: 0, none: 0, quick: 0 };
+    const counts = { date: 0, repeat: 0, title: 0, none: 0, quick: 0, en: 0 };
     const pages = htmlPages.filter((p) => /^(nl|en)\//.test(p));
     for (const page of pages) {
       for (const m of read(page).matchAll(/<code class="(ex(?:-[a-z]+)?)"((?:\s+data-[a-z]+=(?:"[^"]*"|'[^']*'))*)>([^<]*)<\/code>/g)) {
@@ -282,6 +283,11 @@ if (wants('bestanden')) {
         const data: Record<string, string> = {};
         for (const a of m[2].matchAll(/data-([a-z]+)=(?:"([^"]*)"|'([^']*)')/g)) data[a[1]] = decode(a[2] ?? a[3]);
         const where = `${page}: "${text}"`;
+        // data-lang="en": een voorbeeld voor de Engelse interface (Engelse datums, met het Nederlands ernaast); anders Nederlands
+        const lang = data.lang === 'en' ? 'en' : 'nl';
+        if (data.lang !== undefined && data.lang !== 'en') problems.push(`${where}: onbekende data-lang "${data.lang}"`);
+        delete data.lang;
+        if (lang === 'en' && m[1] !== 'ex-filter') counts.en += 1;
         const expectDue = (due: any) => {
           if (!due) return problems.push(`${where} wordt niet als datum herkend`);
           if (data.date === undefined) return problems.push(`${where} heeft geen data-date (de verwachte datum)`);
@@ -296,24 +302,24 @@ if (wants('bestanden')) {
         };
         if (m[1] === 'ex') {
           // alleen een datum, zoals in het datumveld van een taak
-          const due = parseDateText(text, now);
+          const due = parseDateText(text, now, lang);
           counts[data.rule ? 'repeat' : 'date'] += 1;
           expectDue(due);
         } else if (m[1] === 'ex-title') {
           // een hele regel: de datum wordt uit de titel gehaald
-          const r = parseDue(text, now);
+          const r = parseDue(text, now, lang);
           counts.title += 1;
           expectDue(r?.due);
           if (r && data.title !== undefined && r.content !== data.title) problems.push(`${where} laat als titel "${r.content}" over, de pagina zegt "${data.title}"`);
         } else if (m[1] === 'ex-none') {
           // wordt bewust met rust gelaten
-          const r = parseDue(text, now);
+          const r = parseDue(text, now, lang);
           counts.none += 1;
           if (r?.due) problems.push(`${where} wordt wél als datum gelezen (${r.due.date}), de pagina zegt van niet`);
           if (data.title !== undefined && (r?.content ?? text) !== data.title) problems.push(`${where} wordt "${r?.content ?? text}", de pagina zegt "${data.title}"`);
         } else if (m[1] === 'ex-quick') {
           // snel toevoegen: project, sectie, labels, prioriteit en deadline
-          const q = parseQuickAdd(text, { view, now, defaultProjectId: 'inbox-x' });
+          const q = parseQuickAdd(text, { view, now, defaultProjectId: 'inbox-x', language: lang });
           counts.quick += 1;
           const got: Record<string, string> = {
             title: q.content, date: q.due?.date ?? '', prio: String(q.priority), deadline: q.deadline ?? '',
@@ -337,6 +343,7 @@ if (wants('bestanden')) {
     assert.deepEqual(problems, [], problems.join('\n'));
     // beide talen tonen dezelfde voorbeelden; samen dus minstens het dubbele van wat één handleiding hoort te hebben
     assert.ok(counts.date >= 2 * 20 && counts.repeat >= 2 * 15 && counts.title >= 2 * 4 && counts.none >= 2 * 5 && counts.quick >= 2 * 5, `te weinig gecontroleerde voorbeelden: ${JSON.stringify(counts)}`);
+    assert.ok(counts.en >= 2 * 40, `te weinig Engelse voorbeelden (data-lang="en"): ${counts.en}`);
     console.log(`    (${Object.values(counts).reduce((a, b) => a + b, 0)} voorbeelden: ${JSON.stringify(counts)})`);
   });
 
@@ -388,6 +395,13 @@ if (wants('demo')) {
       for (const [h, min] of [[0, 1], [10, 0], [23, 58]]) {
         const now = new Date(2026, 10, 13 + i, h, min);
         const seed = createSeed(now, { strict: true });
+        // de Engelse gegevens: alles vertaald, en verder precies dezelfde taken, datums, herhalingen en plekken
+        if (i % 2 === 0) {
+          const english = createSeed(now, { strict: true, language: 'en' });
+          const shape = (s: any) => [...s.state.tasks.values()].map((x: any) => [x.id, x.due?.date ?? null, JSON.stringify(x.due?.recurrence ?? null), x.project_id, x.section_id, x.parent_id, x.priority, x.deadline].join('|')).join('\n');
+          assert.equal(shape(english), shape(seed), `${now.toISOString()}: de Engelse voorbeeldgegevens wijken af`);
+          assert.equal(english.activity.length, seed.activity.length);
+        }
         const today = todayString(now);
         const t = todayView(seed.state, today);
         const label = now.toISOString();
@@ -1004,14 +1018,18 @@ if (wants('demo')) {
     const { search } = await load('demo/core/search.js');
     const { labelNameProblem } = await load('demo/core/labelManage.js');
     const { FILTER_TERM_GROUPS } = await load('demo/core/filterText.js');
-    const backend = createBackend();
+    const backend = createBackend({ language: 'nl' });
     const store = new Store(new MemoryAdapter());
     await store.init();
     const errors: any[] = [];
     const sync = new SyncClient({ store, transport: backend.transport, onCommandErrors: (e: any[]) => errors.push(...e) });
     const actions = createActions(store);
     assert.equal(await sync.syncNow(), true);
-    const ctx = () => ({ view: store.view, now: new Date(), userId: store.userId, users: store.users });
+    // de Engelse pagina's gaan uit van de Engelse demo, met Engelse voorbeeldgegevens
+    const storeEn = new Store(new MemoryAdapter());
+    await storeEn.init();
+    assert.equal(await new SyncClient({ store: storeEn, transport: createBackend({ language: 'en' }).transport }).syncNow(), true);
+    const ctx = (s: any = store) => ({ view: s.view, now: new Date(), userId: s.userId, users: s.users });
     const taskIdOf = (content: string) => [...store.view.tasks.values()].find((t: any) => t.content === content).id;
     const decode = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
     const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1025,15 +1043,16 @@ if (wants('demo')) {
         const data: Record<string, string> = {};
         for (const a of m[1].matchAll(/data-([a-z]+)="([^"]*)"/g)) data[a[1]] = decode(a[2]);
         const where = `${page}: "${text}"`;
+        const pageStore = page.startsWith('en/') ? storeEn : store;
         examples += 1;
         if (Object.keys(data).length === 0) problems.push(`${where}: geen verwachtingen`);
         if (data.error !== undefined) {
-          const r = compileFilter(text, ctx());
+          const r = compileFilter(text, ctx(pageStore));
           if (r.ok) problems.push(`${where} klopt, de pagina zegt dat er een fout (${data.error}) hoort te komen`);
           else if (r.error.code !== data.error) problems.push(`${where} geeft fout ${r.error.code}, de pagina zegt ${data.error}`);
           continue;
         }
-        const r = evaluateFilter(text, ctx());
+        const r = evaluateFilter(text, ctx(pageStore));
         if (!r.ok) { problems.push(`${where} geeft een fout (${r.error.code}), maar zou moeten werken`); continue; }
         const titles = new Set(r.tasks.map((t: any) => t.content));
         for (const t of (data.has ?? '').split('|').filter(Boolean)) if (!titles.has(t)) problems.push(`${where}: "${t}" ontbreekt in de uitkomst`);
@@ -1050,7 +1069,7 @@ if (wants('demo')) {
       const html = read(page);
       for (const group of FILTER_TERM_GROUPS) for (const term of group.terms) {
         if (!html.includes(`<code>${esc(term[lang])}</code>`)) termProblems.push(`${page}: de term "${term[lang]}" ontbreekt`);
-        compileFilter(term[lang], ctx()); // moet kunnen (zie ook de unit-test)
+        compileFilter(term[lang], ctx(lang === 'en' ? storeEn : store)); // moet kunnen (zie ook de unit-test)
       }
     }
     assert.deepEqual(termProblems, [], termProblems.join('\n'));
@@ -1194,7 +1213,8 @@ if (wants('browser')) {
       const taskDo = (content: string, selector: string) => evaluate(`(() => { const li = [...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(content)}); if (!li) throw new Error('geen taak: ' + ${js(content)}); li.querySelector(${js(selector)}).click(); })()`);
       const viewTitle = (text: string) => waitFor(`document.getElementById('view-title').textContent === ${js(text)}`, `scherm ${text}`);
       const toastSeen = (text: string) => waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent.startsWith(${js(text)}))`, `melding "${text}"`);
-      const openDemo = async (query = '') => {
+      // standaard Nederlands (ook in een Engelse browser): de voorbeeldgegevens volgen de taal bij het laden
+      const openDemo = async (query = '?lang=nl') => {
         await b.goto(`${site.url}demo/${query}`);
         await waitFor(`document.body.classList.contains('ready')`, 'de app is gestart');
         await waitFor(`await ${SYNCED}`, 'de voorbeeldgegevens zijn geladen');
@@ -1212,7 +1232,7 @@ if (wants('browser')) {
         assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '45 min', '1/4', '2', '@boodschappen', '🔔', 'voor jou', 'Huishouden / Boodschappen']);
         const bar = await evaluate<{ text: string; href: string; top: number; height: number }>(`(() => { const el = document.getElementById('demo-bar'); const r = el.getBoundingClientRect(); return { text: el.querySelector('.demo-bar-long').textContent, href: el.querySelector('.demo-bar-link').href, top: r.top, height: r.height }; })()`);
         assert.equal(bar.text, 'Dit is een demo: wijzigingen worden niet bewaard.');
-        assert.equal(bar.href, site.url, 'de link in de balk gaat terug naar de website');
+        assert.equal(bar.href, `${site.url}nl/`, 'de link in de balk gaat terug naar de website, in de taal van de demo');
         assert.ok(bar.top === 0 && bar.height > 30, 'de balk staat zichtbaar bovenaan');
         assert.ok(await evaluate(`document.querySelector('.topbar').getBoundingClientRect().top >= document.getElementById('demo-bar').getBoundingClientRect().bottom - 1`), 'de app begint onder de balk');
         assert.equal(await evaluate(`document.getElementById('sidebar').getBoundingClientRect().bottom <= window.innerHeight + 1`), true, 'de zijbalk (met Instellingen onderaan) past in beeld');
@@ -1814,7 +1834,7 @@ if (wants('browser')) {
         for (const lang of ['en', 'nl'] as const) { // eindigt in het Nederlands, zoals de controles hierna verwachten
           const nl = lang === 'nl';
           await b.viewport(1280, 860);
-          await openDemo(`?lang=${lang}`);
+          await openDemo(`?lang=${lang}&data=nl`);
           assert.equal(await evaluate(`document.querySelector('.search-field-text').textContent`), nl ? 'Zoeken' : 'Search');
           assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-section-link')].map((e) => e.textContent)`), ['Filters', 'Labels']);
           // zoeken: / opent het venster, hoofdletters en accenten tellen niet, Enter opent de eerste treffer
@@ -1923,7 +1943,7 @@ if (wants('browser')) {
           const nl = lang === 'nl';
           const locale = nl ? 'nl-NL' : 'en-GB';
           await b.viewport(1280, 860);
-          await openDemo(`?lang=${lang}`);
+          await openDemo(`?lang=${lang}&data=nl`);
           await nav('Huishouden');
           await viewTitle('Huishouden');
           assert.deepEqual(await evaluate(`[...document.querySelectorAll('.view-actions .view-switch button')].map((x) => x.textContent)`), nl ? ['Lijst', 'Bord', 'Kalender'] : ['List', 'Board', 'Calendar']);
@@ -2011,7 +2031,7 @@ if (wants('browser')) {
         for (const lang of ['en', 'nl'] as const) { // eindigt in het Nederlands, zoals de controles hierna verwachten
           const nl = lang === 'nl';
           await b.viewport(1280, 860);
-          await openDemo(`?lang=${lang}`);
+          await openDemo(`?lang=${lang}&data=nl`);
           await nav(nl ? 'Voltooid' : 'Completed');
           await waitFor(`document.querySelector('.stats-strip .stats-strip-value')`, 'de cijfers boven Voltooid');
           assert.deepEqual(await evaluate(`[...document.querySelectorAll('.stats-strip-label')].map((e) => e.textContent)`), nl ? ['Vandaag', 'Deze week', 'Reeks dagen'] : ['Today', 'This week', 'Daily streak']);
@@ -2119,15 +2139,20 @@ if (wants('browser')) {
         b.reset();
         await b.viewport(1280, 860);
         await openDemo('?lang=en');
+        // de Engelse demo heeft Engelse voorbeeldgegevens; E() geeft de Engelse naam (een ontbrekende vertaling is een fout)
+        const { seedText } = await import(pathToFileURL(join(SITE, 'demo', 'core', 'demoSeed.js')).href);
+        const E = (text: string): string => seedText(text, 'en', true);
         assert.equal(await evaluate(`document.documentElement.lang`), 'en');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Notes', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Today', 'Upcoming', 'Completed', 'Notifications', 'Notes', E('Huishouden'), E('Huishouden'), E('Vakantie Texel'), E('Fietsroute'), E('Buurtfeest'), E('Familieweekend'), 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Today');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-long').textContent`), 'This is a demo: changes are not saved.');
         assert.equal(await evaluate(`document.querySelector('.demo-bar-link').href`), `${site.url}en/`, 'de link in de balk gaat naar de Engelse website');
-        assert.ok((await chips('Boodschappen doen'))!.includes('🔔'), 'de bel staat ook in het Engels bij de taak');
+        const shownTitles = await titles();
+        assert.ok(shownTitles.length >= 5 && shownTitles.every((x) => seedText(x, 'en') === x), `de Engelse demo toont Engelse taken: ${shownTitles.join(' | ')}`);
+        assert.ok((await chips(E('Boodschappen doen')))!.includes('🔔'), 'de bel staat ook in het Engels bij de taak');
         await nav('Inbox');
         await viewTitle('Inbox');
-        await taskDo('Tandarts bellen voor controle', '.task-body');
+        await taskDo(E('Tandarts bellen voor controle'), '.task-body');
         await waitFor(`document.querySelector('#task-dialog[open]')`, 'taakvenster');
         const lines = await evaluate<string[]>(`[...document.querySelectorAll('#task-dialog section[aria-label="Reminders"] .device-info')].map((e) => e.textContent)`);
         assert.equal(lines.length, 3);
@@ -2216,10 +2241,10 @@ if (wants('browser')) {
         await b.send('Emulation.setUserAgentOverride', { userAgent: ua, acceptLanguage: 'nl-NL,nl' });
         b.reset();
         await b.goto(`${site.url}bestaat/niet.html`);
-        assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Pagina niet gevonden');
+        assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Page not found');
         assert.equal(b.requests[0].status, 404);
         assert.deepEqual(b.requests.slice(1).filter((r) => r.status !== 200).map((r) => r.url), [], 'het stijlblad en het beeldmerk van de 404-pagina laden ook vanaf een dieper adres');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('a')].map((a) => a.pathname)`), [`${BASE}nl/`, `${BASE}en/`]);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('a')].map((a) => a.pathname)`), [`${BASE}en/`, `${BASE}nl/`]);
       });
 
       await check('website: zoeken in de handleiding, taalwissel, menu op de telefoon en kopieerknop', async () => {

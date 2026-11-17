@@ -83,12 +83,13 @@ class DueTextTest {
     }
 
     @Test
-    fun `taalkeuze - alles wat geen Engels is, is Nederlands`() {
+    fun `taalkeuze - alles wat geen Nederlands is, is Engels`() {
         assertEquals(Lang.NL, Lang.of("nl"))
         assertEquals(Lang.EN, Lang.of("en"))
         assertEquals(Lang.EN, Lang.of("EN-us"))
-        assertEquals(Lang.NL, Lang.of("de"))
-        assertEquals(Lang.NL, Lang.of(""))
-        assertEquals(Lang.NL, Lang.of(null))
+        assertEquals("elke andere taal: Engels, de basistaal", Lang.EN, Lang.of("de"))
+        assertEquals(Lang.EN, Lang.of(""))
+        assertEquals(Lang.NL, Lang.of("nl-BE"))
+        assertEquals(Lang.EN, Lang.of(null))
     }
 }

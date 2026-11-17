@@ -150,6 +150,7 @@ const SHELL = [
   '/core/importPlan.js',
   '/core/todoistImport.js',
   '/core/dateEn.js',
+  '/core/dateInput.js',
   '/core/zip.js',
   '/core/theme.js',
   '/core/share.js',

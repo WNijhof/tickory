@@ -99,8 +99,8 @@ object QuickAddQueue {
     fun foreign(items: List<QueuedQuickAdd>, accountId: String?, session: String?): List<QueuedQuickAdd> =
         if (accountId == null) emptyList() else items.filter { if (it.accountId != null) it.accountId != accountId else it.session != session }
 
-    /** Het verzoek aan `POST /api/v1/quick-add` voor deze taak. */
-    fun requestBody(item: QueuedQuickAdd): String = Json.stringify(
+    /** Het verzoek aan `POST /api/v1/quick-add` voor deze taak. `lang` ("nl" of "en") is de taal waarin de server datums leest. */
+    fun requestBody(item: QueuedQuickAdd, lang: String? = null): String = Json.stringify(
         LinkedHashMap<String, Any?>().apply {
             put("text", item.text)
             if (item.projectId != null) put("project_id", item.projectId)
@@ -109,11 +109,12 @@ object QuickAddQueue {
             put("tz", item.tz)
             if (item.due != null) put("due", item.due)
             if (item.priority != null) put("priority", item.priority.toLong())
+            if (lang != null) put("lang", lang)
         },
     )
 
     /** De voorvertoning tijdens het typen (`dry_run`): niets wordt aangemaakt. */
-    fun previewBody(text: String, projectId: String?, due: String?, priority: Int?, typedAt: String, tz: String): String = Json.stringify(
+    fun previewBody(text: String, projectId: String?, due: String?, priority: Int?, typedAt: String, tz: String, lang: String? = null): String = Json.stringify(
         LinkedHashMap<String, Any?>().apply {
             put("text", text)
             if (projectId != null) put("project_id", projectId)
@@ -121,6 +122,7 @@ object QuickAddQueue {
             put("tz", tz)
             if (due != null) put("due", due)
             if (priority != null) put("priority", priority.toLong())
+            if (lang != null) put("lang", lang)
             put("dry_run", true)
         },
     )

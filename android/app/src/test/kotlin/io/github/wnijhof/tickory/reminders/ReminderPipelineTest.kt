@@ -318,13 +318,13 @@ class ReminderPipelineTest {
 
     @Test
     @Config(qualifiers = "de")
-    fun `op een toestel in een andere taal is de app Nederlands`() {
+    fun `op een toestel in een andere taal is de app Engels`() {
         ReminderEngine.onSynced(app, snapshot())
         AppClock.now = { trigger }
         fireAlarms()
         val notification = notifications.getNotification("rem-00001", 1)
-        assertEquals("Herinnering · vandaag 14:00", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
-        assertEquals(listOf("Voltooien", "Over 10 minuten", "Over 1 uur"), notification.actions.map { it.title.toString() })
+        assertEquals("Reminder · today 14:00", notification.extras.getCharSequence(Notification.EXTRA_TEXT).toString())
+        assertEquals(listOf("Complete", "In 10 minutes", "In 1 hour"), notification.actions.map { it.title.toString() })
     }
 
     @Test

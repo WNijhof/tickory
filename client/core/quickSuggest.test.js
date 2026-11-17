@@ -34,15 +34,16 @@ test('secties: van het project dat al in de tekst staat, anders van het project 
   assert.deepEqual(suggestions(tok('Agenda /'), { projects, sections, text: 'Agenda /' }), []);
 });
 
-test('deadline: vandaag, morgen, vrijdag, volgende week, over een maand; wat erin komt is Nederlands', () => {
+test('deadline: vandaag, morgen, vrijdag, volgende week, over een maand; wat erin komt is in de taal van de app', () => {
   setLanguage('en');
   const items = suggestions({ trigger: '{', query: '' }, { now: new Date(2026, 10, 16, 10, 0) }); // een maandag
   assert.deepEqual(items.map((s) => [s.label, s.insert, s.hint ?? null]), [
-    ['Today', '{vandaag} ', '2026-11-16'], ['Tomorrow', '{morgen} ', '2026-11-17'], ['Friday', '{vrijdag} ', '2026-11-20'],
-    ['Next week', '{volgende week} ', '2026-11-23'], ['In a month', '{over een maand} ', '2026-12-16'],
+    ['Today', '{today} ', '2026-11-16'], ['Tomorrow', '{tomorrow} ', '2026-11-17'], ['Friday', '{friday} ', '2026-11-20'],
+    ['Next week', '{next week} ', '2026-11-23'], ['In a month', '{in a month} ', '2026-12-16'],
   ]);
   assert.deepEqual(suggestions({ trigger: '{', query: 'mor' }, { now: new Date(2026, 10, 16, 10, 0) }).map((s) => s.id), ['tomorrow']);
   setLanguage('nl');
+  assert.deepEqual(suggestions({ trigger: '{', query: '' }, { now: new Date(2026, 10, 16, 10, 0) }).map((s) => s.insert), ['{vandaag} ', '{morgen} ', '{vrijdag} ', '{volgende week} ', '{over een maand} ']);
   assert.equal(suggestions({ trigger: '{', query: '' }, { now: new Date(2026, 10, 20, 10, 0) })[2].hint, '2026-11-20', 'op vrijdag is "vrijdag" vandaag, zoals de datumherkenning');
 });
 

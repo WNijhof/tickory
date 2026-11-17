@@ -13,8 +13,10 @@
 import nl from '../i18n/nl.js';
 import en from '../i18n/en.js';
 
-/** De hoofdtaal: de standaard zonder browser (in tests) en de terugval voor een ontbrekende sleutel. */
-export const DEFAULT_LANGUAGE = 'nl';
+/** De basistaal: de terugval voor een ontbrekende sleutel, en de taal als de browser niets over taal zegt. */
+export const DEFAULT_LANGUAGE = 'en';
+/** Zonder browser (de tests en de bouwserver) is de taal Nederlands: de tests zijn in het Nederlands geschreven. */
+const NODE_LANGUAGE = 'nl';
 
 /**
  * De talen van de interface. `name` is de naam in de taal zelf (zo vindt iedereen de eigen taal terug) en `locale`
@@ -39,7 +41,7 @@ const inBrowser = () => typeof document !== 'undefined';
 
 /**
  * Kiest de taal: eerst de opgeslagen voorkeur, dan de talen van de browser (begint er één met "nl", dan Nederlands;
- * anders Engels), en zonder browser de hoofdtaal.
+ * anders Engels), en zonder talen de basistaal (Engels).
  * @param {{ stored?: string | null, browserLanguages?: readonly string[] | null }} [input]
  * @returns {'nl' | 'en'}
  */
@@ -70,7 +72,7 @@ let current = null;
 
 /** De taal van de interface: 'nl' of 'en'. */
 export function getLanguage() {
-  current ??= detectLanguage({ stored: readStored(), browserLanguages: readBrowserLanguages() });
+  current ??= inBrowser() ? detectLanguage({ stored: readStored(), browserLanguages: readBrowserLanguages() }) : NODE_LANGUAGE;
   return current;
 }
 

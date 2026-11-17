@@ -1,12 +1,12 @@
 <!--
 title: Adding tasks
-description: Adding tasks quickly in Tickory: type one line with #project, /section, @label, p1 to p4, a {deadline} and a date in plain Dutch.
+description: Adding tasks quickly in Tickory: type one line with #project, /section, @label, p1 to p4, a {deadline}, a reminder and a date in plain English.
 -->
 <h1>Adding tasks</h1>
 <p class="intro">At the top of every screen there is a single input field. Type a line, press Enter, and the task is in: with a date, project, section, labels, priority and reminders if you type them along.</p>
-<p>The field says <em><x-ui k="quick.placeholder"></x-ui></em>. The symbols below work in both languages of the app; only the dates and recurrences you type are recognised in Dutch for now, so the examples on this page are Dutch, with a translation.</p>
+<p>The field says <em><x-ui k="quick.placeholder"></x-ui></em>. The symbols below work the same in both languages of the app. Dates and recurrences you type in the language of the app: in the English interface in English (the Dutch forms work too), in the Dutch interface in Dutch.</p>
 
-<x-shot name="snel-toevoegen" alt="The input field with the line 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u'. Below it, what was recognised: the name Loodgieter bellen, tomorrow 09:00, the section Klusjes, the label bellen, priority P1 and a reminder of one hour before.">While you type, the app shows below the field what it recognised. Whatever is not shown there simply stays in the name of the task.</x-shot>
+<x-shot name="snel-toevoegen" alt="The input field with the line 'Call the plumber tomorrow at 9am /Chores @calls p1 !1h'. Below it, what was recognised: the name Call the plumber, tomorrow 09:00, the section Chores, the label calls, priority P1 and a reminder of one hour before.">While you type, the app shows below the field what it recognised. Whatever is not shown there simply stays in the name of the task.</x-shot>
 
 <h2>The symbols at a glance</h2>
 <div class="table-wrap">
@@ -15,22 +15,22 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
       <tr><th>You type</th><th>Meaning</th></tr>
     </thead>
     <tbody>
-      <tr><td><code>#Thuis</code></td><td class="wrap-ok">Puts the task in the project Thuis.</td></tr>
-      <tr><td><code>/Keuken</code></td><td class="wrap-ok">Puts the task in the section Keuken of that project.</td></tr>
-      <tr><td><code>@bellen</code></td><td class="wrap-ok">Gives the task the label bellen. A label that does not exist yet is created.</td></tr>
+      <tr><td><code>#Home</code></td><td class="wrap-ok">Puts the task in the project Home.</td></tr>
+      <tr><td><code>/Kitchen</code></td><td class="wrap-ok">Puts the task in the section Kitchen of that project.</td></tr>
+      <tr><td><code>@calls</code></td><td class="wrap-ok">Gives the task the label calls. A label that does not exist yet is created.</td></tr>
       <tr><td><code>p1</code> to <code>p4</code></td><td class="wrap-ok">The priority; 1 is the highest. You can also type <code>!!1</code> to <code>!!4</code>.</td></tr>
-      <tr><td><code>{vrijdag}</code></td><td class="wrap-ok">A deadline: the final day, separate from the date on which you want to work on it.</td></tr>
-      <tr><td><code>morgen om 9 uur</code></td><td class="wrap-ok">A date or recurrence in plain Dutch (here: tomorrow at 9). See <a href="dates-and-recurrence.html">Dates and recurrences</a>.</td></tr>
-      <tr><td><code>!30m</code></td><td class="wrap-ok">A reminder: 30 minutes before. Also <code>!1u</code>, <code>!2d</code> and <code>!0</code> (at the time itself), or in plain Dutch between parentheses. See <a href="reminders.html#quick-add-with">Reminders</a>.</td></tr>
-      <tr><td><code>=45m</code></td><td class="wrap-ok">The duration of the task: 45 minutes. Also <code>=1u</code> (Dutch for hour), <code>=1u30</code> or <code>=1,5u</code>; a number without a unit is minutes. You see the duration in the list, and in the calendar a task with a time also shows its end time.</td></tr>
+      <tr><td><code>{friday}</code></td><td class="wrap-ok">A deadline: the final day, separate from the date on which you want to work on it.</td></tr>
+      <tr><td><code>tomorrow at 9am</code></td><td class="wrap-ok">A date or recurrence in plain English, such as <code>every monday</code>. See <a href="dates-and-recurrence.html">Dates and recurrences</a>.</td></tr>
+      <tr><td><code>!30m</code></td><td class="wrap-ok">A reminder: 30 minutes before. Also <code>!1h</code>, <code>!2d</code> and <code>!0</code> (at the time itself), or in plain language between parentheses: <code>!(an hour before)</code>. See <a href="reminders.html#quick-add-with">Reminders</a>.</td></tr>
+      <tr><td><code>=45m</code></td><td class="wrap-ok">The duration of the task: 45 minutes. Also <code>=1h</code>, <code>=1h30</code> or <code>=1.5h</code>; a number without a unit is minutes. You see the duration in the list, and in the calendar a task with a time also shows its end time.</td></tr>
       <tr><td><code>~</code></td><td class="wrap-ok">Switches date recognition off, for when a word just happens to look like a date.</td></tr>
     </tbody>
   </table>
 </div>
-<p>The order does not matter, and you do not have to use any of this: <code>Melk kopen</code> (buy milk) is a task too.</p>
+<p>The order does not matter, and you do not have to use any of this: <code>Buy milk</code> is a task too.</p>
 
 <h2>Examples</h2>
-<p>The examples assume Tuesday 17 November 2026, a project Thuis (home) with a section Keuken (kitchen), and an existing label bellen (calling).</p>
+<p>The examples assume Tuesday 17 November 2026, a project Home with a section Kitchen, and an existing label calls.</p>
 <div class="table-wrap">
   <table>
     <thead>
@@ -38,31 +38,31 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
     </thead>
     <tbody>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-project="Thuis" data-section="Keuken" data-labels="bellen" data-prio="1">Tandarts bellen morgen om 9 uur #Thuis /Keuken @bellen p1</code></td>
-        <td class="wrap-ok">“Tandarts bellen” (call the dentist), Wednesday 18 November at 9:00, in Thuis / Keuken, label bellen, priority 1</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Call the dentist" data-date="2026-11-18T09:00" data-project="Home" data-section="Kitchen" data-labels="calls" data-prio="1">Call the dentist tomorrow at 9am #Home /Kitchen @calls p1</code></td>
+        <td class="wrap-ok">“Call the dentist”, Wednesday 18 November at 9:00, in Home / Kitchen, label calls, priority 1</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Pay rent" data-date="2026-12-31" data-prio="1">Pay rent 31-12 p1</code></td>
-        <td class="wrap-ok">“Pay rent”, 31 December, priority 1 (this is the example in the input field of the English interface; a date like <code>31-12</code> works in any language)</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Call mom" data-date="2026-11-18T18:00" data-prio="1">Call mom tomorrow at 6pm p1</code></td>
+        <td class="wrap-ok">“Call mom”, tomorrow at 18:00, priority 1 (the example in the input field)</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Aangifte doen" data-date="" data-deadline="2026-12-31" data-prio="2" data-project="Inbox">Aangifte doen {31-12} !!2</code></td>
-        <td class="wrap-ok">“Aangifte doen” (file the tax return), no date, with deadline 31 December and priority 2</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="File the tax return" data-date="" data-deadline="2026-12-31" data-prio="2" data-project="Inbox">File the tax return {31-12} !!2</code></td>
+        <td class="wrap-ok">“File the tax return”, no date, with deadline 31 December and priority 2 (a date like <code>31-12</code> works in any language)</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Offerte nakijken" data-date="2026-11-19" data-deadline="2026-11-20" data-prio="2">Offerte nakijken donderdag {vrijdag} p2</code></td>
-        <td class="wrap-ok">“Offerte nakijken” (check the quote), to do on Thursday, to be finished by Friday</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Check the quote" data-date="2026-11-19" data-deadline="2026-11-20" data-prio="2">Check the quote thursday {friday} p2</code></td>
+        <td class="wrap-ok">“Check the quote”, to do on Thursday, to be finished by Friday</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Melk kopen" data-labels="boodschappen*" data-prio="4">Melk kopen @boodschappen</code></td>
-        <td class="wrap-ok">“Melk kopen” with the new label boodschappen (the preview below the field adds “(new)”)</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Buy milk" data-labels="shopping*" data-prio="4">Buy milk @shopping</code></td>
+        <td class="wrap-ok">“Buy milk” with the new label shopping (the preview below the field adds “(new)”)</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Oud papier" data-date="2026-12-08" data-project="Thuis">Oud papier elke tweede dinsdag #thuis</code></td>
-        <td class="wrap-ok">“Oud papier” (waste paper) in Thuis, every second Tuesday of the month; the first time on 8 December</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Paper recycling" data-date="2026-12-08" data-project="Home">Paper recycling every second tuesday #home</code></td>
+        <td class="wrap-ok">“Paper recycling” in Home, every second Tuesday of the month; the first time on 8 December</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Mail naar jan@voorbeeld.nl sturen" data-labels="" data-date="">Mail naar jan@voorbeeld.nl sturen</code></td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Send an email to jan@example.com" data-labels="" data-date="">Send an email to jan@example.com</code></td>
         <td class="wrap-ok">Stays exactly like that: a symbol only counts at the start of a word, so an e-mail address is not a label</td>
       </tr>
     </tbody>
@@ -79,7 +79,7 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
 <p>A new task goes to the bottom of the list. Changing the order of tasks is not possible yet.</p>
 
 <h2 id="the-add-task-window">The Add task window</h2>
-<x-shot name="taak-toevoegen" alt="The Add task window with the line 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u', a description, below that what was recognised (name, tomorrow 09:00, section Klusjes, label bellen, P1 and a reminder one hour before) and a drop-down list with the project Huishouden.">The Add task window, with the same line as the input field and below it what was recognised.</x-shot>
+<x-shot name="taak-toevoegen" alt="The Add task window with the line 'Call the plumber tomorrow at 9am /Chores @calls p1 !1h', a description, below that what was recognised (name, tomorrow 09:00, section Chores, label calls, P1 and a reminder one hour before) and a drop-down list with the project Household.">The Add task window, with the same line as the input field and below it what was recognised.</x-shot>
 <p>Choose <x-ui k="quick.addTask"></x-ui> in the sidebar, or the button with the same name under a section or in <x-ui k="nav.today"></x-ui>, or press <kbd>q</kbd>. A larger window opens with the same input: the line with <code>#</code>, <code>/</code>, <code>@</code>, <code>p1</code>, <code>!30m</code> and a date, a field for a description, the preview of what was recognised, and a drop-down list for the project. Choose <x-ui k="common.add"></x-ui> or press Enter in the line.</p>
 <ul>
   <li>The project is preset to the project you are in; under a section also to that section. From <x-ui k="nav.today"></x-ui> it is your Inbox, with today's date. Choose another project in the drop-down list, or type <code>#project</code> in the line (that wins).</li>
@@ -90,7 +90,7 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
 <p>When you type <code>#</code>, <code>/</code>, <code>@</code> or <code>{</code>, a list appears: your projects, the sections of the project (the one you already typed, or the one you add to), your labels, or a deadline (today, tomorrow, Friday, next week, in a month, with the date next to it). Keep typing to filter, choose with the arrow keys and <kbd>Enter</kbd> or <kbd>Tab</kbd>, or click; <kbd>Escape</kbd> closes the list. While the list is open, <kbd>Enter</kbd> does not add the task yet.</p>
 
 <h2 id="time-range">A time from … to …</h2>
-<p>With <code>9:00-10:30</code>, <code>18-19 uur</code> or <code>van 9 tot 10:30</code> the task gets the start as its time and the difference as its duration (here 1 hour and 30 minutes). Note: <code>9-10</code> without a colon or "uur" is a date (9 October), as in Dutch.</p>
+<p>With <code>9:00-10:30</code>, <code>14:00 - 15:30</code> or <code>from 9 to 10:30</code> the task gets the start as its time and the difference as its duration (here 1 hour and 30 minutes). Note: <code>9-10</code> without a colon or "from … to" is a date (9 October), the way dates are written in Dutch.</p>
 
 <h2 id="several-lines">Pasting several tasks at once</h2>
 <p>When you paste text with several lines (a list from an e-mail or a note), the app asks whether each line should become a task of its own. Bullets such as <code>-</code>, <code>*</code>, <code>1.</code> and <code>- [ ]</code> are removed; dates, <code>#project</code>, <code>@labels</code> and <code>p1</code> are recognised per line.</p>
@@ -105,10 +105,10 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
 <h2>The parts one by one</h2>
 
 <h3>Project: #</h3>
-<p>Type <code>#</code> followed by the name of an existing project. Capitals do not matter, and a name with spaces works too: with <code>#Vakantie Texel</code> the longest name that fits wins. A project that does not exist is not created; the text then stays in the name of the task. You create a new project with the <strong>+</strong> in the sidebar.</p>
+<p>Type <code>#</code> followed by the name of an existing project. Capitals do not matter, and a name with spaces works too: with <code>#Trip to Texel</code> the longest name that fits wins. A project that does not exist is not created; the text then stays in the name of the task. You create a new project with the <strong>+</strong> in the sidebar.</p>
 
 <h3>Section: /</h3>
-<p>Type <code>/</code> followed by the name of a section in the chosen project. If the section does not exist in that project, the text stays where it is. A word like <code>en/of</code> (and/or) is left alone.</p>
+<p>Type <code>/</code> followed by the name of a section in the chosen project. If the section does not exist in that project, the text stays where it is. A word like <code>and/or</code> is left alone.</p>
 
 <h3>Label: @</h3>
 <p>Type <code>@</code> followed by the name of the label. A label name here consists of letters, digits, <code>-</code> and <code>_</code>, without spaces. Capitals and accents do not matter: <code>@ÉÉN</code> is the same label as <code>@één</code>. You can put several labels on one line. Labels are personal; see <a href="sharing.html#what-stays-personal">what stays personal</a>.</p>
@@ -117,10 +117,10 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
 <p><code>p1</code> is the highest priority, <code>p4</code> means “none” and is also what a task gets when you type nothing. You can tell the priority from the colour of the circle in front of the task: red for P1, orange for P2, blue for P3.</p>
 
 <h3>Deadline: { }</h3>
-<p>A task has a <strong>date</strong> (when do you want to work on it) and can also have a <strong>deadline</strong> (when must it be finished at the latest). You put the deadline between braces: <code>{31-12}</code>, <code>{vrijdag}</code>, <code>{voor Sinterklaas}</code>. Between the braces you put a single day: a recurrence is not possible there, and a time is ignored.</p>
+<p>A task has a <strong>date</strong> (when do you want to work on it) and can also have a <strong>deadline</strong> (when must it be finished at the latest). You put the deadline between braces: <code>{31-12}</code>, <code>{friday}</code>, <code>{in two weeks}</code>. Between the braces you put a single day: a recurrence is not possible there, and a time is ignored.</p>
 
 <h3>Reminder: !</h3>
-<p>An exclamation mark with a number of minutes, hours or days before gives the task a reminder: <code>!30m</code>, <code>!1u</code> (<em>u</em> is the Dutch <em>uur</em>, hour), <code>!2d</code>; <code>!0</code> is at the time itself. That works on a task with a time. If you put no reminder in the line, a task with a time gets the automatic reminder by itself (30 minutes before by default). Everything about it is under <a href="reminders.html">Reminders</a>.</p>
+<p>An exclamation mark with a number of minutes, hours or days before gives the task a reminder: <code>!30m</code>, <code>!1h</code>, <code>!2d</code>; <code>!0</code> is at the time itself. That works on a task with a time. If you put no reminder in the line, a task with a time gets the automatic reminder by itself (30 minutes before by default). Everything about it is under <a href="reminders.html">Reminders</a>.</p>
 
 <h3>Switching date recognition off: ~</h3>
 <p>Sometimes a word looks like a date when it is not one. Type a <code>~</code> in that case:</p>
@@ -130,8 +130,8 @@ description: Adding tasks quickly in Tickory: type one line with #project, /sect
       <tr><th>You type</th><th>That becomes</th></tr>
     </thead>
     <tbody>
-      <tr><td><code class="ex-none" data-title="Bellen morgen">~Bellen morgen</code></td><td class="wrap-ok">“Bellen morgen”, without a date: a <code>~</code> at the start applies to the whole line</td></tr>
-      <tr><td><code class="ex-none" data-title="Vergadering elke maandag voorbereiden">Vergadering ~elke maandag voorbereiden</code></td><td class="wrap-ok">“Vergadering elke maandag voorbereiden”, without a recurrence: a <code>~</code> before a word applies to the date that starts there</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Call tomorrow">~Call tomorrow</code></td><td class="wrap-ok">“Call tomorrow”, without a date: a <code>~</code> at the start applies to the whole line</td></tr>
+      <tr><td><code class="ex-none" data-lang="en" data-title="Prepare the meeting every monday">Prepare the meeting ~every monday</code></td><td class="wrap-ok">“Prepare the meeting every monday”, without a recurrence: a <code>~</code> before a word applies to the date that starts there</td></tr>
     </tbody>
   </table>
 </div>

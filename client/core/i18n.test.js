@@ -11,7 +11,8 @@ import { DEFAULT_LANGUAGE, LANGUAGES, LANGUAGE_KEY, detectLanguage, getLanguage,
 import { addDays, formatDate, formatDateInput, formatDayHeading, formatDue, formatDueLong } from './format.js';
 import { describeCommand, describeCommandError } from './messages.js';
 import { ApiError, createApi, deviceName, displayNameProblem, passwordProblem, usernameProblem } from './auth.js';
-import { dateLanguageNote, mentionsEnglishDate } from './dateHint.js';
+import { dateExamplesNote, mentionsEnglishDate } from './dateHint.js';
+import { parseDateText as readDate } from './dateInput.js';
 import { parseDateText } from './dateNl.js';
 import { parseQuickAdd } from './quickadd.js';
 
@@ -247,11 +248,11 @@ test('geen module zoekt tekst op tijdens het laden (anders blijft die na het wis
   assert.equal(Object.getOwnPropertyDescriptor(nl, 'nav.today').value, 'Vandaag', 'het woordenboek is weer gewoon');
 });
 
-test('index.html: de vaste tekst is de Nederlandse uit het woordenboek, en het script zet precies die teksten in de gekozen taal', () => {
+test('index.html: de vaste tekst is de Engelse uit het woordenboek (de basistaal), en het script zet precies die teksten in de gekozen taal', () => {
   const html = readFileSync(resolve(clientDir, 'index.html'), 'utf8');
   const app = stripComments(readFileSync(resolve(clientDir, 'ui/app.js'), 'utf8'));
   const applyLanguage = app.slice(app.indexOf('function applyLanguage()'), app.indexOf('applyLanguage();'));
-  assert.match(html, /<html lang="nl">/, 'de terugval is Nederlands');
+  assert.match(html, /<html lang="en">/, 'de terugval is Engels');
   assert.match(applyLanguage, /document\.documentElement\.lang = getLanguage\(\)/);
   const fixed = [
     [/<aside id="sidebar"[^>]* aria-label="([^"]+)"/, 'shell.navigation'],
@@ -261,13 +262,13 @@ test('index.html: de vaste tekst is de Nederlandse uit het woordenboek, en het s
     [/<button class="button button-primary" type="submit">([^<]+)<\/button>/, 'common.add'],
   ];
   for (const [pattern, key] of fixed) {
-    assert.equal(pattern.exec(html)?.[1], nl[key], `index.html: de vaste tekst bij ${key}`);
+    assert.equal(pattern.exec(html)?.[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'), en[key], `index.html: de vaste tekst bij ${key}`);
     assert.ok(applyLanguage.includes(`t('${key}')`), `ui/app.js zet ${key} niet in de gekozen taal`);
   }
   // Meer tekst met letters staat er niet in de pagina zelf, behalve de naam van de app en de melding zonder JavaScript (in beide talen).
   const visible = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<noscript>[\s\S]*?<\/noscript>/, '').replace(/<[^>]+>/g, ' ').match(/\p{L}[\p{L} ]*/gu).map((s) => s.trim());
-  assert.deepEqual(visible, ['Tickory', 'Tickory', nl['common.add']]);
-  assert.match(html, /<noscript><p class="fatal">Deze app heeft JavaScript nodig\.<\/p><p class="fatal" lang="en">This app needs JavaScript\.<\/p><\/noscript>/);
+  assert.deepEqual(visible, ['Tickory', 'Tickory', en['common.add']]);
+  assert.match(html, /<noscript><p class="fatal">This app needs JavaScript\.<\/p><p class="fatal" lang="nl">Deze app heeft JavaScript nodig\.<\/p><\/noscript>/);
 });
 
 // ---------- t(): invulvelden, meervoud en terugval ----------
@@ -305,25 +306,23 @@ test('meervoud: Nederlands en Engels hebben elk enkelvoud (precies 1) en meervou
   assert.equal(t('sync.waiting'), '{count} wachtend');
 });
 
-test('een ontbrekende sleutel geeft nooit een lege tekst of een fout: eerst Nederlands, dan de sleutel zelf', () => {
+test('een ontbrekende sleutel geeft nooit een lege tekst of een fout: eerst de basistaal (Engels), dan de sleutel zelf', () => {
   assert.equal(t('bestaat.niet'), 'bestaat.niet');
   assert.equal(t('constructor'), 'constructor', 'geen eigenschappen van Object');
   assert.equal(t('toString', { count: 1 }), 'toString');
   assert.equal(t(undefined), 'undefined');
-  const saved = { today: en['nav.today'], waiting: en['sync.waiting'], nlToday: nl['nav.today'] };
+  const saved = { today: en['nav.today'], waiting: nl['sync.waiting'], nlToday: nl['nav.today'] };
   try {
+    delete nl['nav.today'];
+    nl['sync.waiting'] = '';
+    assert.equal(t('nav.today'), 'Today', 'ontbreekt de Nederlandse tekst, dan de Engelse (de basistaal)');
+    assert.equal(t('sync.waiting', { count: 2 }), en['sync.waiting'].other.replace('{count}', '2'), 'een lege Nederlandse tekst telt als ontbrekend');
+    assert.equal(t('nav.upcoming'), 'Aankomend');
     delete en['nav.today'];
-    en['sync.waiting'] = '';
-    inEnglish(() => {
-      assert.equal(t('nav.today'), 'Vandaag', 'ontbreekt de Engelse tekst, dan de Nederlandse');
-      assert.equal(t('sync.waiting', { count: 2 }), '2 wachtend', 'een lege Engelse tekst telt als ontbrekend');
-      assert.equal(t('nav.upcoming'), 'Upcoming');
-      delete nl['nav.today'];
-      assert.equal(t('nav.today'), 'nav.today', 'ontbreekt ook de Nederlandse, dan de sleutel');
-    });
+    assert.equal(t('nav.today'), 'nav.today', 'ontbreekt ook de Engelse, dan de sleutel');
   } finally {
     en['nav.today'] = saved.today;
-    en['sync.waiting'] = saved.waiting;
+    nl['sync.waiting'] = saved.waiting;
     nl['nav.today'] = saved.nlToday;
   }
   assert.equal(inEnglish(() => t('nav.today')), 'Today');
@@ -331,8 +330,8 @@ test('een ontbrekende sleutel geeft nooit een lege tekst of een fout: eerst Nede
 
 // ---------- de taalkeuze ----------
 
-test('taalkeuze: opgeslagen voorkeur, dan de talen van de browser, anders Nederlands', () => {
-  assert.equal(DEFAULT_LANGUAGE, 'nl');
+test('taalkeuze: opgeslagen voorkeur, dan de talen van de browser, anders Engels (de basistaal)', () => {
+  assert.equal(DEFAULT_LANGUAGE, 'en');
   assert.deepEqual(LANGUAGES.map((l) => l.code), ['nl', 'en']);
   assert.deepEqual(LANGUAGES.map((l) => l.name), ['Nederlands', 'English']);
   // 1. de opgeslagen voorkeur wint altijd
@@ -353,11 +352,11 @@ test('taalkeuze: opgeslagen voorkeur, dan de talen van de browser, anders Nederl
   assert.equal(detectLanguage({ browserLanguages: ['de-DE', 'fr'] }), 'en', 'elke andere taal krijgt Engels');
   assert.equal(detectLanguage({ browserLanguages: ['nb-NO', 'nn', 'ne'] }), 'en', 'alleen "nl", niet elke taal die met een n begint');
   assert.equal(detectLanguage({ browserLanguages: ['nlx'] }), 'en');
-  // 3. geen browser (zoals in deze tests): Nederlands
-  assert.equal(detectLanguage(), 'nl');
-  assert.equal(detectLanguage({ stored: null, browserLanguages: null }), 'nl');
-  assert.equal(detectLanguage({ browserLanguages: [] }), 'nl');
-  assert.equal(detectLanguage({ browserLanguages: ['', null] }), 'nl');
+  // 3. geen talen bekend: de basistaal, Engels
+  assert.equal(detectLanguage(), 'en');
+  assert.equal(detectLanguage({ stored: null, browserLanguages: null }), 'en');
+  assert.equal(detectLanguage({ browserLanguages: [] }), 'en');
+  assert.equal(detectLanguage({ browserLanguages: ['', null] }), 'en');
 });
 
 test('zonder browser is de taal Nederlands, ook als Node zelf een andere systeemtaal meldt', () => {
@@ -430,7 +429,7 @@ test('in de browser: de browsertaal kiest, de voorkeur wordt bewaard onder ticko
   await inFakeBrowser({ languages: ['de'] }, (i18n) => assert.equal(i18n.getLanguage(), 'en'));
   await inFakeBrowser({ languages: undefined, language: 'en-US' }, (i18n) => assert.equal(i18n.getLanguage(), 'en', 'een oude browser kent alleen navigator.language'));
   await inFakeBrowser({ languages: [], language: 'nl' }, (i18n) => assert.equal(i18n.getLanguage(), 'nl'));
-  await inFakeBrowser({ languages: [], language: '' }, (i18n) => assert.equal(i18n.getLanguage(), 'nl', 'een browser zonder taal: de hoofdtaal'));
+  await inFakeBrowser({ languages: [], language: '' }, (i18n) => assert.equal(i18n.getLanguage(), 'en', 'een browser zonder taal: de basistaal'));
   await inFakeBrowser({ stored: 'en', languages: ['nl-NL'] }, (i18n) => assert.equal(i18n.getLanguage(), 'en', 'de bewaarde voorkeur gaat voor de browsertaal'));
   await inFakeBrowser({ stored: 'nl', languages: ['en-US'] }, (i18n) => assert.equal(i18n.getLanguage(), 'nl'));
   await inFakeBrowser({ stored: 'klingon', languages: ['en-US'] }, (i18n) => assert.equal(i18n.getLanguage(), 'en', 'een onbekende voorkeur telt niet'));
@@ -542,52 +541,44 @@ test('de datum in het invoerveld is in elke taal weer te lezen door de datumherk
 
 // ---------- de datumtaal: eerlijke voorbeelden ----------
 
-test('elke datum die een tekst als voorbeeld noemt, wordt ook echt herkend', () => {
-  const now = new Date(2026, 10, 13, 10, 0);
+test('elke datum die een tekst als voorbeeld noemt, wordt ook echt herkend, in de taal van die tekst', () => {
+  const now = new Date(2026, 10, 13, 10, 0); // vrijdag 13 november 2026
   const view = { projects: new Map([['inbox-test', { id: 'inbox-test', name: 'Inbox' }]]), sections: new Map(), labels: new Map() };
-  const quick = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox-test' });
-  const numeric = /\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2})?|\b\d{1,2}-\d{1,2}(?:-\d{4})?\b/g;
+  const quick = (text, language) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox-test', language });
+  const quoted = (text) => (text.match(/"[^"]+"/g) ?? []).map((q) => q.slice(1, -1));
 
-  // Het datumveld in het bewerkvenster: alles wat het voorbeeld, de uitleg en de foutmelding noemen.
-  for (const key of ['task.duePlaceholder', 'task.dueError', 'date.dutchOnly']) {
-    const examples = en[key].match(numeric) ?? [];
-    assert.ok(examples.length >= 2, `en ${key}: verwacht voorbeelden van een datum, vond ${JSON.stringify(examples)}`);
-    for (const example of examples) assert.ok(parseDateText(example, now), `en ${key}: het voorbeeld "${example}" wordt niet herkend`);
+  // Het datumveld in het bewerkvenster: alles wat de uitleg en de foutmelding tussen aanhalingstekens noemen.
+  for (const [lang, dict] of [['en', en], ['nl', nl]]) {
+    for (const key of ['task.dueError', 'date.examples']) {
+      const examples = quoted(dict[key]);
+      assert.ok(examples.length >= 3, `${lang} ${key}: verwacht voorbeelden van een datum`);
+      for (const example of examples) assert.ok(readDate(example, now, lang), `${lang} ${key}: het voorbeeld "${example}" wordt niet herkend`);
+    }
+    for (const example of dict['task.duePlaceholder'].replace(/^(?:e\.g\.|bv\.) /, '').split(', ')) {
+      assert.ok(readDate(example, now, lang), `${lang} task.duePlaceholder: "${example}" wordt niet herkend`);
+    }
   }
-  assert.deepEqual(parseDateText('31-12', now), { date: '2026-12-31', string: '31-12', lang: 'nl' });
-  assert.deepEqual(parseDateText('31-12-2026', now)?.date, '2026-12-31');
-  assert.deepEqual(parseDateText('2026-12-31', now)?.date, '2026-12-31');
-  assert.deepEqual(parseDateText('2026-12-31T14:30', now)?.date, '2026-12-31T14:30');
-  for (const quoted of nl['task.dueError'].match(/"[^"]+"/g)) assert.ok(parseDateText(quoted.slice(1, -1), now), `nl task.dueError: ${quoted} wordt niet herkend`);
-  assert.ok(parseDateText('morgen om 9 uur', now) && parseDateText('elke maandag', now), 'de Nederlandse voorbeelden in het datumveld');
+  assert.deepEqual(readDate('31-12', now, 'en')?.date, '2026-12-31', 'cijfers werken ook in het Engels');
+  assert.deepEqual(readDate('2026-12-31T14:30', now, 'en')?.date, '2026-12-31T14:30');
+  assert.deepEqual(readDate('tomorrow at 9am', now, 'en'), { date: '2026-11-14T09:00', string: 'tomorrow at 9am', lang: 'en' });
+  assert.equal(readDate('tomorrow at 9am', now, 'nl'), null, 'in het Nederlands geen Engelse datums');
+  assert.ok(readDate('morgen om 9 uur', now, 'nl') && readDate('elke maandag', now, 'nl'), 'de Nederlandse voorbeelden in het datumveld');
 
-  // Snel toevoegen: het voorbeeld in het invoerveld, en de uitleg die eronder kan verschijnen.
-  const example = /e\.g\. (.+)$/.exec(en['quick.placeholder'])[1];
-  const parsed = quick(example);
-  assert.deepEqual({ content: parsed.content, due: parsed.due?.date, priority: parsed.priority }, { content: 'Pay rent', due: '2026-12-31', priority: 1 }, `en quick.placeholder: "${example}"`);
-  const nlExample = quick(/bv\. (.+)$/.exec(nl['quick.placeholder'])[1]);
+  // Snel toevoegen: het voorbeeld in het invoerveld.
+  const example = quick(/e\.g\. (.+)$/.exec(en['quick.placeholder'])[1], 'en');
+  assert.deepEqual({ content: example.content, due: example.due?.date, priority: example.priority }, { content: 'Call mom', due: '2026-11-14T18:00', priority: 1 }, 'en quick.placeholder');
+  const nlExample = quick(/bv\. (.+)$/.exec(nl['quick.placeholder'])[1], 'nl');
   assert.deepEqual({ content: nlExample.content, due: nlExample.due?.date, priority: nlExample.priority }, { content: 'Bellen', due: '2026-11-14', priority: 1 });
-  for (const found of en['date.dutchOnly'].match(numeric)) {
-    const p = quick(`Call the dentist ${found}`);
-    assert.deepEqual({ content: p.content, due: p.due?.date }, { content: 'Call the dentist', due: '2026-12-31' }, `en date.dutchOnly: "${found}" werkt niet bij snel toevoegen`);
-  }
-
-  // Wat de Engelse teksten bewust níet beloven: dit herkent de herkenner (nog) niet.
-  for (const no of ['tomorrow', 'tomorrow at 9', 'next friday', 'every monday', '14:30', '31-12 14:30', '12/31/2026']) {
-    assert.equal(parseDateText(no, now), null, `"${no}" wordt nu wel herkend: pas de Engelse voorbeelden en hints aan`);
-  }
-  assert.equal(quick('Call the dentist 2026-12-31').due, null, 'de ISO-vorm werkt alleen in het datumveld, niet bij snel toevoegen');
-  for (const text of Object.values(en).flatMap(forms)) {
-    assert.ok(!/\b\d{1,2}:\d{2}\b/.test(text.replace(/T\d{2}:\d{2}/g, '')), `Engelse tekst noemt een los tijdstip dat niet werkt: "${text}"`);
+  for (const found of quoted(en['date.examples'])) {
+    const p = quick(`Call the dentist ${found}`, 'en');
+    assert.equal(p.content, 'Call the dentist', `en date.examples: "${found}" werkt niet bij snel toevoegen`);
+    assert.ok(p.due, `en date.examples: "${found}" geeft geen datum bij snel toevoegen`);
   }
 });
 
-test('de uitleg over de datumtaal staat er alleen als de interface geen Nederlands is', () => {
-  assert.equal(dateLanguageNote(), '');
-  inEnglish(() => {
-    assert.equal(dateLanguageNote(), en['date.dutchOnly']);
-    assert.match(dateLanguageNote(), /only recognized in Dutch for now/);
-  });
+test('de voorbeelden bij datums staan er alleen in het Engels; een niet herkende Engelse datum is te zien', () => {
+  assert.equal(dateExamplesNote(), '');
+  inEnglish(() => assert.equal(dateExamplesNote(), en['date.examples']));
   for (const text of ['Call dentist tomorrow', 'Gym every monday', 'Meeting at 9', 'Lunch 12:30pm', 'Call mom on Friday', 'Report next week', 'Pay rent in 3 days', 'Standup daily', 'Dinner tonight', 'Review 9 am']) {
     assert.ok(mentionsEnglishDate(text), `"${text}" lijkt een Engelse datum`);
   }

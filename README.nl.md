@@ -20,7 +20,7 @@ Tickory is een zelf te hosten, offline-first app voor taken en notities: een syn
 ## Wat het kan
 
 - **Taken:** projecten, secties, subtaken, labels, prioriteiten, deadlines, duur, opmerkingen, bijlagen, Markdown.
-- **Snel toevoegen** in gewoon Nederlands: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, herhalingen als "elke tweede dinsdag", feestdagen.
+- **Snel toevoegen** in gewoon Nederlands: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, herhalingen als "elke tweede dinsdag", feestdagen. In de Engelse app in het Engels: `tomorrow at 9am`, `every monday`.
 - **Weergaven:** lijst, bord en kalender; Vandaag, Aankomend, sorteren en groeperen, Voltooid, productiviteit.
 - **Notities**, zoals Google Keep en Anchor: opmaak, checklists, kleuren, labels, foto's en geluid, herinneringen, versiegeschiedenis, delen, importeren uit Keep en Markdown.
 - **Samen:** gedeelde projecten (bewerken of alleen lezen), toewijzen, @-vermeldingen, meldingen, activiteitenlogboek.
@@ -30,7 +30,7 @@ Tickory is een zelf te hosten, offline-first app voor taken en notities: een syn
 - **Apps:** installeerbare web-app (PWA), Android-app met widgets, browserextensie.
 - **Accounts:** meerdere gebruikers, tweestapsverificatie, SSO (OpenID Connect), back-ups vanuit de app.
 - **Importeren** uit Todoist (back-up-zip of CSV) en Google Keep; exporteren als CSV of JSON.
-- **Talen:** Nederlands en Engels; datums typ je voorlopig in het Nederlands.
+- **Talen:** Engels en Nederlands, ook de datums die je typt.
 
 ## Proberen
 
@@ -58,7 +58,7 @@ De [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) beschrijft a
 
 ## Stand van zaken
 
-Versie 0.4. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels. Engelse datumzinnen ("tomorrow") worden nog niet herkend.
+Versie 0.5. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels.
 
 ## Ontwikkelen
 

@@ -96,36 +96,6 @@ android {
     }
 }
 
-// ---------- Nederlands ook als uitgesproken taal ----------
-// De standaardteksten (res/values) zijn Nederlands. Android kiest bij de taalvolgorde "Nederlands, daarna Engels" echter
-// voor Engels als er alleen values-en bestaat: "geen taal opgegeven" telt niet als Nederlands. Daarom maakt de build een
-// kopie van de standaardteksten als values-nl. Eén bron in de repo, geen dubbel onderhoud.
-abstract class CopyDutchStrings : DefaultTask() {
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.NONE)
-    abstract val source: RegularFileProperty
-
-    @get:OutputDirectory
-    abstract val outputDir: DirectoryProperty
-
-    @TaskAction
-    fun copy() {
-        val target = outputDir.get().asFile.resolve("values-nl")
-        target.mkdirs()
-        source.get().asFile.copyTo(target.resolve("strings.xml"), overwrite = true)
-    }
-}
-
-androidComponents {
-    onVariants { variant ->
-        val name = variant.name.replaceFirstChar { it.uppercase() }
-        val task = tasks.register<CopyDutchStrings>("generate${name}DutchStrings") {
-            source.set(layout.projectDirectory.file("src/main/res/values/strings.xml"))
-        }
-        variant.sources.res?.addGeneratedSourceDirectory(task, CopyDutchStrings::outputDir)
-    }
-}
-
 tasks.withType<Test>().configureEach {
     // De test tegen een echte server (zie README) draait alleen als dit adres is opgegeven; een ander adres is een andere invoer.
     inputs.property("tickoryTestServer", providers.environmentVariable("TICKORY_TEST_SERVER").orElse(""))

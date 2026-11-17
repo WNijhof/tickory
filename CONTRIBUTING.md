@@ -22,7 +22,7 @@ The calendar tests (`client/core/calendar.test.js`) run every calculation in sev
 ## Ground rules
 
 - **Zero dependencies and no build step.** Server and client run on Node 26 and standard web APIs. No npm packages, no bundler, no CDN. If you think a dependency is unavoidable, make that case in an issue first.
-- **Dutch first.** Dutch is the main language of the app: interface, messages and date language have to work well in Dutch, and are tried with real Dutch input first (accents, `ij`, "half 3", holidays). Code comments, commit messages and SPEC.md are in Dutch; the website and the guide are in Dutch and English, with the same structure in both.
+- **English and Dutch.** English is the base language (the fallback, the defaults, the root of the website); Dutch is a full second language. Interface, messages and date language have to work well in both, and Dutch is tried with real Dutch input (accents, `ij`, "half 3", holidays). Code comments, commit messages and SPEC.md are in Dutch; the website and the guide are in English and Dutch, with the same structure in both.
 - **Tests that can really fail.** A test only counts if breaking the code makes it fail. When you add a rule (who may see or do what, what the parser accepts), add a test for it and check it by breaking the rule on purpose. Do not weaken or remove a test to make a change pass.
 - **Be honest about what works.** The README and the guide say what the app cannot do yet. If your change adds or removes a limitation, update the status lists, in both languages.
 - **The server is the source of truth, the client works offline.** A change to a command belongs in three places: the server (`server/sync.ts`), the optimistic client (`client/core/reducer.js`) and the differential test that compares the two. The demo backend (`website/demo/backend.js`) follows the server as well; `site-check.ts` compares them.
@@ -37,7 +37,7 @@ The calendar tests (`client/core/calendar.test.js`) run every calculation in sev
 
 ## Publishing a new version (maintainer)
 
-`git tag v0.4.0 && git push origin v0.4.0`. The workflow `Image publiceren` runs the tests, builds the image, starts it with the security settings from `docker-compose.yml` and checks its behaviour, and only then publishes `ghcr.io/wnijhof/tickory` with the version tags and `latest`. If one check fails, nothing is published. The website is published by the workflow `Website` on every push to `main`.
+`git tag v0.5.0 && git push origin v0.5.0`. The workflow `Image publiceren` runs the tests, builds the image, starts it with the security settings from `docker-compose.yml` and checks its behaviour, and only then publishes `ghcr.io/wnijhof/tickory` with the version tags and `latest`. If one check fails, nothing is published. The website is published by the workflow `Website` on every push to `main`.
 
 ## Nederlands
 
@@ -48,7 +48,7 @@ Fijn dat je wilt helpen. Wat erbij komt en in welke volgorde, bepaalt de eigenaa
 **Uitgangspunten:**
 
 - **Zero dependencies en geen build-stap.** Geen npm-pakketten, geen bundler, geen CDN.
-- **Nederlands als hoofdtaal.** Alles moet met Nederlands goed werken en wordt eerst met echte Nederlandse invoer geprobeerd. Commentaar, commitberichten en SPEC.md zijn Nederlands; de website en de handleiding zijn tweetalig, met dezelfde opbouw.
+- **Engels en Nederlands.** Engels is de basistaal (de terugval, de standaard, de hoofdingang van de website); Nederlands is een volwaardige tweede taal. Alles moet in beide talen goed werken, en Nederlands wordt met echte Nederlandse invoer geprobeerd. Commentaar, commitberichten en SPEC.md zijn Nederlands; de website en de handleiding zijn tweetalig, met dezelfde opbouw.
 - **Tests die echt kunnen falen.** Een test telt pas als hij faalt wanneer je de code breekt. Controleer een nieuwe regel door hem opzettelijk te breken. Zwak geen test af om een wijziging te laten slagen.
 - **Eerlijk over wat werkt.** Werk de statuslijsten in de README's en de handleiding bij, in beide talen.
 - **De server is leidend, de client werkt offline.** Een wijziging aan een commando hoort in `server/sync.ts`, in `client/core/reducer.js` en in de differentiële test; de backend van de demo (`website/demo/backend.js`) volgt de server.

@@ -8,13 +8,14 @@
 //              ("@Uitgaan met Zoë") wordt op naam gevonden; de langste passende naam wint
 //   p1 … p4    prioriteit (ook !!1 … !!4); 1 is de hoogste
 //   {vrijdag}  een deadline (los van de datum waarop je eraan wilt werken)
-//   !30m       een herinnering: !30m, !1u, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
-//              in gewone taal: !(een kwartier ervoor), !(morgen om 8 uur). Meerdere mag.
-//   datum      gewone taal, ook herhalingen ("elke maandag")
+//   !30m       een herinnering: !30m, !1u of !1h, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
+//              in gewone taal: !(een kwartier ervoor), !(morgen om 8 uur), !(30 minutes before), !(tomorrow at 8am). Meerdere mag.
+//   datum      gewone taal in de taal van de interface, ook herhalingen ("elke maandag", "every monday"); zie core/dateInput.js
 //
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
 
-import { parseDateText, parseDue } from './dateNl.js';
+import { parseDateText, parseDue } from './dateInput.js';
+import { getLanguage } from './i18n.js';
 import { parseDuration } from './duration.js';
 import { nameKey, normalizeText } from '../../shared/text.js';
 import { hasTime, parseOffsetNl } from '../../shared/reminders.js';
@@ -61,11 +62,12 @@ const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.r
  * }}
  */
 const TIME = '(\\d{1,2})(?:[:.](\\d{2}))?';
-const RANGE = new RegExp(`(?<![\\p{L}\\p{N}:./-])(van\\s+)?${TIME}\\s*(?:-|–|tot(?:\\s+en\\s+met)?)\\s*${TIME}(\\s*uur)?(?![\\p{L}\\p{N}:./-])`, 'iu');
+const RANGE = new RegExp(`(?<![\\p{L}\\p{N}:./-])(van\\s+|from\\s+)?${TIME}\\s*(?:-|–|tot(?:\\s+en\\s+met)?|to|until|till)\\s*${TIME}(\\s*uur)?(?![\\p{L}\\p{N}:./-])`, 'iu');
 
 /**
- * Een tijdsbereik in een regel: "9:00-10:30", "18:00 - 19:30", "9-10 uur", "van 9 tot 10:30". Geeft het begin ("HH:MM"), de duur
- * in minuten en de plek, of null. Zonder dubbele punt, "uur" of "van … tot" is het geen tijd: "9-10" is 9 oktober.
+ * Een tijdsbereik in een regel: "9:00-10:30", "18:00 - 19:30", "9-10 uur", "van 9 tot 10:30", "from 9 to 10:30". Geeft het begin
+ * ("HH:MM"), de duur in minuten en de plek, of null. Zonder dubbele punt, "uur" of "van/from … tot/to" is het geen tijd: "9-10" is
+ * 9 oktober.
  * @returns {{ start: string, minutes: number, index: number, length: number } | null}
  */
 export function findTimeRange(text) {
@@ -73,14 +75,14 @@ export function findTimeRange(text) {
   if (!m) return null;
   const [, van, h1, m1, h2, m2, uur] = m;
   const clear = Boolean(van) || Boolean(uur) || m1 !== undefined || m2 !== undefined;
-  if (!clear || (van && !/tot/i.test(m[0]))) return null;
+  if (!clear || (van && !/\b(?:tot|to|until|till)\b/i.test(m[0]))) return null;
   const a = Number(h1) * 60 + Number(m1 ?? 0);
   const b = Number(h2) * 60 + Number(m2 ?? 0);
   if (Number(h1) > 23 || Number(h2) > 23 || Number(m1 ?? 0) > 59 || Number(m2 ?? 0) > 59 || b <= a) return null;
   return { start: `${String(h1).padStart(2, '0')}:${String(m1 ?? '00').padStart(2, '0')}`, minutes: b - a, index: m.index, length: m[0].length };
 }
 
-export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true, dates = true }) {
+export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true, dates = true, language = getLanguage() }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
@@ -129,7 +131,7 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }).replace(/\s+/g, ' ').trim();
 
   // herinneringen; wat niet te begrijpen is, blijft gewoon in de titel staan
-  const UNITS = 'minuten|minuut|min|mv|m|uren|uur|uv|u|dagen|dag|dv|d|weken|week|w';
+  const UNITS = 'minuten|minuut|minutes|minute|mins|min|mv|m|uren|uur|uv|u|hours|hour|hrs|hr|h|dagen|dag|days|day|dv|d|weken|weeks|week|w';
   const reminderRe = new RegExp(`${START}!(?:\\(([^()]{1,80})\\)|(\\d{1,4} ?(?:${UNITS})|0))${END}`, 'giu');
   rest = rest.replace(reminderRe, (whole, phrase, code) => {
     let spec = null;
@@ -137,7 +139,7 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
     if (offset !== null) {
       spec = { type: 'relative', minute_offset: offset };
     } else if (phrase) {
-      const when = parseDateText(phrase, now);
+      const when = parseDateText(phrase, now, language);
       if (when && !when.recurrence && hasTime(when.date)) spec = { type: 'absolute', due: { date: when.date } };
     }
     if (!spec) return whole;
@@ -149,7 +151,7 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   // deadline tussen accolades; blijft staan als de tekst geen datum is
   const dl = /\{([^{}]+)\}/u.exec(rest);
   if (dl) {
-    const due = parseDateText(dl[1], now);
+    const due = parseDateText(dl[1], now, language);
     if (due && !due.recurrence) {
       out.deadline = due.date.slice(0, 10);
       rest = cut(rest, dl.index, dl.index + dl[0].length);
@@ -171,12 +173,13 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   // `dates: false` (Instellingen › Algemeen): geen datums in gewone taal; een {deadline} en een !herinnering blijven werken
   const range = dates ? findTimeRange(rest) : null;
   if (range) {
-    rest = `${rest.slice(0, range.index)}om ${range.start}${rest.slice(range.index + range.length)}`.replace(/\s+/g, ' ').trim();
+    const at = language === 'en' ? 'at' : 'om';
+    rest = `${rest.slice(0, range.index)}${at} ${range.start}${rest.slice(range.index + range.length)}`.replace(/\s+/g, ' ').trim();
     if (out.duration === undefined) out.duration = range.minutes;
   }
 
   // datum of herhaling in gewone taal
-  const parsed = dates ? parseDue(rest, now) : null;
+  const parsed = dates ? parseDue(rest, now, language) : null;
   if (parsed) {
     rest = parsed.content;
     if (parsed.due) out.due = parsed.due;

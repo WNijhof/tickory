@@ -5,10 +5,10 @@
 // tekst (delen en samenwerken); in een andere taal komt er een eigen vertaling op basis van de foutcode en het soort
 // handeling, en is de tekst van de server alleen de laatste terugval.
 
-import { DEFAULT_LANGUAGE, getLanguage, t } from './i18n.js';
+import { getLanguage, t } from './i18n.js';
 
 /** De taal waarin de server zijn foutteksten schrijft. */
-const SERVER_LANGUAGE = DEFAULT_LANGUAGE;
+const SERVER_LANGUAGE = 'nl'; // de meldingen van de server zijn Nederlands
 
 const NOUN = {
   task: () => t('command.noun.task'), project: () => t('command.noun.project'), section: () => t('command.noun.section'), label: () => t('command.noun.label'),

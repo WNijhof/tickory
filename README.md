@@ -12,6 +12,8 @@
 
 Tickory is a self-hosted, offline-first task and notes app: a sync server and an installable web app in a single Docker container, plus an Android app and a browser extension. Your data stays on your own server. No npm packages and no build step: Node 26 runs the TypeScript directly and SQLite is part of Node.
 
+If you are looking for a free Todoist alternative that you run yourself: Tickory has no paid tier, so things Todoist keeps for Premium (now called Pro), such as the calendar view, reminders at a place and the full activity history, are simply part of it, and it imports your Todoist backup.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/assets/shots/project-dark.webp">
   <img src="website/assets/shots/project-light.webp" alt="Tickory showing a shared household project with sections, subtasks, recurring tasks and tasks assigned to other members." width="1120">
@@ -20,7 +22,7 @@ Tickory is a self-hosted, offline-first task and notes app: a sync server and an
 ## Features
 
 - **Tasks:** projects, sections, subtasks, labels, priorities, deadlines, durations, comments, attachments, Markdown.
-- **Quick add** in plain Dutch: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, recurrences like "elke tweede dinsdag".
+- **Quick add** in plain English: `Call the dentist tomorrow at 9am #Home @calls p1 !30m`, recurrences like "every mon, wed and fri" or "every last friday".
 - **Views:** list, board and calendar; Today, Upcoming, sorting and grouping, Completed, productivity.
 - **Notes**, like Google Keep and Anchor: formatting, checklists, colours, labels, pictures and audio, reminders, version history, sharing, import from Keep and Markdown.
 - **Together:** shared projects (can edit or view only), assigning, @-mentions, notifications, activity log.
@@ -30,7 +32,7 @@ Tickory is a self-hosted, offline-first task and notes app: a sync server and an
 - **Apps:** installable web app (PWA), Android app with widgets, browser extension.
 - **Accounts:** multiple users, two-step verification, SSO (OpenID Connect), backups from the app.
 - **Import** from Todoist (backup zip or CSV) and Google Keep; export as CSV or JSON.
-- **Languages:** English and Dutch interface; dates are typed in Dutch for now.
+- **Languages:** English and Dutch, including the dates you type.
 
 ## Try it
 
@@ -58,7 +60,7 @@ The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in En
 
 ## Status
 
-Version 0.4. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet. English date phrases ("tomorrow") are not recognised yet.
+Version 0.5. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet.
 
 ## Development
 
@@ -71,8 +73,10 @@ npm run e2e               # the whole app in a real browser (Edge or Chrome, hea
 npm run site:check        # the website and the demo
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (zero dependencies, Dutch first, tests that can really fail) and [SECURITY.md](SECURITY.md) to report a vulnerability.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (zero dependencies, English and Dutch both work fully, tests that can really fail) and [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ## License
 
 Free software under the [GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0). The bundled date parser falls under the MIT license of chrono-node, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Tickory is not affiliated with or endorsed by Doist. Todoist is a trademark of Doist.

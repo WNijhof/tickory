@@ -15,7 +15,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 
 <h2 id="a-reminder-on-a-task">A reminder on a task</h2>
 <p>Click a task. In the <x-ui k="task.edit"></x-ui> window there is a <x-ui k="reminder.title"></x-ui> part with your reminders on this task.</p>
-<x-shot name="herinneringen" alt="The Reminders part of a task window: three reminders (1 day before, at a set time, 30 minutes before), each with the moment it goes off and a button to delete it, and below them the drop-down list with the Add reminder button.">Three reminders on the task “Tandarts bellen voor controle” (due tomorrow at 9). Each reminder shows when it goes off.</x-shot>
+<x-shot name="herinneringen" alt="The Reminders part of a task window: three reminders (1 day before, at a set time, 30 minutes before), each with the moment it goes off and a button to delete it, and below them the drop-down list with the Add reminder button.">Three reminders on the task “Call the dentist for a check-up” (due tomorrow at 9). Each reminder shows when it goes off.</x-shot>
 <ol>
   <li>Under <x-ui k="reminder.choose"></x-ui> choose when: <x-ui k="reminder.atTime"></x-ui>, 10, 30 or 45 minutes before, 1, 2 or 3 hours before, 1, 2 or 3 days before, or <x-ui k="reminder.custom"></x-ui> for a moment of your own.</li>
   <li>If you choose a moment of your own, fill in the date and the time.</li>
@@ -49,7 +49,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <p>This changes nothing about reminders that already exist. It applies to tasks you add or give a time afterwards.</p>
 
 <h2 id="quick-add-with">Quick add with !</h2>
-<p>In the line you <a href="adding-tasks.html">add a task</a> with, you can include reminders with an exclamation mark. Below the input field you see them as 🔔. (Dates are typed in Dutch for now, so these examples are too.)</p>
+<p>In the line you <a href="adding-tasks.html">add a task</a> with, you can include reminders with an exclamation mark. Below the input field you see them as 🔔.</p>
 <div class="table-wrap">
   <table>
     <thead>
@@ -57,24 +57,24 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
     </thead>
     <tbody>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts bellen" data-date="2026-11-18T09:00" data-reminders="30">Tandarts bellen morgen om 9 uur !30m</code></td>
-        <td class="wrap-ok">A reminder 30 minutes before. Units: <code>m</code> (minutes), <code>u</code> (hours, from Dutch <em>uur</em>), <code>d</code> (days), <code>w</code> (weeks); the Dutch words <code>min</code>, <code>uur</code> and <code>dagen</code> work too.</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Call the dentist" data-date="2026-11-18T09:00" data-reminders="30">Call the dentist tomorrow at 9am !30m</code></td>
+        <td class="wrap-ok">A reminder 30 minutes before. Units: <code>m</code> (minutes), <code>h</code> (hours), <code>d</code> (days), <code>w</code> (weeks); <code>min</code>, <code>hours</code> and <code>days</code> work too, and so does the Dutch <code>u</code> (uur).</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Boodschappen doen" data-date="2026-11-20T17:30" data-reminders="60">Boodschappen doen vrijdag om 17:30 !1u</code></td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Grocery shopping" data-date="2026-11-20T17:30" data-reminders="60">Grocery shopping friday at 17:30 !1h</code></td>
         <td class="wrap-ok">One hour before.</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Training" data-date="2026-11-17T19:30" data-reminders="60,0">Training elke dinsdag om 19:30 !1u !0</code></td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Training" data-date="2026-11-17T19:30" data-reminders="60,0">Training every tuesday at 19:30 !1h !0</code></td>
         <td class="wrap-ok">Several reminders at once are fine. <code>!0</code> is at the time itself.</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Verjaardag Jan" data-date="2026-12-05T09:00" data-reminders="2880">Verjaardag Jan 5 december om 9 uur !2d</code></td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Mia's birthday" data-date="2026-12-05T09:00" data-reminders="2880">Mia's birthday 5 december at 9am !2d</code></td>
         <td class="wrap-ok">Two days before.</td>
       </tr>
       <tr>
-        <td class="wrap-ok"><code class="ex-quick" data-title="Bellen met Jan" data-date="2026-11-18T09:00" data-reminders="15">Bellen met Jan morgen om 9 uur !(een kwartier ervoor)</code></td>
-        <td class="wrap-ok">Between parentheses you can use plain Dutch: a quarter of an hour before.</td>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Call Sam" data-date="2026-11-18T09:00" data-reminders="15">Call Sam tomorrow at 9am !(a quarter of an hour before)</code></td>
+        <td class="wrap-ok">Between parentheses you can use plain language: a quarter of an hour before.</td>
       </tr>
       <tr>
         <td class="wrap-ok"><code class="ex-quick" data-title="Pil innemen" data-date="" data-reminders="2026-11-17T20:00">Pil innemen !(vandaag om 20:00)</code></td>

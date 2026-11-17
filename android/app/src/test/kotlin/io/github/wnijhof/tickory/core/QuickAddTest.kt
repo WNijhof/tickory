@@ -96,6 +96,10 @@ class QuickAddTest {
         assertEquals("Iets \"geks\" \n", dry.text("text"))
         assertNull(dry["uuid"])
         assertNull(dry["project_id"])
+        assertNull("zonder taal geen lang", dry["lang"])
+        // de taal van de telefoon gaat mee, zodat de server datums in die taal leest
+        assertEquals("en", Json.parseObject(QuickAddQueue.requestBody(item(), "en"))!!.text("lang"))
+        assertEquals("nl", Json.parseObject(QuickAddQueue.previewBody("Brood morgen", null, null, null, "2026-11-13T09:00+01:00", "Europe/Amsterdam", "nl"))!!.text("lang"))
     }
 
     @Test

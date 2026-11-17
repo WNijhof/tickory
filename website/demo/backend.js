@@ -111,11 +111,12 @@ const GENERIC = /^([a-z][a-z_]*?)_(add|update|delete)$/;
 
 export class DemoServer {
   /**
-   * @param {{ now?: () => Date, strict?: boolean }} [options] strict: zie createSeed (alleen voor de controle van de website)
+   * @param {{ now?: () => Date, strict?: boolean, language?: 'nl' | 'en' }} [options] strict: zie createSeed (alleen voor de controle
+   *   van de website); language: de taal van de voorbeeldgegevens, standaard die van de app
    */
-  constructor({ now = () => new Date(), strict = false } = {}) {
+  constructor({ now = () => new Date(), strict = false, language = getLanguage() } = {}) {
     this.now = now;
-    const seed = createSeed(now(), { strict });
+    const seed = createSeed(now(), { strict, language });
     /** De toestand zoals de ingelogde gebruiker die mag zien: per resource een Map met alleen niet-verwijderde rijen. */
     this.state = seed.state;
     this.me = seed.me;
@@ -1028,8 +1029,13 @@ export class DemoServer {
  * Dezelfde vorm als het echte `createBackend` (zie client/core/backend.js), maar zonder server. Elke keer dat de pagina
  * laadt, begint de demo opnieuw met verse voorbeeldgegevens.
  */
-export function createBackend() {
-  const server = new DemoServer();
+/**
+ * @param {{ language?: 'nl' | 'en' }} [options] de taal van de voorbeeldgegevens: standaard die van de app, of `?data=nl` / `?data=en`
+ *   in het adres (zo kunnen de controles van de website de Nederlandse gegevens in de Engelse interface bekijken)
+ */
+export function createBackend(options = {}) {
+  const asked = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('data');
+  const server = new DemoServer({ ...(asked === 'nl' || asked === 'en' ? { language: asked } : {}), ...options });
   return {
     /** true: de app start zonder inlogscherm, bewaart niets en registreert geen service worker. */
     demo: true,

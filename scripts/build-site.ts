@@ -13,7 +13,7 @@
 //
 // Bron: website/ (pagina's in website/pages/<taal>/, opmaak in layout.html, menu en teksten in site.json).
 // Een pagina is een stuk HTML met bovenaan een commentaar met `title:` en `description:`. Drie eigen elementen:
-//   <x-shot name="vandaag" alt="…">onderschrift</x-shot>   schermafbeelding (licht en donker) uit assets/shots/ (Engelse pagina's: assets/shots/en/)
+//   <x-shot name="vandaag" alt="…">onderschrift</x-shot>   schermafbeelding (licht en donker) uit assets/shots/ (Engels, de basistaal; Nederlandse pagina's: assets/shots/nl/)
 //   <x-ui k="settings.account"></x-ui>                       een knop of menutekst uit de app, in de taal van de pagina (client/i18n)
 //   <x-compose></x-compose>                                  de inhoud van docker-compose.yml, zonder de toelichting
 //   {{root}}, {{version}}, {{repo}}, {{image}}               pad naar de hoofdmap van de site, versie uit package.json, adressen
@@ -158,8 +158,8 @@ function expandElements(html: string, root: string, where: string, lang: Lang): 
   const shotsDir = join(SRC, 'assets', 'shots');
   // De afmetingen (in beeldpunten) schrijft scripts/site-shots.ts erbij; zo hoeft de browser de pagina niet te verspringen.
   const sizes = existsSync(join(shotsDir, 'shots.json')) ? (JSON.parse(read(join(shotsDir, 'shots.json'))) as Record<string, { width: number; height: number }>) : {};
-  // De Engelse pagina's tonen de app in het Engels: die afbeeldingen staan in shots/en/ en heten daar net zo.
-  const folder = lang === 'en' ? 'en/' : '';
+  // De afbeeldingen tonen de app in de taal van de pagina: Engels (de basistaal) in shots/, Nederlands in shots/nl/, met dezelfde namen.
+  const folder = lang === 'nl' ? 'nl/' : '';
   let out = html.replace(/<x-shot\s+name="([a-z0-9-]+)"(?:\s+class="([a-z -]+)")?\s+alt="([^"]*)">([\s\S]*?)<\/x-shot>/g, (_, name: string, cls: string | undefined, alt: string, caption: string) => {
     const key = `${folder}${name}`;
     const missing = [`${key}-light.webp`, `${key}-dark.webp`].filter((f) => !existsSync(join(shotsDir, f)));
@@ -328,24 +328,25 @@ function renderPage(config: SiteConfig, pages: Page[], page: Page, layout: strin
 
 // ---------- de demo: de echte app met een andere backend ----------
 
-// De namen van knoppen in de tips komen uit de app zelf; de Engelse versie van de balk staat in website/demo/demo.js.
+// De basistaal is Engels: zo staat de balk in de pagina. Is de app Nederlands, dan zet website/demo/demo.js hem in het Nederlands.
+// De namen van knoppen in de tips komen uit de app zelf.
 const DEMO_BAR = `  <div class="demo-bar" id="demo-bar" role="note">
-    <span class="demo-bar-text"><span class="demo-bar-long">Dit is een demo: wijzigingen worden niet bewaard.</span><span class="demo-bar-short">Demo: niets wordt bewaard.</span></span>
+    <span class="demo-bar-text"><span class="demo-bar-long">This is a demo: changes are not saved.</span><span class="demo-bar-short">Demo: nothing is saved.</span></span>
     <details class="demo-tips">
       <summary>Tips</summary>
       <div class="demo-tips-body">
-        <p>Om te proberen:</p>
+        <p>Things to try:</p>
         <ul>
-          <li>Typ in het veld bovenaan: <code>Tandarts bellen morgen om 9 uur p1</code>. Een taak met een tijd krijgt vanzelf een herinnering (🔔).</li>
-          <li>Open de taak <strong>Tandarts bellen voor controle</strong> om haar herinneringen te zien en te wijzigen.</li>
-          <li>Open <strong>Huishouden</strong>, kies <strong>${escapeHtml(String(dictionaries.nl['project.shared']))}</strong> en voeg de gebruikersnaam <code>kees</code> toe.</li>
-          <li>Vink een taak met een herhaling (↻) af: de datum schuift door naar de volgende keer.</li>
-          <li>Meldingen komen alleen van je eigen server. In de demo zie je de herinneringen en de instellingen (<strong>${escapeHtml(String(dictionaries.nl['settings.notifications']))}</strong>), maar er gaat niets af.</li>
-          <li>Herlaad je de pagina, dan begint de demo opnieuw met de voorbeeldgegevens; na twee uur gebeurt dat vanzelf.</li>
+          <li>Type in the box at the top: <code>Call the dentist tomorrow at 9am p1</code>. A task with a time gets a reminder (🔔) by itself.</li>
+          <li>Open the task <strong>Call the dentist for a check-up</strong> to see and change its reminders.</li>
+          <li>Open <strong>Household</strong>, choose <strong>${escapeHtml(String(dictionaries.en['project.shared']))}</strong> and add the username <code>kees</code>.</li>
+          <li>Tick off a repeating task (↻): its date moves to the next time.</li>
+          <li>Notifications only come from your own server. In the demo you can see the reminders and the settings (<strong>${escapeHtml(String(dictionaries.en['settings.notifications']))}</strong>), but nothing goes off.</li>
+          <li>Reloading the page starts over with the sample data, and after two hours the demo starts fresh by itself.</li>
         </ul>
       </div>
     </details>
-    <a class="demo-bar-link" href="../">Naar de website</a>
+    <a class="demo-bar-link" href="../">Back to the website</a>
   </div>
 `;
 
@@ -401,14 +402,14 @@ function buildDemo(outDir: string): number {
 function rootIndex(config: SiteConfig, url: string): string {
   const nl = config.languages.nl, en = config.languages.en;
   return `<!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="color-scheme" content="light dark">
   <title>Tickory</title>
-  <meta name="description" content="${escapeHtml(nl.site_description)}">
+  <meta name="description" content="${escapeHtml(en.site_description)}">
   <link rel="canonical" href="${url}">
   <link rel="alternate" hreflang="nl" href="${url}nl/">
   <link rel="alternate" hreflang="en" href="${url}en/">
@@ -425,10 +426,10 @@ function rootIndex(config: SiteConfig, url: string): string {
   <main class="choose">
     <img src="assets/logo.svg" alt="" width="72" height="72">
     <h1>Tickory</h1>
+    <p>${escapeHtml(en.site_description)}</p>
+    <p><a class="button button-primary" href="en/" hreflang="en">English</a></p>
     <p lang="nl">${escapeHtml(nl.site_description)}</p>
-    <p><a class="button button-primary" href="nl/" lang="nl" hreflang="nl">Nederlands</a></p>
-    <p lang="en">${escapeHtml(en.site_description)}</p>
-    <p><a class="button" href="en/" lang="en" hreflang="en">English</a></p>
+    <p><a class="button" href="nl/" lang="nl" hreflang="nl">Nederlands</a></p>
   </main>
 </body>
 </html>
@@ -437,25 +438,25 @@ function rootIndex(config: SiteConfig, url: string): string {
 
 function notFound(config: SiteConfig, base: string): string {
   return `<!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="color-scheme" content="light dark">
   <meta name="robots" content="noindex">
-  <title>Pagina niet gevonden · Tickory</title>
+  <title>Page not found · Tickory</title>
   <link rel="icon" href="${base}assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="${base}assets/site.css">
 </head>
 <body class="page-choose">
   <main class="choose">
     <img src="${base}assets/logo.svg" alt="" width="72" height="72">
-    <h1>Pagina niet gevonden</h1>
+    <h1>Page not found</h1>
+    <p>This page does not exist (any more).</p>
+    <p><a class="button button-primary" href="${base}en/" hreflang="en">Go to the home page</a></p>
     <p lang="nl">Deze pagina bestaat niet (meer).</p>
-    <p><a class="button button-primary" href="${base}nl/" lang="nl" hreflang="nl">Naar de startpagina</a></p>
-    <p lang="en">This page does not exist (any more).</p>
-    <p><a class="button" href="${base}en/" lang="en" hreflang="en">Go to the home page</a></p>
+    <p><a class="button" href="${base}nl/" lang="nl" hreflang="nl">Naar de startpagina</a></p>
   </main>
 </body>
 </html>

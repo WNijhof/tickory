@@ -857,14 +857,19 @@ try {
   await noDutch('upcoming');
   await shot('engels-binnenkort');
 
-  // een taak toevoegen: alleen notaties die in elke taal werken, en een eerlijke hint bij een Engelse datum
+  // een taak toevoegen: Engelse datums worden herkend; bij iets dat op een datum lijkt maar niet werkt, staan voorbeelden
   await nav('Inbox');
   await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'Inbox in het Engels');
-  await typeInto('#quick-input', 'Call the dentist tomorrow');
-  await waitFor(`document.querySelector('#quick-preview .preview-note')`, 'uitleg over de datumtaal');
-  assert.deepEqual(await texts('#quick-preview .chip'), ['Call the dentist tomorrow']);
-  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note').textContent`), en['date.dutchOnly']);
+  await typeInto('#quick-input', 'Call the dentist tonight');
+  await waitFor(`document.querySelector('#quick-preview .preview-note')`, 'voorbeelden van datums');
+  assert.deepEqual(await texts('#quick-preview .chip'), ['Call the dentist tonight']);
+  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note').textContent`), en['date.examples']);
   await shot('engels-datumhint');
+  await typeInto('#quick-input', 'Call the dentist tomorrow at 9am');
+  await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 2`, 'een Engelse datum herkend');
+  assert.equal((await texts('#quick-preview .chip'))[0], 'Call the dentist');
+  assert.match((await texts('#quick-preview .chip'))[1], /09:00/);
+  assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null, 'bij een herkende datum geen uitleg');
   const newYearsEve = nextFixed(12, 31);
   await typeInto('#quick-input', 'Call the dentist 31-12 p1 @calls');
   await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 4`, 'voorbeeld onder het invoerveld (Engels)');
@@ -892,16 +897,18 @@ try {
   const dueInput = `#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`;
   assert.equal(await evaluate(`document.querySelector(${js(dueInput)}).value`), newYearsEve, 'de datum staat er in een vorm zonder Nederlands woord');
   assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), `Now: ${inEnglish(() => formatDueLong({ date: newYearsEve }, today))}`);
-  await typeInto(dueInput, 'tomorrow at 9');
+  await typeInto(dueInput, 'tonight');
   await waitFor(`document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'onbekende datum (Engels)');
-  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), `I don't recognize this date. ${en['date.dutchOnly']}`);
+  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), `I don't recognize this date. ${en['date.examples']}`);
   await submit('#task-dialog form');
   await waitFor(`document.querySelector('#task-dialog .error').textContent === ${js(en['task.dueError'])}`, 'Engelse foutmelding bij een onbekende datum');
   await noDutch('bewerkvenster met foutmelding');
   await fits('bewerkvenster');
   await shot('engels-bewerken-fout');
   await typeInto(dueInput, '');
-  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), en['date.dutchOnly'], 'bij een leeg datumveld staat welke notaties werken');
+  assert.equal(await evaluate(`document.querySelector('#task-dialog .hint').textContent`), en['date.examples'], 'bij een leeg datumveld staan voorbeelden');
+  await typeInto(dueInput, 'every monday at 9am');
+  await waitFor(`document.querySelector('#task-dialog .hint').textContent.startsWith('Will be: ') && !document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'een Engelse herhaling in het datumveld');
   await typeInto(dueInput, '2027-01-15T09:30');
   await waitFor(`document.querySelector('#task-dialog .hint').textContent === 'Will be: Fri 15 Jan 2027 09:30'`, 'uitleg bij de datum (Engels)');
   await typeInto('#task-dialog input[placeholder="Add subtask"]', 'Bring the forms');
@@ -1069,7 +1076,7 @@ try {
   await shot('engels-telefoon-menu');
   await click('[data-tab="browse"]');
   await openTask('Afwasmachine uitruimen');
-  await typeInto(`#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`, 'next friday');
+  await typeInto(`#task-dialog input[placeholder=${js(en['task.duePlaceholder'])}]`, 'tonight');
   await waitFor(`document.querySelector('#task-dialog .hint').classList.contains('hint-bad')`, 'onbekende datum (telefoon)');
   await fits('telefoon: bewerkvenster');
   await shot('engels-telefoon-bewerken');

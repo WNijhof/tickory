@@ -36,21 +36,21 @@ description: Filters in Tickory: saved searches on your tasks in a filter langua
 <p>Dutch and English words always both work, also mixed: <code>vandaag &amp; p1</code> and <code>today &amp; p1</code> give the same. Capitals and accents do not matter, not even in the names of projects, sections and labels. A filter only shows open tasks, unless <code>completed</code> is in it; tasks in an archived project are left out.</p>
 
 <h2 id="examples">Examples</h2>
-<p>The examples are checked against the sample data of the <a href="{{root}}demo/?lang=en">demo</a>: the project Huishouden, the label bellen and a label of someone else. The sample data is Dutch.</p>
+<p>The examples are checked against the sample data of the <a href="{{root}}demo/?lang=en">demo</a>: the project Household, the label calls and a label of someone else.</p>
 <div class="table-wrap">
   <table>
     <thead>
       <tr><th>You type</th><th>You get</th></tr>
     </thead>
     <tbody>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle|Oppas voor de kat vragen" data-hasnot="Boodschappen doen">@bellen</code></td><td class="wrap-ok">All tasks with the label bellen.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle" data-hasnot="Oppas voor de kat vragen">(today | tomorrow) &amp; @bellen</code></td><td class="wrap-ok">What you have to call today or tomorrow.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Tandarts bellen voor controle|Boot reserveren" data-hasnot="Fietsband plakken">p1 &amp; !subtask</code></td><td class="wrap-ok">The highest priority, but no subtasks.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Lamp in de gang vervangen" data-hasnot="Kamer opruimen">#Huishouden &amp; search: lamp</code></td><td class="wrap-ok">Tasks in Huishouden with “lamp” in the title or description.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Boodschappen doen" data-hasnot="Weekmenu maken">assigned to me</code></td><td class="wrap-ok">What is assigned to you.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Playlist maken" data-hasnot="Tandarts bellen voor controle">no date &amp; no labels</code></td><td class="wrap-ok">Tasks without a date and without a label: the junk drawer.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Flyers rondbrengen">@buurt</code></td><td class="wrap-ok">A label that someone else put on a shared task works too.</td></tr>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Pakketje ophalen bij de buren" data-hasnot="Tandarts bellen voor controle">completed &amp; #Inbox</code></td><td class="wrap-ok">What you completed in the Inbox.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Call the dentist for a check-up|Ask someone to feed the cat" data-hasnot="Do the grocery shopping">@calls</code></td><td class="wrap-ok">All tasks with the label calls.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Call the dentist for a check-up" data-hasnot="Ask someone to feed the cat">(today | tomorrow) &amp; @calls</code></td><td class="wrap-ok">What you have to call today or tomorrow.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Call the dentist for a check-up|Book the ferry" data-hasnot="Fix the bike tyre">p1 &amp; !subtask</code></td><td class="wrap-ok">The highest priority, but no subtasks.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Replace the hallway light bulb" data-hasnot="Tidy the bedroom">#Household &amp; search: bulb</code></td><td class="wrap-ok">Tasks in Household with “bulb” in the title or description.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Do the grocery shopping" data-hasnot="Plan the week's meals">assigned to me</code></td><td class="wrap-ok">What is assigned to you.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Make a playlist" data-hasnot="Call the dentist for a check-up">no date &amp; no labels</code></td><td class="wrap-ok">Tasks without a date and without a label: the junk drawer.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Deliver the flyers">@neighbours</code></td><td class="wrap-ok">A label that someone else put on a shared task works too.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-has="Pick up the parcel from the neighbours" data-hasnot="Call the dentist for a check-up">completed &amp; #Inbox</code></td><td class="wrap-ok">What you completed in the Inbox.</td></tr>
     </tbody>
   </table>
 </div>
@@ -60,7 +60,7 @@ description: Filters in Tickory: saved searches on your tasks in a filter langua
 <div class="table-wrap">
   <table>
     <tbody>
-      <tr><td class="wrap-ok"><code class="ex-filter" data-groups="Home,Texel" data-has="Boodschappen doen|Boot reserveren">Home: #Huishouden, Texel: #"Vakantie Texel"</code></td><td class="wrap-ok">Two lists, Home and Texel. A name with a space goes between quotation marks.</td></tr>
+      <tr><td class="wrap-ok"><code class="ex-filter" data-groups="Home,Texel" data-has="Do the grocery shopping|Book the ferry">Home: #Household, Texel: #"Trip to Texel"</code></td><td class="wrap-ok">Two lists, Home and Texel. A name with a space goes between quotation marks.</td></tr>
     </tbody>
   </table>
 </div>
@@ -168,5 +168,5 @@ description: Filters in Tickory: saved searches on your tasks in a filter langua
 
 <h2>What is not possible yet</h2>
 <ul>
-  <li>Dates in a filter: the fixed forms (<code>31-12</code>, <code>dec 31</code>, <code>morgen</code>, <code>tomorrow</code>) work in both languages; other plain language, like <code>volgende week donderdag</code>, is only recognized in Dutch.</li>
+  <li>Dates in a filter: English and Dutch both work, also in plain language and in both interfaces: <code>31-12</code>, <code>dec 31</code>, <code>next friday</code>, <code>volgende week donderdag</code>.</li>
 </ul>

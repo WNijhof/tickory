@@ -463,7 +463,7 @@ export default {
   'date.inputDate': '{d}-{m}-{y}',
   'date.inputDateTime': '{d}-{m}-{y} om {time}',
   // Alleen zichtbaar als de interface een andere taal heeft dan de datumtaal (nu: niet in het Nederlands).
-  'date.dutchOnly': 'Datums als "morgen" worden nu alleen in het Nederlands herkend. Een datum als 31-12 of 31-12-2026 werkt altijd.',
+  'date.examples': 'Bijvoorbeeld "morgen om 9 uur", "volgende week", "elke maandag" of "31-12".',
 
   // ---------- zijbalk en overzichten ----------
   'nav.views': 'Overzichten',

@@ -13,7 +13,7 @@ gebruikers staat in de handleiding (pagina "Browserextensie"); het ontwerp in [S
 | `options.html`, `options.js` | Verbinden: adres, toestemming voor die host, inloggen (wachtwoord met de tweede stap, of een koppelcode), uitloggen |
 | `background.js` | Het contextmenu, en bij installeren de instellingen openen; geen netwerkverkeer |
 | `core/` | De logica zonder browser-API's, met tests in node: `address.js` (adres en de http-regel, gelijk aan de Android-app), `connect.js`, `model.js` (voorvullen, keuzelijst, snelle invoer, commando's, opnieuw proberen), `api.js` (de verzoeken), `errors.js` (foutteksten), `i18n.js` |
-| `_locales/nl`, `_locales/en` | De teksten; Nederlands is de standaard (`default_locale`) |
+| `_locales/en`, `_locales/nl` | De teksten; Engels is de standaard (`default_locale`) |
 | `ui.css` | De stijl van beide pagina's, licht en donker |
 | `*.test.js`, `build.test.js` | Tests (gaan niet mee in de zip) |
 

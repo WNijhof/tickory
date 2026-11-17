@@ -153,3 +153,15 @@ test('een echt tijdstip terug naar zwevende tijd, in een tijdzone en op dit appa
   // tien minuten na het uur dat niet bestaat komt in de zomertijd uit
   assert.equal(epochToFloating(floatingToEpoch('2026-03-29T01:55', 'Europe/Amsterdam') + 10 * 60_000, 'Europe/Amsterdam'), '2026-03-29T03:05');
 });
+
+test('een relatieve herinnering in gewoon Engels', () => {
+  const cases = {
+    '30 minutes before': 30, '30 min': 30, '1h': 60, '2 hours before': 120, 'an hour before': 60, 'a quarter of an hour before': 15,
+    'quarter hour': 15, 'half an hour before': 30, '2 days in advance': 2880, 'one week before': 10080, 'on time': 0, '15 mins earlier': 15,
+  };
+  for (const [text, minutes] of Object.entries(cases)) assert.equal(parseOffsetNl(text), minutes, text);
+  for (const text of ['soon', 'a while before', 'two fortnights']) assert.equal(parseOffsetNl(text), null, text);
+  // het Nederlands blijft werken
+  assert.equal(parseOffsetNl('een kwartier ervoor'), 15);
+  assert.equal(parseOffsetNl('2 uur van tevoren'), 120);
+});

@@ -4,14 +4,15 @@
 // vast (dinsdag 17 november 2026, 9:41, Europe/Amsterdam), zodat de beelden bij elke run hetzelfde zijn.
 //
 // Gebruik: node scripts/site-shots.ts [--preview]
-//   Schrijft website/assets/shots/<naam>-light.webp en -dark.webp (Engels: shots/en/<naam>-…), shots.json (de afmetingen)
+//   Schrijft website/assets/shots/<naam>-light.webp en -dark.webp in het Engels (de basistaal, ook voor de README) en
+//   shots/nl/<naam>-… in het Nederlands, shots.json (de afmetingen)
 //   en website/assets/social-preview.png. Met --preview komen er ook PNG-kopieën in .site-work/shots/preview/ om na te kijken.
 // Poorten: SHOTS_PORT (8797) en SHOTS_CDP_PORT (9347).
 // Met SHOTS_ONLY=selecteren,voltooid (namen, komma-gescheiden) worden alleen die schermen opnieuw gemaakt; de andere afbeeldingen,
 // shots.json (wordt aangevuld) en het voorbeeldplaatje blijven zoals ze waren.
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildSite } from './build-site.ts';
 import { startSiteServer } from './serve-site.ts';
 import { js, launchBrowser, sleep } from './site-browser.ts';
@@ -54,8 +55,10 @@ type View = typeof DESKTOP;
 
 rmSync(WORK, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 mkdirSync(`${WORK}/preview`, { recursive: true });
-mkdirSync(`${OUT}/en`, { recursive: true });
+mkdirSync(`${OUT}/nl`, { recursive: true });
 buildSite({ out: `${WORK}/site`, pages: false, quiet: true });
+// de voorbeeldgegevens zijn in de taal van de demo: in het Engels heten de projecten en taken anders (core/demoSeed.js)
+const { seedText } = await import(pathToFileURL(`${WORK}/site/demo/core/demoSeed.js`).href);
 const site = await startSiteServer({ root: `${WORK}/site`, port: PORT });
 const browser = await launchBrowser({ workDir: WORK, cdpPort: CDP_PORT, width: DESKTOP.width, height: DESKTOP.height });
 const { evaluate, waitFor } = browser;
@@ -63,6 +66,8 @@ const { evaluate, waitFor } = browser;
 // ---------- handelingen in de app ----------
 
 let lang: Lang = 'nl';
+/** Een naam uit de voorbeeldgegevens (hier in het Nederlands geschreven) in de taal waarin we nu vastleggen. */
+const D = (text: string): string => seedText(text, lang, true);
 /** De tekst van de app in de taal waarin we nu vastleggen (zo staan er hier geen losse Nederlandse of Engelse teksten). */
 const T = (key: string, params: Record<string, string> = {}): string => {
   const value = WORDS[lang][key];
@@ -109,7 +114,7 @@ const around = (selector: string, pad = 0) =>
 /** Legt het scherm vast in licht en donker. `clip` (in CSS-punten) beperkt het beeld tot een deel van het scherm. */
 async function capture(name: string, view: View, clip?: Clip) {
   if (ONLY && !ONLY.includes(name)) return;
-  const key = `${lang === 'en' ? 'en/' : ''}${name}`;
+  const key = `${lang === 'nl' ? 'nl/' : ''}${name}`;
   for (const theme of ['light', 'dark'] as const) {
     await browser.colorScheme(theme);
     await settle();
@@ -123,7 +128,7 @@ async function capture(name: string, view: View, clip?: Clip) {
 }
 
 async function shootAll() {
-  const projectName = 'Huishouden'; // de voorbeeldgegevens zijn Nederlands, ook in de Engelse interface
+  const projectName = D('Huishouden');
 
   // ---- computer ----
   await fresh(DESKTOP);
@@ -170,7 +175,7 @@ async function shootAll() {
   await settle();
 
   // snel toevoegen: de regel is getypt, het voorbeeld eronder laat zien wat er herkend is (ook de herinnering)
-  await typeInto('#quick-input', 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u');
+  await typeInto('#quick-input', lang === 'nl' ? 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u' : 'Call the plumber tomorrow at 9am /Chores @calls p1 !1h');
   await waitFor(`document.querySelectorAll('#quick-preview .chip').length >= 6`, 'voorbeeld onder het invoerveld');
   await settle();
   // alleen het bovenste stuk van het scherm: van de titel tot en met de eerste taak
@@ -180,7 +185,7 @@ async function shootAll() {
 
   // vensters op een hoger scherm, zodat het hele venster in beeld past
   await browser.viewport(HIGH.width, HIGH.height, { scale: HIGH.scale, mobile: false });
-  await openTask('Boodschappen doen');
+  await openTask(D('Boodschappen doen'));
   await waitFor(`document.querySelector('#task-dialog[open]')`, 'bewerkvenster');
   await evaluate(`document.activeElement?.blur()`);
   await evaluate(`(() => { const d = document.querySelector('#task-dialog'); d.style.height = '960px'; d.style.maxHeight = 'none'; })()`); // zonder schuiven: het hele venster in beeld
@@ -192,7 +197,7 @@ async function shootAll() {
   // het venster "Taak toevoegen": de knop bovenaan de zijbalk
   await evaluate(`document.querySelector('.sidebar-add').click()`);
   await waitFor(`document.querySelector('dialog[open] .quick-big')`, 'venster Taak toevoegen');
-  await typeInto('dialog[open] .quick-big', 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u');
+  await typeInto('dialog[open] .quick-big', lang === 'nl' ? 'Loodgieter bellen morgen om 9 uur /Klusjes @bellen p1 !1u' : 'Call the plumber tomorrow at 9am /Chores @calls p1 !1h');
   await typeInto('dialog[open] textarea', lang === 'nl' ? 'Het lekkende kraantje in de keuken.' : 'The leaking tap in the kitchen.');
   await waitFor(`document.querySelectorAll('dialog[open] .chips .chip').length >= 6`, 'voorbeeld in het venster');
   await evaluate(`document.activeElement?.blur()`);
@@ -222,7 +227,7 @@ async function shootAll() {
   // zoeken: het zoekvenster met een paar woorden, hoofdletter- en accentongevoelig
   await evaluate(`document.querySelector('.search-field').click()`);
   await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster');
-  await typeInto('#search-dialog .search-input', 'boodschap');
+  await typeInto('#search-dialog .search-input', lang === 'nl' ? 'boodschap' : 'grocer');
   await waitFor(`document.querySelectorAll('#search-dialog .search-hit').length >= 3`, 'treffers');
   await settle();
   await capture('zoeken', TALL, await around('#search-dialog', 24));
@@ -258,7 +263,7 @@ async function shootAll() {
 
   await nav('Inbox');
   await title('Inbox');
-  await openTask('Tandarts bellen voor controle');
+  await openTask(D('Tandarts bellen voor controle'));
   await waitFor(`document.querySelectorAll('#task-dialog .device').length === 3`, 'herinneringen in het taakvenster');
   await evaluate(`document.activeElement?.blur()`);
   await evaluate(`(() => { const d = document.querySelector('#task-dialog'); d.style.height = '960px'; d.style.maxHeight = 'none'; })()`);
@@ -327,7 +332,7 @@ async function shootAll() {
   await sleep(250);
   await evaluate(`document.querySelector('.topbar-search').click()`);
   await waitFor(`document.querySelector('#search-dialog[open]')`, 'zoekvenster op een telefoon');
-  await typeInto('#search-dialog .search-input', 'boodschap');
+  await typeInto('#search-dialog .search-input', lang === 'nl' ? 'boodschap' : 'grocer');
   await waitFor(`document.querySelectorAll('#search-dialog .search-hit').length >= 3`, 'treffers');
   await evaluate(`document.activeElement?.blur()`);
   await settle();
@@ -340,15 +345,15 @@ async function shootAll() {
   const row = (name: string) => `[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title').textContent === ${js(name)})`;
   await evaluate(`document.querySelector('.bulk-toggle').click()`);
   await waitFor(`document.body.classList.contains('select-mode')`, 'selecteermodus');
-  for (const name of ['Weekmenu maken', 'Lamp in de gang vervangen', 'Kamer opruimen']) await evaluate(`${row(name)}.querySelector('.sel-box').click()`);
+  for (const name of [D('Weekmenu maken'), D('Lamp in de gang vervangen'), D('Kamer opruimen')]) await evaluate(`${row(name)}.querySelector('.sel-box').click()`);
   await waitFor(`document.querySelectorAll('li.task.is-selected').length === 3`, 'drie taken gekozen');
   await evaluate(`document.activeElement?.blur()`);
   await settle();
   await capture('selecteren', DESKTOP);
   await evaluate(`document.querySelector('#bulk-bar [data-bulk="stop"]').click()`);
   // twee taken afvinken, zodat Voltooid ook een groep van vandaag heeft naast de taken van drie dagen geleden
-  for (const name of ['Weekmenu maken', 'Kamer opruimen']) await evaluate(`${row(name)}.querySelector('.check').click()`);
-  await waitFor(`!${row('Weekmenu maken')} && !${row('Kamer opruimen')}`, 'twee taken afgevinkt');
+  for (const name of [D('Weekmenu maken'), D('Kamer opruimen')]) await evaluate(`${row(name)}.querySelector('.check').click()`);
+  await waitFor(`!${row(D('Weekmenu maken'))} && !${row(D('Kamer opruimen'))}`, 'twee taken afgevinkt');
   await waitFor(`document.getElementById('sync-status').textContent === ${js(T('sync.upToDate'))}`, 'bijgewerkt (de cijfers boven Voltooid tellen ze dan mee)');
   await nav(T('nav.completed'));
   await title(T('nav.completed'));
@@ -375,7 +380,7 @@ try {
   await browser.send('Page.addScriptToEvaluateOnNewDocument', { source: FIXED_DATE });
   await browser.send('Emulation.setTimezoneOverride', { timezoneId: FIXED_ZONE });
 
-  for (const l of ['nl', 'en'] as const) {
+  for (const l of ['en', 'nl'] as const) {
     lang = l;
     console.log(`\n--- ${l === 'nl' ? 'Nederlands' : 'English'} ---`);
     await shootAll();
@@ -397,8 +402,8 @@ try {
   const logo = readFileSync(`${ROOT}website/assets/logo.svg`, 'utf8')
     .replace(/<svg /, '<svg width="132" height="132" ')
     .replaceAll('fill="#0f766e"', 'fill="#ffffff"').replace('stroke="#fff"', 'stroke="#0f766e"').replace('stroke="#5eead4"', 'stroke="#2dd4bf"');
-  const shot = readFileSync(`${OUT}/en/project-light.webp`).toString('base64');
-  const phone = readFileSync(`${OUT}/en/telefoon-vandaag-light.webp`).toString('base64');
+  const shot = readFileSync(`${OUT}/project-light.webp`).toString('base64');
+  const phone = readFileSync(`${OUT}/telefoon-vandaag-light.webp`).toString('base64');
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>
     * { box-sizing: border-box; margin: 0; }
     body { width: 1280px; height: 640px; overflow: hidden; background: linear-gradient(115deg, #0a524c 0%, #0f766e 62%, #128679 100%); color: #fff; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; position: relative; }

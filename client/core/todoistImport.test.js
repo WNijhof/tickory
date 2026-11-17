@@ -160,6 +160,15 @@ test('datums: Nederlands via de Nederlandse herkenner, Engels via de kleine Enge
   assert.equal(readDate('2026-02-30', 'nl', NOW), null);
 });
 
+test('datums in de Engelse app: een Engelse herhaling blijft Engels (het datumveld leest die zelf), een Nederlandse blijft Nederlands', () => {
+  assert.deepEqual(readDate('every monday', 'en', NOW, 'en'), { date: '2026-11-16', string: 'every monday', lang: 'en', recurrence: { freq: 'weekly', byweekday: [1] } });
+  assert.deepEqual(readDate('every day at 9am', 'en', NOW, 'en'), { date: '2026-11-15T09:00', string: 'every day at 9am', lang: 'en', recurrence: { freq: 'daily' } });
+  assert.deepEqual(readDate('elke vrijdag', 'nl', NOW, 'en'), { date: '2026-11-20', string: 'elke vrijdag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [5] } });
+  assert.deepEqual(readDate('tomorrow at 9am', 'en', NOW, 'en'), { date: '2026-11-15T09:00' });
+  // dezelfde tekst in de Nederlandse app krijgt nog steeds een Nederlandse tekst (de cache houdt de talen uit elkaar)
+  assert.equal(readDate('every monday', 'en', NOW, 'nl').string, 'elke maandag');
+});
+
 test('datums: elke Nederlandse tekst van een Engelse herhaling leest de app terug als dezelfde regel', () => {
   const cases = ['every day', 'every 3 days', 'every week', 'every 2 weeks', 'every monday', 'every mon, wed and fri', 'every weekday', 'every weekend',
     'every month', 'every month on the 15th', 'every 3 months on the 1st', 'every last day', 'every first monday', 'every last friday', 'every 2nd tue',

@@ -1,7 +1,7 @@
 // Snel toevoegen voor apparaten zonder eigen herkenner: `POST /api/v1/quick-add` (het kleine venster "Taak toevoegen" van de
 // Android-app, en wat er verder bij komt). Eén regel tekst wordt een taak, precies zoals in de web-app:
 //
-//   - de herkenning is dezelfde code als in de web-app (client/core/quickadd.js met dateNl.js), op de projecten, secties,
+//   - de herkenning is dezelfde code als in de web-app (client/core/quickadd.js met dateInput.js), op de projecten, secties,
 //     labels en rollen die de gebruiker zelf ziet (dezelfde volledige sync als de web-app krijgt);
 //   - de commando's maakt dezelfde code als in de web-app (client/core/actions.js, `addTask`): nieuwe labels, de taak, en de
 //     herinneringen (`!30m`, of de automatische herinnering uit de instellingen bij een taak met een tijd);
@@ -12,7 +12,9 @@
 //     gebruiker bedoelde;
 //   - hetzelfde `uuid` nog eens geeft dezelfde taak terug (`repeated: true`) en maakt niets nieuws: de id's van de taak, de
 //     labels en de herinneringen en de uuid's van de commando's zijn afgeleid van gebruiker en uuid;
-//   - `dry_run: true` geeft alleen de voorvertoning (titel, datum, project, sectie, labels, prioriteit, herinneringen).
+//   - `dry_run: true` geeft alleen de voorvertoning (titel, datum, project, sectie, labels, prioriteit, herinneringen);
+//   - `lang` ("nl" of "en", de taal van het apparaat) kiest de datumtaal: "nl" alleen Nederlands, "en" Engels en Nederlands.
+//     Zonder `lang` (een oudere app) geldt "en": dat leest Nederlands ook.
 //
 // De herkenner rekent in de tijdzone van het proces (net als in de browser). Daarom draait hij hier in een blok dat de
 // tijdzone van het proces even op `tz` zet (process.env.TZ, wat Node direct overneemt) en daarna terugzet. Dat blok is
@@ -44,7 +46,7 @@ export const TYPED_AT_FUTURE_MS = 86_400_000;
 
 const UUID_RE = /^[A-Za-z0-9_-]{8,56}$/; // ruimte voor "-t", "-l12" en "-r3" erachter (de sync staat 64 tekens toe)
 const TYPED_AT_RE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?)(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
-const ALLOWED = new Set(['text', 'project_id', 'section_id', 'uuid', 'typed_at', 'tz', 'due', 'priority', 'dry_run']);
+const ALLOWED = new Set(['text', 'project_id', 'section_id', 'uuid', 'typed_at', 'tz', 'due', 'priority', 'dry_run', 'lang']);
 
 const fail = (code: string, message: string): never => { throw new SyncError(code, message); };
 
@@ -58,6 +60,8 @@ export interface QuickAddInput {
   due: 'today' | 'tomorrow' | null;
   priority: number | null;
   dryRun: boolean;
+  /** De datumtaal: "nl" alleen Nederlands, "en" Engels en Nederlands (zie client/core/dateInput.js). */
+  lang: 'nl' | 'en';
 }
 
 /** Controleert het verzoek. Onbekende velden en verkeerde soorten zijn INVALID_ARG of UNKNOWN_ARG (HTTP 400). */
@@ -87,9 +91,12 @@ export function readInput(body: Record<string, unknown>): QuickAddInput {
   if (due !== null && due !== 'today' && due !== 'tomorrow') fail('INVALID_ARG', 'due: "today" of "tomorrow"');
   const priority = body.priority === undefined || body.priority === null ? null : body.priority;
   if (priority !== null && (!Number.isInteger(priority) || (priority as number) < 1 || (priority as number) > 4)) fail('INVALID_ARG', 'priority: 1 tot en met 4');
+  const lang = body.lang === undefined || body.lang === null ? 'en' : body.lang;
+  if (lang !== 'nl' && lang !== 'en') fail('INVALID_ARG', 'lang: "nl" of "en"');
   return {
     text: text as string, projectId: optionalId('project_id'), sectionId: optionalId('section_id'), uuid: uuid as string | null,
     typedAt: typedAt as string | null, tz: tz as string | null, due: due as QuickAddInput['due'], priority: priority as number | null, dryRun: dryRun as boolean,
+    lang: lang as 'nl' | 'en',
   };
 }
 
@@ -210,7 +217,7 @@ export async function quickAdd(db: DatabaseSync, userId: string, body: Record<st
   const defaultDue = input.due === 'today' ? { date: today, string: 'vandaag', lang: 'nl' } : input.due === 'tomorrow' ? { date: nextDay(today), string: 'morgen', lang: 'nl' } : null;
   // de voorkeur "datums herkennen" van de gebruiker (shared/general.js), zoals in de web-app
   const dates = generalOf(settings).date_recognition;
-  const parsed = inZone(tz, () => parseQuickAdd(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo, dates }));
+  const parsed = inZone(tz, () => parseQuickAdd(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo, dates, language: input.lang }));
   if (input.priority !== null && parsed.priority === 4) parsed.priority = input.priority; // getypt (p1 … p4) gaat voor
   if (!parsed.content) fail('INVALID_ARG', 'de taak heeft geen naam (alleen een datum, project of label)');
 

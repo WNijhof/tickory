@@ -427,7 +427,7 @@ class QuickAddActivity : ComponentActivity() {
             return
         }
         val seq = previewSeq
-        val body = QuickAddQueue.previewBody(input.text.toString().trim().take(QuickAddQueue.MAX_TEXT), projectId, dueChoice(), priority, typedAt(AppClock.now()), ZoneId.systemDefault().id)
+        val body = QuickAddQueue.previewBody(input.text.toString().trim().take(QuickAddQueue.MAX_TEXT), projectId, dueChoice(), priority, typedAt(AppClock.now()), ZoneId.systemDefault().id, getString(R.string.language_code))
         previewExecutor.execute {
             val token = TokenVault.load(app)
             val result = if (token == null) null else ApiClient(origin, 4_000, 6_000, Session.userAgent).quickAdd(token, body)

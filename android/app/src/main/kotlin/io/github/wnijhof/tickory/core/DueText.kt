@@ -5,12 +5,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 
-/** De talen van de app. Alles wat geen Engels is, krijgt Nederlands: dat is de standaardtaal. */
+/** De talen van de app. Alles wat geen Nederlands is, krijgt Engels: dat is de standaardtaal (basistaal). */
 enum class Lang {
     NL, EN;
 
     companion object {
-        fun of(code: String?): Lang = if (code != null && code.lowercase().startsWith("en")) EN else NL
+        fun of(code: String?): Lang = if (code != null && code.lowercase().startsWith("nl")) NL else EN
     }
 }
 

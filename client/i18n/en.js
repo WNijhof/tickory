@@ -42,7 +42,7 @@ export default {
   'sync.waiting': { one: '{count} change waiting', other: '{count} changes waiting' },
 
   // ---------- snel toevoegen ----------
-  'quick.placeholder': 'New task, e.g. Pay rent 31-12 p1',
+  'quick.placeholder': 'New task, e.g. Call mom tomorrow at 6pm p1',
   'quick.suggestLabel': 'Suggestions',
   'quick.deadlineToday': 'Today',
   'quick.deadlineTomorrow': 'Tomorrow',
@@ -468,7 +468,7 @@ export default {
   // De ISO-vorm: zonder Nederlands woord ("om") en voor iedereen eenduidig (05-01 kan 5 januari of 1 mei zijn).
   'date.inputDate': '{y}-{m}-{d}',
   'date.inputDateTime': '{y}-{m}-{d}T{time}',
-  'date.dutchOnly': 'Dates like "tomorrow" are only recognized in Dutch for now. Use 31-12 or 31-12-2026 instead.',
+  'date.examples': 'For example "tomorrow at 9am", "next friday", "every monday" or "31-12".',
 
   // ---------- zijbalk en overzichten ----------
   'nav.views': 'Views',
@@ -679,11 +679,11 @@ export default {
   'task.contentLabel': 'Task',
   'task.description': 'Description',
   'task.due': 'Due date',
-  'task.duePlaceholder': 'e.g. 31-12 or 2026-12-31T14:30',
+  'task.duePlaceholder': 'e.g. tomorrow at 9am, every monday',
   'task.dueNow': 'Now: {date}',
   'task.dueBecomes': 'Will be: {date}',
   'task.dueUnknown': "I don't recognize this date.",
-  'task.dueError': 'The date wasn\'t recognized. Try "31-12", "31-12-2026" or "2026-12-31T14:30".',
+  'task.dueError': 'The date wasn\'t recognized. Try "tomorrow", "friday at 2pm" or "31-12".',
   'task.deadline': 'Deadline',
   'task.duration': 'Duration',
   'task.durationNone': 'No duration',

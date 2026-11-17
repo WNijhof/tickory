@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseDateText } from './dateNl.js';
+import { parseDateEn } from './dateEn.js';
 import { choiceFromDue, MAX_INTERVAL, repeatPresets, repeatText } from './repeat.js';
 
 const NOW = new Date(2026, 10, 17, 9, 41); // dinsdag 17 november 2026
@@ -21,10 +22,10 @@ function expectedRule(c) {
 
 const sortKeys = (o) => JSON.stringify(o, Object.keys(o).sort());
 
-function roundTrip(choice) {
-  const text = repeatText(choice);
+function roundTrip(choice, language = 'nl') {
+  const text = repeatText(choice, language);
   assert.ok(text, JSON.stringify(choice));
-  const due = parseDateText(text, NOW);
+  const due = language === 'en' ? parseDateEn(text, NOW) : parseDateText(text, NOW);
   assert.ok(due, `niet herkend: "${text}"`);
   const want = expectedRule(choice);
   assert.equal(sortKeys(due.recurrence), sortKeys(want), `"${text}"`);
@@ -49,6 +50,7 @@ test('elke keuze geeft precies de bedoelde herhaling: eenheden, aantallen, weekd
       for (const time of [null, '9:00', '18:15', '0:05', '23:59']) {
         for (const fromCompletion of [false, true]) {
           roundTrip({ ...u, interval, time, fromCompletion });
+          roundTrip({ ...u, interval, time, fromCompletion }, 'en'); // in het Engels dezelfde regel
           count++;
         }
       }
@@ -115,4 +117,20 @@ test('een bestaande herhaling als keuze, en weer terug', () => {
   }
   assert.equal(choiceFromDue({ date: '2026-11-17' }), null);
   assert.equal(choiceFromDue(null), null);
+});
+
+test('in het Engels: de tekst die de Engelse datumherkenner leest', () => {
+  assert.equal(repeatText({ unit: 'day' }, 'en'), 'every day');
+  assert.equal(repeatText({ unit: 'day', interval: 3 }, 'en'), 'every 3 days');
+  assert.equal(repeatText({ unit: 'workday', time: '8:30' }, 'en'), 'every workday at 8:30');
+  assert.equal(repeatText({ unit: 'week', weekdays: [1] }, 'en'), 'every monday');
+  assert.equal(repeatText({ unit: 'week', weekdays: [5, 1, 3] }, 'en'), 'every mon, wed and fri');
+  assert.equal(repeatText({ unit: 'week', interval: 2, weekdays: [4] }, 'en'), 'every 2 thursday');
+  assert.equal(repeatText({ unit: 'month', monthDay: 1 }, 'en'), 'every month on the 1st');
+  assert.equal(repeatText({ unit: 'month', monthDay: 22, interval: 2 }, 'en'), 'every 2 months on the 22nd');
+  assert.equal(repeatText({ unit: 'month', monthDay: 'last' }, 'en'), 'every last day');
+  assert.equal(repeatText({ unit: 'month', nth: { n: -1, weekday: 5 } }, 'en'), 'every last friday');
+  assert.equal(repeatText({ unit: 'year', yearDate: { day: 5, month: 12 }, fromCompletion: true }, 'en'), 'every! year on 5 december');
+  assert.equal(repeatText({ unit: 'month', monthDay: 11 }, 'en'), 'every month on the 11th');
+  assert.equal(repeatText({ unit: 'month', monthDay: 13 }, 'en'), 'every month on the 13th');
 });

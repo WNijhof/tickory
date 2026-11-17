@@ -4,7 +4,7 @@
 // tijd; tellen vanaf het afvinken). Een keuze komt als tekst in het datumveld (core/repeat.js), zodat de uitleg onder het veld,
 // bewaren en ongedaan maken gewoon werken. Escape sluit alleen het paneel.
 
-import { parseDateText } from '../core/dateNl.js';
+import { parseDateText } from '../core/dateInput.js';
 import { formatDateInput, formatDueLong } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { choiceFromDue, MAX_INTERVAL, monthName, ordinalWord, repeatPresets, repeatSummary, repeatText, weekdayName } from '../core/repeat.js';

@@ -1,6 +1,7 @@
 package io.github.wnijhof.tickory.sync
 
 import android.content.Context
+import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.ApiClient
 import io.github.wnijhof.tickory.core.QuickAddQueue
 import io.github.wnijhof.tickory.core.QuickAddResult
@@ -48,7 +49,7 @@ object QuickAddSync {
         val mine = QuickAddQueue.sendable(QuickAddStore.queue(app), account, session).take(QuickAddQueue.PER_RUN)
         var sent = expired.isNotEmpty() || foreign.isNotEmpty()
         for (item in mine) {
-            when (val result = client.quickAdd(token, QuickAddQueue.requestBody(item))) {
+            when (val result = client.quickAdd(token, QuickAddQueue.requestBody(item, app.getString(R.string.language_code)))) {
                 is QuickAddResult.Ok -> QuickAddStore.settle(app, listOf(item))
                 is QuickAddResult.Rejected -> {
                     QuickAddStore.settle(app, listOf(item))

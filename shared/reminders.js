@@ -119,26 +119,30 @@ export function offsetParts(minutes) {
   return { unit: 'minutes', n: minutes };
 }
 
-const WORDS = { een: 1, één: 1, twee: 2, drie: 3, vier: 4, vijf: 5, zes: 6, zeven: 7, acht: 8, negen: 9, tien: 10, kwartier: 15, half: 30 };
+const WORDS = {
+  een: 1, één: 1, twee: 2, drie: 3, vier: 4, vijf: 5, zes: 6, zeven: 7, acht: 8, negen: 9, tien: 10, kwartier: 15, half: 30,
+  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
 const UNIT = [
-  [/^(m|min|mins|minuut|minuten|mv)$/, 1],
-  [/^(u|uur|uren|h|uv)$/, 60],
-  [/^(d|dag|dagen|dv)$/, 1440],
-  [/^(w|week|weken)$/, 10080],
+  [/^(m|min|mins|minuut|minuten|mv|minute|minutes)$/, 1],
+  [/^(u|uur|uren|h|uv|hr|hrs|hour|hours)$/, 60],
+  [/^(d|dag|dagen|dv|day|days)$/, 1440],
+  [/^(w|week|weken|weeks)$/, 10080],
 ];
 
 /**
- * Leest een relatieve herinnering in gewoon Nederlands of als korte code. Geeft het aantal minuten vooraf, of null.
+ * Leest een relatieve herinnering in gewoon Nederlands, in gewoon Engels of als korte code. Geeft het aantal minuten vooraf, of null.
  *   "30mv", "30m", "30 min", "30 minuten ervoor", "1uv", "2 uur van tevoren", "een kwartier vooraf", "1dv", "2 dagen",
- *   "0mv", "0", "op tijd", "op het tijdstip van de taak"
+ *   "0mv", "0", "op tijd", "op het tijdstip van de taak",
+ *   "30 minutes before", "1h", "an hour before", "2 days in advance", "a quarter of an hour before", "half an hour before", "on time"
  */
 export function parseOffsetNl(text) {
   if (typeof text !== 'string') return null;
   const s = text.normalize('NFC').toLowerCase().trim().replace(/\s+/g, ' ')
-    .replace(/ ?(ervoor|vooraf|van tevoren|vantevoren|tevoren|eerder|voor de taak|voor het tijdstip)$/, '').trim();
-  if (/^(0|op tijd|op het tijdstip|op tijdstip|op het tijdstip van de taak|op tijdstip van taak|op het moment zelf)$/.test(s)) return 0;
-  if (/^(een )?kwartier$/.test(s)) return 15;
-  if (/^(een )?half uur$/.test(s) || s === 'halfuur') return 30;
+    .replace(/ ?(ervoor|vooraf|van tevoren|vantevoren|tevoren|eerder|voor de taak|voor het tijdstip|before|beforehand|in advance|ahead|earlier|early|prior)$/, '').trim();
+  if (/^(0|op tijd|op het tijdstip|op tijdstip|op het tijdstip van de taak|op tijdstip van taak|op het moment zelf|on time|at the time|at time|at the time of the task|when due)$/.test(s)) return 0;
+  if (/^(een )?kwartier$/.test(s) || /^(a )?quarter( of an hour| hour)?$/.test(s)) return 15;
+  if (/^(een )?half uur$/.test(s) || s === 'halfuur' || /^half an hour$|^half hour$|^a half hour$/.test(s)) return 30;
   const m = /^(\d{1,4}|[a-zé]+) ?([a-z]+)$/.exec(s);
   if (!m) return null;
   const n = /^\d+$/.test(m[1]) ? Number(m[1]) : WORDS[m[1]];

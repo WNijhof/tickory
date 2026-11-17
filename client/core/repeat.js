@@ -1,5 +1,5 @@
-// De herhalingskiezer in het taakvenster: van een keuze met knoppen naar de Nederlandse tekst die het datumveld leest
-// (dateNl.js), en terug van een bestaande herhaling naar een keuze. De tekst is de enige bron: het datumveld, de uitleg eronder
+// De herhalingskiezer in het taakvenster: van een keuze met knoppen naar de tekst die het datumveld leest (in het Nederlands
+// voor dateNl.js, in het Engels voor dateEn.js; zie dateInput.js), en terug van een bestaande herhaling naar een keuze. De tekst is de enige bron: het datumveld, de uitleg eronder
 // ("wordt: …"), bewaren en ongedaan maken werken er al mee. repeat.test.js controleert dat elke keuze precies de bedoelde
 // regel oplevert.
 //
@@ -8,7 +8,7 @@
 //     weekdays?: [1..7] (week; 1 = maandag), monthDay?: 1..31 | 'last' (month), nth?: { n: 1..4 | -1, weekday: 1..7 } (month),
 //     yearDate?: { day, month } (year), time?: 'HH:MM' | null, fromCompletion?: boolean }
 
-import { getLocale, t } from './i18n.js';
+import { getLanguage, getLocale, t } from './i18n.js';
 
 export const MAX_INTERVAL = 999;
 
@@ -28,9 +28,73 @@ function dayList(days) {
   return `${names.slice(0, -1).join(', ')} en ${names[names.length - 1]}`;
 }
 
-/** De tekst voor het datumveld, of null als de keuze niet compleet is (een week zonder dagen mag: dan de dag van de start). */
-export function repeatText(choice) {
+const EN_WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const EN_SHORT = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const EN_MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const EN_ORDINALS = { 1: 'first', 2: 'second', 3: 'third', 4: 'fourth', '-1': 'last' };
+const enSuffix = (d) => (d % 10 === 1 && d !== 11 ? 'st' : d % 10 === 2 && d !== 12 ? 'nd' : d % 10 === 3 && d !== 13 ? 'rd' : 'th');
+
+/** "mon, wed and fri" of, bij één dag, "monday". */
+function dayListEn(days) {
+  const list = [...new Set(days)].filter((d) => d >= 1 && d <= 7).sort((a, b) => a - b);
+  if (list.length === 1) return EN_WEEKDAYS[list[0] - 1];
+  const names = list.map((d) => EN_SHORT[d - 1]);
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** Dezelfde tekst in het Engels, voor core/dateEn.js: "every monday at 9:00", "every 2 months on the 15th". */
+function repeatTextEn(choice) {
+  const n = clampInterval(choice.interval ?? 1);
+  let text;
+  switch (choice.unit) {
+    case 'day':
+      text = n === 1 ? 'every day' : `every ${n} days`;
+      break;
+    case 'workday':
+      text = 'every workday';
+      break;
+    case 'week': {
+      const days = (choice.weekdays ?? []).filter((d) => d >= 1 && d <= 7);
+      if (days.length === 0) text = n === 1 ? 'every week' : `every ${n} weeks`;
+      else text = n === 1 ? `every ${dayListEn(days)}` : `every ${n} ${dayListEn(days)}`;
+      break;
+    }
+    case 'month':
+      if (choice.nth) {
+        const ord = EN_ORDINALS[String(choice.nth.n)];
+        const wd = EN_WEEKDAYS[choice.nth.weekday - 1];
+        if (!ord || !wd) return null;
+        text = `every ${ord} ${wd}`;
+      } else if (choice.monthDay === 'last') {
+        text = n === 1 ? 'every last day' : `every ${n} months on the last day`;
+      } else {
+        const d = Number(choice.monthDay);
+        if (!Number.isInteger(d) || d < 1 || d > 31) return null;
+        text = n === 1 ? `every month on the ${d}${enSuffix(d)}` : `every ${n} months on the ${d}${enSuffix(d)}`;
+      }
+      break;
+    case 'year': {
+      const { day, month } = choice.yearDate ?? {};
+      if (!Number.isInteger(day) || !Number.isInteger(month) || month < 1 || month > 12 || day < 1 || day > 31) return null;
+      text = n === 1 ? `every year on ${day} ${EN_MONTHS[month - 1]}` : `every ${n} years on ${day} ${EN_MONTHS[month - 1]}`;
+      break;
+    }
+    default:
+      return null;
+  }
+  if (choice.fromCompletion) text = text.replace(/^every\b/u, 'every!');
+  const time = typeof choice.time === 'string' ? TIME.exec(choice.time) : null;
+  if (time) text += ` at ${Number(time[1])}:${time[2]}`;
+  return text;
+}
+
+/**
+ * De tekst voor het datumveld, of null als de keuze niet compleet is (een week zonder dagen mag: dan de dag van de start).
+ * In de taal van de interface: die leest het datumveld (core/dateInput.js).
+ */
+export function repeatText(choice, language = getLanguage()) {
   if (!choice) return null;
+  if (language === 'en') return repeatTextEn(choice);
   const n = clampInterval(choice.interval ?? 1);
   let text;
   switch (choice.unit) {

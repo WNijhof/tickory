@@ -1,4 +1,5 @@
-// Voorbeeldgegevens voor de demo op de website: een Nederlands huishouden met een paar gedeelde projecten.
+// Voorbeeldgegevens voor de demo op de website: een huishouden met een paar gedeelde projecten, in het Nederlands of (in de
+// Engelse demo) in het Engels. Beide talen hebben precies dezelfde opbouw, dezelfde datums en dezelfde herhalingen.
 //
 // LET OP: scripts/build-site.ts zet dit bestand als `demo/core/demoSeed.js` tussen de bestanden van de app. De imports
 // hieronder kloppen dus vanaf die plek (naast reducer.js), niet vanaf website/demo/.
@@ -8,7 +9,7 @@
 // Datums zijn relatief aan vandaag, en de herhalingen komen uit de echte datumherkenner (dateNl.js).
 
 import { applyCommand, emptyState } from './reducer.js';
-import { parseDateText } from './dateNl.js';
+import { parseDateText } from './dateInput.js';
 import { addDays, todayString } from './format.js';
 import { isoWeekday, startOfWeek } from './calendar.js';
 import { ENTITIES, settingsId } from '../../shared/schema.js';
@@ -25,6 +26,133 @@ export const DEMO_USERS = [
   { id: 'user-kees', username: 'kees', name: 'Opa Kees', is_admin: false, is_disabled: false },
 ];
 export const DEMO_ME = 'user-anna';
+// ---------- de Engelse teksten ----------
+
+/** De Engelse vertaling van elke tekst in de voorbeeldgegevens (namen van projecten, taken, opmerkingen en de geschiedenis). */
+const EN = {
+  'Huishouden': 'Household',
+  'Vakantie Texel': 'Trip to Texel',
+  'Fietsroute': 'Cycling route',
+  'Verhuizing 2025': 'Moving house 2025',
+  'Buurtfeest': 'Street party',
+  'Familieweekend': 'Family weekend',
+  'Boodschappen': 'Groceries',
+  'Klusjes': 'Chores',
+  'Vaste prik': 'Routine',
+  'Regelen': 'To arrange',
+  'Inpakken': 'Packing',
+  'bellen': 'calls',
+  'boodschappen': 'shopping',
+  'buiten': 'outdoors',
+  'buurt': 'neighbours',
+  'Fietsband plakken': 'Fix the bike tyre',
+  'Bibliotheekboeken terugbrengen': 'Return library books',
+  'Tandarts bellen voor controle': 'Call the dentist for a check-up',
+  'Paspoort verlengen': 'Renew passport',
+  'Afspraak maken bij de gemeente. Meenemen: het oude paspoort en een nieuwe pasfoto.': 'Make an appointment at the town hall. Bring the old passport and a new photo.',
+  'Verjaardagskaart voor oma sturen': 'Send Grandma a birthday card',
+  'Pakketje ophalen bij de buren': 'Pick up the parcel from the neighbours',
+  'Weekmenu maken': 'Plan the week\'s meals',
+  'Boodschappen doen': 'Do the grocery shopping',
+  'Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.': 'The list is on the fridge. Get something nice for Sunday too.',
+  'Brood': 'Bread',
+  'Melk en eieren': 'Milk and eggs',
+  'Koffiebonen': 'Coffee beans',
+  'Hagelslag': 'Chocolate sprinkles',
+  'Kattenvoer bestellen': 'Order cat food',
+  'Lamp in de gang vervangen': 'Replace the hallway light bulb',
+  'Kamer opruimen': 'Tidy the bedroom',
+  'Dakgoot schoonmaken': 'Clean the gutters',
+  'Fietsenschuur opruimen': 'Tidy the bike shed',
+  'Oud papier aan de straat': 'Put out the paper recycling',
+  'Vuilnis buiten zetten': 'Take out the bins',
+  'Planten water geven': 'Water the plants',
+  'Stofzuigen': 'Vacuum',
+  'Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.': 'I\'ll get the coffee beans at the market, so they can come off the list.',
+  'Top, dank je! Vergeet de hagelslag niet: https://www.voorbeeld.nl/boodschappen': 'Great, thanks! Don\'t forget the sprinkles: https://www.example.com/groceries',
+  'Welke fitting is het, E27 of E14?': 'Which fitting is it, E27 or E14?',
+  'Wie zet deze week het vuilnis buiten?': 'Who is taking out the bins this week?',
+  'Boot reserveren': 'Book the ferry',
+  'Huisje aanbetalen': 'Pay the cottage deposit',
+  'Oppas voor de kat vragen': 'Ask someone to feed the cat',
+  'Regenjassen': 'Rain jackets',
+  'Fietstassen': 'Bike panniers',
+  'Verrekijker': 'Binoculars',
+  'Knooppunten uitzoeken': 'Plan the cycle route',
+  'Adreswijziging doorgeven': 'Report the change of address',
+  'Vergunning aanvragen bij de gemeente': 'Apply for a permit at the town hall',
+  'Partytent regelen': 'Arrange a party tent',
+  'Flyers rondbrengen': 'Deliver the flyers',
+  'Playlist maken': 'Make a playlist',
+  '@Anna, kun jij de partytent van je zus lenen? Dan regel ik de tafels.': '@Anna, could you borrow your sister\'s party tent? Then I\'ll sort out the tables.',
+  'Huisje op de Veluwe boeken': 'Book a cottage in the woods',
+  'Spelletjes inpakken': 'Pack the board games',
+  'Wandelroute uitzoeken': 'Pick a walking route',
+  'Ik heb er drie gevonden, ik kies morgen.': 'I found three, I\'ll choose tomorrow.',
+  'Rekening van de tandarts betalen': 'Pay the dentist bill',
+  'Pakketje terugsturen': 'Send the parcel back',
+  'Afspraak bij de kapper maken': 'Book a haircut',
+  'Mail van school beantwoorden': 'Reply to the email from school',
+  'Verzekeringen vergelijken': 'Compare insurance',
+  'Foto\'s van de verjaardag uitzoeken': 'Sort the birthday photos',
+  'Abonnement opzeggen': 'Cancel the subscription',
+  'Bibliotheekboek verlengen': 'Renew the library book',
+  'Cadeau voor Sanne bestellen': 'Order a present for Sanne',
+  'Belastingbrief bekijken': 'Read the tax letter',
+  'Was ophangen': 'Hang out the washing',
+  'Vaatwasser uitruimen': 'Empty the dishwasher',
+  'Bed verschonen': 'Change the sheets',
+  'Koelkast schoonmaken': 'Clean the fridge',
+  'Recept voor zondag zoeken': 'Find a recipe for Sunday',
+  'Groente halen bij de markt': 'Buy vegetables at the market',
+  'Ramen lappen': 'Clean the windows',
+  'Badkamer poetsen': 'Clean the bathroom',
+  'Gft-bak buiten zetten': 'Put out the food waste bin',
+  'Fietsen nakijken': 'Check the bikes',
+  'Weerbericht bekijken': 'Check the weather forecast',
+  'Route naar de boot printen': 'Print the route to the ferry',
+  'Zwemspullen zoeken': 'Find the swimming things',
+  'Campingkaart verlengen': 'Renew the camping card',
+  'Buren in de straat uitnodigen': 'Invite the neighbours',
+  'Tafels en stoelen tellen': 'Count tables and chairs',
+  'Prijzen voor de loterij vragen': 'Ask for raffle prizes',
+  'Muziek testen': 'Test the music',
+  'Fietsen in de schuur gezet': 'Put the bikes in the shed',
+  'Kamer gestofzuigd': 'Vacuumed the bedroom',
+  'Opa Kees': 'Grandpa Kees',
+};
+
+/**
+ * Datums in de Engelse demo. Een herhaling krijgt Engelse tekst die de Engelse herkenner leest (dezelfde regel, zie createSeed met
+ * strict); een eenmalige datum blijft precies de dag uit het Nederlands en krijgt deze Engelse tekst erbij.
+ */
+const EN_DATES = {
+  'morgen om 9 uur': 'tomorrow at 9am',
+  'volgende week donderdag': 'thursday next week',
+  'overmorgen': 'in 2 days',
+  'morgen': 'tomorrow',
+  'aanstaande zaterdag': 'saturday',
+  'elke tweede dinsdag': 'every second tuesday',
+  'elke donderdag om 20:00': 'every thursday at 20:00',
+  'elke zondag': 'every sunday',
+  'elke zaterdag': 'every saturday',
+  'aanstaande vrijdag om 10 uur': 'friday at 10am',
+  'over twee weken': 'in two weeks',
+  'aanstaande vrijdag': 'friday',
+  'volgende week': 'in 1 week',
+  'over drie weken': 'in 3 weeks',
+};
+
+/** De tekst in de gevraagde taal; met `strict` is een ontbrekende vertaling een fout (voor de controle van de website). */
+export function seedText(text, language = 'nl', strict = false) {
+  if (language !== 'en') return text;
+  if (!Object.hasOwn(EN, text)) {
+    if (strict) throw new Error(`voorbeeldgegevens: geen Engelse tekst voor "${text}"`);
+    return text;
+  }
+  return EN[text];
+}
+
 /** De tijdzone van de voorbeeldgebruiker: waarin de (denkbeeldige) server haar herinneringen zou laten afgaan. */
 export const DEMO_TIMEZONE = 'Europe/Amsterdam';
 
@@ -69,15 +197,15 @@ const DONE_TITLES = {
  * van hoeveel weken geleden die is: de demo ziet er elke dag hetzelfde uit en de controle van de website blijft stabiel. Van
  * vandaag staat alleen wat vóór nu gebeurde. Ook Bram en Sanne vinken af (dat telt niet voor jou), en één keer zet je iets terug.
  */
-function completionHistory({ now, today, entry, log, state, projects, people }) {
+function completionHistory({ now, today, entry, log, state, projects, people, w }) {
   const thisWeek = startOfWeek(today);
   const first = addDays(thisWeek, -7 * HISTORY_WEEKS);
   const origin = new Date(new Date(`${first}T00:00:00Z`).getTime() - 2 * 86_400_000).toISOString();
   // de projecten, secties en vaste taken bestonden al vóór de geschiedenis (in het logboek; de rijen zelf zijn "drie dagen oud")
   const named = (content) => [...state.tasks.values()].find((x) => x.content === content);
-  const stofzuigen = named('Stofzuigen');
-  const oudPapier = named('Oud papier aan de straat');
-  const fietsband = named('Fietsband plakken');
+  const stofzuigen = named(w('Stofzuigen'));
+  const oudPapier = named(w('Oud papier aan de straat'));
+  const fietsband = named(w('Fietsband plakken'));
   for (const e of log) {
     if (['project_created', 'member_added', 'section_added'].includes(e.kind) || (e.kind === 'task_added' && (e.task_id === stofzuigen?.id || e.task_id === oudPapier?.id))) e.at = origin;
   }
@@ -101,14 +229,14 @@ function completionHistory({ now, today, entry, log, state, projects, people }) 
       const pick = steady(`${date}/${i}/p`);
       const kind = pick < 0.3 ? 'inbox' : pick < 0.72 ? 'huis' : pick < 0.88 ? 'texel' : 'feest';
       const titles = DONE_TITLES[kind];
-      add(projects[kind], people.anna, when(date, minutes), { task_id: null, title: titles[Math.floor(s * titles.length) % titles.length] });
+      add(projects[kind], people.anna, when(date, minutes), { task_id: null, title: w(titles[Math.floor(s * titles.length) % titles.length]) });
     }
     // de vaste taken: stofzuigen op zaterdag, oud papier om de week op dinsdag (terugkerend: ze schuiven door en blijven open)
     if (stofzuigen && weekday === 6 && weeksAgo !== 7) add(projects.huis, people.anna, when(date, 10 * 60 + 5), { task_id: stofzuigen.id, title: stofzuigen.content, extra: { recurring: true } });
     if (oudPapier && weekday === 2 && weeksAgo % 2 === 0) add(projects.huis, people.anna, when(date, 19 * 60 + 40), { task_id: oudPapier.id, title: oudPapier.content, extra: { recurring: true } });
     // de anderen in Huishouden
-    if (steady(`${date}/b`) < 0.5) add(projects.huis, people.bram, when(date, 18 * 60 + 15), { task_id: null, title: 'Fietsen in de schuur gezet' });
-    if (steady(`${date}/s`) < 0.3) add(projects.huis, people.sanne, when(date, 16 * 60 + 30), { task_id: null, title: 'Kamer gestofzuigd' });
+    if (steady(`${date}/b`) < 0.5) add(projects.huis, people.bram, when(date, 18 * 60 + 15), { task_id: null, title: w('Fietsen in de schuur gezet') });
+    if (steady(`${date}/s`) < 0.3) add(projects.huis, people.sanne, when(date, 16 * 60 + 30), { task_id: null, title: w('Kamer gestofzuigd') });
   }
   // een vergissing die je meteen herstelde: telt niet mee
   if (fietsband) {
@@ -121,11 +249,14 @@ function completionHistory({ now, today, entry, log, state, projects, people }) 
 
 /**
  * @param {Date} [now]
- * @param {{ strict?: boolean }} [options] strict: een datumtekst die niet herkend wordt is een fout (voor de controle van
- *   de website); anders krijgt die taak gewoon "over twee dagen", zodat de demo altijd start.
+ * @param {{ strict?: boolean, language?: 'nl' | 'en' }} [options] strict: een datumtekst die niet herkend wordt, een ontbrekende
+ *   vertaling of een Engelse herhaling die anders uitkomt dan de Nederlandse is een fout (voor de controle van de website); anders
+ *   krijgt die taak gewoon "over twee dagen", zodat de demo altijd start. language: de taal van de gegevens (standaard Nederlands).
  * @returns {{ state: ReturnType<typeof emptyState>, me: object, users: object[] }}
  */
-export function createSeed(now = new Date(), { strict = false } = {}) {
+export function createSeed(now = new Date(), { strict = false, language = 'nl' } = {}) {
+  const english = language === 'en';
+  const w = (text) => seedText(text, language, strict);
   const state = emptyState();
   const today = todayString(now);
   const at = new Date(now.getTime() - 3 * 86_400_000).toISOString(); // "drie dagen geleden aangemaakt"
@@ -137,13 +268,25 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   const day = (offset, time = '') => {
     const date = addDays(today, offset);
     const [y, m, d] = date.split('-');
-    return { date: time ? `${date}T${time}` : date, string: `${d}-${m}-${y}${time ? ` om ${time}` : ''}`, lang: 'nl' };
+    const stamp = time ? `${date}T${time}` : date;
+    return english ? { date: stamp, string: stamp, lang: 'en' } : { date: stamp, string: `${d}-${m}-${y}${time ? ` om ${time}` : ''}`, lang: 'nl' };
   };
-  /** Een datum in gewone taal, gelezen door de herkenner van de app zelf. */
+  /** Een datum in gewone taal, gelezen door de herkenner van de app zelf (in het Engels: zie EN_DATES). */
   const due = (text) => {
-    const parsed = parseDateText(text, now);
+    const parsed = parseDateText(text, now, 'nl');
     if (!parsed && strict) throw new Error(`voorbeeldgegevens: de datum "${text}" wordt niet herkend`);
-    return parsed ?? day(2);
+    if (!parsed) return day(2);
+    if (!english) return parsed;
+    const words = EN_DATES[text];
+    if (!words) {
+      if (strict) throw new Error(`voorbeeldgegevens: geen Engelse datum voor "${text}"`);
+      return { ...parsed, string: parsed.date, lang: 'en' };
+    }
+    if (!parsed.recurrence) return { date: parsed.date, string: words, lang: 'en' };
+    const own = parseDateText(words, now, 'en');
+    const same = own && own.date === parsed.date && JSON.stringify(own.recurrence) === JSON.stringify(parsed.recurrence);
+    if (!same && strict) throw new Error(`voorbeeldgegevens: "${words}" geeft niet hetzelfde als "${text}"`);
+    return same ? own : { ...parsed, string: parsed.date, lang: 'en' };
   };
 
   // ---- de eigen Inbox (bestaat altijd; de server maakt hem aan bij het account) ----
@@ -228,17 +371,17 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   };
 
   const [anna, bram, sanne, joost, mila] = DEMO_USERS.map((u) => u.id);
-  const bellen = label(anna, 'bellen');
-  const boodschappen = label(anna, 'boodschappen');
-  const buiten = label(anna, 'buiten');
+  const bellen = label(anna, w('bellen'));
+  const boodschappen = label(anna, w('boodschappen'));
+  const buiten = label(anna, w('buiten'));
 
   // ---- Inbox: alleen van jou ----
-  task(anna, { content: 'Fietsband plakken', project: INBOX, due: day(-1) });
-  task(anna, { content: 'Bibliotheekboeken terugbrengen', project: INBOX, due: day(-3), priority: 3 });
-  const tandarts = task(anna, { content: 'Tandarts bellen voor controle', project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen], duration: 15 });
+  task(anna, { content: w('Fietsband plakken'), project: INBOX, due: day(-1) });
+  task(anna, { content: w('Bibliotheekboeken terugbrengen'), project: INBOX, due: day(-3), priority: 3 });
+  const tandarts = task(anna, { content: w('Tandarts bellen voor controle'), project: INBOX, due: due('morgen om 9 uur'), priority: 1, labels: [bellen], duration: 15 });
   const paspoort = task(anna, {
-    content: 'Paspoort verlengen', project: INBOX, deadline: 21, priority: 2,
-    description: 'Afspraak maken bij de gemeente. Meenemen: het oude paspoort en een nieuwe pasfoto.',
+    content: w('Paspoort verlengen'), project: INBOX, deadline: 21, priority: 2,
+    description: w('Afspraak maken bij de gemeente. Meenemen: het oude paspoort en een nieuwe pasfoto.'),
   });
   // Herinneringen: de automatische (30 minuten vooraf, zoals de app ze zelf zet bij een taak met een tijd), een dag vooraf,
   // en een herinnering op een eigen tijdstip bij een taak zonder datum.
@@ -246,72 +389,72 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
   reminder(tandarts, { minutes: 1440 });
   reminder(tandarts, { at: day(0, '20:00').date });
   reminder(paspoort, { at: day(3, '09:00').date });
-  task(anna, { content: 'Verjaardagskaart voor oma sturen', project: INBOX, due: due('volgende week donderdag') });
-  task(anna, { content: 'Pakketje ophalen bij de buren', project: INBOX, done: true });
+  task(anna, { content: w('Verjaardagskaart voor oma sturen'), project: INBOX, due: due('volgende week donderdag') });
+  task(anna, { content: w('Pakketje ophalen bij de buren'), project: INBOX, done: true });
 
   // ---- Huishouden: jouw project, gedeeld met Bram en Sanne ----
-  const huis = project(anna, 'Huishouden', [bram, sanne], { color: 'teal', is_favorite: true });
-  const sBoodschappen = section(anna, huis, 'Boodschappen');
-  const sKlusjes = section(anna, huis, 'Klusjes');
-  const sVast = section(anna, huis, 'Vaste prik');
-  task(bram, { content: 'Weekmenu maken', project: huis, due: day(0), assignee: bram });
-  const boodschap = task(anna, { content: 'Boodschappen doen', project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen], duration: 45, description: 'Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.' });
-  task(anna, { content: 'Brood', project: huis, parent: boodschap, done: true });
-  task(anna, { content: 'Melk en eieren', project: huis, parent: boodschap });
-  task(bram, { content: 'Koffiebonen', project: huis, parent: boodschap });
-  task(sanne, { content: 'Hagelslag', project: huis, parent: boodschap });
+  const huis = project(anna, w('Huishouden'), [bram, sanne], { color: 'teal', is_favorite: true });
+  const sBoodschappen = section(anna, huis, w('Boodschappen'));
+  const sKlusjes = section(anna, huis, w('Klusjes'));
+  const sVast = section(anna, huis, w('Vaste prik'));
+  task(bram, { content: w('Weekmenu maken'), project: huis, due: day(0), assignee: bram });
+  const boodschap = task(anna, { content: w('Boodschappen doen'), project: huis, section: sBoodschappen, due: day(0, '17:30'), assignee: anna, labels: [boodschappen], duration: 45, description: w('Het lijstje hangt op de koelkast. Voor zondag ook iets lekkers halen.') });
+  task(anna, { content: w('Brood'), project: huis, parent: boodschap, done: true });
+  task(anna, { content: w('Melk en eieren'), project: huis, parent: boodschap });
+  task(bram, { content: w('Koffiebonen'), project: huis, parent: boodschap });
+  task(sanne, { content: w('Hagelslag'), project: huis, parent: boodschap });
   reminder(boodschap, { minutes: 30 });
   // een herinnering "vooraf" bij een taak zonder tijd doet nog niets (geen belletje) en gaat af zodra de taak een tijd krijgt
-  reminder(task(bram, { content: 'Kattenvoer bestellen', project: huis, section: sBoodschappen, due: due('overmorgen') }), { minutes: 30 });
-  task(anna, { content: 'Lamp in de gang vervangen', project: huis, section: sKlusjes, due: due('morgen'), priority: 2, assignee: bram });
-  task(anna, { content: 'Kamer opruimen', project: huis, section: sKlusjes, due: day(0), assignee: sanne });
-  task(bram, { content: 'Dakgoot schoonmaken', project: huis, section: sKlusjes, due: due('aanstaande zaterdag'), priority: 3, labels: [buiten] });
-  task(anna, { content: 'Fietsenschuur opruimen', project: huis, section: sKlusjes, labels: [buiten] });
-  task(anna, { content: 'Oud papier aan de straat', project: huis, section: sVast, due: due('elke tweede dinsdag') });
-  reminder(task(anna, { content: 'Vuilnis buiten zetten', project: huis, section: sVast, due: due('elke donderdag om 20:00'), assignee: bram }), { minutes: 60 });
-  task(anna, { content: 'Planten water geven', project: huis, section: sVast, due: due('elke zondag'), assignee: sanne });
-  task(bram, { content: 'Stofzuigen', project: huis, section: sVast, due: due('elke zaterdag'), assignee: anna });
-  const lamp = [...state.tasks.values()].find((x) => x.content === 'Lamp in de gang vervangen').id;
-  const koffie = comment(bram, { task: boodschap }, 'Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.', 150);
-  comment(anna, { task: boodschap }, 'Top, dank je! Vergeet de hagelslag niet: https://www.voorbeeld.nl/boodschappen', 95);
-  comment(bram, { task: lamp }, 'Welke fitting is het, E27 of E14?', 1500);
-  const vuilnis = comment(sanne, { project: huis }, 'Wie zet deze week het vuilnis buiten?', 300);
-  const stofzuigen = [...state.tasks.values()].find((x) => x.content === 'Stofzuigen').id;
+  reminder(task(bram, { content: w('Kattenvoer bestellen'), project: huis, section: sBoodschappen, due: due('overmorgen') }), { minutes: 30 });
+  task(anna, { content: w('Lamp in de gang vervangen'), project: huis, section: sKlusjes, due: due('morgen'), priority: 2, assignee: bram });
+  task(anna, { content: w('Kamer opruimen'), project: huis, section: sKlusjes, due: day(0), assignee: sanne });
+  task(bram, { content: w('Dakgoot schoonmaken'), project: huis, section: sKlusjes, due: due('aanstaande zaterdag'), priority: 3, labels: [buiten] });
+  task(anna, { content: w('Fietsenschuur opruimen'), project: huis, section: sKlusjes, labels: [buiten] });
+  task(anna, { content: w('Oud papier aan de straat'), project: huis, section: sVast, due: due('elke tweede dinsdag') });
+  reminder(task(anna, { content: w('Vuilnis buiten zetten'), project: huis, section: sVast, due: due('elke donderdag om 20:00'), assignee: bram }), { minutes: 60 });
+  task(anna, { content: w('Planten water geven'), project: huis, section: sVast, due: due('elke zondag'), assignee: sanne });
+  task(bram, { content: w('Stofzuigen'), project: huis, section: sVast, due: due('elke zaterdag'), assignee: anna });
+  const lamp = [...state.tasks.values()].find((x) => x.content === w('Lamp in de gang vervangen')).id;
+  const koffie = comment(bram, { task: boodschap }, w('Ik haal de koffiebonen op de markt, die hoeven niet van het lijstje.'), 150);
+  comment(anna, { task: boodschap }, w('Top, dank je! Vergeet de hagelslag niet: https://www.voorbeeld.nl/boodschappen'), 95);
+  comment(bram, { task: lamp }, w('Welke fitting is het, E27 of E14?'), 1500);
+  const vuilnis = comment(sanne, { project: huis }, w('Wie zet deze week het vuilnis buiten?'), 300);
+  const stofzuigen = [...state.tasks.values()].find((x) => x.content === w('Stofzuigen')).id;
 
   // ---- Vakantie Texel: van jou alleen ----
-  const texel = project(anna, 'Vakantie Texel', [], { color: 'sky' });
-  const sRegelen = section(anna, texel, 'Regelen');
-  const sInpakken = section(anna, texel, 'Inpakken');
-  const boot = task(anna, { content: 'Boot reserveren', project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1, duration: 30 });
+  const texel = project(anna, w('Vakantie Texel'), [], { color: 'sky' });
+  const sRegelen = section(anna, texel, w('Regelen'));
+  const sInpakken = section(anna, texel, w('Inpakken'));
+  const boot = task(anna, { content: w('Boot reserveren'), project: texel, section: sRegelen, due: due('aanstaande vrijdag om 10 uur'), deadline: 10, priority: 1, duration: 30 });
   reminder(boot, { minutes: 30 });
   reminder(boot, { minutes: 1440 });
-  task(anna, { content: 'Huisje aanbetalen', project: texel, section: sRegelen, due: due('over twee weken') });
-  task(anna, { content: 'Oppas voor de kat vragen', project: texel, section: sRegelen, labels: [bellen] });
-  task(anna, { content: 'Regenjassen', project: texel, section: sInpakken });
-  task(anna, { content: 'Fietstassen', project: texel, section: sInpakken });
-  task(anna, { content: 'Verrekijker', project: texel, section: sInpakken });
+  task(anna, { content: w('Huisje aanbetalen'), project: texel, section: sRegelen, due: due('over twee weken') });
+  task(anna, { content: w('Oppas voor de kat vragen'), project: texel, section: sRegelen, labels: [bellen] });
+  task(anna, { content: w('Regenjassen'), project: texel, section: sInpakken });
+  task(anna, { content: w('Fietstassen'), project: texel, section: sInpakken });
+  task(anna, { content: w('Verrekijker'), project: texel, section: sInpakken });
   // een subproject, en een project dat al klaar is en daarom gearchiveerd (zie "Gearchiveerde projecten" onderaan de zijbalk)
-  const route = project(anna, 'Fietsroute', [], { color: 'green', parent_id: texel });
-  task(anna, { content: 'Knooppunten uitzoeken', project: route, due: due('over twee weken') });
-  const oud = project(anna, 'Verhuizing 2025', [], { color: 'grey' });
-  task(anna, { content: 'Adreswijziging doorgeven', project: oud, done: true });
+  const route = project(anna, w('Fietsroute'), [], { color: 'green', parent_id: texel });
+  task(anna, { content: w('Knooppunten uitzoeken'), project: route, due: due('over twee weken') });
+  const oud = project(anna, w('Verhuizing 2025'), [], { color: 'grey' });
+  task(anna, { content: w('Adreswijziging doorgeven'), project: oud, done: true });
   run(anna, 'project_update', { id: oud, is_archived: true });
 
   // ---- Buurtfeest: van Joost; jij en Mila zijn lid ----
-  const feest = project(joost, 'Buurtfeest', [anna, mila], { color: 'orange' });
-  const buurt = label(joost, 'buurt'); // een label van iemand anders: je ziet het, maar kunt het niet wijzigen
-  task(joost, { content: 'Vergunning aanvragen bij de gemeente', project: feest, deadline: 14, priority: 1, assignee: joost, labels: [buurt] });
-  const tent = task(joost, { content: 'Partytent regelen', project: feest, due: due('aanstaande vrijdag'), assignee: anna });
-  task(mila, { content: 'Flyers rondbrengen', project: feest, due: due('volgende week'), assignee: mila, labels: [buurt] });
-  task(joost, { content: 'Playlist maken', project: feest });
-  const lenen = comment(mila, { task: tent }, '@Anna, kun jij de partytent van je zus lenen? Dan regel ik de tafels.', 40, [anna]);
+  const feest = project(joost, w('Buurtfeest'), [anna, mila], { color: 'orange' });
+  const buurt = label(joost, w('buurt')); // een label van iemand anders: je ziet het, maar kunt het niet wijzigen
+  task(joost, { content: w('Vergunning aanvragen bij de gemeente'), project: feest, deadline: 14, priority: 1, assignee: joost, labels: [buurt] });
+  const tent = task(joost, { content: w('Partytent regelen'), project: feest, due: due('aanstaande vrijdag'), assignee: anna });
+  task(mila, { content: w('Flyers rondbrengen'), project: feest, due: due('volgende week'), assignee: mila, labels: [buurt] });
+  task(joost, { content: w('Playlist maken'), project: feest });
+  const lenen = comment(mila, { task: tent }, w('@Anna, kun jij de partytent van je zus lenen? Dan regel ik de tafels.'), 40, [anna]);
 
   // ---- Familieweekend: van Sanne; jij kunt alleen lezen (en reageren) ----
-  const weekend = project(sanne, 'Familieweekend', [bram], { color: 'rose' }, [anna]);
-  const huisje = task(sanne, { content: 'Huisje op de Veluwe boeken', project: weekend, due: due('over drie weken'), priority: 2, assignee: sanne });
-  task(bram, { content: 'Spelletjes inpakken', project: weekend, assignee: bram });
-  task(sanne, { content: 'Wandelroute uitzoeken', project: weekend, due: due('over twee weken') });
-  comment(sanne, { task: huisje }, 'Ik heb er drie gevonden, ik kies morgen.', 600);
+  const weekend = project(sanne, w('Familieweekend'), [bram], { color: 'rose' }, [anna]);
+  const huisje = task(sanne, { content: w('Huisje op de Veluwe boeken'), project: weekend, due: due('over drie weken'), priority: 2, assignee: sanne });
+  task(bram, { content: w('Spelletjes inpakken'), project: weekend, assignee: bram });
+  task(sanne, { content: w('Wandelroute uitzoeken'), project: weekend, due: due('over twee weken') });
+  comment(sanne, { task: huisje }, w('Ik heb er drie gevonden, ik kies morgen.'), 600);
 
   // ---- Meldingen: wat anderen deden in de gedeelde projecten (de lijst Meldingen, met het belletje) ----
   notification(joost, 'shared', { project: feest }, 3 * 24 * 60, { read: true });
@@ -340,7 +483,7 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     const pid = c.task_id ? state.tasks.get(c.task_id)?.project_id : c.project_id;
     if (pid) entry(pid, c.author_id, 'comment_added', c.created_at, { comment_id: c.id, task_id: c.task_id ?? null, title: c.task_id ? state.tasks.get(c.task_id)?.content : null });
   }
-  completionHistory({ now, today, entry, log, state, projects: { inbox: INBOX, huis, texel, feest }, people: { anna, bram, sanne } });
+  completionHistory({ now, today, entry, log, state, projects: { inbox: INBOX, huis, texel, feest }, people: { anna, bram, sanne }, w });
   log.sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
   const activity = log.map((e, i) => ({ id: String(i + 1), ...e }));
 
@@ -349,6 +492,6 @@ export function createSeed(now = new Date(), { strict = false } = {}) {
     activity,
     state,
     me: { id: meRow.id, username: meRow.username, name: meRow.name, is_admin: meRow.is_admin, inbox_project_id: INBOX },
-    users: DEMO_USERS.map((u) => ({ ...u, inbox_project_id: `inbox-${u.id}`, created_at: at })),
+    users: DEMO_USERS.map((u) => ({ ...u, name: u.id === 'user-kees' ? w(u.name) : u.name, inbox_project_id: `inbox-${u.id}`, created_at: at })),
   };
 }

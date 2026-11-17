@@ -105,7 +105,7 @@ const INPUTS = [
   'Opruimen  \t met   spaties ',
   'Boodschappen @groente @fruit @winkel', // twee nieuwe labels en een bestaand
   'Vergadering morgen om 10 uur !15m !1u', // twee herinneringen
-  // Engels: datums in gewone taal herkent de app (nog) alleen in het Nederlands; het Engelse woord blijft in de titel staan
+  // Engels: met lang "en" (en zonder lang) worden Engelse datums herkend; met lang "nl" blijft het Engelse woord in de titel staan
   'Call mom tomorrow at 9',
   'Buy milk today p3 @shopping',
   'Pay rent every month on the 1st',
@@ -113,15 +113,16 @@ const INPUTS = [
   'Dentist !30m p4',
 ];
 
-test('de herkenning is dezelfde als in de web-app, voor Nederlandse en Engelse invoer, in verschillende tijdzones', async () => {
+test('de herkenning is dezelfde als in de web-app, voor Nederlandse en Engelse invoer, in verschillende tijdzones en talen', async () => {
   for (const tz of ['Europe/Amsterdam', 'America/Los_Angeles', 'Pacific/Auckland', 'UTC']) {
     const { db, anna } = world();
     const { view, inbox } = clientView(db, anna);
-    for (const text of INPUTS) {
-      const web = zone(tz, () => parseQuickAdd(text, { view, now: new Date(NOW), defaultProjectId: inbox, canAddTo: (id: string) => canEditProject(view, id, anna.id) }));
-      const answer = await quickAdd(db, anna.id, { text, dry_run: true, tz, typed_at: new Date(NOW).toISOString() }, NOW);
+    // de taal van het apparaat ("nl" of "en"); zonder lang (een oudere app) geldt "en", dat ook Nederlands leest
+    for (const [lang, language] of [['nl', 'nl'], ['en', 'en'], [undefined, 'en']] as const) for (const text of INPUTS) {
+      const web = zone(tz, () => parseQuickAdd(text, { view, now: new Date(NOW), defaultProjectId: inbox, canAddTo: (id: string) => canEditProject(view, id, anna.id), language }));
+      const answer = await quickAdd(db, anna.id, { text, dry_run: true, tz, typed_at: new Date(NOW).toISOString(), ...(lang ? { lang } : {}) }, NOW);
       const p = answer.preview!;
-      const where = `${tz}: ${text}`;
+      const where = `${tz} (${lang ?? 'geen lang'}): ${text}`;
       assert.equal(p.content, web.content, where);
       assert.deepEqual(p.due, web.due, where);
       assert.equal(p.deadline, web.deadline, where);
@@ -141,14 +142,14 @@ test('de taak op de server is dezelfde als die de web-app zou maken: velden, lab
     const a = world();
     const b = world();
     const { view, inbox } = clientView(a.db, a.anna);
-    const web = zone(tz, () => parseQuickAdd(text, { view, now: new Date(NOW), defaultProjectId: inbox, canAddTo: (id: string) => canEditProject(view, id, a.anna.id) }));
+    const web = zone(tz, () => parseQuickAdd(text, { view, now: new Date(NOW), defaultProjectId: inbox, canAddTo: (id: string) => canEditProject(view, id, a.anna.id), language: 'nl' }));
     if (!web.content) continue;
     let sent: Command[] = [];
     let k = 0;
     const actions = createActions({ view, userId: a.anna.id, now: () => new Date(NOW), enqueue: async (c: Command[]) => { sent = c; } }, { makeId: () => `web-id-${String(++k).padStart(8, '0')}`, makeUuid: () => `web-uuid-${String(++k).padStart(8, '0')}` });
     const webId = await actions.addTask({ ...web });
     run(a.db, a.anna, sent);
-    const answer = await quickAdd(b.db, b.anna.id, { text, uuid: `tickory-q-test-${i}`, tz, typed_at: new Date(NOW).toISOString() }, NOW);
+    const answer = await quickAdd(b.db, b.anna.id, { text, uuid: `tickory-q-test-${i}`, tz, typed_at: new Date(NOW).toISOString(), lang: 'nl' }, NOW);
     const mine = (db: DatabaseSync, id: string) => {
       const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Row;
       const labels = (JSON.parse(task.labels) as string[]).map((l) => (db.prepare('SELECT name FROM labels WHERE id = ?').get(l) as Row).name);
@@ -197,8 +198,8 @@ test('zomer- en wintertijd: rond de nachten van 29 maart en 25 oktober 2026 in A
   const texts = ['Klok checken vandaag om 02:30', 'Klok checken vandaag om 3 uur', 'Uitslapen morgen', 'Bakker over 2 uur', 'Wekker morgen om 7:00', 'Elke dag om 2:30 medicijn'];
   for (const typed of moments) {
     for (const text of texts) {
-      const web = zone('Europe/Amsterdam', () => parseQuickAdd(text, { view, now: new Date(Date.parse(typed)), defaultProjectId: inbox }));
-      const a = await quickAdd(db, anna.id, { text, dry_run: true, typed_at: typed, tz: 'Europe/Amsterdam' }, Date.parse(typed));
+      const web = zone('Europe/Amsterdam', () => parseQuickAdd(text, { view, now: new Date(Date.parse(typed)), defaultProjectId: inbox, language: 'nl' }));
+      const a = await quickAdd(db, anna.id, { text, dry_run: true, typed_at: typed, tz: 'Europe/Amsterdam', lang: 'nl' }, Date.parse(typed));
       assert.deepEqual(a.preview!.due, web.due, `${typed}: ${text}`);
       assert.equal(a.preview!.content, web.content, `${typed}: ${text}`);
     }
@@ -220,6 +221,10 @@ test('typed_at: een verkeerde klok op het toestel telt als nu; de vorm wordt gec
   for (const bad of ['gisteren', '2026-11-13', '2026-11-13T09:00:00', '2026-13-45T09:00:00Z', '2026-11-13T09:00:00+1:00', 5, true, {}]) {
     assert.throws(() => readInput({ text: 'x', uuid: 'tickory-q-0001', typed_at: bad }), (e: SyncError) => e.code === 'INVALID_ARG', String(bad));
   }
+  // de datumtaal: "nl" of "en"; zonder lang "en"
+  for (const bad of ['fr', 'NL', '', 1]) assert.throws(() => readInput({ text: 'x', uuid: 'tickory-q-0001', lang: bad }), (e: SyncError) => e.code === 'INVALID_ARG', String(bad));
+  assert.equal(readInput({ text: 'x', uuid: 'tickory-q-0001' }).lang, 'en');
+  assert.equal(readInput({ text: 'x', uuid: 'tickory-q-0001', lang: 'nl' }).lang, 'nl');
   assert.equal(zoneOf('Europe/Amsterdam', 'UTC'), 'Europe/Amsterdam');
   assert.equal(zoneOf(null, 'America/New_York'), 'America/New_York');
   assert.equal(zoneOf('GMT+01:00', null), 'UTC');
