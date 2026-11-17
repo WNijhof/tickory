@@ -379,3 +379,21 @@ test('deadlines als eigen item op hun dag, alleen van open taken en binnen het b
   assert.ok(model.days.every((d) => d.deadlines.every((t) => t.id !== 'd' && t.id !== 'e')), 'buiten het bereik of geen tekst: niet');
   assert.equal(model.total, 1, 'deadlines tellen niet als voorkomen');
 });
+
+test('voltooide taken in de kalender: alleen als je ze wilt zien, op de dag van afvinken', async () => {
+  const { calendarModel } = await import('./calendar.js');
+  const at = (day, hour) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00`).toISOString(); // op dit apparaat
+  const tasks = [
+    { id: 'a', content: 'Laat', checked: true, completed_at: at('2026-11-16', 20), due: { date: '2026-11-10' } },
+    { id: 'b', content: 'Vroeg', checked: true, completed_at: at('2026-11-16', 8), due: null },
+    { id: 'c', content: 'Open', due: { date: '2026-11-16' } },
+    { id: 'd', content: 'Zonder tijdstip', checked: true, completed_at: null },
+    { id: 'e', content: 'Vorig jaar', checked: true, completed_at: at('2025-11-16', 8) },
+  ];
+  const off = calendarModel({ tasks, mode: 'month', anchor: '2026-11-17', today: '2026-11-17' });
+  assert.ok(off.days.every((d) => d.done.length === 0), 'standaard niet');
+  const on = calendarModel({ tasks, mode: 'month', anchor: '2026-11-17', today: '2026-11-17', showDone: true });
+  const day = on.days.find((d) => d.date === '2026-11-16');
+  assert.deepEqual(day.done.map((t) => t.id), ['b', 'a'], 'op volgorde van afvinken');
+  assert.equal(on.days.flatMap((d) => d.done).length, 2, 'zonder tijdstip of buiten het bereik: niet');
+});

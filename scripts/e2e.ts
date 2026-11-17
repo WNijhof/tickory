@@ -2078,6 +2078,21 @@ try {
   await shot('kalender-deadline');
   assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_delete', uuid: 'e2e-cal-deadline-del', args: { id: 'e2ecaldeadline01' } }])).status, 200);
   await waitFor(`!document.querySelector('.cal-deadline[data-task-id="e2ecaldeadline01"]')`, 'weer weg', 15_000);
+  // voltooide taken tonen: Zoë uitnodigen (net afgevinkt) staat doorgestreept op vandaag, en het rondje heropent haar
+  assert.equal(await evaluate(`document.querySelector('[data-fk="cal-done"]').getAttribute('aria-pressed')`), 'false');
+  await click('[data-fk="cal-done"]');
+  await waitFor(`document.querySelector('.cal-day[data-date="${today}"] .cal-done[data-task-id="${lood.id}"]')`, 'de voltooide taak op de dag van afvinken');
+  assert.equal(await evaluate(`localStorage.getItem('tickory.calendarDone')`), '1');
+  await shot('kalender-voltooid');
+  await evaluate(`document.querySelector('.cal-done[data-task-id="${lood.id}"] .cal-check').click()`);
+  await waitFor(`document.querySelector('.cal-day[data-date="${nextDay}"] .cal-item[data-task-id="${lood.id}"]:not(.cal-done)')`, 'heropend: weer op haar dag');
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(serverTask('Zoë uitnodigen').checked, false);
+  await evaluate(`document.querySelector('.cal-item[data-task-id="${lood.id}"] .cal-check').click()`);
+  await waitFor(SYNCED, 'weer afgevinkt');
+  assert.equal(serverTask('Zoë uitnodigen').checked, true);
+  await click('[data-fk="cal-done"]');
+  await waitFor(`!document.querySelector('.cal-done')`, 'voltooide taken weer verborgen');
 
   // bladeren: vorige, volgende, vandaag, en de weekweergave
   await click('[data-fk="cal-next"]');

@@ -9,7 +9,7 @@
 // Namen van dagen en maanden komen uit `Intl` in de taal van de interface (de aanroeper geeft de locale mee).
 
 import { nextOccurrence } from '../../shared/recurrence.js';
-import { addDays } from './format.js';
+import { addDays, todayString } from './format.js';
 
 /** Hoeveel voorkomens van een terugkerende taak we hooguit doorlopen (een dagelijkse taak die tien jaar te laat is, haalt dit nog net). */
 export const MAX_OCCURRENCE_STEPS = 4000;
@@ -145,7 +145,7 @@ function byDay(a, b) {
  * @param {{ tasks: Iterable<object>, mode: 'month' | 'week', anchor: string, today: string }} input
  * @returns {{ from: string, to: string, days: { date: string, entries: { task: object, date: string, time: string | null, real: boolean }[] }[], overdue: object[], total: number }}
  */
-export function calendarModel({ tasks, mode, anchor, today }) {
+export function calendarModel({ tasks, mode, anchor, today, showDone = false }) {
   const { from, to } = visibleRange(mode, anchor);
   const perDay = new Map();
   const overdue = [];
@@ -170,10 +170,24 @@ export function calendarModel({ tasks, mode, anchor, today }) {
     if (!perDeadline.has(day)) perDeadline.set(day, []);
     perDeadline.get(day).push(task);
   }
+  // voltooide taken (als je ze wilt zien): op de dag van afvinken, in de tijdzone van dit apparaat, de laatste onderaan
+  const perDone = new Map();
+  if (showDone) {
+    for (const task of tasks) {
+      if (!task.checked) continue;
+      const ms = Date.parse(task.completed_at ?? '');
+      if (Number.isNaN(ms)) continue;
+      const day = todayString(new Date(ms));
+      if (day < from || day > to) continue;
+      if (!perDone.has(day)) perDone.set(day, []);
+      perDone.get(day).push(task);
+    }
+  }
   const days = [];
   for (let day = from; day <= to; day = addDays(day, 1)) {
+    const done = (perDone.get(day) ?? []).sort((a, b) => Date.parse(a.completed_at) - Date.parse(b.completed_at) || (a.id < b.id ? -1 : 1));
     const deadlines = (perDeadline.get(day) ?? []).sort((a, b) => (a.priority ?? 4) - (b.priority ?? 4) || (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : 0));
-    days.push({ date: day, entries: (perDay.get(day) ?? []).sort(byDay), deadlines });
+    days.push({ date: day, entries: (perDay.get(day) ?? []).sort(byDay), deadlines, done });
   }
   return { from, to, days, overdue, total };
 }

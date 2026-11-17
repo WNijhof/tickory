@@ -33,6 +33,8 @@ const MODE_KEY = 'tickory.calendarMode';
 const COLOR_KEY = 'tickory.calendarColor';
 export const CALENDAR_COLORS = Object.freeze(['priority', 'project', 'label']);
 const readColor = () => (CALENDAR_COLORS.includes(readPref(COLOR_KEY)) ? readPref(COLOR_KEY) : 'priority');
+/** Ook de voltooide taken tonen (op de dag van afvinken); onthouden op dit apparaat, voor alle kalenders. */
+const DONE_KEY = 'tickory.calendarDone';
 // letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
 const COLOR_LABEL = { priority: () => t('calendar.colorPriority'), project: () => t('calendar.colorProject'), label: () => t('calendar.colorLabel') };
 
@@ -90,7 +92,8 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
   const state = stateOf(calendarKey);
   const locale = getLocale();
   const anchor = state.anchor ?? today;
-  const model = calendarModel({ tasks, mode: state.mode, anchor, today });
+  const showDone = readPref(DONE_KEY) === '1';
+  const model = calendarModel({ tasks, mode: state.mode, anchor, today, showDone });
   const focusDay = state.focus && within(state.focus, model.from, model.to) ? state.focus : within(today, model.from, model.to) ? today : anchor;
   const month = anchor.slice(0, 7);
 
@@ -142,7 +145,11 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
         class: `button button-small view-switch-button${mode === state.tlMode ? ' active' : ''}`, type: 'button', 'aria-pressed': String(mode === state.tlMode),
         dataset: { mode, fk: `tl-mode:${mode}` }, onclick: () => setTimelineMode(mode),
       }, mode === 'day' ? t('timeline.day') : t('calendar.week')))),
-    colorPick);
+    colorPick,
+    !timeline && h('button', {
+      class: `button button-small view-switch-button cal-done-toggle${showDone ? ' active' : ''}`, type: 'button', 'aria-pressed': String(showDone),
+      dataset: { fk: 'cal-done' }, title: t('calendar.showDoneHint'), onclick: () => { writePref(DONE_KEY, showDone ? '' : '1'); refresh(); },
+    }, icon('completed'), h('span', { class: 'btn-label' }, t('calendar.showDone'))));
   if (timeline) {
     // de tijdlijn (ui/timeline.js): wat te laat is staat daar in de zijbalk In te plannen
     return h('div', { class: 'cal cal-timeline', dataset: { calendar: calendarKey, mode: 'timeline' } },
@@ -197,8 +204,22 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
     h('button', { class: 'cal-open', type: 'button', title: t('calendar.deadlineTitle', { name: task.content }), dataset: { fk: `caldeadline:${task.id}` }, onclick: () => handlers.open(task) },
       h('span', { class: 'cal-title-text' }, task.content)));
 
-  const dayCell = ({ date, entries, deadlines = [] }) => {
-    const count = entries.length + deadlines.length;
+  // een voltooide taak: doorgestreept op de dag van afvinken; het rondje heropent haar (wie mag wijzigen), de naam opent het taakvenster
+  const doneItem = (task, date) => {
+    const locked = readOnly || !canEdit(task);
+    return h('li', { class: `cal-item cal-done${locked ? ' cal-readonly' : ''}`, dataset: { taskId: task.id, date, real: 'false', done: 'true' } },
+      locked
+        ? h('span', { class: 'cal-repeat cal-lock', role: 'img', title: t('calendar.doneHint'), 'aria-label': t('calendar.doneHint') }, icon('check'))
+        : h('button', {
+          class: 'cal-check', type: 'button', 'aria-pressed': 'true', dataset: { fk: `calreopen:${task.id}` },
+          'aria-label': t('task.reopenLabel', { name: task.content }), title: t('task.reopenLabel', { name: task.content }), onclick: () => handlers.toggle(task),
+        }),
+      h('button', { class: 'cal-open', type: 'button', title: task.content, dataset: { fk: `caldone:${task.id}` }, onclick: () => handlers.open(task) },
+        h('span', { class: 'cal-title-text' }, task.content)));
+  };
+
+  const dayCell = ({ date, entries, deadlines = [], done = [] }) => {
+    const count = entries.length + deadlines.length + done.length;
     const out = monthMode && date.slice(0, 7) !== month;
     const num = Number(date.slice(8, 10));
     const showMonth = num === 1 || !monthMode; // de eerste van de maand en elke dag in de weekweergave zeggen de maand erbij
@@ -221,7 +242,7 @@ export function calendarView({ calendarKey, tasks, view, today, handlers, showPr
         class: 'cal-add', type: 'button', tabindex: '-1', 'aria-label': t('calendar.addOn', { date: dayLabel(locale, date, 'long') }), title: t('calendar.addOn', { date: dayLabel(locale, date, 'long') }),
         dataset: { date }, onclick: () => handlers.addToDay(date, addTarget),
       }, icon('plus'))),
-    h('ul', { class: 'cal-items', dataset: { date } }, deadlines.map((task) => deadlineItem(task, date)), entries.map((entry) => item(entry))),
+    h('ul', { class: 'cal-items', dataset: { date } }, deadlines.map((task) => deadlineItem(task, date)), entries.map((entry) => item(entry)), done.map((task) => doneItem(task, date))),
     count > 4 && h('button', {
       class: 'cal-more', type: 'button', 'aria-label': t('calendar.moreLabel', { count: count - 4, date: dayLabel(locale, date, 'long') }),
       onclick: () => { state.mode = 'week'; state.anchor = date === today ? null : date; state.focus = date; refresh(); },
