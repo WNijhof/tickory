@@ -2094,6 +2094,8 @@ try {
   assert.ok(!ring.startsWith('none'), `zichtbare focusring op een dag: ${ring}`);
   await press('PageDown');
   await waitFor(`document.querySelector('.cal-title').textContent === ${js(periodTitle('month', addMonths(today, 1), 'nl-NL'))}`, 'PageDown: volgende maand');
+  // de focus gaat in het volgende beeldframe naar de dag in de nieuwe maand; pas dan komt Home bij de kalender aan
+  await waitFor(`document.activeElement?.closest?.('td.cal-day')?.dataset.date?.startsWith(${js(addMonths(today, 1).slice(0, 7))})`, 'focus op een dag in de volgende maand');
   await press('Home');
   await waitFor(`document.querySelector('.cal-title').textContent === ${js(periodTitle('month', today, 'nl-NL'))}`, 'Home: vandaag');
   await waitFor(`document.activeElement?.dataset?.date === ${js(today)}`, 'focus op vandaag');
