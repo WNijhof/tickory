@@ -1329,7 +1329,7 @@ export default {
   'export.zipAttachments': 'Attachments (zip)',
   'export.zipAttachmentsHint': 'All attachments of your tasks and notes, in a folder per project and task. They are fetched first; that can take a while.',
   'export.attachmentsNone': 'There are no attachments to export.',
-  'export.attachmentsProgress': 'Fetching attachments: {done} of {total}…',
+  'export.attachmentsProgress': 'Fetching attachments: {done}/{total}…',
   'export.attachmentsTooBig': 'The attachments are {size} together; at once this can do up to {max}.',
   'export.attachmentsMissing': { one: '{count} attachment could not be fetched and is missing.', other: '{count} attachments could not be fetched and are missing.' },
   'export.zipTooBigApp': 'Too large for the app (up to {max}). Export in a browser.',

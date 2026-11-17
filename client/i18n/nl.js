@@ -1326,7 +1326,7 @@ export default {
   'export.zipAttachments': 'Bijlagen (zip)',
   'export.zipAttachmentsHint': 'Alle bijlagen van je taken en notities, in een map per project en taak. Ze worden eerst opgehaald; dat kan even duren.',
   'export.attachmentsNone': 'Er zijn geen bijlagen om te exporteren.',
-  'export.attachmentsProgress': 'Bijlagen ophalen: {done} van {total}…',
+  'export.attachmentsProgress': 'Bijlagen ophalen: {done}/{total}…',
   'export.attachmentsTooBig': 'De bijlagen zijn samen {size}; in één keer kan hier tot {max}.',
   'export.attachmentsMissing': { one: '{count} bijlage kon niet worden opgehaald en ontbreekt.', other: '{count} bijlagen konden niet worden opgehaald en ontbreken.' },
   'export.zipTooBigApp': 'Te groot voor de app (tot {max}). Exporteer in een browser.',
