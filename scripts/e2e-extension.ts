@@ -361,7 +361,7 @@ try {
   const bobItem = `[...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === 'Bob')`;
   await waitFor(web.sessionId, bobItem, 'Bob in de zijbalk', 20_000);
   await evalIn(web.sessionId, `${bobItem}.click()`);
-  await waitFor(web.sessionId, `document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(web.sessionId, `document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText(web.sessionId, 'Account, wachtwoord en apparaten');
   await waitFor(web.sessionId, `document.querySelector('dialog[open] .pairing')`, 'Browserextensie koppelen');
   await clickText(web.sessionId, 'Koppelcode maken');

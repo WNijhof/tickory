@@ -40,7 +40,7 @@ export async function templatesScenario(c: any) {
   };
   const settingsTemplates = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Sjablonen');
     await waitFor(`document.querySelector('dialog[open] .tpl-layout')`, 'beheer van sjablonen');
   };

@@ -20,7 +20,7 @@ export async function importScenario(c: any) {
   };
   const openImport = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Importeren uit Todoist');
     await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Importeren uit Todoist'`, 'importvenster');
   };

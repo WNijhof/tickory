@@ -43,7 +43,7 @@ body.select-mode .task-card .card-move { grid-column: 4; }
 /* ---------- de actiebalk ---------- */
 .bulk-bar {
   display: flex; align-items: center; gap: 8px; padding: 6px 8px; margin: 4px 0 6px; background: var(--bg-soft); border: 1px solid var(--line-strong);
-  border-radius: var(--radius); position: sticky; top: 56px; z-index: 3; box-shadow: var(--shadow-card);
+  border-radius: var(--radius); position: sticky; top: var(--head-h, 56px); z-index: 3; box-shadow: var(--shadow-card);
 }
 .bulk-bar[hidden] { display: none; }
 .bulk-count { font-weight: 600; font-size: 0.9rem; white-space: nowrap; padding: 0 6px; }

@@ -13,7 +13,7 @@ export async function geoScenario(c: any) {
   const dialogText = () => evaluate<string>(`document.querySelector('dialog[open]')?.textContent ?? ''`);
   const openPlaces = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Plaatsen');
     await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Plaatsen'`, 'scherm Plaatsen');
   };
@@ -34,8 +34,8 @@ export async function geoScenario(c: any) {
 
   // ---- in de browser ----
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
-  assert.ok((await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .menu button')].map((b) => b.textContent.trim())`)).includes('Plaatsen'), 'Plaatsen staat in het instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
+  assert.ok((await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .settings-menu button')].map((b) => b.textContent.trim())`)).includes('Plaatsen'), 'Plaatsen staat in het instellingenmenu');
   await clickText('Plaatsen');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Plaatsen'`, 'scherm Plaatsen');
   let text = await dialogText();

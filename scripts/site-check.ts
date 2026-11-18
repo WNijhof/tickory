@@ -2112,7 +2112,7 @@ if (wants('browser')) {
             bottom: Math.round(window.innerHeight - bar.getBoundingClientRect().bottom), small: Math.min(...items.map((b) => Math.min(b.offsetWidth, b.offsetHeight))),
             fab: !f.hidden && f.getBoundingClientRect().bottom < bar.getBoundingClientRect().top, menu: Boolean(document.getElementById('menu-button')) };
         })()`);
-        assert.deepEqual(nav, { labels: ['Inbox', 'Today', 'Upcoming', 'Browse'], current: 'today', clipped: 0, bottom: 0, small: nav.small, fab: true, menu: false });
+        assert.deepEqual(nav, { labels: ['Inbox', 'Today', 'Upcoming', 'Notes', 'Browse'], current: 'today', clipped: 0, bottom: 0, small: nav.small, fab: true, menu: false });
         assert.ok(nav.small >= 48, `de knoppen van de balk zijn minstens 48 pixels: ${nav.small}`);
         await evaluate(`document.querySelector('[data-tab="browse"]').click()`);
         await sleep(300);

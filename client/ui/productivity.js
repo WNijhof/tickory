@@ -14,6 +14,7 @@ import { completionMark, createStatsFeed, summarize } from '../core/productivity
 import { dayLabel, isoWeekday, weekdayNames } from '../core/calendar.js';
 import { addDays } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
+import { generalOf } from '../../shared/general.js';
 import { getLocale, t } from '../core/i18n.js';
 import { timeAgo } from '../core/timeAgo.js';
 import { h } from './dom.js';
@@ -67,7 +68,12 @@ function weekRange(locale, start) {
  */
 export function installProductivity({ store, api, actions, handlers, navigate, getRoute, persist }) {
   const storage = persist ? storageOrNull() : null;
+  const settingsOf = () => store.view.settings.get(`settings-${store.userId}`) ?? null;
+  /** Instellingen › Algemeen › Productiviteit: uit = geen strook, geen cijfers ophalen, een scherm dat vraagt of je het aanzet. */
+  const enabled = () => generalOf(settingsOf()).productivity;
+  const setEnabled = (on) => actions.updateSettings({ general: { ...generalOf(settingsOf()), productivity: on } });
   const visible = () => {
+    if (!enabled()) return false;
     const r = getRoute();
     return r.type === 'productivity' || r.type === 'today' || (r.type === 'completed' && !r.id);
   };
@@ -111,7 +117,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
     // wie er is: zonder aangemelde gebruiker (afgemeld, of een ander account op komst) blijft er niets bewaard
     if (store.ready && !store.me) feed.forget();
     else if (store.me) feed.use(store.me.id);
-    if (visible() && store.me && lastMark !== null && mark() !== lastMark) schedule(1500); // iets afgevinkt of heropend
+    if (enabled() && visible() && store.me && lastMark !== null && mark() !== lastMark) schedule(1500); // iets afgevinkt of heropend
   };
   store.subscribe(follow);
   follow();
@@ -146,6 +152,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
 
   /** De korte kop boven Voltooid (alle projecten): vandaag, deze week en de reeks, met een knop naar het hele overzicht. */
   function completedHeader({ view, today }) {
+    if (!enabled()) return null;
     const s = summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 });
     ensureFresh(s?.stale);
     const item = (label, value, extra = null) => h('span', { class: 'stats-strip-item' }, h('span', { class: 'stats-strip-label' }, label), ' ', h('strong', { class: 'stats-strip-value' }, value), extra);
@@ -165,6 +172,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
    * (0) of zolang er nog geen cijfers zijn (dan geen lege strook boven je taken).
    */
   function todaySummary({ view, today }) {
+    if (!enabled()) return null;
     const s = summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 });
     ensureFresh(s?.stale);
     if (!s || !(s.today.goal > 0)) return null;
@@ -329,6 +337,14 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   }
 
   viewHooks.productivity = ({ view, today }) => {
+    if (!enabled()) {
+      return {
+        title: t('productivity.title'), count: null, lead: icon('chart'), actions: [],
+        nodes: [h('section', { class: 'stats-section stats-off' },
+          h('p', { class: 'hint' }, t('productivity.off')),
+          h('button', { class: 'button button-primary', type: 'button', dataset: { fk: 'productivity-on' }, onclick: () => setEnabled(true) }, t('productivity.turnOn')))],
+      };
+    }
     const settings = settingsRow(view);
     const goals = goalsOf(settings);
     const s = summarize(feed.state.data, { settings, today, weeks, nameOf: nameOf(view) });
@@ -357,7 +373,8 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
         store.me && goalsSection(goals),
         h('section', { class: 'stats-section stats-about' },
           h('p', { class: 'hint' }, t('productivity.note')),
-          h('p', { class: 'hint' }, t('productivity.retention', { days: STATS_MAX_DAYS }))),
+          h('p', { class: 'hint' }, t('productivity.retention', { days: STATS_MAX_DAYS })),
+          store.me && h('button', { class: 'button button-small', type: 'button', dataset: { fk: 'productivity-off' }, onclick: async () => { await setEnabled(false); navigate({ type: 'today' }); } }, t('productivity.turnOff'))),
       ],
     };
   };

@@ -27,10 +27,11 @@ export function quickDates(today) {
  * oorspronkelijke tekst ("morgen") vervalt omdat die niet meer klopt. `date` null haalt de datum weg.
  * @param {{ date: string, string?: string, lang?: string, recurrence?: object } | null} due de huidige datum van de taak
  * @param {string | null} date de nieuwe dag, 'YYYY-MM-DD'
+ * @param {string} [newTime] het tijdstip 'HH:MM' ('' = geen tijdstip); weggelaten blijft het huidige tijdstip staan
  */
-export function reschedule(due, date) {
+export function reschedule(due, date, newTime) {
   if (!date) return null;
-  const time = due?.date.length > 10 ? due.date.slice(10) : '';
+  const time = newTime === undefined ? (due?.date.length > 10 ? due.date.slice(10) : '') : (newTime ? `T${newTime}` : '');
   const next = { date: `${date}${time}` };
   if (due?.recurrence) {
     next.recurrence = due.recurrence;

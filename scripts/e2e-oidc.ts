@@ -45,7 +45,7 @@ export async function oidcScenario(c: any) {
 
     // ---- koppelen vanuit Account ----
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Account, wachtwoord en apparaten');
     await waitFor(`${top}.querySelector('.sso-section summary')?.textContent === 'Inloggen met Nep-inlogdienst'`, 'het stuk over SSO in Account');
     await evaluate(`${top}.querySelector('.sso-section').open = true`);
@@ -98,7 +98,7 @@ export async function oidcScenario(c: any) {
 
     // ---- de koppeling verwijderen ----
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Account, wachtwoord en apparaten');
     await waitFor(`${top}.querySelector('.sso-section')`, 'het stuk over SSO');
     await evaluate(`${top}.querySelector('.sso-section').open = true`);

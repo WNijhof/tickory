@@ -30,12 +30,14 @@ import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
 import { openGeneralDialog } from './generalDialog.js';
+import { settingsMenuDialog } from './settingsMenu.js';
 import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
 import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
-import { archiveDialog, pickDay, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
+import { archiveDialog, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
+import { pickDateTime } from './datePopup.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { openPendingInvite, takeInviteFromHash } from './inviteLinks.js';
@@ -178,11 +180,28 @@ function render() {
   selection?.afterRender({ routeKey: `${ui.route.type}:${ui.route.id ?? ''}` });
 }
 
+/** Zo lang bezig of wachtend mag duren voordat de indicator verschijnt: korte opslagmomenten blijven onzichtbaar (geen geknipper). */
+const STATUS_QUIET_MS = 4000;
+let busySince = 0;
+let statusTimer = null;
+
+/**
+ * De indicator rechtsboven is er alleen als er iets te melden valt: geen verbinding, aanmelden nodig, een mislukte sync, of een
+ * sync/wachtrij die langer dan STATUS_QUIET_MS duurt. Bijgewerkt (alles in orde) en korte opslagmomenten tonen niets.
+ */
 function renderStatus() {
   const n = store.queueLength;
   const waiting = n > 0 ? t('sync.waiting', { count: n }) : '';
   // Zonder aanmelding is er niets bijgewerkt, ook al is er (nog) geen sync mislukt.
   const state = getToken() ? ui.syncState : 'unauthorized';
+  const busy = state === 'syncing' || (state === 'idle' && n > 0);
+  if (!busy) busySince = 0;
+  else if (!busySince) busySince = Date.now();
+  const waited = busy ? Date.now() - busySince : 0;
+  const show = busy ? waited >= STATUS_QUIET_MS : state !== 'idle';
+  clearTimeout(statusTimer);
+  statusTimer = null;
+  if (busy && !show) statusTimer = setTimeout(renderStatus, STATUS_QUIET_MS - waited + 50);
   const text = {
     idle: waiting || t('sync.upToDate'),
     syncing: t('sync.syncing'),
@@ -191,6 +210,7 @@ function renderStatus() {
     error: t('sync.failed'),
   }[state];
   const el = $('sync-status');
+  el.hidden = !show;
   el.textContent = text;
   el.dataset.state = state === 'idle' && n > 0 ? 'pending' : state;
 }
@@ -333,10 +353,12 @@ const handlers = {
 
   /** Een andere dag kiezen voor een taak, zonder het taakvenster. */
   async reschedule(task) {
-    const picked = await pickDay({ today: todayString(), hasDue: Boolean(task.due) });
+    const picked = await pickDateTime({ today: todayString(), due: task.due });
     if (!picked) return;
-    const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: reschedule(task.due, picked.date) }));
-    undoToast(picked.date ? t('undo.taskDated', { name: task.content, date: formatDue({ date: picked.date }, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
+    const next = reschedule(task.due, picked.date, picked.time);
+    if (JSON.stringify(next) === JSON.stringify(task.due ?? null)) return; // niets veranderd
+    const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: next }));
+    undoToast(next ? t('undo.taskDated', { name: task.content, date: formatDue(next, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
   },
 
   /** Sorteren en groeperen van de lijst waar je nu in staat: bewaard bij je instellingen, dus op al je apparaten. */
@@ -537,24 +559,8 @@ const handlers = {
 
   async settings() {
     if (!store.me) return askLogin();
-    const choice = await menuDialog({
-      title: t('settings.title'),
-      items: [
-        ...(updates?.menuItems() ?? []), // een nieuwere versie van de server (beheerder) of de Android-app, bovenaan
-        { value: 'general', label: t('settings.general') },
-        { value: 'account', label: t('settings.account') },
-        { value: 'notifications', label: t('settings.notifications') },
-        { value: 'productivity', label: t('settings.productivity') },
-        { value: 'places', label: t('settings.places') },
-        { value: 'export', label: t('settings.export') },
-        { value: 'import', label: t('settings.import') },
-        { value: 'templates', label: t('settings.templates') },
-        { value: 'sync', label: t('settings.syncNow') },
-        { value: 'appearance', label: t('settings.appearance') },
-        { value: 'language', label: t('settings.language') },
-        { value: 'logout', label: t('settings.signOut'), danger: true },
-      ],
-    });
+    // een nieuwere versie van de server (beheerder) of de Android-app staat als regel bovenaan
+    const choice = await settingsMenuDialog({ me: store.me, notices: updates?.menuItems() ?? [] });
     if (choice && await updates?.handle(choice)) return undefined;
     if (choice === 'sync') sync.requestSync(0);
     else if (choice === 'general') await openGeneralDialog({ store, actions });
@@ -1055,6 +1061,36 @@ async function boot() {
       handlers.undoLast();
     } else if (shortcuts.handle(e)) e.preventDefault();
   });
+
+  // De hoogte van de vaste kop (balk en titel) als --head-h, zodat wat eronder vastplakt (de selectiebalk) er netjes onder blijft staan.
+  const stickyHead = document.querySelector('.head-sticky');
+  if (stickyHead && typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => document.documentElement.style.setProperty('--head-h', `${Math.round(stickyHead.getBoundingClientRect().height)}px`)).observe(stickyHead);
+  }
+  // De terugknop van de Android-app (MainActivity) vraagt eerst of de pagina zelf iets kan sluiten, in deze volgorde: het bovenste venster,
+  // Bladeren, de selectie, en een ander scherm dan het hoofdscherm (de startpagina). Pas als dat alles niet zo is, gaat de app naar de achtergrond.
+  window.tickoryBack = () => {
+    const dialogs = document.querySelectorAll('dialog[open]');
+    const top = dialogs[dialogs.length - 1];
+    if (top) {
+      // zoals Escape: eerst "cancel" (een venster dat niet dicht mag, houdt dat tegen), dan sluiten
+      if (top.dispatchEvent(new Event('cancel', { cancelable: true }))) top.close();
+      return true;
+    }
+    if (document.body.classList.contains('nav-open')) {
+      document.body.classList.remove('nav-open');
+      return true;
+    }
+    if (document.body.classList.contains('select-mode')) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      return true;
+    }
+    if (!store.ready || !store.me) return false;
+    const home = startRoute(generalOf(mySettings(store.view, store.userId)).start_page, inboxId()) ?? { type: 'today' };
+    if (ui.route.type === home.type && (ui.route.id ?? null) === (home.id ?? null)) return false;
+    navigate(home);
+    return true;
+  };
 
   attachments.init().catch(() => {});
   render();

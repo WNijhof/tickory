@@ -23,7 +23,7 @@ export async function deleteScenario(c: any) {
 
   // ---- Alice meldt zich af, Proef logt in ----
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Afmelden en lokale gegevens wissen');
   await waitFor(`[...document.querySelectorAll('dialog[open] button')].some((b) => b.textContent === 'Afmelden')`, 'bevestiging');
   await clickText('Afmelden', `document.querySelector('dialog[open]')`);
@@ -38,7 +38,7 @@ export async function deleteScenario(c: any) {
     await evaluate(`(() => { const d = document.querySelector('[data-fk="account-delete-summary"]').closest('details'); d.open = true; document.querySelector('[data-fk="account-delete"]').click(); })()`);
   };
   await nav('Proef');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Account, wachtwoord en apparaten');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Account'`, 'accountscherm');
   await openDelete();

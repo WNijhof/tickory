@@ -245,7 +245,7 @@ export async function boardTouchScenario(c: any): Promise<void> {
   await send(c, 'Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
   try {
     await evaluate(`document.querySelector('.board').scrollTo({ left: 0 })`);
-    await evaluate(`window.scrollTo(0, document.querySelector('.board').getBoundingClientRect().top + window.scrollY - 70)`); // het bord bovenaan in beeld
+    await evaluate(`window.scrollTo(0, document.querySelector('.board').getBoundingClientRect().top + window.scrollY - 200)`); // het bord bovenaan in beeld, onder de vaste kop (balk en titel)
     await sleep(500);
     const name = await evaluate(`document.querySelector('.board-column[data-column="none"] li.task-card .task-title').textContent`) as string;
     const cardExpr = `[...document.querySelectorAll('li.task-card')].find((l) => l.querySelector('.task-title').textContent === ${js(name)})`;

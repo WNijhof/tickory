@@ -2,15 +2,21 @@
 // en dat venster zelf.
 
 import { dateExamplesNote, mentionsEnglishDate } from '../core/dateHint.js';
-import { clockText, formatDate, formatDayHeading, formatDue, todayString } from '../core/format.js';
+import { clockText, formatDate, formatDateInput, formatDayHeading, formatDue, todayString } from '../core/format.js';
 import { getLanguage, t } from '../core/i18n.js';
-import { offsetText } from '../core/reminderText.js';
+import { needsTimeNote, offsetText, presetOptions } from '../core/reminderText.js';
+import { hasTime } from '../../shared/reminders.js';
+import { parseDateText } from '../core/dateInput.js';
+import { reschedule } from '../core/quickDates.js';
+import { choiceFromDue, repeatSummary } from '../core/repeat.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { canEditProject, editableProjectList } from '../core/access.js';
 import { startVoice, voiceSupport } from '../core/voice.js';
 import { confirmDialog, h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
 import { attachQuickSuggest } from './quickSuggest.js';
+import { pickDateTime } from './datePopup.js';
+import { repeatPicker } from './repeatPicker.js';
 import { labelList, mySettings } from '../core/selectors.js';
 import { generalOf } from '../../shared/general.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
@@ -124,6 +130,73 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     // Suggesties tijdens het typen: # projecten, / secties, @ labels, { een deadline (ui/quickSuggest.js)
     const suggest = attachQuickSuggest({ input, source: () => suggestSource(store, project.value) });
 
+    // ---- datum, herinnering en herhaling kiezen (de knoppen onder de beschrijving) ----
+    // `chosen.due`: de datum (en herhaling) die je met de knoppen koos; die gaat voor op wat in het veld staat. `chosen.reminders`: de herinneringen.
+    const chosen = { due: null, reminders: [] };
+    const dueButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-due' } });
+    const reminderButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-reminder' } });
+    const repeatButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-repeat' } });
+    // de herhalingskiezer (ui/repeatPicker.js) werkt op een tekstveld met de datum; hier een verborgen veld, de keuze komt in `chosen.due`
+    const dueField = h('input', { type: 'hidden' });
+    const repeat = repeatPicker({ field: dueField, today: todayString });
+    repeat.button.hidden = true;
+    const effectiveDue = () => chosen.due ?? parseQuickAdd(input.value, { view, now: new Date(), ...parseContext() }).due;
+    const paintChoices = () => {
+      const day = chosen.due;
+      dueButton.replaceChildren(icon('calendar'), day ? formatDue(day, todayString()) : t('quick.date'));
+      dueButton.classList.toggle('active', Boolean(day));
+      const rule = chosen.due?.recurrence ? choiceFromDue(chosen.due) : null;
+      repeatButton.replaceChildren(icon('repeat'), rule ? repeatSummary(rule) : t('task.quickRepeat'));
+      repeatButton.classList.toggle('active', Boolean(rule));
+      const n = chosen.reminders.length;
+      reminderButton.replaceChildren(icon('bell'), n > 0 ? t('quick.remindersCount', { count: n }) : t('quick.reminder'));
+      reminderButton.classList.toggle('active', n > 0);
+      dueField.value = chosen.due ? formatDateInput(chosen.due) : '';
+    };
+    dueButton.addEventListener('click', async () => {
+      const current = effectiveDue();
+      const picked = await pickDateTime({ today: todayString(), due: current ?? null, allowNone: Boolean(current) });
+      if (!picked) return;
+      // een herhaling die er al is, blijft; alleen de dag en de tijd veranderen
+      chosen.due = picked.date ? reschedule(chosen.due, picked.date, picked.time) : null;
+      if (!picked.date) chosen.reminders = chosen.reminders.filter((r) => r.type === 'absolute');
+      paintChoices();
+      input.focus();
+    });
+    // herhalen: de kiezer opent als popup met het paneel van ui/repeatPicker.js
+    dueField.addEventListener('input', () => {
+      const parsed = parseDateText(dueField.value.trim(), new Date());
+      if (!parsed) return;
+      // had je al een dag gekozen, dan begint de herhaling op die dag
+      chosen.due = chosen.due && !chosen.due.recurrence ? reschedule(parsed, chosen.due.date.slice(0, 10), chosen.due.date.length > 10 ? chosen.due.date.slice(11, 16) : undefined) : parsed;
+      paintChoices();
+    });
+    repeatButton.addEventListener('click', () => {
+      dueField.value = chosen.due ? formatDateInput(chosen.due) : effectiveDue() ? formatDateInput(effectiveDue()) : '';
+      repeat.button.click(); // opent het paneel (draw)
+      const panel = repeat.panel;
+      openDialog((finish) => {
+        const hide = new MutationObserver(() => { if (panel.hidden) finish(null); }); // "Toepassen" in het paneel sluit het paneel, en dan ook de popup
+        hide.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+        return h('div', { class: 'dialog-form' },
+          h('h2', {}, t('repeat.title')),
+          panel,
+          h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
+      }, { className: 'dialog-sheet', onClose: () => {
+        if (!panel.hidden) repeat.button.click(); // sluit het paneel netjes (haalt ook zijn Escape-afhandeling weg)
+        form.append(panel); // het paneel blijft in dit venster, voor de volgende keer
+      } }).then(() => input.focus());
+    });
+    reminderButton.addEventListener('click', async () => {
+      const due = effectiveDue();
+      const picked = await reminderDialog({ selected: chosen.reminders, timed: hasTime(due?.date) });
+      if (!picked) return;
+      chosen.reminders = picked;
+      paintChoices();
+      input.focus();
+    });
+    paintChoices();
+
     // Meer regels plakken (zoals Todoist): na een vraag wordt elke regel een eigen taak, met dezelfde herkenning als hier.
     input.addEventListener('paste', async (e) => {
       const text = e.clipboardData?.getData('text/plain') ?? '';
@@ -173,7 +246,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
       draw(); // een begintekst (bijvoorbeeld het label waar je bij staat): meteen de voorvertoning, de cursor erachter
       queueMicrotask(() => input.setSelectionRange(input.value.length, input.value.length));
     }
-    return h('form', {
+    const form = h('form', {
       class: 'dialog-form quick-form',
       onsubmit: async (e) => {
         e.preventDefault();
@@ -188,7 +261,11 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
           return;
         }
         const text = description.value.trim();
-        finish(await actions.addTask({ ...p, ...(text ? { description: text } : {}) }));
+        // wat je met de knoppen koos gaat voor op wat er in de tekst stond; de herinneringen komen erbij
+        const due = chosen.due ?? p.due;
+        const same = (a, b) => a.type === b.type && (a.type === 'absolute' ? a.due.date === b.due.date : a.minute_offset === b.minute_offset);
+        const reminders = [...p.reminders, ...chosen.reminders.filter((r) => !p.reminders.some((x) => same(x, r)))];
+        finish(await actions.addTask({ ...p, due, reminders, ...(text ? { description: text } : {}) }));
       },
     },
     h('h2', {}, t('quick.addTask')),
@@ -198,6 +275,8 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     description,
     shared,
     preview,
+    // datum (kalender), herinnering en herhaling: elk opent een kleine popup
+    h('div', { class: 'quick-choices', role: 'group', 'aria-label': t('quick.choices') }, dueButton, reminderButton, repeatButton, repeat.button),
     h('div', { class: 'quick-options' },
       h('label', { class: 'field-label' }, t('task.project'), project),
       // "Taak uit sjabloon…": sluit dit venster en opent de sjablonen voor het gekozen project (en de sectie, als die bij dit project hoort)
@@ -205,5 +284,55 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-primary' }, t('common.add'))));
+    form.append(repeat.panel); // het paneel van de herhaling verhuist naar zijn popup zodra die opent
+    return form;
   }, { wide: true, className: 'dialog-quick', onClose: () => voice?.stop() });
+}
+
+/**
+ * De popup met herinneringen voor een nieuwe taak: vaste keuzes vooraf (op het tijdstip, 10 minuten, 1 uur, 1 dag, …) en eventueel een
+ * eigen datum en tijd. Zonder tijd bij de taak werken de keuzes "vooraf" pas als je er een tijd aan geeft; dat staat erbij.
+ * @param {{ selected: object[], timed: boolean }} options  `selected`: wat er al gekozen is; `timed`: heeft de taak een datum mét tijd?
+ * @returns {Promise<object[] | null>} de herinneringen (relatief: `{ type: 'relative', minute_offset }`, eigen: `{ type: 'absolute', due: { date } }`), of null bij sluiten
+ */
+export function reminderDialog({ selected, timed }) {
+  return openDialog((finish) => {
+    const offsets = new Set(selected.filter((r) => r.type === 'relative').map((r) => r.minute_offset));
+    const own = selected.filter((r) => r.type === 'absolute').map((r) => r.due.date);
+    const checks = presetOptions().map(({ minutes, label }) => h('label', { class: 'check-row' },
+      h('input', { type: 'checkbox', checked: offsets.has(minutes), dataset: { fk: `quick-reminder:${minutes}` }, onchange: (e) => (e.target.checked ? offsets.add(minutes) : offsets.delete(minutes)) }), label));
+    const when = h('input', { class: 'field', type: 'datetime-local', 'aria-label': t('reminder.customLabel'), dataset: { fk: 'quick-reminder-own' } });
+    const list = h('ul', { class: 'quick-reminder-own' });
+    const drawOwn = () => replace(list, own.map((date, i) => h('li', {},
+      h('span', {}, formatDue({ date }, todayString())),
+      h('button', { class: 'icon-button', type: 'button', 'aria-label': t('reminder.remove'), title: t('reminder.remove'), onclick: () => { own.splice(i, 1); drawOwn(); } }, icon('close')))));
+    drawOwn();
+    const addOwn = () => {
+      if (!when.value) return;
+      const date = when.value.slice(0, 16);
+      if (!own.includes(date)) own.push(date);
+      when.value = '';
+      drawOwn();
+    };
+    return h('form', {
+      class: 'dialog-form',
+      onsubmit: (e) => {
+        e.preventDefault();
+        addOwn(); // een datum die nog in het veld staat, telt ook mee
+        finish([
+          ...[...offsets].sort((a, b) => a - b).map((minute_offset) => ({ type: 'relative', minute_offset })),
+          ...own.map((date) => ({ type: 'absolute', due: { date } })),
+        ]);
+      },
+    },
+    h('h2', {}, t('reminder.title')),
+    !timed && h('p', { class: 'hint' }, needsTimeNote()),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('reminder.choose')), checks),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('reminder.custom')),
+      h('div', { class: 'quick-row' }, when, h('button', { type: 'button', class: 'button button-small', onclick: addOwn }, t('reminder.add'))),
+      list),
+    h('div', { class: 'dialog-buttons' },
+      h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
+      h('button', { type: 'submit', class: 'button button-primary', dataset: { fk: 'quick-reminder-save' } }, t('common.save'))));
+  }, { className: 'dialog-sheet' });
 }

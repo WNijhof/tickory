@@ -39,6 +39,7 @@ export function openGeneralDialog({ store, actions }) {
     const tabSelects = Array.from({ length: BOTTOM_TAB_COUNT }, (_, i) => h('select', {
       class: 'field', 'aria-label': t('general.tabN', { n: i + 1 }), dataset: { fk: `general-tab:${i}` },
     }, BOTTOM_TAB_CHOICES.map((c) => h('option', { value: c, selected: c === now.bottom_tabs[i] }, TAB_LABEL[c]()))));
+    const productivity = h('input', { type: 'checkbox', checked: now.productivity, dataset: { fk: 'general-productivity' } });
     const tabError = h('p', { class: 'error', role: 'alert' });
     const items = SIDEBAR_ITEMS.map((key) => h('label', { class: 'check-row' },
       h('input', { type: 'checkbox', value: key, checked: !now.sidebar_hidden.includes(key), dataset: { fk: `general-nav:${key}` } }), ITEM_LABEL[key]()));
@@ -55,6 +56,7 @@ export function openGeneralDialog({ store, actions }) {
           sidebar_hidden: items.map((l) => l.querySelector('input')).filter((i) => !i.checked).map((i) => i.value),
           week_start: Number(weekStart.value),
           bottom_tabs: bottomTabs,
+          productivity: productivity.checked,
         };
         await actions.updateSettings({ general: next });
         finish(true);
@@ -67,6 +69,9 @@ export function openGeneralDialog({ store, actions }) {
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.quickAdd')),
       h('label', { class: 'check-row' }, dates, t('general.dates')),
       h('p', { class: 'hint' }, t('general.datesHint'))),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.productivity')),
+      h('label', { class: 'check-row' }, productivity, t('general.productivityShow')),
+      h('p', { class: 'hint' }, t('general.productivityHint'))),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sidebar')), items),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.bottomBar')),
       h('p', { class: 'hint' }, t('general.bottomBarHint')),

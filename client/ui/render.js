@@ -173,7 +173,15 @@ function buildRow(m, variant = '') {
 
   const chips = [];
   const chip = (cls, ...kids) => mk('span', `chip ${cls}`, ...kids);
-  if (m.due) chips.push(chip(`chip-due due-${m.due.status}`, icon('calendar'), m.due.text)); // bij een herhaling staat ↻ al in de tekst
+  if (m.due) {
+    // een tik op de datum opent de snelle datum- en tijdkiezer (handlers.reschedule); alleen waar je de taak mag wijzigen
+    if (!m.readOnly && !m.done) {
+      const due = rowButton(`chip chip-due chip-due-edit due-${m.due.status}`, 'date', icon('calendar'), m.due.text);
+      due.dataset.fk = `due:${m.id}`;
+      due.title = t('task.dueEditTitle');
+      chips.push(due);
+    } else chips.push(chip(`chip-due due-${m.due.status}`, icon('calendar'), m.due.text)); // bij een herhaling staat ↻ al in de tekst
+  }
   if (m.duration) chips.push(chip('chip-duration', icon('clock'), m.duration.text));
   if (m.deadline) chips.push(chip(`chip-deadline${m.deadline.overdue ? ' due-overdue' : ''}`, m.deadline.text));
   if (m.subtasks) {
@@ -223,7 +231,7 @@ function buildRow(m, variant = '') {
     chips.push(who);
   }
 
-  const body = rowButton('task-body', 'open', mk('span', 'task-title', ...renderInline(m.content, { links: false })), m.description ? mk('span', 'task-desc', m.description) : null);
+  const body = rowButton('task-body', 'open', mk('span', 'task-title', ...renderInline(m.content)), m.description ? mk('span', 'task-desc', m.description) : null);
   body.dataset.fk = `open:${m.id}`; // zodat de toetsenbordfocus terugkomt na verplaatsen (ui/dragdrop.js)
   li.append(...(m.readOnly ? [] : [selBox]), check, mk('div', 'task-content', body, chips.length > 0 ? mk('div', 'task-meta', ...chips) : null)); // een taak die je alleen leest, kies je niet
   if (!m.readOnly) li.append(mk('span', 'drag-handle')); // handvat om te slepen; zichtbaar in lijsten waar dat kan (dnd.css), zie ui/dragdrop.js
@@ -273,6 +281,8 @@ export function bindList(container, handlers) {
     return entry ? { li, entry } : null;
   };
   container.addEventListener('click', (e) => {
+    // een link in de titel van een taak opent zichzelf (nieuw tabblad of de browser van de telefoon); de taak gaat dan niet open
+    if (e.target.closest?.('.task-title a[href]')) return;
     const hit = rowOf(e.target);
     if (!hit) return;
     const { li, entry } = hit;

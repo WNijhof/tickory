@@ -90,7 +90,7 @@ export async function quickScenario(c: any) {
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const openGeneral = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Algemeen');
     await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Algemeen'`, 'venster Algemeen');
   };
@@ -112,7 +112,7 @@ export async function quickScenario(c: any) {
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const saved = db.prepare('SELECT general FROM user_settings WHERE id = ?').get(`settings-${alice.id}`) as any;
-  assert.deepEqual(JSON.parse(saved.general), { start_page: 'upcoming', time_format: '12h', date_recognition: false, sidebar_hidden: ['notes', 'labels'], week_start: 1, bottom_tabs: ['inbox', 'today', 'upcoming'] });
+  assert.deepEqual(JSON.parse(saved.general), { start_page: 'upcoming', time_format: '12h', date_recognition: false, sidebar_hidden: ['notes', 'labels'], week_start: 1, bottom_tabs: ['inbox', 'today', 'upcoming', 'notes'], productivity: true });
   await waitFor(`/2:30\\s?p\\.?\\s?m\\.?/i.test([...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title')?.textContent === 'Tijdproef')?.textContent ?? '')`, 'de tijd in 12 uur');
   assert.equal(await evaluate(`document.querySelector('[data-fk="nav-notes"]')?.offsetParent ?? null`), null, 'Notities staat niet meer in de zijbalk');
   assert.equal(await evaluate(`document.querySelector('[data-fk="find-toggle:labels"]')`), null, 'Labels ook niet');

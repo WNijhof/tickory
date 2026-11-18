@@ -112,7 +112,7 @@ export async function notifyScenario(c: any) {
 
   // ---- welke soorten als pushmelding ----
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Herinneringen en meldingen');
   await waitFor(`document.querySelector('dialog[open] [data-role="push-kinds"]')`, 'het stuk Meldingen bij samenwerken');
   const boxes = () => evaluate<[string, boolean][]>(`[...document.querySelectorAll('dialog[open] [data-role="push-kinds"] label')].map((l) => [l.textContent, l.querySelector('input').checked])`);

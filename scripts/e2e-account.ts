@@ -32,7 +32,7 @@ export async function accountScenario(c: any) {
   const clickTop = (text: string) => clickText(text, top);
   const openAccount = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Account, wachtwoord en apparaten');
     await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'dit apparaat'`, 'apparatenlijst');
   };

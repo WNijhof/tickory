@@ -23,7 +23,7 @@ export async function sessionScenario(c: any) {
   };
   const logout = async () => {
     await nav('Alice');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+    await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
     await clickText('Afmelden en lokale gegevens wissen');
     await waitFor(`[...document.querySelectorAll('dialog[open] button')].some((b) => b.textContent === 'Afmelden')`, 'bevestiging');
     await clickText('Afmelden', `document.querySelector('dialog[open]')`);
@@ -60,8 +60,8 @@ export async function sessionScenario(c: any) {
   await send('Page.reload');
   await waitFor(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent === 'Tickory 9.9.0 is uit (deze server draait 0.3.0).')`, 'een melding voor de beheerder', 20_000);
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
-  const first = await evaluate<string>(`document.querySelector('dialog[open] .menu-item')?.textContent ?? ''`);
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
+  const first = await evaluate<string>(`document.querySelector('dialog[open] .settings-row')?.textContent ?? ''`);
   assert.equal(first, 'Nieuwe versie van Tickory: 9.9.0', 'bovenaan Instellingen');
   await clickText('Nieuwe versie van Tickory: 9.9.0', `document.querySelector('dialog[open]')`);
   await waitFor(`document.querySelector('dialog[open]')?.textContent.includes('docker compose pull')`, 'uitleg over bijwerken');

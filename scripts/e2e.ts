@@ -628,7 +628,7 @@ try {
 
   // ---- 8c. account, apparaten en beheer ----
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Account, wachtwoord en apparaten');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'dit apparaat'`, 'apparatenlijst');
   assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes('Alice') && document.querySelector('dialog[open]').textContent.includes('beheerder')`));
@@ -678,7 +678,7 @@ try {
   const inEnglish = <T>(fn: () => T): T => { setLanguage('en'); try { return fn(); } finally { setLanguage('nl'); } };
   const texts = (selector: string) => evaluate<string[]>(`[...document.querySelectorAll(${js(selector)})].map((e) => e.textContent)`);
   const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.trim())`);
-  const openMenu = async (label: string) => { await nav(label); await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu'); };
+  const openMenu = async (label: string) => { await nav(label); await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu'); };
   const openTask = async (content: string) => {
     // een zojuist gesloten venster verdwijnt pas een tel later uit de pagina; daarop wachten, anders lezen we het oude uit
     await waitFor(`!document.querySelector('#task-dialog')`, 'het vorige bewerkvenster is weg');
@@ -813,7 +813,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Plaatsen', 'Gegevens exporteren', 'Importeren uit Todoist', 'Sjablonen', 'Nu bijwerken', 'Weergave', 'Taal / Language', 'Afmelden en lokale gegevens wissen', 'Sluiten']);
+  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Weergave', 'Taal / Language', 'Plaatsen', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -988,7 +988,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Places', 'Export data', 'Import from Todoist', 'Templates', 'Sync now', 'Appearance', 'Taal / Language', 'Sign out and clear local data', 'Close']);
+  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Appearance', 'Taal / Language', 'Places', 'Templates', 'Import from Todoist', 'Export data', 'Sync now', 'Sign out and clear local data']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1053,7 +1053,7 @@ try {
   await sleep(300);
   await fits('telefoon: project');
   // de menubalk onderaan in het Engels: kort genoeg, niets afgekapt (ook met grotere letters)
-  assert.deepEqual(await texts('.bnav-label'), ['Inbox', 'Today', 'Upcoming', 'Browse']);
+  assert.deepEqual(await texts('.bnav-label'), ['Inbox', 'Today', 'Upcoming', 'Notes', 'Browse']);
   assert.deepEqual(await evaluate(`[document.querySelector('.bnav-item[aria-current="page"]').dataset.tab, document.getElementById('fab').getAttribute('aria-label')]`), ['browse', 'Add task']);
   const enTodayCount = await evaluate<string>(`document.querySelector('[data-fk="nav-today"] .nav-count')?.textContent ?? ''`);
   assert.equal(await evaluate(`document.querySelector('[data-tab="today"]').getAttribute('aria-label')`), enTodayCount ? `Today, ${enTodayCount} ${enTodayCount === '1' ? 'task' : 'tasks'}` : null);
@@ -1092,7 +1092,7 @@ try {
   await click('[data-tab="browse"]');
   await sleep(350);
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu (telefoon)');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu (telefoon)');
   await fits('telefoon: instellingen');
   await shot('engels-telefoon-instellingen');
   await clickText('Close', `document.querySelector('dialog[open]')`);
@@ -1118,7 +1118,7 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   await sleep(200);
   await evaluate(`[...document.querySelectorAll('.nav-item')].find((b) => b.querySelector('.nav-label')?.textContent === 'Alice').click()`);
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu (offline)');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu (offline)');
   await clickText('Sign out and clear local data');
   await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sign out?')`, 'bevestiging afmelden (Engels)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] p, dialog[open] button')].map((e) => e.textContent)`),
@@ -1229,7 +1229,7 @@ try {
   const mySettings = () => (serverState().settings as any[])[0];
   assert.equal(mySettings().timezone, deviceZone, 'de tijdzone van dit apparaat is vanzelf vastgelegd');
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Herinneringen en meldingen');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm herinneringen en meldingen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]').value`), '30');
@@ -1286,7 +1286,7 @@ try {
   const calls = () => evaluate<any[][]>(`JSON.parse(sessionStorage.getItem('android-calls') || '[]')`);
   assert.ok((await calls()).some((c) => c[0] === 'setSession' && String(c[1]).startsWith('tky_')), 'bij het starten krijgt de Android-app het sessietoken');
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Herinneringen en meldingen');
   await waitFor(`document.querySelector('dialog[open]').textContent.includes('Meldingen zijn uitgeschakeld voor Tickory')`, 'Android-uitleg over meldingen');
   const panel = await evaluate<string>(`document.querySelector('dialog[open]').textContent`);
@@ -1528,9 +1528,10 @@ try {
   assert.deepEqual(await evaluate(`[...${row('Wegwerptaak')}.querySelectorAll('.task-actions button')].map((b) => b.getAttribute('aria-label'))`),
     ['Bewerken: Wegwerptaak', 'Andere dag kiezen voor: Wegwerptaak', 'Verwijderen: Wegwerptaak']);
   await evaluate(`${row('Wegwerptaak')}.querySelector('[data-act="date"]').click()`);
-  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Andere dag kiezen'`, 'dagkeuze');
-  assert.deepEqual(await buttons(), ['Vandaag · vandaag', 'Morgen · morgen', `Dit weekend · ${formatDate(quickDates(today).weekend, today)}`, `Volgende week · ${formatDate(quickDates(today).nextWeek, today)}`, 'Sluiten']);
-  await clickText('Morgen · morgen');
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Datum en tijd'`, 'dagkeuze (de kleine kalender)');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .datepop-quick button')].map((b) => b.textContent)`), ['Vandaag', 'Morgen', 'Dit weekend', 'Volgende week']);
+  assert.ok(await evaluate(`document.querySelectorAll('dialog[open] .datepop-day').length >= 28`), 'een maandkalender');
+  await clickText('Morgen', `document.querySelector('dialog[open] .datepop-quick')`);
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(serverTask('Wegwerptaak').due.date, tomorrow);
   assert.deepEqual(await taskMeta('Wegwerptaak'), ['morgen']);
@@ -2341,8 +2342,8 @@ try {
   })()`);
   let barNow = await barState();
   assert.deepEqual([barNow.display, barNow.position, barNow.bottom, barNow.label], ['flex', 'fixed', 0, 'Hoofdmenu'], 'de balk staat vast onderaan');
-  assert.deepEqual(barNow.tabs, ['inbox', 'today', 'upcoming', 'browse']);
-  assert.deepEqual(barNow.labels, ['Inbox', 'Vandaag', 'Aankomend', 'Bladeren'], 'vier knoppen, geen aparte knop Zoeken');
+  assert.deepEqual(barNow.tabs, ['inbox', 'today', 'upcoming', 'notes', 'browse']);
+  assert.deepEqual(barNow.labels, ['Inbox', 'Vandaag', 'Aankomend', 'Notities', 'Bladeren'], 'vijf knoppen, geen aparte knop Zoeken');
   assert.deepEqual([barNow.current, barNow.active, barNow.expanded], [['browse'], ['browse'], 'false'], 'een project (niet de Inbox) hoort bij Bladeren');
   assert.ok(barNow.sizes.every(([w, h]: number[]) => w >= 48 && h >= 48), `tikvlakken van de balk: ${JSON.stringify(barNow.sizes)}`);
   assert.equal(barNow.clipped, 0, 'geen afgekapte namen in de balk');
@@ -2357,7 +2358,7 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Notities' && document.querySelector('#bottom-nav [data-tab="notes"]').getAttribute('aria-current') === 'page'`, 'Notities via de balk');
   handleSync(db, { commands: [{ type: 'settings_update', uuid: 'e2e-balk-000002', args: { id: settingsId, general: null } }] }, alice.id);
   await evaluate(`document.getElementById('sync-status').click()`);
-  await waitFor(`[...document.querySelectorAll('#bottom-nav .bnav-item')].map((b) => b.dataset.tab).join() === 'inbox,today,upcoming,browse'`, 'weer de standaardbalk', 10_000);
+  await waitFor(`[...document.querySelectorAll('#bottom-nav .bnav-item')].map((b) => b.dataset.tab).join() === 'inbox,today,upcoming,notes,browse'`, 'weer de standaardbalk', 10_000);
   await nav('Thuis');
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'terug in Thuis');
   // ook op een smal toestel (360 pixels) met grote letters (125 %) past "Aankomend"
@@ -3192,7 +3193,7 @@ try {
   const revokedSessions = () => (db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND revoked_at IS NOT NULL').get(alice.id) as any).n as number;
   const revokedBefore = revokedSessions(); // eerdere stappen (scripts/e2e-account.ts) trokken er al een paar in
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Afmelden en lokale gegevens wissen');
   await waitFor(`[...document.querySelectorAll('dialog[open] button')].some((b) => b.textContent === 'Afmelden')`, 'bevestiging');
   await clickText('Afmelden', `document.querySelector('dialog[open]')`);

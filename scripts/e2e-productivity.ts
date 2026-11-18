@@ -160,7 +160,7 @@ export async function productivityScenario(c: any) {
   // ---- via Instellingen ----
   await nav('Vandaag');
   await nav('Alice');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingenmenu');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
   await clickText('Productiviteit', `document.querySelector('dialog[open]')`);
   await waitFor(`document.getElementById('view-title').textContent === 'Productiviteit'`, 'Productiviteit via Instellingen');
   assert.equal(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].some((e) => e.textContent === 'Productiviteit')`), false, 'geen eigen regel in de zijbalk');

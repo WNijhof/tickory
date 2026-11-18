@@ -1,13 +1,11 @@
-// Kleine vensters: overzicht van sneltoetsen, gearchiveerde projecten, opmerkingen bij een project en een dag kiezen voor een taak.
+// Kleine vensters: overzicht van sneltoetsen, gearchiveerde projecten, en opmerkingen bij een project.
 
-import { formatDate } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { archivedList } from '../core/selectors.js';
 import { SHORTCUT_KEYS } from '../core/shortcuts.js';
-import { quickDates } from '../core/quickDates.js';
 import { commentsSection } from './comments.js';
 import { dot } from './render.js';
-import { h, menuDialog, openDialog, replace } from './dom.js';
+import { h, openDialog, replace } from './dom.js';
 
 /** Het overzicht van sneltoetsen (opent met `?`). */
 export function shortcutsDialog() {
@@ -74,25 +72,4 @@ export function archiveDialog({ store, onOpen, onRestore }) {
       list,
       h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
   }, { onClose: () => unsubscribe() });
-}
-
-/**
- * Kiest een dag voor een taak: vandaag, morgen, dit weekend, volgende week of geen datum.
- * @returns {Promise<{ date: string | null } | null>} de gekozen dag (null = geen datum), of null bij sluiten
- */
-export async function pickDay({ today, hasDue }) {
-  const d = quickDates(today);
-  const item = (value, label, date) => ({ value, label: date ? `${label} · ${formatDate(date, today)}` : label });
-  const choice = await menuDialog({
-    title: t('task.actionDateTitle'),
-    items: [
-      item('today', t('task.quickToday'), d.today),
-      item('tomorrow', t('task.quickTomorrow'), d.tomorrow),
-      item('weekend', t('task.quickWeekend'), d.weekend),
-      item('nextWeek', t('task.quickNextWeek'), d.nextWeek),
-      hasDue && item('none', t('task.quickNone'), null),
-    ].filter(Boolean),
-  });
-  if (!choice) return null;
-  return { date: choice === 'none' ? null : { today: d.today, tomorrow: d.tomorrow, weekend: d.weekend, nextWeek: d.nextWeek }[choice] };
 }

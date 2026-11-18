@@ -3,17 +3,17 @@
 
 /* ---------- de kop boven Voltooid ---------- */
 .stats-strip {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
-  margin: 2px 0 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg-soft);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px;
+  margin: 0 0 8px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-soft); font-size: 0.8rem; line-height: 1.3;
 }
 .stats-strip-item { display: inline-flex; align-items: baseline; gap: 4px; }
-.stats-strip-label { color: var(--text-soft); font-size: 0.9rem; }
+.stats-strip-label { color: var(--text-soft); font-size: 0.78rem; }
 .stats-strip-value { font-variant-numeric: tabular-nums; }
 .stats-strip-met { display: inline-flex; align-self: center; color: var(--accent); }
 .stats-strip-met .icon { width: 16px; height: 16px; stroke-width: 3; }
 .stats-strip-status { margin: 0; }
-.stats-strip-open { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
-.stats-strip-open .icon { width: 16px; height: 16px; }
+.stats-strip-open { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 2px 8px; font-size: 0.78rem; }
+.stats-strip-open .icon { width: 14px; height: 14px; }
 
 /* ---------- het scherm ---------- */
 .stats-status { margin: 0 0 10px; }
@@ -80,8 +80,8 @@
 
 /* ---------- telefoon: alles onder elkaar, tikvlakken van 44 px ---------- */
 @media (max-width: 760px) {
-  .stats-strip { flex-direction: column; align-items: stretch; }
-  .stats-strip-open { margin-left: 0; justify-content: center; min-height: 44px; }
+  /* compact: één regel (of twee bij veel cijfers), geen tikvlak van 44 px; de hele strook is zelf geen knop */
+  .stats-strip { padding: 3px 8px; }
   .stat-tiles { grid-template-columns: 1fr; }
   .share-row { grid-template-columns: minmax(0, 1fr) 3ch; row-gap: 4px; }
   .share-bar { grid-column: 1 / -1; grid-row: 2; }
