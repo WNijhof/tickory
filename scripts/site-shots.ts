@@ -282,7 +282,7 @@ async function shootAll() {
   await waitFor(`!document.querySelector('dialog[open]')`, 'deelvenster gesloten');
 
   await nav('Anna');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
   await capture('instellingen', TALL, await around('dialog[open]', 24));
   await clickText(T('settings.notifications'));
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === ${js(T('notify.title'))} && document.querySelector('dialog[open] details.section:nth-of-type(3) .section-form')`, 'scherm herinneringen en meldingen');
@@ -295,7 +295,7 @@ async function shootAll() {
   await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');
 
   await nav('Anna');
-  await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
   await clickText(T('settings.account'));
   await waitFor(`document.querySelectorAll('dialog[open] .device').length >= 2`, 'apparatenlijst');
   await evaluate(`document.activeElement?.blur()`);

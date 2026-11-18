@@ -30,6 +30,7 @@
 
     <TextView
         style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
         android:text="@string/widget_theme" />
 
     <RadioGroup
@@ -64,6 +65,7 @@
 
     <TextView
         style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
         android:text="@string/widget_layout" />
 
     <Switch
@@ -89,6 +91,7 @@
 
     <TextView
         style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
         android:text="@string/widget_opacity" />
 
     <Spinner
@@ -103,5 +106,6 @@
     <TextView
         android:id="@+id/config_source_label"
         style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
         android:text="@string/widget_config_title" />
 </LinearLayout>

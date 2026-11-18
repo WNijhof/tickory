@@ -1356,7 +1356,7 @@ if (wants('browser')) {
       await check('demo: account en gebruikersbeheer geven voorbeeldantwoorden of een nette melding; een nieuw project maken werkt', async () => {
         b.reset();
         await nav('Anna');
-        await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+        await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
         await clickText('Account, wachtwoord en apparaten');
         await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'dit apparaat'`, 'apparatenlijst');
         assert.equal(await evaluate(`document.querySelectorAll('dialog[open] .device').length`), 3);
@@ -1498,7 +1498,7 @@ if (wants('browser')) {
         b.reset();
         const openSettings = async () => {
           await nav('Anna');
-          await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+          await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
           await clickText('Herinneringen en meldingen');
           await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm Herinneringen en meldingen');
         };
@@ -1553,7 +1553,7 @@ if (wants('browser')) {
         await nav('Inbox');
         await viewTitle('Inbox');
         await nav('Anna');
-        await waitFor(`document.querySelector('dialog[open] .menu')`, 'instellingen');
+        await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
         await clickText('Plaatsen');
         await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Plaatsen'`, 'scherm Plaatsen');
         const text = await evaluate<string>(`document.querySelector('dialog[open]').textContent`);
@@ -1800,6 +1800,7 @@ if (wants('browser')) {
         await nav('Huishouden');
         await viewTitle('Huishouden');
         const beforeDrag = await titles();
+        await evaluate(`window.scrollTo(0, 0)`); // de vaste kop (balk en titel) dekt anders de bovenste regels af
         const rects = await evaluate<{ from: { x: number; y: number }; to: { x: number; y: number } }>(`(() => {
           const rows = [...document.querySelectorAll('.task')];
           const box = (e, fy) => { const r = e.querySelector('.task-title').getBoundingClientRect(); const row = e.getBoundingClientRect(); return { x: Math.round(r.left + 20), y: Math.round(row.top + row.height * fy) }; };
@@ -2163,7 +2164,7 @@ if (wants('browser')) {
         await submit('#task-dialog form');
         await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
         await nav('Anna');
-        await waitFor(`document.querySelector('dialog[open] .menu')`, 'settings');
+        await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'settings');
         await clickText('Reminders and notifications');
         await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Reminders and notifications'`, 'scherm Reminders and notifications');
         assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatic reminder"]').selectedOptions[0].textContent`), '30 minutes before');
