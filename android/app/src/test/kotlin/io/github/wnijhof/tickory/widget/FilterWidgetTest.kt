@@ -62,12 +62,14 @@ class FilterWidgetTest : WidgetTestBase() {
         val id = place()
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, Intent(app, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
-        val labels = (0 until list.adapter.count).map { (list.adapter.getView(it, null, list) as TextView).text.toString() }
+        val choices = (list.adapter as android.widget.HeaderViewListAdapter).wrappedAdapter
+        val labels = (0 until choices.count).map { (choices.getView(it, null, list) as TextView).text.toString() }
         assertEquals(
             listOf("Vandaag", "Aankomend", "Inbox", "Werk", "Dringend (filter)", "Vandaag en werk (filter)", "Donderdag (filter)", "Oud project (filter)"),
             labels,
         )
-        list.performItemClick(null, 4, 4)
+        list.performItemClick(null, 4 + list.headerViewsCount, 4) // kiezen, en dan Opslaan
+        activity.findViewById<View>(R.id.config_save).performClick()
         assertEquals("filter:f-dringend", WidgetConfigStore.get(app, id))
         assertEquals("Dringend", text(view(id), R.id.title))
         assertEquals("2 taken", text(view(id), R.id.subtitle))

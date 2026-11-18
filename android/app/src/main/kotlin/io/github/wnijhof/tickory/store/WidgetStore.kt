@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import io.github.wnijhof.tickory.core.QueuedComplete
+import io.github.wnijhof.tickory.core.WidgetOptions
+import io.github.wnijhof.tickory.core.WidgetTheme
 import io.github.wnijhof.tickory.core.WidgetCodec
 import io.github.wnijhof.tickory.core.WidgetQueue
 import io.github.wnijhof.tickory.core.WidgetSnapshot
@@ -125,7 +127,32 @@ object WidgetConfigStore {
         prefs(context).edit { putString("w$appWidgetId", sourceKey) }
     }
 
+    /** De instellingen van deze widget (thema, compact, doorzichtigheid); ontbrekend is de standaard. */
+    fun options(context: Context, appWidgetId: Int): WidgetOptions {
+        val p = prefs(context)
+        return WidgetOptions(
+            theme = WidgetTheme.parse(p.getString("t$appWidgetId", null)),
+            compact = p.getBoolean("c$appWidgetId", false),
+            opacity = WidgetOptions.normalizeOpacity(p.getInt("a$appWidgetId", 100)),
+        )
+    }
+
+    fun setOptions(context: Context, appWidgetId: Int, options: WidgetOptions) {
+        prefs(context).edit {
+            putString("t$appWidgetId", options.theme.key)
+            putBoolean("c$appWidgetId", options.compact)
+            putInt("a$appWidgetId", WidgetOptions.normalizeOpacity(options.opacity))
+        }
+    }
+
     fun remove(context: Context, appWidgetIds: IntArray) {
-        prefs(context).edit { for (id in appWidgetIds) remove("w$id") }
+        prefs(context).edit {
+            for (id in appWidgetIds) {
+                remove("w$id")
+                remove("t$id")
+                remove("c$id")
+                remove("a$id")
+            }
+        }
     }
 }

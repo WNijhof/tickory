@@ -170,8 +170,22 @@ class MainActivity : ComponentActivity() {
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
                     val view = webView
-                    // Eerst terug binnen de web-app; kan dat niet, dan gaat de app naar de achtergrond (en blijft dus open staan).
-                    if (view != null && !errorView.isVisible && view.canGoBack()) view.goBack() else moveTaskToBack(true)
+                    if (view == null || errorView.isVisible) {
+                        moveTaskToBack(true)
+                        return
+                    }
+                    // Eerst de web-app zelf (window.tickoryBack): het bovenste venster sluiten, of van een ander scherm terug naar het
+                    // hoofdscherm. Kan dat niet, dan terug in de geschiedenis; kan ook dat niet, dan gaat de app naar de achtergrond
+                    // (en blijft dus open staan).
+                    if (!pageReady || !ServerAddress.sameOrigin(view.url, origin)) {
+                        if (view.canGoBack()) view.goBack() else moveTaskToBack(true)
+                        return
+                    }
+                    view.evaluateJavascript(BACK_SCRIPT) { handled ->
+                        if (handled == "true" || isFinishing || isDestroyed) return@evaluateJavascript
+                        val current = webView
+                        if (current != null && !errorView.isVisible && current.canGoBack()) current.goBack() else moveTaskToBack(true)
+                    }
                 }
             },
         )
@@ -912,6 +926,11 @@ class MainActivity : ComponentActivity() {
     private fun requestLocalNetworkPermission() {
         localNetworkAsked = true
         localNetworkPermission.launch(SyncWorker.PERMISSION_LOCAL_NETWORK)
+    }
+
+    private companion object {
+        /** Vraagt de web-app of de terugknop daar iets kan sluiten (zie window.tickoryBack in ui/app.js); een vast script, geen invoer. */
+        const val BACK_SCRIPT = "(function(){try{return window.tickoryBack?window.tickoryBack()===true:false;}catch(e){return false;}})()"
     }
 
     // ---------- ander serveradres ----------

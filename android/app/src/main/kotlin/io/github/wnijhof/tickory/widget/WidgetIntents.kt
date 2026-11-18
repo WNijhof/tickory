@@ -55,6 +55,13 @@ object WidgetIntents {
     /** Wat een regel aan het sjabloon toevoegt: wat er moet gebeuren ([KIND_COMPLETE] of [KIND_OPEN]) en voor welke taak. */
     fun fillIn(kind: String, taskId: String): Intent = Intent().putExtra(EXTRA_KIND, kind).putExtra(Notifications.EXTRA_TASK_ID, taskId)
 
+    /** Het kleine venster van een taak over het startscherm (TaskPopupActivity); daar kan hij worden afgevinkt of in de app geopend. */
+    fun taskPopup(context: Context, taskId: String): Intent =
+        Intent(context, TaskPopupActivity::class.java)
+            .setData(Uri.Builder().scheme("tickory").authority("popup").appendPath(taskId).build())
+            .putExtra(Notifications.EXTRA_TASK_ID, taskId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
     /** Een taak openen in de app. */
     fun openTask(context: Context, taskId: String): Intent =
         Intent(context, MainActivity::class.java)

@@ -126,19 +126,10 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Switch
-                android:id="@+id/quick_keep_open"
+            <Space
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="48dp"
-                android:paddingStart="0dp"
-                android:paddingEnd="8dp"
-                android:switchPadding="8dp"
-                android:text="@string/quick_keep_open"
-                android:textColor="@color/text_soft"
-                android:textSize="14sp"
-                tools:ignore="UseSwitchCompatOrMaterialXml" />
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <Button
                 android:id="@+id/quick_open_app"

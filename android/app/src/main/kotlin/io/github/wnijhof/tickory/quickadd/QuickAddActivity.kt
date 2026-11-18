@@ -19,7 +19,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.PopupMenu
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import android.widget.ToggleButton
@@ -77,7 +76,6 @@ class QuickAddActivity : ComponentActivity() {
     private lateinit var today: ToggleButton
     private lateinit var tomorrow: ToggleButton
     private lateinit var priorityButton: Button
-    private lateinit var keepOpen: Switch
     private lateinit var addButton: Button
     private lateinit var preview: LinearLayout
     private lateinit var previewScroll: View
@@ -121,7 +119,6 @@ class QuickAddActivity : ComponentActivity() {
         today = findViewById(R.id.quick_today)
         tomorrow = findViewById(R.id.quick_tomorrow)
         priorityButton = findViewById(R.id.quick_priority)
-        keepOpen = findViewById(R.id.quick_keep_open)
         addButton = findViewById(R.id.quick_add)
         preview = findViewById(R.id.quick_preview)
         previewScroll = findViewById(R.id.quick_preview_scroll)
@@ -358,17 +355,9 @@ class QuickAddActivity : ComponentActivity() {
         QuickAddStore.clearDraft(app)
         SyncScheduler.refreshNow(app) // met verbinding gaat hij er nu meteen heen; anders zodra die er is
         val message = getString(if (isOnline(app)) R.string.quick_added else R.string.quick_added_offline)
-        if (keepOpen.isChecked) {
-            // zoals Todoist: het venster blijft open, het project en de dag blijven staan
-            input.setText("")
-            setPriority(null)
-            showStatus(message)
-            input.requestFocus()
-        } else {
-            done = true
-            Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
-            finish()
-        }
+        done = true
+        Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
+        finish()
     }
 
     /** Terug, of naast het venster getikt: niets toevoegen; staat er tekst, dan blijft die als concept staan (en dat zeggen we). */

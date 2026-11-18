@@ -4,6 +4,7 @@
   wat op het scherm staat uit de gegevens op het toestel (geen verbinding); de gegevens zelf haalt WorkManager op.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="io.github.wnijhof.tickory.widget.WidgetConfigActivity"
     android:description="@string/widget_today_description"
     android:initialLayout="@layout/widget_list"
     android:maxResizeWidth="450dp"
@@ -17,4 +18,5 @@
     android:targetCellWidth="4"
     android:targetCellHeight="3"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

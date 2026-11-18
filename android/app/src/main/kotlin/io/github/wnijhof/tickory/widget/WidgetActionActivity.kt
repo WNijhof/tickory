@@ -10,7 +10,7 @@ import io.github.wnijhof.tickory.reminders.Notifications
 /**
  * Ontvangt de tik op een regel van een lijstwidget. Heeft geen scherm: het doet wat gevraagd is en sluit meteen.
  * Afvinken vindt hier plaats (lokaal, in een paar milliseconden, de rest gaat via de wachtrij), een taak openen
- * start de app. Alleen de widgets van de app kunnen dit aanroepen (exported="false"); het id wordt gecontroleerd.
+ * toont het kleine venster van de taak (TaskPopupActivity). Alleen de widgets van de app kunnen dit aanroepen (exported="false"); het id wordt gecontroleerd.
  */
 class WidgetActionActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,8 +28,9 @@ class WidgetActionActivity : Activity() {
         val taskId = intent?.getStringExtra(Notifications.EXTRA_TASK_ID)?.takeIf(Ids::isSafeId) ?: return
         when (intent?.getStringExtra(WidgetIntents.EXTRA_KIND)) {
             WidgetIntents.KIND_COMPLETE -> WidgetActions.complete(this, taskId)
+            // een tik op een taak: het kleine venster over het startscherm (zoals Todoist), niet de hele app
             WidgetIntents.KIND_OPEN -> try {
-                startActivity(WidgetIntents.openTask(this, taskId))
+                startActivity(WidgetIntents.taskPopup(this, taskId))
             } catch (_: ActivityNotFoundException) {
                 // de app zelf ontbreekt niet; dit vangt alleen een rare toestand af
             }

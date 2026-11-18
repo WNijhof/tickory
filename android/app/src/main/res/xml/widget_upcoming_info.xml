@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- De widget Binnenkort: de komende twee weken per dag. Zelfde formaatregels als Vandaag. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="io.github.wnijhof.tickory.widget.WidgetConfigActivity"
     android:description="@string/widget_upcoming_description"
     android:initialLayout="@layout/widget_list"
     android:maxResizeWidth="450dp"
@@ -14,4 +15,5 @@
     android:targetCellWidth="4"
     android:targetCellHeight="3"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

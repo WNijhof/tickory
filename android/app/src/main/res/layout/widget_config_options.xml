@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingBottom="8dp">
+
+    <TextView
+        android:id="@+id/config_hint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:text="@string/widget_config_hint_signed_out"
+        android:textColor="@color/text_soft"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/config_open_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="8dp"
+        android:minHeight="48dp"
+        android:text="@string/widget_config_open_app"
+        android:visibility="gone" />
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:text="@string/widget_theme" />
+
+    <RadioGroup
+        android:id="@+id/config_theme"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp">
+
+        <RadioButton
+            android:id="@+id/config_theme_system"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/widget_theme_system" />
+
+        <RadioButton
+            android:id="@+id/config_theme_light"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/widget_theme_light" />
+
+        <RadioButton
+            android:id="@+id/config_theme_dark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:text="@string/widget_theme_dark" />
+    </RadioGroup>
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:text="@string/widget_layout" />
+
+    <Switch
+        android:id="@+id/config_compact"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:text="@string/widget_compact"
+        android:textColor="@color/text"
+        android:textSize="16sp"
+        tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:text="@string/widget_compact_hint"
+        android:textColor="@color/text_soft"
+        android:textSize="13sp" />
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:text="@string/widget_opacity" />
+
+    <Spinner
+        android:id="@+id/config_opacity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/widget_opacity"
+        android:minHeight="48dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp" />
+
+    <TextView
+        android:id="@+id/config_source_label"
+        style="@style/WidgetConfigSection"
+        android:text="@string/widget_config_title" />
+</LinearLayout>

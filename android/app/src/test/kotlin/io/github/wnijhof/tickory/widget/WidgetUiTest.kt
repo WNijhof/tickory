@@ -20,6 +20,8 @@ import io.github.wnijhof.tickory.core.WidgetFixtures.project
 import io.github.wnijhof.tickory.core.WidgetFixtures.snapshot
 import io.github.wnijhof.tickory.core.WidgetFixtures.task
 import io.github.wnijhof.tickory.core.WidgetLabel
+import io.github.wnijhof.tickory.core.WidgetOptions
+import io.github.wnijhof.tickory.core.WidgetTheme
 import io.github.wnijhof.tickory.core.WidgetRow
 import io.github.wnijhof.tickory.core.WidgetSection
 import io.github.wnijhof.tickory.core.WidgetSource
@@ -301,12 +303,12 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `de lijst heeft stabiele id's en twee soorten regels`() {
+    fun `de lijst heeft stabiele id's en drie soorten regels (kop, gewoon, compact)`() {
         signIn(withData = data)
         val id = place(UpcomingWidgetProvider::class.java)
         WidgetUpdater.updateAll(app)
         val f = factory(id)
-        assertEquals(2, f.viewTypeCount)
+        assertEquals(3, f.viewTypeCount)
         assertTrue(f.hasStableIds())
         assertEquals(f.getItemId(1), factory(id).getItemId(1))
         assertNull(f.loadingView)
@@ -406,14 +408,41 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `tik op de titel - de taak openen in de app`() {
+    fun `tik op de titel - het kleine venster van de taak, niet de hele app`() {
         signIn(withData = data)
         val activity = tap(WidgetIntents.KIND_OPEN, "t2")
         assertTrue(activity.isFinishing)
         val started = shadowOf(app).nextStartedActivity
-        assertEquals(MainActivity::class.java.name, started.component!!.className)
+        assertEquals(TaskPopupActivity::class.java.name, started.component!!.className)
         assertEquals("t2", started.getStringExtra(Notifications.EXTRA_TASK_ID))
         assertTrue("niets afgevinkt", WidgetStore.queue(app).isEmpty())
+    }
+
+    @Test
+    fun `het venster van de taak - titel en Voltooien, en Openen in de app start de app`() {
+        signIn(withData = data)
+        val popup = Robolectric.buildActivity(TaskPopupActivity::class.java, WidgetIntents.taskPopup(app, "t2")).create().get()
+        assertFalse(popup.isFinishing)
+        assertTrue(popup.findViewById<android.widget.TextView>(io.github.wnijhof.tickory.R.id.popup_content).text.isNotBlank())
+        popup.findViewById<android.view.View>(io.github.wnijhof.tickory.R.id.popup_open_app).performClick()
+        val started = shadowOf(app).nextStartedActivity
+        assertEquals(MainActivity::class.java.name, started.component!!.className)
+        assertEquals("t2", started.getStringExtra(Notifications.EXTRA_TASK_ID))
+        assertTrue(popup.isFinishing)
+        assertTrue("niets afgevinkt", WidgetStore.queue(app).isEmpty())
+
+        val again = Robolectric.buildActivity(TaskPopupActivity::class.java, WidgetIntents.taskPopup(app, "t2")).create().get()
+        again.findViewById<android.view.View>(io.github.wnijhof.tickory.R.id.popup_complete).performClick()
+        assertTrue(again.isFinishing)
+        assertEquals(listOf("t2"), WidgetStore.queue(app).map { it.taskId })
+    }
+
+    @Test
+    fun `het venster van een onbekende taak opent de app`() {
+        signIn(withData = data)
+        val popup = Robolectric.buildActivity(TaskPopupActivity::class.java, WidgetIntents.taskPopup(app, "bestaat-niet")).create().get()
+        assertTrue(popup.isFinishing)
+        assertEquals(MainActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
     }
 
     @Test
@@ -533,17 +562,70 @@ class WidgetUiTest : WidgetTestBase() {
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
 
         val list = activity.findViewById<ListView>(R.id.config_list)
-        val labels = (0 until list.adapter.count).map { (list.adapter.getView(it, null, list) as TextView).text.toString() }
+        val choices = choicesOf(list)
+        val labels = (0 until choices.count).map { (choices.getView(it, null, list) as TextView).text.toString() }
         assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Werk"), labels)
-        assertEquals(View.GONE, activity.findViewById<View>(R.id.config_hint).visibility)
+        assertEquals(View.GONE, activity.optionsView.findViewById<View>(R.id.config_hint).visibility)
 
-        list.performItemClick(null, 3, 3)
+        list.performItemClick(null, 3 + list.headerViewsCount, 3)
+        assertFalse("kiezen bewaart nog niets: pas Opslaan doet dat", activity.isFinishing)
+        activity.findViewById<View>(R.id.config_save).performClick()
 
         assertTrue(activity.isFinishing)
         assertEquals(android.app.Activity.RESULT_OK, shadowOf(activity).resultCode)
         assertEquals(id, shadowOf(activity).resultIntent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1))
         assertEquals("project:werk", WidgetConfigStore.get(app, id))
         assertEquals("Werk", text(view(id), R.id.title))
+    }
+
+    private fun choicesOf(list: ListView) = (list.adapter as android.widget.HeaderViewListAdapter).wrappedAdapter
+
+    @Test
+    fun `instellingen - thema, compact en doorzichtigheid worden per widget bewaard, ook bij Vandaag`() {
+        signIn(withData = data)
+        val id = place(TodayWidgetProvider::class.java)
+        val other = place(UpcomingWidgetProvider::class.java)
+        assertEquals(WidgetOptions(), WidgetConfigStore.options(app, id))
+        val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
+        val options = activity.optionsView
+        assertEquals("Vandaag heeft geen keuze van wat hij toont", 0, choicesOf(activity.findViewById<ListView>(R.id.config_list)).count)
+        options.findViewById<android.widget.RadioButton>(R.id.config_theme_dark).isChecked = true
+        options.findViewById<android.widget.Switch>(R.id.config_compact).isChecked = true
+        options.findViewById<android.widget.Spinner>(R.id.config_opacity).setSelection(2) // 50%
+        activity.findViewById<View>(R.id.config_save).performClick()
+
+        assertTrue(activity.isFinishing)
+        assertEquals(WidgetOptions(WidgetTheme.DARK, true, 50), WidgetConfigStore.options(app, id))
+        assertEquals("een andere widget blijft zoals hij was", WidgetOptions(), WidgetConfigStore.options(app, other))
+        assertEquals("today", WidgetConfigStore.get(app, id))
+        // de widget is opnieuw getekend met de gekozen doorzichtigheid
+        assertEquals(127, WidgetOptions(opacity = 50).alpha)
+        // opnieuw openen toont de bewaarde keuzes
+        val again = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
+        assertTrue(again.optionsView.findViewById<android.widget.RadioButton>(R.id.config_theme_dark).isChecked)
+        assertTrue(again.optionsView.findViewById<android.widget.Switch>(R.id.config_compact).isChecked)
+        assertEquals(2, again.optionsView.findViewById<android.widget.Spinner>(R.id.config_opacity).selectedItemPosition)
+    }
+
+    @Test
+    fun `compact - een regel per taak met de datum rechts, zonder tweede regel`() {
+        signIn(withData = data)
+        val id = place(TodayWidgetProvider::class.java)
+        WidgetConfigStore.setOptions(app, id, WidgetOptions(compact = true))
+        val factory = WidgetListService.Factory(app, id)
+        factory.onDataSetChanged()
+        val row = (0 until factory.count).mapNotNull { factory.getViewAt(it) }.first { it.layoutId == R.layout.widget_item_compact }
+        assertEquals(R.layout.widget_item_compact, row.layoutId)
+        assertEquals(3, factory.viewTypeCount)
+    }
+
+    @Test
+    fun `een widget die verdwijnt, vergeet ook zijn thema en weergave`() {
+        signIn(withData = data)
+        val id = place(TodayWidgetProvider::class.java)
+        WidgetConfigStore.setOptions(app, id, WidgetOptions(WidgetTheme.LIGHT, true, 25))
+        WidgetConfigStore.remove(app, intArrayOf(id))
+        assertEquals(WidgetOptions(), WidgetConfigStore.options(app, id))
     }
 
     @Test
@@ -567,7 +649,7 @@ class WidgetUiTest : WidgetTestBase() {
         val id = place(ProjectWidgetProvider::class.java)
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
-        val rows = (0 until list.adapter.count).map { list.adapter.getView(it, null, list) as TextView }
+        val rows = (0 until choicesOf(list).count).map { choicesOf(list).getView(it, null, list) as TextView }
         assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Alfa", "Alfa-sub"), rows.map { it.text.toString() })
         assertTrue(rows[4].paddingLeft > rows[3].paddingLeft)
         assertTrue("minstens 48dp hoog om te tikken", rows[3].minHeight >= (48 * app.resources.displayMetrics.density).toInt())
@@ -578,12 +660,13 @@ class WidgetUiTest : WidgetTestBase() {
         val id = place(ProjectWidgetProvider::class.java)
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
-        assertEquals(3, list.adapter.count)
-        assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.config_hint).visibility)
-        activity.findViewById<View>(R.id.config_open_app).performClick()
+        assertEquals(3, choicesOf(list).count)
+        assertEquals(View.VISIBLE, activity.optionsView.findViewById<View>(R.id.config_hint).visibility)
+        activity.optionsView.findViewById<View>(R.id.config_open_app).performClick()
         assertEquals(MainActivity::class.java.name, shadowOf(activity).nextStartedActivity.component!!.className)
-        list.performItemClick(null, 0, 0)
-        assertEquals("today", WidgetConfigStore.get(app, id))
+        list.performItemClick(null, 1 + list.headerViewsCount, 1) // Aankomend
+        activity.findViewById<View>(R.id.config_save).performClick()
+        assertEquals("upcoming", WidgetConfigStore.get(app, id))
     }
 
     @Test
@@ -592,13 +675,13 @@ class WidgetUiTest : WidgetTestBase() {
         Session.set(app, "tky_een-andere-gebruiker_0123456789-ABCDEF")
         val id = place(ProjectWidgetProvider::class.java)
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
-        assertEquals(3, activity.findViewById<ListView>(R.id.config_list).adapter.count)
+        assertEquals(3, choicesOf(activity.findViewById<ListView>(R.id.config_list)).count)
     }
 
     @Test
     fun `configuratie - een widget-id dat niet van ons is, of ontbreekt, sluit het scherm zonder iets te bewaren`() {
         signIn(withData = data)
-        val other = place(TodayWidgetProvider::class.java) // een ander soort widget
+        val other = place(AddWidgetProvider::class.java) // geen lijstwidget
         for (intent in listOf(configIntent(9999), configIntent(other), Intent(app, WidgetConfigActivity::class.java), configIntent(AppWidgetManager.INVALID_APPWIDGET_ID))) {
             val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, intent).setup().get()
             assertTrue(activity.isFinishing)

@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import io.github.wnijhof.tickory.R
 import io.github.wnijhof.tickory.core.ContentKind
 import io.github.wnijhof.tickory.core.WidgetContent
+import io.github.wnijhof.tickory.core.WidgetOptions
 import io.github.wnijhof.tickory.core.DueText
 import io.github.wnijhof.tickory.core.WidgetSize
 import io.github.wnijhof.tickory.core.WidgetSource
@@ -63,6 +64,7 @@ object ListWidgets {
     fun render(context: Context, manager: AppWidgetManager, appWidgetId: Int, source: WidgetSource): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_list)
         val size = sizeOf(manager, appWidgetId)
+        applyLook(context, views, WidgetConfigStore.options(context, appWidgetId))
         val state = WidgetModel.state(context, source)
 
         // het formaat: kleiner betekent compacter (geen ondertitel, het aantal naast de titel), groter wat ruimer
@@ -127,6 +129,20 @@ object ListWidgets {
         views.setRemoteAdapter(R.id.list, adapter)
         views.setPendingIntentTemplate(R.id.list, WidgetIntents.itemTemplate(context, appWidgetId))
         return views
+    }
+
+    /**
+     * Het uiterlijk dat per widget is gekozen: de doorzichtigheid van de achtergrond en, bij een vast licht of donker thema, de kleuren van
+     * de achtergrond, de kop en de melding. De regels (de lijst) lezen hetzelfde uit WidgetListService.
+     */
+    internal fun applyLook(context: Context, views: RemoteViews, options: WidgetOptions) {
+        views.setInt(R.id.widget_bg, "setImageAlpha", options.alpha)
+        val palette = WidgetPalette.of(context, options.theme) ?: return
+        views.setInt(R.id.widget_bg, "setColorFilter", palette.background)
+        views.setTextColor(R.id.title, palette.text)
+        views.setTextColor(R.id.subtitle, palette.textSoft)
+        views.setTextColor(R.id.message, palette.textSoft)
+        views.setInt(R.id.add, "setColorFilter", palette.accent)
     }
 
     private fun todayLabel(context: Context): String {

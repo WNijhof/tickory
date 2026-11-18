@@ -289,6 +289,19 @@
             android:theme="@style/Theme.Tickory.QuickAdd"
             android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
 
+        <!--
+          Het kleine venster van een taak over het startscherm (een tik op een taak in een widget): zoals "Taak toevoegen" een eigen taak
+          (taskAffinity leeg), niet in de lijst met recente apps en alleen door de app zelf te openen.
+        -->
+        <activity
+            android:name=".widget.TaskPopupActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/popup_title"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Tickory.QuickAdd" />
+
         <activity
             android:name=".widget.WidgetConfigActivity"
             android:exported="true"

@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Een lijstwidget (Vandaag, Binnenkort, project): kop met titel, aantal en "+", daaronder de lijst of een melding. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
+
+    <!-- De achtergrond als eigen laag: kleur (thema) en doorzichtigheid zijn per widget in te stellen (ListWidgets.render). -->
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/header"
@@ -81,4 +93,5 @@
             android:textSize="14sp"
             android:visibility="gone" />
     </FrameLayout>
-</LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -8,8 +8,10 @@ import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import io.github.wnijhof.tickory.R
+import io.github.wnijhof.tickory.core.WidgetOptions
 import io.github.wnijhof.tickory.core.WidgetRow
 import io.github.wnijhof.tickory.core.WidgetSize
+import io.github.wnijhof.tickory.store.WidgetConfigStore
 
 /** Levert de regels van een lijstwidget. De bron is de intentie van de widget (alleen door Android zelf te binden: BIND_REMOTEVIEWS). */
 class WidgetListService : RemoteViewsService() {
@@ -23,6 +25,7 @@ class WidgetListService : RemoteViewsService() {
     class Factory(private val context: Context, private val appWidgetId: Int) : RemoteViewsFactory {
         private var rows: List<WidgetRow> = emptyList()
         private var size = WidgetSize.MEDIUM
+        private var options = WidgetOptions()
 
         override fun onCreate() {}
 
@@ -33,6 +36,7 @@ class WidgetListService : RemoteViewsService() {
             }
             val manager = AppWidgetManager.getInstance(context)
             size = ListWidgets.sizeOf(manager, appWidgetId)
+            options = WidgetConfigStore.options(context, appWidgetId)
             val state = WidgetModel.state(context, ListWidgets.storedSource(context, appWidgetId))
             rows = (state as? WidgetModel.State.Ready)?.content?.rows ?: emptyList()
         }
@@ -54,11 +58,14 @@ class WidgetListService : RemoteViewsService() {
         private fun header(row: WidgetRow.Header): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_item_header)
             views.setTextViewText(R.id.header_label, row.text)
+            WidgetPalette.of(context, options.theme)?.let { views.setTextColor(R.id.header_label, it.accent) }
             return views
         }
 
         private fun item(row: WidgetRow.Item): RemoteViews {
-            val views = RemoteViews(context.packageName, R.layout.widget_item)
+            val compact = options.compact
+            val palette = WidgetPalette.of(context, options.theme)
+            val views = RemoteViews(context.packageName, if (compact) R.layout.widget_item_compact else R.layout.widget_item)
             val title = row.title.ifBlank { context.getString(R.string.task_untitled) }
             views.setTextViewText(R.id.item_title, title)
             views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, if (size == WidgetSize.LARGE) 16f else 14f)
@@ -67,14 +74,25 @@ class WidgetListService : RemoteViewsService() {
             views.setViewVisibility(R.id.check, if (row.readOnly) View.INVISIBLE else View.VISIBLE)
 
             // De tweede regel (datum en project) alleen als er plek is: in een klein formaat telt elke regel.
-            val showSecondLine = size != WidgetSize.SMALL && (row.due != null || row.meta != null)
-            views.setViewVisibility(R.id.item_line2, if (showSecondLine) View.VISIBLE else View.GONE)
-            if (showSecondLine) {
-                val due = row.due
-                views.setTextViewText(R.id.item_due, if (due != null && row.meta != null) "$due · " else due ?: "")
-                views.setTextColor(R.id.item_due, context.getColor(if (row.overdue) R.color.widget_overdue else R.color.widget_text_soft))
-                views.setTextViewText(R.id.item_meta, row.meta ?: "")
+            val soft = palette?.textSoft ?: context.getColor(R.color.widget_text_soft)
+            val overdue = palette?.overdue ?: context.getColor(R.color.widget_overdue)
+            if (compact) {
+                // compact: één regel, de datum rechts uitgelijnd; geen tweede regel en geen project
+                views.setTextViewText(R.id.item_due, row.due ?: "")
+                views.setViewVisibility(R.id.item_due, if (row.due != null) View.VISIBLE else View.GONE)
+                views.setTextColor(R.id.item_due, if (row.overdue) overdue else soft)
+            } else {
+                val showSecondLine = size != WidgetSize.SMALL && (row.due != null || row.meta != null)
+                views.setViewVisibility(R.id.item_line2, if (showSecondLine) View.VISIBLE else View.GONE)
+                if (showSecondLine) {
+                    val due = row.due
+                    views.setTextViewText(R.id.item_due, if (due != null && row.meta != null) "$due · " else due ?: "")
+                    views.setTextColor(R.id.item_due, if (row.overdue) overdue else soft)
+                    views.setTextViewText(R.id.item_meta, row.meta ?: "")
+                    palette?.let { views.setTextColor(R.id.item_meta, it.textSoft) }
+                }
             }
+            palette?.let { views.setTextColor(R.id.item_title, it.text) }
             val indent = (row.depth * context.resources.getDimensionPixelSize(R.dimen.widget_indent))
             views.setViewPadding(R.id.item_root, indent + context.resources.getDimensionPixelSize(R.dimen.widget_item_start), 0, 0, 0)
 
@@ -93,7 +111,7 @@ class WidgetListService : RemoteViewsService() {
 
         override fun getLoadingView(): RemoteViews? = null
 
-        override fun getViewTypeCount(): Int = 2
+        override fun getViewTypeCount(): Int = 3
 
         override fun getItemId(position: Int): Long = (rows.getOrNull(position)?.let { if (it is WidgetRow.Item) it.id else "h:${(it as WidgetRow.Header).text}" } ?: "").hashCode().toLong()
 

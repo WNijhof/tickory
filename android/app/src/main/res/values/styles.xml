@@ -31,4 +31,18 @@
         <item name="android:ellipsize">end</item>
         <item name="android:maxWidth">260dp</item>
     </style>
+
+    <!-- Een kopje boven een groep opties in de instellingen van een widget. -->
+    <style name="WidgetConfigSection">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:accessibilityHeading">true</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:paddingTop">16dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textColor">@color/brand</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

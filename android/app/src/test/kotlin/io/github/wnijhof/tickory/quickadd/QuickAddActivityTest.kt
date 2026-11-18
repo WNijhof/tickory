@@ -12,7 +12,6 @@ import android.webkit.WebView
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.ToggleButton
 import androidx.work.ListenableWorker
@@ -226,38 +225,28 @@ class QuickAddActivityTest : WidgetTestBase() {
     }
 
     @Test
-    fun `Enter voegt toe en sluit, met Nog een toevoegen blijft het venster open, met hetzelfde project en dezelfde dag`() {
+    fun `Enter voegt toe en sluit het venster - er is geen Nog een toevoegen meer`() {
         signIn(withData = data)
         val first = open().get()
         first.input.setText("Een")
         first.input.onEditorAction(EditorInfo.IME_ACTION_DONE)
         assertTrue(first.isFinishing)
 
-        val activity = open("werk").get()
-        activity.findViewById<Switch>(R.id.quick_keep_open).isChecked = true
-        activity.today.performClick()
-        activity.setPriority(2)
-        activity.input.setText("Twee")
-        activity.add.performClick()
-        assertFalse(activity.isFinishing)
-        assertEquals("", activity.input.text.toString())
-        assertEquals(View.VISIBLE, activity.status.visibility)
-        assertEquals("Toegevoegd", activity.status.text.toString())
-        assertTrue(activity.today.isChecked)
-        assertEquals("# Werk", activity.project.text.toString())
-        assertEquals("de prioriteit begint opnieuw", "Prioriteit", activity.priority.text.toString())
-        activity.input.setText("Drie")
-        // een toets Enter van een los toetsenbord
-        activity.input.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-        assertEquals(listOf("Een", "Twee", "Drie"), QuickAddStore.queue(app).map { it.text })
-        assertEquals(listOf(null, 2, null), QuickAddStore.queue(app).map { it.priority })
-        assertEquals(listOf(null, "today", "today"), QuickAddStore.queue(app).map { it.due })
+        val second = open("werk").get()
+        second.today.performClick()
+        second.setPriority(2)
+        second.input.setText("Twee")
+        second.add.performClick()
+        assertTrue("het venster sluit na toevoegen", second.isFinishing)
+        assertEquals(listOf("Een", "Twee"), QuickAddStore.queue(app).map { it.text })
+        assertEquals(listOf(null, 2), QuickAddStore.queue(app).map { it.priority })
+        assertEquals(listOf(null, "today"), QuickAddStore.queue(app).map { it.due })
         // zonder tekst doet Enter niets
-        activity.input.onEditorAction(EditorInfo.IME_ACTION_DONE)
-        assertEquals(3, QuickAddStore.queue(app).size)
+        val third = open().get()
+        third.input.onEditorAction(EditorInfo.IME_ACTION_DONE)
+        assertFalse(third.isFinishing)
+        assertEquals(2, QuickAddStore.queue(app).size)
     }
-
-    // ---------- sluiten zonder toevoegen ----------
 
     @Test
     fun `terug of ernaast tikken met tekst - niets toegevoegd, de tekst blijft als concept, en dat zegt het venster`() {
@@ -454,7 +443,7 @@ class QuickAddActivityTest : WidgetTestBase() {
     fun `TalkBack en 48 dp - elk tikvlak is groot genoeg en heeft een tekst`() {
         signIn(withData = data)
         val activity = open().get()
-        for (id in listOf(R.id.quick_input, R.id.quick_project, R.id.quick_today, R.id.quick_tomorrow, R.id.quick_priority, R.id.quick_keep_open, R.id.quick_open_app, R.id.quick_add)) {
+        for (id in listOf(R.id.quick_input, R.id.quick_project, R.id.quick_today, R.id.quick_tomorrow, R.id.quick_priority, R.id.quick_open_app, R.id.quick_add)) {
             val v = activity.findViewById<View>(id)
             val minPx = (48 * activity.resources.displayMetrics.density).toInt()
             assertTrue("${activity.resources.getResourceEntryName(id)} is minstens 48 dp hoog", v.minimumHeight >= minPx)
@@ -469,7 +458,6 @@ class QuickAddActivityTest : WidgetTestBase() {
         assertEquals("Add", en.getString(R.string.quick_add))
         assertEquals("Today", en.getString(R.string.quick_today))
         assertEquals("Tomorrow", en.getString(R.string.quick_tomorrow))
-        assertEquals("Add another", en.getString(R.string.quick_keep_open))
         assertEquals("Open in the app", en.getString(R.string.quick_open_app))
         assertEquals("Added; it will be sent as soon as there is a connection", en.getString(R.string.quick_added_offline))
         assertEquals("1 day before", en.resources.getQuantityString(R.plurals.quick_reminder_days, 1, 1))
