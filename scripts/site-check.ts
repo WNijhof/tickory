@@ -1801,6 +1801,8 @@ if (wants('browser')) {
         await viewTitle('Huishouden');
         const beforeDrag = await titles();
         await evaluate(`window.scrollTo(0, 0)`); // de vaste kop (balk en titel) dekt anders de bovenste regels af
+        // twee beeldverversingen: rijen buiten beeld (content-visibility) hebben tot dan hun geschatte hoogte, en het doelpunt klopt pas daarna
+        await evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))`);
         const rects = await evaluate<{ from: { x: number; y: number }; to: { x: number; y: number } }>(`(() => {
           const rows = [...document.querySelectorAll('.task')];
           const box = (e, fy) => { const r = e.querySelector('.task-title').getBoundingClientRect(); const row = e.getBoundingClientRect(); return { x: Math.round(r.left + 20), y: Math.round(row.top + row.height * fy) }; };
