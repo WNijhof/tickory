@@ -69,7 +69,7 @@ export function generalOf(settings) {
  * Android of een bladwijzer. Geeft de naam (zoals bij START_PAGES) of null.
  */
 export function viewFromHash(hash) {
-  const m = /^#view=(inbox|today|upcoming|notes)$/.exec(hash ?? '');
+  const m = /^#view=(inbox|today|upcoming|notes|productivity)$/.exec(hash ?? '');
   return m ? m[1] : null;
 }
 
@@ -80,6 +80,7 @@ export function startRoute(page, inboxId = null) {
     case 'today': return { type: 'today' };
     case 'upcoming': return { type: 'upcoming' };
     case 'notes': return { type: 'notes' };
+    case 'productivity': return { type: 'productivity' }; // alleen via een link (#view=productivity, de widget Productiviteit), geen startpagina
     default: return null;
   }
 }

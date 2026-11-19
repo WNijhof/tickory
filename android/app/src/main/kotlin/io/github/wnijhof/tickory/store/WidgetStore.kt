@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.core.content.edit
 import io.github.wnijhof.tickory.core.QueuedComplete
 import io.github.wnijhof.tickory.core.WidgetOptions
+import io.github.wnijhof.tickory.core.WidgetStats
+import io.github.wnijhof.tickory.core.WidgetStatsCodec
 import io.github.wnijhof.tickory.core.WidgetTheme
 import io.github.wnijhof.tickory.core.WidgetCodec
 import io.github.wnijhof.tickory.core.WidgetQueue
@@ -29,6 +31,7 @@ object WidgetStore {
     private const val TAG = "TickoryWidgets"
     private const val CACHE = "widget-cache.json"
     private const val QUEUE = "widget-queue.json"
+    private const val STATS = "widget-stats.json"
     private const val UNVERIFIED = "widget-unverified"
     private val lock = Any()
 
@@ -74,7 +77,20 @@ object WidgetStore {
 
     /** Afmelden of een ander serveradres: alle gegevens en de wachtrij weg. */
     fun clearAll(context: Context) = synchronized(lock) {
-        for (name in listOf(CACHE, QUEUE, UNVERIFIED)) File(dir(context), name).delete()
+        for (name in listOf(CACHE, QUEUE, UNVERIFIED, STATS)) File(dir(context), name).delete()
+    }
+
+    // ---------- productiviteit (de widget Productiviteit) ----------
+
+    /** De bewaarde productiviteitsgegevens, of null (geen, onleesbaar, of de gebruiker staat nog niet vast). */
+    fun stats(context: Context): WidgetStats? = synchronized(lock) { if (isUnverified(context)) null else WidgetStatsCodec.decode(read(File(dir(context), STATS))) }
+
+    /** Nieuwe gegevens; true als ze veranderd zijn. */
+    fun acceptStats(context: Context, fresh: WidgetStats): Boolean = synchronized(lock) {
+        val old = WidgetStatsCodec.decode(read(File(dir(context), STATS)))
+        if (old == fresh) return@synchronized false
+        write(File(dir(context), STATS), WidgetStatsCodec.encode(fresh))
+        true
     }
 
     // ---------- de wachtrij ----------

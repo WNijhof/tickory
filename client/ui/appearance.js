@@ -6,6 +6,7 @@ import { h, openDialog } from './dom.js';
 
 const THEME_LABEL = { system: () => t('appearance.system'), light: () => t('appearance.light'), dark: () => t('appearance.dark') };
 const ACCENT_LABEL = {
+  tomato: () => t('appearance.accent.tomato'),
   teal: () => t('appearance.accent.teal'),
   blue: () => t('appearance.accent.blue'),
   indigo: () => t('appearance.accent.indigo'),

@@ -45,7 +45,7 @@ export async function listsScenario(c: any) {
   const choose = (name: string, value: string) => evaluate(`(() => { const s = document.querySelector('dialog[open] [data-fk="listopt:${name}"]'); s.value = ${js(value)}; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   await click('[data-fk="list-options"]');
   await waitFor(`document.querySelector('dialog[open] [data-fk="listopt:sort"]')`, 'het venster Sorteren');
-  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Sorteren en groeperen');
+  assert.equal(await evaluate(`document.querySelector('dialog[open] h2').textContent`), 'Weergave');
   assert.equal(await evaluate(`document.querySelector('dialog[open] [data-fk="listopt:dir"]').disabled`), true, 'de richting hoort bij een sortering');
   assert.deepEqual(await evaluate(`[...document.querySelector('dialog[open] [data-fk="listopt:group"]').options].map((o) => o.textContent)`),
     ['Secties (standaard)', 'Datum', 'Prioriteit', 'Label', 'Toegewezen aan', 'Deadline'], 'een project kent geen "Project"');

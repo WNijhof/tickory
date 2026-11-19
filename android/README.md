@@ -334,7 +334,7 @@ maakt er een titel en beschrijving van en opent het venster Taak toevoegen, in d
 
 ## Widgets
 
-Vijf widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
+Zeven widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
 meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 
 | Widget | Wat |
@@ -343,6 +343,8 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag, Aankomend of een opgeslagen filter; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, `filter:<id>`). Een filter rekent `FilterLang` uit, de filtertaal van de web-app in Kotlin (zonder datums in gewone taal); `src/test/resources/filter-vectors.json` komt uit `scripts/filter-vectors.ts` en `FilterLangVectorsTest` eist dezelfde uitkomsten als de web-app |
 | Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
 | Notities | Je notities (`NotesWidget`, `WidgetNotes`) als kaartjes in de kleur van de notitie, vastgepinde eerst en dan de laatst gewijzigde: kop, een paar regels zonder Markdown (checklist met ○ en ✓), "1 van 3 gedaan" en "gedeeld". Tik opent de notitie (`note_<id>` via `WidgetActionActivity`), "+" een nieuwe notitie, de kop de notities |
+| Productiviteit | Dagelijks, wekelijks en reeks (4×2, te vergroten): hoeveel je vandaag en deze week afvinkte tegenover je doelen, en je dagen achter elkaar. De gegevens (`GET /api/v1/stats` en de doelen uit de instellingen) haalt de verversing op de achtergrond erbij, alleen als zo'n widget er is (`ApiClient.fetchProductivity`, bewaard in `widget-stats.json`; de rekenregels staan zonder Android in `core/WidgetStats.kt` en zijn die van `client/core/productivity.js`). Een tik opent het scherm Productiviteit (`#view=productivity`). Er is geen karma in Tickory: de derde rij is de reeks |
+| Snelle acties | Vier knoppen (2×2, niet te vergroten): Vandaag, Inbox, Nieuwe notitie en Taak toevoegen. Alleen vaste intenties naar de app (`WidgetIntents.openView`), geen gegevens |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie

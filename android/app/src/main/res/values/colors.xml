@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Dezelfde kleuren als de web-app (client/app.css), lichte weergave. De donkere staan in values-night. -->
 <resources>
-    <color name="brand">#0F766E</color>
+    <color name="brand">#C92E1D</color>
     <color name="on_brand">#FFFFFF</color>
     <color name="background">#FFFFFF</color>
     <color name="text">#1C1F23</color>
@@ -16,5 +16,5 @@
     <color name="quick_chip_on">#D5EEEA</color>
 
     <!-- Accentkleur van het pictogram in een melding; in licht en donker gelijk. -->
-    <color name="notification_accent">#0F766E</color>
+    <color name="notification_accent">#C92E1D</color>
 </resources>

@@ -39,6 +39,9 @@ object WidgetUpdater {
             val addIds = manager.getAppWidgetIds(ComponentName(app, AddWidgetProvider::class.java))
             for (id in addIds) manager.updateAppWidget(id, AddWidgetProvider.render(app, manager, id))
             if (addIds.isNotEmpty()) any = true
+            val prodIds = manager.getAppWidgetIds(ComponentName(app, ProductivityWidgetProvider::class.java))
+            for (id in prodIds) manager.updateAppWidget(id, ProductivityWidgetProvider.render(app))
+            if (prodIds.isNotEmpty()) any = true
             val noteIds = manager.getAppWidgetIds(ComponentName(app, NotesWidgetProvider::class.java))
             if (noteIds.isNotEmpty()) NotesWidget.update(app, manager, noteIds)
             if (any) WidgetClock.scheduleMidnight(app) else WidgetClock.cancel(app)

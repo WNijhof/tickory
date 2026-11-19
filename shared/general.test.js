@@ -34,5 +34,6 @@ test('startpagina: een route, of null voor waar je was', () => {
 test('een plek uit het adres: alleen de vaste namen', () => {
   assert.equal(viewFromHash('#view=today'), 'today');
   assert.equal(viewFromHash('#view=notes'), 'notes');
+  assert.equal(viewFromHash('#view=productivity'), 'productivity');
   for (const bad of ['', null, '#view=', '#view=last', '#view=today&x', '#task=abc', '#view=TODAY']) assert.equal(viewFromHash(bad), null, String(bad));
 });

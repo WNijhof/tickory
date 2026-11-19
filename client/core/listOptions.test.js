@@ -108,7 +108,7 @@ test('groeperen op datum: te laat, dan de dagen oplopend, dan zonder datum', () 
   const mk = (id, date) => ({ task: put('tasks', { id, project_id: 'p1', content: id, order_key: id, due: date ? { date } : null }) });
   const g = groupRows([mk('a', '2026-11-13'), mk('b', null), mk('c', '2026-11-09T08:00'), mk('d', '2026-11-11T10:00'), mk('e', '2026-11-13T08:00')], 'date', ctx(v));
   assert.deepEqual(g.map((x) => [x.key, x.tasks]), [['overdue', 1], ['2026-11-11', 1], ['2026-11-13', 2], ['none', 1]]);
-  assert.equal(g[0].title, 'Te laat');
+  assert.equal(g[0].title, 'Over tijd');
   assert.equal(g[1].title, 'Vandaag · wo 11 nov');
   assert.equal(g[3].title, 'Geen datum');
 });

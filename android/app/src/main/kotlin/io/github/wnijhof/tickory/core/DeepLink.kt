@@ -14,6 +14,7 @@ object DeepLink {
     const val VIEW_UPCOMING = "upcoming"
     const val VIEW_INBOX = "inbox"
     const val VIEW_NOTES = "notes"
+    const val VIEW_PRODUCTIVITY = "productivity"
     const val VIEW_NEW_NOTE = "new-note"
 
     /**
@@ -47,7 +48,7 @@ object DeepLink {
 
     /** `view=today` (of upcoming, inbox, notes) opent dat overzicht, `note=new` een nieuwe notitie; een andere waarde niets. */
     fun view(target: String?): String? = when (target) {
-        VIEW_TODAY, VIEW_UPCOMING, VIEW_INBOX, VIEW_NOTES -> "view=$target"
+        VIEW_TODAY, VIEW_UPCOMING, VIEW_INBOX, VIEW_NOTES, VIEW_PRODUCTIVITY -> "view=$target"
         VIEW_NEW_NOTE -> "note=new"
         else -> null
     }

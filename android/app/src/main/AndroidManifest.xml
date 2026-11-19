@@ -228,6 +228,28 @@
                 android:resource="@xml/widget_add_info" />
         </receiver>
         <receiver
+            android:name=".widget.QuickActionsWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_quick_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_quick_actions_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.ProductivityWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_prod_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_productivity_info" />
+        </receiver>
+        <receiver
             android:name=".widget.WidgetTickReceiver"
             android:exported="false" />
 

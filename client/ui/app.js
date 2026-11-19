@@ -12,13 +12,12 @@ import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.j
 import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
 import { isArchivedProject, mySettings, roleIn, todayView } from '../core/selectors.js';
-import { moveTargets } from '../core/projectViews.js';
+import { VIEW_STYLES, moveTargets, viewStyleOf } from '../core/projectViews.js';
 import { parseQuickAdd } from '../core/quickadd.js';
 import { describeCommandError, quietCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, setClockFormat, todayString } from '../core/format.js';
 import { planDate } from '../core/bulk.js';
 import { dateDialog } from './bulkDialogs.js';
-import { reschedule } from '../core/quickDates.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
 import { confirmDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
@@ -37,7 +36,8 @@ import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
-import { pickDateTime } from './datePopup.js';
+import { applyPicked, pickDateTime } from './datePopup.js';
+import { dueCounts } from '../core/dueCounts.js';
 import { accountDialog, adminDialog, loginDialog } from './accountDialogs.js';
 import { openShareDialog } from './shareDialog.js';
 import { openPendingInvite, takeInviteFromHash } from './inviteLinks.js';
@@ -52,7 +52,7 @@ import { allImportable, announceImport, importDialog } from './importDialog.js';
 import { applyAppearance, readAppearance } from '../core/theme.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
-import { setUpcomingStyle } from './viewSwitch.js';
+import { setUpcomingStyle, upcomingStyle } from './viewSwitch.js';
 import { viewPrefs } from './viewPrefs.js';
 import { installFind, isFindRoute } from './find.js';
 import { installBottomNav } from './bottomNav.js';
@@ -292,6 +292,16 @@ function undoToast(text, entry) {
   return selection ? selection.undoToast(text, entry) : toast(text);
 }
 
+/** De keuze Lijst, Bord of Kalender voor het venster Weergave (zie ui/listOptionsDialog.js); alleen bij een project en Binnenkort. */
+function layoutFor(route) {
+  if (route.type === 'project') {
+    const project = store.view.projects.get(route.id);
+    return project ? { styles: VIEW_STYLES, current: viewStyleOf(project), onChange: (style) => handlers.setViewStyle(project, style) } : null;
+  }
+  if (route.type === 'upcoming') return { styles: ['list', 'calendar'], current: upcomingStyle(), onChange: (style) => handlers.setUpcomingStyle(style) };
+  return null;
+}
+
 const handlers = {
   navigate,
 
@@ -353,9 +363,9 @@ const handlers = {
 
   /** Een andere dag kiezen voor een taak, zonder het taakvenster. */
   async reschedule(task) {
-    const picked = await pickDateTime({ today: todayString(), due: task.due });
+    const picked = await pickDateTime({ today: todayString(), due: task.due, counts: dueCounts(store.view) });
     if (!picked) return;
-    const next = reschedule(task.due, picked.date, picked.time);
+    const next = applyPicked(task.due, picked);
     if (JSON.stringify(next) === JSON.stringify(task.due ?? null)) return; // niets veranderd
     const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: next }));
     undoToast(next ? t('undo.taskDated', { name: task.content, date: formatDue(next, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
@@ -366,6 +376,8 @@ const handlers = {
     route, view: store.view, userId: store.userId, update: (view_options) => actions.updateSettings({ view_options }),
     // Vandaag: je eigen volgorde (slepen) weer weghalen, met ongedaan maken
     clearDayOrder: route.type === 'today' ? () => actions.track(t('listopt.clearDayOrder'), () => actions.updateSettings({ day_order: null })) : null,
+    layout: layoutFor(route),
+    completed: route.type === 'project' ? { on: ui.showCompleted.has(route.id), toggle: () => handlers.toggleCompleted(route.id) } : null,
   }),
 
   /** Lijst, bord of kalender voor een project (`view_style`), ook op je andere apparaten; in een gedeeld project alleen voor jezelf (server/projectPrefs.ts). */

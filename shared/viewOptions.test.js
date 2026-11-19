@@ -1,7 +1,7 @@
 // Tests voor de weergave-opties per lijst (shared/viewOptions.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_OPTIONS, groupChoices, isDefaultOptions, optionsFor, viewKey, viewOptionsCheck, withOptions } from './viewOptions.js';
+import { DEFAULT_OPTIONS, groupChoices, isDefaultOptions, optionsFor, passesPrio, viewKey, viewOptionsCheck, withOptions } from './viewOptions.js';
 import { ENTITIES } from './schema.js';
 
 test('de sleutel van een lijst: project:<id>, today of upcoming', () => {
@@ -47,7 +47,7 @@ test('zonder keuze (of met rommel) geldt de standaard', () => {
   assert.deepEqual(optionsFor({ view_options: null }, 'today'), DEFAULT_OPTIONS);
   assert.deepEqual(optionsFor({ view_options: { today: 'x' } }, 'today'), DEFAULT_OPTIONS);
   // een waarde van een nieuwere versie wordt genegeerd, de rest blijft
-  assert.deepEqual(optionsFor({ view_options: { today: { sort: 'kleur', dir: 'desc', group: 'label' } } }, 'today'), { sort: 'manual', dir: 'desc', group: 'label' });
+  assert.deepEqual(optionsFor({ view_options: { today: { sort: 'kleur', dir: 'desc', group: 'label' } } }, 'today'), { sort: 'manual', dir: 'desc', group: 'label', prio: 'all' });
 });
 
 test('withOptions: een keuze erbij, per lijst apart, zonder het origineel te wijzigen', () => {
@@ -93,4 +93,19 @@ test('indelingen per soort lijst: een project kent geen "project", Binnenkort ge
   assert.equal(groupChoices('upcoming').includes('date'), false);
   assert.equal(groupChoices('upcoming').includes('project'), true);
   assert.equal(groupChoices('today').length, 7);
+});
+
+test('filter op prioriteit: een keuze uit all en 1 tot en met 4, die als niet-standaard telt en taken doorlaat of tegenhoudt', () => {
+  assert.equal(viewOptionsCheck({ today: { prio: '2' } }), null);
+  assert.match(viewOptionsCheck({ today: { prio: '5' } }), /prioriteit/);
+  assert.match(viewOptionsCheck({ today: { prio: 2 } }), /prioriteit/, 'een getal is geen geldige waarde: het is een tekst');
+  assert.equal(optionsFor({ view_options: { today: { prio: '3' } } }, 'today').prio, '3');
+  assert.equal(optionsFor({ view_options: { today: { prio: 'x' } } }, 'today').prio, 'all');
+  assert.equal(isDefaultOptions({ sort: 'manual', dir: 'asc', group: 'default', prio: '1' }), false, 'met een filter werkt slepen niet');
+  const next = withOptions(null, 'today', { prio: '1' });
+  assert.equal(next.today.prio, '1');
+  assert.deepEqual(withOptions(next, 'today', { prio: 'all' }), {}, 'terug naar alle prioriteiten: de standaard verdwijnt');
+  assert.equal(passesPrio({ priority: 1 }, '1'), true);
+  assert.equal(passesPrio({ priority: 2 }, '1'), false);
+  assert.equal(passesPrio({ priority: 4 }, 'all'), true);
 });

@@ -19,6 +19,9 @@ import { icon } from './icons.js';
 import { reminderSection } from './reminderUi.js';
 import { repeatPicker } from './repeatPicker.js';
 import { attachmentsSection } from './attachments.js';
+import { applyPicked, pickDateTime } from './datePopup.js';
+import { dueCounts } from '../core/dueCounts.js';
+import { priorityDialog } from './quickAdd.js';
 import { renderMarkdown } from './markdown.js';
 import { toggleTask } from '../core/markdown.js';
 import { canEditProject, canBeAssigned, editableProjectList } from '../core/access.js';
@@ -109,9 +112,24 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const dates = quickDates(today());
     // "Herhalen" opent onder de snelle keuzes een paneel met herhalingen (ui/repeatPicker.js); de keuze komt als tekst in het veld
     const repeat = repeatPicker({ field: due, today });
+    // Op een telefoon (zoals in Todoist): een tik op de datum opent het datumblad (ui/datePopup.js); de snelle keuzes zitten daar al in.
+    const phone = Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches) && !readOnly;
     const quickRow = h('div', { class: 'quick-dates', role: 'group', 'aria-label': t('task.quickDates'), hidden: readOnly },
-      quick(t('task.quickToday'), dates.today), quick(t('task.quickTomorrow'), dates.tomorrow), quick(t('task.quickWeekend'), dates.weekend),
-      quick(t('task.quickNextWeek'), dates.nextWeek), repeat.button, quick(t('task.quickNone'), null));
+      !phone && [quick(t('task.quickToday'), dates.today), quick(t('task.quickTomorrow'), dates.tomorrow), quick(t('task.quickWeekend'), dates.weekend), quick(t('task.quickNextWeek'), dates.nextWeek)],
+      repeat.button, !phone && quick(t('task.quickNone'), null));
+    if (phone) {
+      due.readOnly = true;
+      due.setAttribute('inputmode', 'none');
+      due.addEventListener('click', async () => {
+        const text = due.value.trim();
+        const current = text === initialDue ? task.due ?? null : text ? parseDateText(text, new Date()) : null;
+        const picked = await pickDateTime({ today: today(), due: current ? { date: current.date, recurrence: current.recurrence } : null, allowNone: Boolean(current), counts: dueCounts(view) });
+        if (!picked) return;
+        const next = applyPicked(current, picked);
+        due.value = next ? formatDateInput(next) : '';
+        due.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    }
 
     // ---- prioriteit ----
     let priorityValue = task.priority;
@@ -370,6 +388,59 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const created = task.created_at ? dayOf(task.created_at) : '';
     const createdLine = created && (creator ? t('task.createdBy', { name: creator, date: created }) : t('task.createdOn', { date: created }));
 
+    // Op een telefoon (zoals in Todoist): wat nog leeg is (beschrijving, prioriteit, labels, duur, deadline) staat als chip in een rij;
+    // een tik op de chip toont het onderdeel. Wat al een waarde heeft, staat er meteen.
+    const priorityRow = h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.priority')), priorityGroup);
+    const labelsRow = h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.labels')), h('div', { class: 'label-field' }, labelBox, labelOptions));
+    const durationRow = field(t('task.duration'), duration);
+    const deadlineRow = field(t('task.deadline'), deadline);
+    const descWrap = h('div', { class: 'task-desc-wrap' }, descView, description);
+    const chipRow = h('div', { class: 'task-chips', role: 'group', 'aria-label': t('task.moreProperties'), hidden: true });
+    if (phone) {
+      const parts = [
+        { key: 'desc', label: t('task.description'), glyph: 'list', node: descWrap, has: () => Boolean(description.value.trim()), open: () => { editDesc(); } },
+        { key: 'prio', label: t('task.priority'), glyph: 'flag', node: priorityRow, has: () => priorityValue < 4, open: async () => {
+          const picked = await priorityDialog(priorityValue);
+          if (!picked) return false;
+          const radio = priorityGroup.querySelector(`input[value="${picked}"]`);
+          if (radio) { radio.checked = true; radio.dispatchEvent(new Event('change', { bubbles: true })); }
+          return true;
+        } },
+        { key: 'labels', label: t('task.labels'), glyph: 'tag', node: labelsRow, has: () => labelNames.length > 0, open: () => labelInput.focus() },
+        { key: 'deadline', label: t('task.deadline'), glyph: 'calendar', node: deadlineRow, has: () => Boolean(deadline.value), open: () => deadline.focus() },
+        { key: 'duration', label: t('task.duration'), glyph: 'clock', node: durationRow, has: () => Boolean(duration.value), open: () => duration.focus() },
+        { key: 'reminders', label: t('reminder.title'), glyph: 'bell', node: reminders.node, has: () => [...store.view.reminders.values()].some((r) => r.task_id === task.id), open: () => reminders.node.scrollIntoView?.({ block: 'nearest' }) },
+      ];
+      const revealed = new Set();
+      const paintChips = () => {
+        const buttons = [];
+        for (const p of parts) {
+          const shown = readOnly || p.has() || revealed.has(p.key);
+          p.node.hidden = !shown;
+          if (!shown) {
+            buttons.push(h('button', {
+              type: 'button', class: 'chip-button task-chip', dataset: { fk: `task-chip:${p.key}` },
+              onclick: async () => {
+                if (p.key === 'prio') { // een keuzeblad: sluit je het, dan blijft de chip staan
+                  if ((await p.open()) === false) return;
+                  revealed.add(p.key);
+                  paintChips();
+                  return;
+                }
+                revealed.add(p.key);
+                paintChips(); // eerst tonen, dan de focus erheen
+                p.open?.();
+              },
+            }, icon(p.glyph), p.label));
+          }
+        }
+        replace(chipRow, buttons);
+        chipRow.hidden = buttons.length === 0;
+      };
+      paintChips();
+      description.addEventListener('blur', () => { if (!description.value.trim()) { revealed.delete('desc'); paintChips(); } });
+    }
+
     const startProject = view.projects.get(task.project_id);
     const heading = h('h2', { id: 'task-dialog-heading' }, parent ? t('task.subtaskOf', { name: parent.content }) : readOnly ? t('readonly.taskHeading') : t('task.edit'));
     const dialog = h('dialog', { class: 'dialog dialog-wide dialog-task', id: 'task-dialog', 'aria-labelledby': 'task-dialog-heading' },
@@ -377,24 +448,27 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         h('header', { class: 'task-top' },
           h('div', { class: 'task-crumb' },
             startProject && h('span', { class: `dot ${colorClass(startProject.color)}`, 'aria-hidden': 'true' }),
+            // op een telefoon staat hier (zoals in Todoist) het project met een pijltje; tikken opent de projectkeuze
+            phone && startProject && !parent && h('button', { type: 'button', class: 'task-crumb-name', dataset: { fk: 'task-crumb-project' }, onclick: () => { try { project.showPicker(); } catch { project.focus(); } } }, startProject.name, icon('chevronRight')),
             heading),
           h('button', { class: 'icon-button', type: 'button', 'aria-label': t('common.close'), title: t('common.close'), onclick: close }, icon('close'))),
         h('div', { class: 'task-columns' },
           h('div', { class: 'task-col task-col-main' },
             readOnly && h('p', { class: 'banner banner-readonly', role: 'note', dataset: { fk: 'task-readonly' } }, icon('eye'), h('span', {}, t('readonly.taskBanner'))),
             h('div', { class: 'task-title-row' }, check, content),
-            descView, description),
+            descWrap),
           h('aside', { class: 'task-col task-col-side', 'aria-label': t('task.properties') },
             !parent && field(t('task.project'), project),
             !parent && field(t('task.section'), section),
             field(t('task.due'), due, dueHint),
             quickRow,
             !readOnly && repeat.panel,
-            h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.priority')), priorityGroup),
-            h('div', { class: 'prop' }, h('span', { class: 'prop-label' }, t('task.labels')), h('div', { class: 'label-field' }, labelBox, labelOptions)),
+            chipRow,
+            priorityRow,
+            labelsRow,
             assigneeField,
-            field(t('task.duration'), duration),
-            field(t('task.deadline'), deadline),
+            durationRow,
+            deadlineRow,
             reminders.node,
             createdLine && h('p', { class: 'task-created' }, createdLine)),
           h('div', { class: 'task-col task-col-extra' },
@@ -415,6 +489,12 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
           !readOnly && h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),
         ),
       ));
+    // Op een telefoon staat het opmerkingenveld vast onderaan (zoals in Todoist), buiten het scrollende deel.
+    if (phone || globalThis.matchMedia?.('(max-width: 760px)').matches) {
+      const bar = comments.node.querySelector('.comment-form');
+      const form = dialog.querySelector('.task-form');
+      if (bar && form) { bar.classList.add('task-comment-bar'); form.insertBefore(bar, error); }
+    }
     // Ctrl+Enter of Cmd+Enter bewaart de taak (in het opmerkingenveld plaatst het de opmerking; zie comments.js)
     dialog.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.defaultPrevented) {

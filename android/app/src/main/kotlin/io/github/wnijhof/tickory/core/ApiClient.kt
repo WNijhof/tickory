@@ -162,6 +162,19 @@ class ApiClient(
     }
 
     /**
+     * De gegevens voor de widget Productiviteit: afgevinkt per dag (`GET /stats`) en je doelen (de instellingen). Een extra verzoek
+     * naast [fetchSnapshot], alleen als zo'n widget er is. Mislukt er iets (oudere server zonder stats, geen verbinding), dan null:
+     * de widget toont dan wat er al stond.
+     */
+    fun fetchProductivity(token: String, zoneId: String, days: Int = 60): WidgetStats? = try {
+        val settings = request("POST", SYNC_PATH, token, Json.stringify(mapOf("sync_token" to "*", "resource_types" to listOf("settings"))))
+        val stats = if (settings.status == 200) request("GET", "/api/v1/stats?days=$days&tz=" + java.net.URLEncoder.encode(zoneId, "UTF-8"), token, null) else null
+        if (settings.status == 200 && stats?.status == 200) WidgetStatsCodec.fromResponses(settings.body, stats.body) else null
+    } catch (e: Exception) {
+        null
+    }
+
+    /**
      * Stuurt commando's in één verzoek (hooguit [WidgetQueue.BATCH]). Met dezelfde uuid's opnieuw sturen is veilig: de server
      * voert elk uuid één keer uit en geeft daarna dezelfde uitkomst.
      */

@@ -6,7 +6,7 @@ import { clockText, formatDate, formatDateInput, formatDayHeading, formatDue, to
 import { getLanguage, t } from '../core/i18n.js';
 import { needsTimeNote, offsetText, presetOptions } from '../core/reminderText.js';
 import { hasTime } from '../../shared/reminders.js';
-import { parseDateText } from '../core/dateInput.js';
+import { parseDateText, parseDue } from '../core/dateInput.js';
 import { reschedule } from '../core/quickDates.js';
 import { choiceFromDue, repeatSummary } from '../core/repeat.js';
 import { parseQuickAdd } from '../core/quickadd.js';
@@ -15,7 +15,8 @@ import { startVoice, voiceSupport } from '../core/voice.js';
 import { confirmDialog, h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
 import { attachQuickSuggest } from './quickSuggest.js';
-import { pickDateTime } from './datePopup.js';
+import { applyPicked, pickDateTime } from './datePopup.js';
+import { dueCounts } from '../core/dueCounts.js';
 import { repeatPicker } from './repeatPicker.js';
 import { labelList, mySettings } from '../core/selectors.js';
 import { generalOf } from '../../shared/general.js';
@@ -113,6 +114,25 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     description.value = context.description ?? ''; // bijvoorbeeld de link bij tekst die uit een andere app is gedeeld
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
       editableProjectList(view, store.userId).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
+    const narrow = Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches);
+    // Op een telefoon: de herkende datum staat gemarkeerd in de tekst (zoals in Todoist), met een spiegel achter het veld die dezelfde tekst toont.
+    const mirror = narrow ? h('div', { class: 'quick-mirror', 'aria-hidden': 'true' }) : null;
+    let mirrorStyled = false;
+    const paintMirror = () => {
+      if (!mirror) return;
+      const text = input.value;
+      const found = generalOf(mySettings(view, store.userId)).date_recognition === false ? null : parseDue(text, new Date())?.range ?? null;
+      const [from, to] = found ?? [0, 0];
+      mirror.replaceChildren(...(to > from && to <= text.length ? [text.slice(0, from), h('mark', {}, text.slice(from, to)), text.slice(to)] : [text]));
+      if (!mirrorStyled && input.isConnected) {
+        const cs = getComputedStyle(input);
+        for (const key of ['font', 'letterSpacing', 'padding', 'borderWidth', 'lineHeight', 'textIndent']) mirror.style[key] = cs[key];
+        mirrorStyled = true;
+      }
+      mirror.scrollLeft = input.scrollLeft;
+    };
+    const inputBox = mirror ? h('div', { class: 'quick-input-wrap' }, mirror, input) : input;
+    const projectField = h('label', { class: 'field-label quick-project' }, h('span', { class: 'quick-project-text' }, t('task.project')), project);
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });
     // bestanden die uit een andere app zijn gedeeld: ze worden bijlagen van de taak zodra je Toevoegen kiest
     const shared = context.files?.length ? h('p', { class: 'hint quick-files' }, icon('paperclip'), t('quick.sharedFiles', { names: context.files.join(', ') })) : null;
@@ -132,7 +152,8 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
 
     // ---- datum, herinnering en herhaling kiezen (de knoppen onder de beschrijving) ----
     // `chosen.due`: de datum (en herhaling) die je met de knoppen koos; die gaat voor op wat in het veld staat. `chosen.reminders`: de herinneringen.
-    const chosen = { due: null, reminders: [] };
+    const chosen = { due: null, reminders: [], priority: null };
+    const priorityButton = h('button', { type: 'button', class: 'chip-button quick-priority', dataset: { fk: 'quick-priority' }, 'aria-label': t('task.priority'), title: t('task.priority') });
     const dueButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-due' } });
     const reminderButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-reminder' } });
     const repeatButton = h('button', { type: 'button', class: 'chip-button', dataset: { fk: 'quick-repeat' } });
@@ -142,23 +163,36 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     repeat.button.hidden = true;
     const effectiveDue = () => chosen.due ?? parseQuickAdd(input.value, { view, now: new Date(), ...parseContext() }).due;
     const paintChoices = () => {
-      const day = chosen.due;
-      dueButton.replaceChildren(icon('calendar'), day ? formatDue(day, todayString()) : t('quick.date'));
+      // de datum uit de tekst ("morgen 9 uur") staat ook op de knop, zoals in Todoist; wat je met de knop koos gaat voor
+      const day = effectiveDue();
+      dueButton.replaceChildren(icon('calendar'), h('span', { class: 'chip-text' }, day ? formatDue(day, todayString()) : t('quick.date')));
       dueButton.classList.toggle('active', Boolean(day));
-      const rule = chosen.due?.recurrence ? choiceFromDue(chosen.due) : null;
-      repeatButton.replaceChildren(icon('repeat'), rule ? repeatSummary(rule) : t('task.quickRepeat'));
+      const rule = day?.recurrence ? choiceFromDue(day) : null;
+      repeatButton.replaceChildren(icon('repeat'), h('span', { class: 'chip-text' }, rule ? repeatSummary(rule) : t('task.quickRepeat')));
       repeatButton.classList.toggle('active', Boolean(rule));
       const n = chosen.reminders.length;
-      reminderButton.replaceChildren(icon('bell'), n > 0 ? t('quick.remindersCount', { count: n }) : t('quick.reminder'));
+      reminderButton.replaceChildren(icon('bell'), h('span', { class: 'chip-text' }, n > 0 ? t('quick.remindersCount', { count: n }) : t('quick.reminder')));
       reminderButton.classList.toggle('active', n > 0);
+      const shownPriority = chosen.priority ?? parseQuickAdd(input.value, { view, now: new Date(), ...parseContext() }).priority;
+      priorityButton.replaceChildren(icon('flag'), h('span', { class: 'chip-text' }, shownPriority < 4 ? `P${shownPriority}` : t('task.priority')));
+      priorityButton.className = `chip-button quick-priority${shownPriority < 4 ? ` active prio-${shownPriority}` : ''}`;
       dueField.value = chosen.due ? formatDateInput(chosen.due) : '';
     };
+    priorityButton.addEventListener('click', async () => {
+      const picked = await priorityDialog(chosen.priority ?? parseQuickAdd(input.value, { view, now: new Date(), ...parseContext() }).priority);
+      if (picked === null) return;
+      chosen.priority = picked;
+      paintChoices();
+      input.focus();
+    });
+    input.addEventListener('input', () => { paintChoices(); paintMirror(); }); // de prioriteit (en datum) uit de tekst staat meteen op de knoppen
+    input.addEventListener('scroll', paintMirror);
     dueButton.addEventListener('click', async () => {
       const current = effectiveDue();
-      const picked = await pickDateTime({ today: todayString(), due: current ?? null, allowNone: Boolean(current) });
+      const picked = await pickDateTime({ today: todayString(), due: current ?? null, allowNone: Boolean(current), counts: dueCounts(view) });
       if (!picked) return;
       // een herhaling die er al is, blijft; alleen de dag en de tijd veranderen
-      chosen.due = picked.date ? reschedule(chosen.due, picked.date, picked.time) : null;
+      chosen.due = picked.date ? applyPicked(chosen.due, picked) : null;
       if (!picked.date) chosen.reminders = chosen.reminders.filter((r) => r.type === 'absolute');
       paintChoices();
       input.focus();
@@ -242,6 +276,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
         if (!voice) reset();
       });
     }
+    queueMicrotask(paintMirror); // na het openen: de stijl van het veld overnemen
     if (input.value) {
       draw(); // een begintekst (bijvoorbeeld het label waar je bij staat): meteen de voorvertoning, de cursor erachter
       queueMicrotask(() => input.setSelectionRange(input.value.length, input.value.length));
@@ -265,28 +300,39 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
         const due = chosen.due ?? p.due;
         const same = (a, b) => a.type === b.type && (a.type === 'absolute' ? a.due.date === b.due.date : a.minute_offset === b.minute_offset);
         const reminders = [...p.reminders, ...chosen.reminders.filter((r) => !p.reminders.some((x) => same(x, r)))];
-        finish(await actions.addTask({ ...p, due, reminders, ...(text ? { description: text } : {}) }));
+        finish(await actions.addTask({ ...p, due, reminders, ...(chosen.priority ? { priority: chosen.priority } : {}), ...(text ? { description: text } : {}) }));
       },
     },
     h('h2', {}, t('quick.addTask')),
     day && h('p', { class: 'hint quick-day' }, t('quick.forDay', { date: dayTime.length > 10 ? `${formatDayHeading(day, todayString())} ${clockText(dayTime.slice(11, 16))}` : formatDayHeading(day, todayString()) })),
-    mic ? h('div', { class: 'quick-row' }, input, mic) : input,
+    mic ? h('div', { class: 'quick-row' }, inputBox, mic) : inputBox,
     suggest.node,
     description,
     shared,
     preview,
     // datum (kalender), herinnering en herhaling: elk opent een kleine popup
-    h('div', { class: 'quick-choices', role: 'group', 'aria-label': t('quick.choices') }, dueButton, reminderButton, repeatButton, repeat.button),
+    // Op een telefoon staat het project als eerste chip in de rij (zoals in Todoist); anders blijft het een veld onder de knoppen.
+    h('div', { class: 'quick-choices', role: 'group', 'aria-label': t('quick.choices') }, narrow && projectField, dueButton, priorityButton, reminderButton, repeatButton, repeat.button),
     h('div', { class: 'quick-options' },
-      h('label', { class: 'field-label' }, t('task.project'), project),
+      !narrow && projectField,
       // "Taak uit sjabloon…": sluit dit venster en opent de sjablonen voor het gekozen project (en de sectie, als die bij dit project hoort)
       onTemplate && h('button', { type: 'button', class: 'button button-small button-ghost quick-template', onclick: () => { const where = { projectId: project.value, sectionId: sectionFor() }; finish(null); onTemplate(where); } }, icon('template'), t('template.menu.insert'))),
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
-      h('button', { type: 'submit', class: 'button button-primary' }, t('common.add'))));
+      h('button', { type: 'submit', class: 'button button-primary quick-submit', 'aria-label': t('common.add') }, h('span', { class: 'quick-submit-text' }, t('common.add')), icon('arrowUp'))));
     form.append(repeat.panel); // het paneel van de herhaling verhuist naar zijn popup zodra die opent
     return form;
   }, { wide: true, className: 'dialog-quick', onClose: () => voice?.stop() });
+}
+
+/** Het blad om een prioriteit te kiezen (P1 hoogst … P4 geen). Geeft 1 tot en met 4, of null bij sluiten. */
+export function priorityDialog(current = 4) {
+  return openDialog((finish) => h('div', { class: 'dialog-form priority-sheet' },
+    h('h2', {}, t('task.priority')),
+    h('div', { class: 'menu', role: 'group', 'aria-label': t('task.priority') },
+      [1, 2, 3, 4].map((p) => h('button', {
+        type: 'button', class: `menu-item priority-option prio-${p}${p === current ? ' is-current' : ''}`, dataset: { fk: `priority:${p}` }, 'aria-pressed': String(p === current), onclick: () => finish(p),
+      }, icon('flag'), h('span', {}, p === 1 ? t('task.priorityHighest') : p === 4 ? t('task.priorityNone') : `P${p}`), p === current && icon('check'))))), { className: 'dialog-sheet' });
 }
 
 /**

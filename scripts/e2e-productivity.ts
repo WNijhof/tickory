@@ -152,7 +152,7 @@ export async function productivityScenario(c: any) {
   await sleep(200);
   await shot('productiviteit-telefoon-donker');
   const accent = await evaluate<string>(`getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()`);
-  assert.equal(accent, '#2dd4bf', 'donker: de donkere accentkleur');
+  assert.equal(accent, '#f0786b', 'donker: de donkere accentkleur');
   await send('Emulation.setEmulatedMedia', { features: [] });
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   step('productiviteit: op een telefoon alles onder elkaar met tikvlakken van 44 px, zonder zijwaarts scrollen; in het donker de donkere tokens');

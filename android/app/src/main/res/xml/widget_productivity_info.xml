@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Productiviteit: dagelijks, wekelijks en reeks, 4x2 vakjes, te vergroten. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_prod_description"
+    android:initialLayout="@layout/widget_productivity"
+    android:maxResizeHeight="220dp"
+    android:minWidth="245dp"
+    android:minHeight="115dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="100dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

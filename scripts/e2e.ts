@@ -774,7 +774,7 @@ try {
   const accentNow = () => evaluate<string>(`getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()`);
   const bgNow = () => evaluate<string>(`getComputedStyle(document.body).backgroundColor`);
   const LIGHT_BG = 'rgb(255, 255, 255)';
-  const DARK_BG = 'rgb(22, 25, 28)';
+  const DARK_BG = 'rgb(32, 32, 32)';
   const openAppearance = async () => {
     await openMenu('Alice');
     await clickText('Weergave');
@@ -804,7 +804,7 @@ try {
   await click('dialog[open] [data-role="theme-choice"] input[value="system"]');
   await waitFor(`!document.documentElement.dataset.theme`, 'zoals het apparaat');
   assert.equal(await bgNow(), DARK_BG, 'zoals het apparaat: donker');
-  await click('dialog[open] [data-role="accent-choice"] input[value="teal"]');
+  await click('dialog[open] [data-role="accent-choice"] input[value="tomato"]');
   await waitFor(`!document.documentElement.dataset.accent`, 'standaardkleur');
   assert.equal(await evaluate(`localStorage.getItem('tickory.theme') === null && localStorage.getItem('tickory.accent') === null`), true, 'de standaard staat niet in de opslag');
   await clickText('Sluiten');
@@ -1528,10 +1528,10 @@ try {
   assert.deepEqual(await evaluate(`[...${row('Wegwerptaak')}.querySelectorAll('.task-actions button')].map((b) => b.getAttribute('aria-label'))`),
     ['Bewerken: Wegwerptaak', 'Andere dag kiezen voor: Wegwerptaak', 'Verwijderen: Wegwerptaak']);
   await evaluate(`${row('Wegwerptaak')}.querySelector('[data-act="date"]').click()`);
-  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Datum en tijd'`, 'dagkeuze (de kleine kalender)');
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .datepop-quick button')].map((b) => b.textContent)`), ['Vandaag', 'Morgen', 'Dit weekend', 'Volgende week']);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Datum'`, 'dagkeuze (de kleine kalender)');
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .datepop-quick .datepop-rowlabel')].map((b) => b.textContent)`), ['Vandaag', 'Morgen', 'Dit weekend', 'Volgende week']);
   assert.ok(await evaluate(`document.querySelectorAll('dialog[open] .datepop-day').length >= 28`), 'een maandkalender');
-  await clickText('Morgen', `document.querySelector('dialog[open] .datepop-quick')`);
+  await click('dialog[open] [data-fk="due-tomorrow"]');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(serverTask('Wegwerptaak').due.date, tomorrow);
   assert.deepEqual(await taskMeta('Wegwerptaak'), ['morgen']);
@@ -2270,7 +2270,7 @@ try {
   assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390, 'geen horizontaal scrollen op de telefoon: de pagina is precies zo breed als het scherm');
   // grote tikvlakken: alles wat je met een vinger aantikt is minstens 44 bij 44 (en met de zijbalk dicht niet te bereiken met Tab)
   const smallest = (selector: string) => evaluate<{ w: number; h: number; n: number }>(`(() => { const list = [...document.querySelectorAll(${js(selector)})].filter((e) => e.offsetParent !== null || getComputedStyle(e).position === 'fixed'); return { w: Math.min(...list.map((e) => Math.round(e.getBoundingClientRect().width))), h: Math.min(...list.map((e) => Math.round(e.getBoundingClientRect().height))), n: list.length }; })()`);
-  for (const selector of ['.check', '.bnav-item', '#fab', '.add-inline', '.group-toggle', '.view-actions button', '#quick-add button', '.task']) {
+  for (const selector of ['.check', '.bnav-item', '#fab', '.add-inline', '.group-toggle', '.view-actions button', '.task']) {
     const size = await smallest(selector);
     assert.ok(size.n > 0, `${selector}: niets gevonden`);
     assert.ok(size.h >= 44 && size.w >= 40, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
@@ -2285,10 +2285,16 @@ try {
   await waitFor(`!document.body.classList.contains('nav-open')`, 'Bladeren dicht');
   await openTask('Afwasmachine uitruimen');
   const full = await evaluate<{ w: number; h: number }>(`(() => { const r = document.getElementById('task-dialog').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })()`);
-  assert.deepEqual(full, { w: 390, h: 844 }, 'het taakvenster vult op een telefoon het hele scherm');
+  assert.deepEqual(full, { w: 390, h: 800 }, 'het taakvenster is op een telefoon een hoog blad: de hele breedte, de hoogte op een rand na');
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('#task-dialog .task-columns')).display`), 'flex', 'één kolom op een telefoon');
   assert.equal(await evaluate(`document.documentElement.scrollWidth`), 390);
   assert.equal(await evaluate(`document.getElementById('task-dialog').scrollWidth <= document.getElementById('task-dialog').clientWidth`), true, 'het taakvenster scrolt niet zijwaarts');
+  // wat nog leeg is, staat op een telefoon als chip (zoals in Todoist): eerst alles openen, dan de tikvlakken meten
+  await evaluate(`[...document.querySelectorAll('#task-dialog .task-chip')].filter((b) => b.dataset.fk !== 'task-chip:prio').forEach((b) => b.click())`);
+  await evaluate(`document.querySelector('#task-dialog [data-fk="task-chip:prio"]')?.click()`);
+  await waitFor(`document.querySelector('[data-fk="priority:4"]')`, 'prioriteitsblad');
+  await evaluate(`document.querySelector('[data-fk="priority:4"]').click()`);
+  await waitFor(`!document.querySelector('[data-fk="priority:4"]')`, 'prioriteitsblad dicht');
   for (const selector of ['#task-dialog .prio-option span', '#task-dialog .chip-button', '#task-dialog .field', '#task-dialog .button']) {
     const size = await smallest(selector);
     assert.ok(size.h >= 44, `${selector} is te klein om aan te tikken: ${size.w} bij ${size.h}`);
@@ -2417,7 +2423,7 @@ try {
     const shown = [...document.querySelectorAll('#content li.task, #content button')].filter((e) => e.offsetParent !== null);
     return { last: Math.round(Math.max(...shown.map((e) => e.getBoundingClientRect().bottom))), fab: Math.round(document.getElementById('fab').getBoundingClientRect().top), bar: Math.round(document.getElementById('bottom-nav').getBoundingClientRect().top), scrolled: scrollY > 0 };
   })()`);
-  assert.ok(cover.scrolled && cover.last <= cover.fab && cover.last <= cover.bar, `de laatste regel valt niet onder de balk of de "+": ${JSON.stringify(cover)}`);
+  assert.ok(cover.last <= cover.fab && cover.last <= cover.bar, `de laatste regel valt niet onder de balk of de "+": ${JSON.stringify(cover)}`);
   await shot('telefoon-balk-onderaan');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await sleep(200);
@@ -2437,7 +2443,8 @@ try {
   // typen: het toetsenbord is open, dan geen balk en geen "+" die boven het toetsenbord over het veld schuiven. Het toetsenbord nabootsen
   // zoals de Android-app het doet: de WebView wordt lager (de app geeft het toetsenbord ruimte onderaan).
   const barShown = `getComputedStyle(document.getElementById('bottom-nav')).display === 'flex' && getComputedStyle(document.getElementById('fab')).display === 'flex'`;
-  await evaluate(`document.getElementById('quick-input').focus()`);
+  // (het invoerveld bovenaan is op een telefoon weg: de "+" voegt toe; daarom een tijdelijk veld)
+  await evaluate(`(() => { const i = document.createElement('input'); i.id = 'e2e-typen'; document.body.append(i); i.focus(); })()`);
   await sleep(150);
   assert.equal(await evaluate(barShown), true, 'alleen de focus (zonder toetsenbord, of met een hardwaretoetsenbord): de balk blijft');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 520, deviceScaleFactor: 2, mobile: true });
@@ -2445,7 +2452,7 @@ try {
   await shot('telefoon-balk-typen');
   await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
   await waitFor(barShown, 'toetsenbord dicht (het veld houdt de focus): de balk is terug');
-  await evaluate(`document.getElementById('quick-input').blur()`);
+  await evaluate(`document.getElementById('e2e-typen').remove()`);
   // selecteren: de actiebalk staat onderaan in de plaats van de balk
   await click('.bulk-toggle');
   await waitFor(`document.body.classList.contains('select-mode')`, 'selecteren (telefoon)');
@@ -2523,7 +2530,7 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Vandaag'`, 'Vandaag');
   await sleep(200);
   barNow = await barState();
-  assert.equal(barNow.page, 'rgb(22, 25, 28)', 'donker');
+  assert.equal(barNow.page, 'rgb(32, 32, 32)', 'donker');
   assert.deepEqual([barNow.background, barNow.color], [barNow.page, await cssColor('--accent')], 'ook in het donker: de achtergrond van de pagina en de accentkleur');
   await shot('telefoon-balk-donker');
   await click('[data-tab="browse"]');
@@ -2545,6 +2552,8 @@ try {
   // ---- 9b. toetsenbord: zichtbare focusring, en de taak openen met Enter ----
   await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
   await sleep(200);
+  // (het invoerveld is op een telefoon weg, dus de focus terug naar het begin van de pagina kan pas nu)
+  await evaluate(`(() => { const q = document.getElementById('quick-input'); q.focus(); q.blur(); })()`);
   assert.deepEqual(await evaluate(`['bottom-nav', 'fab', 'sidebar'].map((id) => getComputedStyle(document.getElementById(id))).map((c) => c.display + '|' + c.position + '|' + c.visibility)`),
     ['none|static|visible', 'none|static|visible', 'flex|sticky|visible'], 'op een computer geen balk onderaan en geen "+": de zijbalk blijft zoals hij was');
   await nav('Thuis');

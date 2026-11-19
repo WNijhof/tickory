@@ -1,10 +1,11 @@
 // Het venster "Weergave" van een lijst: sorteren, richting en groeperen. Elke keuze geldt meteen en wordt bewaard in je instellingen
 // (`settings.view_options`, shared/viewOptions.js), dus op al je apparaten; een gedeeld project kan voor een ander anders staan.
 
-import { DIRECTIONS, SORTS, groupChoices, optionsFor, viewKey, withOptions } from '../../shared/viewOptions.js';
+import { DIRECTIONS, PRIOS, SORTS, groupChoices, optionsFor, viewKey, withOptions } from '../../shared/viewOptions.js';
 import { mySettings } from '../core/selectors.js';
 import { t } from '../core/i18n.js';
 import { h, openDialog } from './dom.js';
+import { icon } from './icons.js';
 
 // De teksten staan als letterlijke sleutels, zodat de controle op ongebruikte en ontbrekende teksten ze kan vinden.
 const SORT_TEXT = {
@@ -18,13 +19,16 @@ const GROUP_TEXT = {
   assignee: () => t('listopt.group.assignee'), project: () => t('listopt.group.project'), deadline: () => t('listopt.group.deadline'),
 };
 const DIR_TEXT = { asc: () => t('listopt.dir.asc'), desc: () => t('listopt.dir.desc') };
+const PRIO_TEXT = { all: () => t('listopt.prioAll'), 1: () => t('listopt.prioHighest'), 2: () => 'P2', 3: () => 'P3', 4: () => t('listopt.prioNone') };
 
 /**
  * @param {{ route: { type: string, id?: string }, view: any, userId: string | null, update: (viewOptions: object) => Promise<unknown> | void,
  *   clearDayOrder?: (() => Promise<unknown> | void) | null }} options
+ * `layout`: alleen bij een project en Binnenkort: de keuze Lijst, Bord of Kalender bovenaan (zoals in Todoist); { styles, current, onChange }.
+ * `completed`: alleen bij een project in de lijst: de schakelaar Voltooide taken, { on, toggle } (geldt tot je de app sluit).
  * `clearDayOrder`: alleen in Vandaag; een knop die je eigen volgorde (slepen, `settings.day_order`) weer weghaalt.
  */
-export function listOptionsDialog({ route, view, userId, update, clearDayOrder = null }) {
+export function listOptionsDialog({ route, view, userId, update, clearDayOrder = null, layout = null, completed = null }) {
   const key = viewKey(route);
   const isProject = route.type === 'project';
   // de laatst bewaarde stand houden we zelf bij: `view` is de toestand van het moment van openen, en een tweede keuze mag de eerste niet ongedaan maken
@@ -49,23 +53,34 @@ export function listOptionsDialog({ route, view, userId, update, clearDayOrder =
       save(change);
       dir.disabled = state.sort === 'manual';
     };
+    const prioSelect = select('prio', [...PRIOS], t('listopt.prio'), (v) => PRIO_TEXT[v](), (v) => apply({ prio: v }));
     const dirSelect = select('dir', [...DIRECTIONS], t('listopt.dir'), (v) => DIR_TEXT[v](), (v) => apply({ dir: v }));
     const dir = dirSelect.querySelector('select');
     dir.disabled = state.sort === 'manual';
     return h('div', { class: 'dialog-form' },
       h('h2', {}, t('listopt.title')),
-      h('div', { class: 'options-grid' },
+      layout && h('div', { class: 'layout-choice', role: 'group', 'aria-label': t('listopt.layout') },
+        layout.styles.map((style) => h('button', {
+          type: 'button', class: `layout-option${style === layout.current ? ' active' : ''}`, 'aria-pressed': String(style === layout.current), dataset: { fk: `layout:${style}` },
+          onclick: () => { if (style !== layout.current) { layout.onChange(style); } finish(null); },
+        }, icon({ list: 'list', board: 'board', calendar: 'calendar' }[style]), h('span', {}, { list: t('viewStyle.list'), board: t('viewStyle.board'), calendar: t('viewStyle.calendar') }[style])))),
+      (!layout || layout.current === 'list') && h('div', { class: 'options-grid' },
         select('sort', [...SORTS], t('listopt.sort'), sortLabel, (v) => {
           apply({ sort: v });
           dir.value = state.dir;
         }),
         dirSelect,
         select('group', groupChoices(route.type), t('listopt.group'), groupLabel, (v) => apply({ group: v }))),
-      h('p', { class: 'hint' }, t('listopt.hint')),
+      (!layout || layout.current === 'list') && h('div', { class: 'options-filter' },
+        h('h3', { class: 'subheading' }, t('listopt.filter')),
+        prioSelect,
+        completed && h('label', { class: 'switch-row' }, h('span', {}, t('listopt.completed')),
+          h('input', { type: 'checkbox', role: 'switch', checked: completed.on, dataset: { fk: 'listopt:completed' }, onchange: () => { completed.toggle(); finish(null); } }))),
+      (!layout || layout.current === 'list') && h('p', { class: 'hint' }, t('listopt.hint')),
       hasDayOrder && h('p', { class: 'hint' }, t('listopt.dayOrderHint')),
       h('div', { class: 'dialog-buttons' },
         hasDayOrder && h('button', { type: 'button', class: 'button', dataset: { fk: 'listopt:clear-day-order' }, onclick: () => { clearDayOrder(); finish(null); } }, t('listopt.clearDayOrder')),
         h('button', { type: 'button', class: 'button', dataset: { fk: 'listopt:reset' }, onclick: () => { save({ sort: 'manual', group: 'default' }); finish(null); } }, t('listopt.reset')),
         h('button', { type: 'button', class: 'button button-primary', onclick: () => finish(null) }, t('common.close'))));
-  });
+  }, { className: 'dialog-sheet' });
 }

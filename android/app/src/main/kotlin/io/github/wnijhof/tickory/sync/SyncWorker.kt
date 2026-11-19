@@ -16,6 +16,7 @@ import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.store.Prefs
 import io.github.wnijhof.tickory.store.TokenVault
 import io.github.wnijhof.tickory.store.WidgetStore
+import io.github.wnijhof.tickory.widget.ProductivityWidgetProvider
 import io.github.wnijhof.tickory.widget.WidgetUpdater
 import io.github.wnijhof.tickory.reminders.Notifications
 import io.github.wnijhof.tickory.reminders.ReminderEngine
@@ -62,13 +63,17 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             QuickAddSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
             QuickAddSync.Outcome.NOTHING -> when {
                 completed == WidgetSync.Outcome.SENT -> fetched = null
-                fetched is FetchResult.Ok -> return Result.success() // net al opgehaald en verwerkt
+                fetched is FetchResult.Ok -> {
+                    refreshStats(app, client, token)
+                    return Result.success() // net al opgehaald en verwerkt
+                }
             }
         }
 
         return when (val result = fetched ?: client.fetchSnapshot(token)) {
             is FetchResult.Ok -> {
                 apply(app, result)
+                refreshStats(app, client, token)
                 Result.success()
             }
             is FetchResult.Unauthorized -> {
@@ -78,6 +83,13 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             }
             is FetchResult.Failed -> failed(app, prefs, origin)
         }
+    }
+
+    /** De statistieken voor de widget Productiviteit, alleen als zo'n widget er is; mislukt het, dan blijft de oude inhoud staan. */
+    private fun refreshStats(app: Context, client: ApiClient, token: String) {
+        if (!ProductivityWidgetProvider.isPlaced(app)) return
+        val stats = client.fetchProductivity(token, java.time.ZoneId.systemDefault().id) ?: return
+        if (WidgetStore.acceptStats(app, stats)) WidgetUpdater.updateAll(app)
     }
 
     /** De verse gegevens: de alarmen worden opnieuw gepland en de widgets krijgen hun nieuwe inhoud. */

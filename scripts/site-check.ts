@@ -1227,7 +1227,7 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.querySelector('dialog[open]')`), null, 'er staat geen (inlog)venster open');
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('.nav-item .nav-label')].map((e) => e.textContent)`), ['Inbox', 'Vandaag', 'Aankomend', 'Voltooid', 'Meldingen', 'Notities', 'Huishouden', 'Huishouden', 'Vakantie Texel', 'Fietsroute', 'Buurtfeest', 'Familieweekend', 'Anna']);
         assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Vandaag');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Te laat', 'Vandaag']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('.group-title')].map((e) => e.textContent.split(' · ')[0])`), ['Over tijd', 'Vandaag']);
         assert.ok((await titles()).length >= 5, 'te laat en vandaag samen minstens vijf taken');
         assert.deepEqual(await chips('Boodschappen doen'), ['vandaag 17:30', '45 min', '1/4', '2', '@boodschappen', '🔔', 'voor jou', 'Huishouden / Boodschappen']);
         const bar = await evaluate<{ text: string; href: string; top: number; height: number }>(`(() => { const el = document.getElementById('demo-bar'); const r = el.getBoundingClientRect(); return { text: el.querySelector('.demo-bar-long').textContent, href: el.querySelector('.demo-bar-link').href, top: r.top, height: r.height }; })()`);
@@ -2129,7 +2129,7 @@ if (wants('browser')) {
         await b.colorScheme('dark');
         await sleep(150);
         const colors = await evaluate<{ bar: string; body: string; nav: string }>(`({ bar: getComputedStyle(document.getElementById('demo-bar')).backgroundColor, body: getComputedStyle(document.body).backgroundColor, nav: getComputedStyle(document.getElementById('bottom-nav')).backgroundColor })`);
-        assert.equal(colors.body, 'rgb(22, 25, 28)', 'donker thema');
+        assert.equal(colors.body, 'rgb(32, 32, 32)', 'donker thema');
         assert.notEqual(colors.bar, 'rgba(0, 0, 0, 0)');
         assert.equal(colors.nav, colors.body, 'de menubalk onderaan is ook donker');
         await b.colorScheme('light');

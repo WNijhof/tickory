@@ -25,6 +25,9 @@ import io.github.wnijhof.tickory.core.WidgetTheme
 import io.github.wnijhof.tickory.core.WidgetRow
 import io.github.wnijhof.tickory.core.WidgetSection
 import io.github.wnijhof.tickory.core.WidgetSource
+import io.github.wnijhof.tickory.core.WidgetStats
+import java.time.LocalDate
+import java.time.ZoneId
 import io.github.wnijhof.tickory.reminders.Notifications
 import io.github.wnijhof.tickory.store.WidgetConfigStore
 import io.github.wnijhof.tickory.store.WidgetStore
@@ -477,9 +480,66 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
+    fun `Snelle acties - vier knoppen - Vandaag, Inbox en Nieuwe notitie openen de app op een vast overzicht, Taak toevoegen het kleine venster`() {
+        val id = place(QuickActionsWidgetProvider::class.java, R.layout.widget_quick_actions)
+        WidgetUpdater.updateAll(app)
+        val v = view(id)
+        for ((button, view) in listOf(R.id.quick_today to DeepLink.VIEW_TODAY, R.id.quick_inbox to DeepLink.VIEW_INBOX, R.id.quick_note to DeepLink.VIEW_NEW_NOTE)) {
+            v.findViewById<View>(button).performClick()
+            val started = shadowOf(app).nextStartedActivity
+            assertEquals(MainActivity::class.java.name, started.component!!.className)
+            assertEquals(view, started.getStringExtra(DeepLink.EXTRA_VIEW))
+        }
+        v.findViewById<View>(R.id.quick_add).performClick()
+        assertEquals(io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
+        // elke knop heeft een naam voor TalkBack
+        assertEquals("Vandaag", v.findViewById<View>(R.id.quick_today).contentDescription)
+        assertEquals("Nieuwe notitie", v.findViewById<View>(R.id.quick_note).contentDescription)
+    }
+
+    @Test
+    fun `Productiviteit - dagelijks, wekelijks en reeks uit de bewaarde gegevens, en een tik opent het scherm Productiviteit`() {
+        signIn(withData = data)
+        val today = LocalDate.now(ZoneId.systemDefault())
+        val perDay = (0 until 3).associate { today.minusDays(it.toLong()).toString() to 4 } // vandaag en de twee dagen ervoor
+        WidgetStore.acceptStats(app, WidgetStats("u1", perDay, 8, 40, listOf(6, 7), 60))
+        val id = place(ProductivityWidgetProvider::class.java, R.layout.widget_productivity)
+        WidgetUpdater.updateAll(app)
+        val v = view(id)
+        assertEquals("4/8", v.findViewById<TextView>(R.id.prod_daily_count).text.toString())
+        assertEquals(50, (v.findViewById<android.widget.ProgressBar>(R.id.prod_daily_bar)).progress)
+        assertTrue(v.findViewById<TextView>(R.id.prod_weekly_count).text.toString().endsWith("/40"))
+        assertEquals(View.GONE, v.findViewById<View>(R.id.prod_message).visibility)
+        assertTrue(v.findViewById<View>(R.id.prod_row_daily).contentDescription.toString().startsWith("Dagelijks"))
+        v.findViewById<View>(R.id.prod_root).performClick()
+        val started = shadowOf(app).nextStartedActivity
+        assertEquals(MainActivity::class.java.name, started.component!!.className)
+        assertEquals(DeepLink.VIEW_PRODUCTIVITY, started.getStringExtra(DeepLink.EXTRA_VIEW))
+    }
+
+    @Test
+    fun `Productiviteit - zonder aanmelding of zonder gegevens een melding in plaats van de rijen`() {
+        val id = place(ProductivityWidgetProvider::class.java, R.layout.widget_productivity)
+        WidgetUpdater.updateAll(app)
+        val v = view(id)
+        assertEquals(View.VISIBLE, v.findViewById<View>(R.id.prod_message).visibility)
+        assertEquals(View.GONE, v.findViewById<View>(R.id.prod_row_daily).visibility)
+        signIn(withData = data) // aangemeld, maar de statistieken zijn er nog niet
+        WidgetUpdater.updateAll(app)
+        assertEquals(View.VISIBLE, view(id).findViewById<View>(R.id.prod_message).visibility)
+    }
+
+    @Test
+    fun `Productiviteit - de balk is hooguit vol, en zonder doel leeg`() {
+        assertEquals(100, ProductivityWidgetProvider.percent(30, 8))
+        assertEquals(0, ProductivityWidgetProvider.percent(3, 0))
+        assertEquals(37, ProductivityWidgetProvider.percent(3, 8))
+    }
+
+    @Test
     fun `manifest - alleen wat moet is exporteerbaar, de lijst alleen voor Android zelf`() {
         val pm = app.packageManager
-        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, WidgetTickReceiver::class.java)) {
+        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java, WidgetTickReceiver::class.java)) {
             assertFalse(cls.simpleName, pm.getReceiverInfo(ComponentName(app, cls), 0).exported)
         }
         val service = pm.getServiceInfo(ComponentName(app, WidgetListService::class.java), PackageManager.GET_META_DATA)
@@ -487,8 +547,8 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("android.permission.BIND_REMOTEVIEWS", service.permission)
         assertFalse(pm.getActivityInfo(ComponentName(app, WidgetActionActivity::class.java), 0).exported)
         assertTrue("Android moet het configuratiescherm kunnen starten", pm.getActivityInfo(ComponentName(app, WidgetConfigActivity::class.java), 0).exported)
-        // de vier widgets hebben elk een beschrijving voor Android
-        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java)) {
+        // de vijf widgets hebben elk een beschrijving voor Android
+        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java)) {
             val info = pm.getReceiverInfo(ComponentName(app, cls), PackageManager.GET_META_DATA)
             assertTrue(cls.simpleName, info.metaData.getInt("android.appwidget.provider") != 0)
         }

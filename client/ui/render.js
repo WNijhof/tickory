@@ -27,6 +27,7 @@ import { colorClass } from '../core/colors.js';
 import { rowModel } from '../core/rowModel.js';
 import { t } from '../core/i18n.js';
 import { VIEW_STYLES, boardColumns, viewStyleOf } from '../core/projectViews.js';
+import { passesPrio } from '../../shared/viewOptions.js';
 import { h } from './dom.js';
 import { renderInline, renderMarkdown } from './markdown.js';
 import { emptyArt, icon } from './icons.js';
@@ -423,6 +424,7 @@ const addInline = (handlers, target, label = t('quick.addTask')) =>
   h('button', { class: 'add-inline', type: 'button', onclick: () => handlers.quickAdd(target) }, icon('plus'), label);
 
 /** De knop "Sorteren" bovenaan een lijst: opent de keuze voor sorteren en groeperen; ze is gemarkeerd zolang er een eigen keuze geldt. */
+const onPhone = () => Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches);
 const optionsButton = (handlers, route, options) => h('button', {
   class: `button button-small button-ghost btn-options${options.sort === 'manual' && options.group === 'default' ? '' : ' active'}`, type: 'button',
   'aria-haspopup': 'dialog', dataset: { fk: 'list-options' }, onclick: () => handlers.viewOptions(route),
@@ -460,6 +462,8 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
     }
     const ordering = isDefaultOptions(opts); // alleen dan is de volgorde die je ziet ook de volgorde die je zet
     const lctx = { view, today, me, userName };
+    list.overdue = list.overdue.filter((x) => passesPrio(x, opts.prio));
+    list.today = list.today.filter((x) => passesPrio(x, opts.prio));
     const sort = (tasks) => sortTasks(tasks, opts, lctx).map((task) => ({ task }));
     const grouped = groupRows(sort([...list.overdue, ...list.today]), opts.group, lctx);
     return finish({
@@ -489,15 +493,15 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
 
   if (route.type === 'upcoming') {
     const style = upcomingStyle();
+    const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
     const switcher = viewSwitch({ styles: ['list', 'calendar'], current: style, onChange: (next) => handlers.setUpcomingStyle(next) });
     if (style === 'calendar') {
       return finish({
-        title: t('nav.upcoming'), count: null, lead: icon('upcoming'), actions: [switcher],
+        title: t('nav.upcoming'), count: null, lead: icon('upcoming'), actions: onPhone() ? [optionsButton(handlers, route, opts), switcher] : [switcher],
         nodes: [calendarView({ calendarKey: 'upcoming', tasks: [...view.tasks.values()], view, today, handlers, showProject: true, addTarget: {}, canEdit: (task) => canEditProject(view, task.project_id, me?.id) })],
       });
     }
-    const days = upcomingView(view, today);
-    const opts = optionsFor(mySettings(view, me?.id), viewKey(route));
+    const days = upcomingView(view, today).map((d) => ({ ...d, tasks: d.tasks.filter((x) => passesPrio(x, opts.prio)) })).filter((d) => d.tasks.length > 0);
     const lctx = { view, today, me, userName };
     const grouped = groupRows(sortTasks(days.flatMap((d) => d.tasks), opts, lctx).map((task) => ({ task })), opts.group, lctx);
     return finish({
@@ -517,6 +521,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   const lctx = { view, today, me, userName };
   const pv = projectView(view, route.id, { showCompleted, compare: comparator(opts, lctx) });
   if (!pv) return finish({ title: t('view.projectTitle'), count: null, lead: null, actions: [], nodes: [emptyState({ title: t('view.projectGone') })] });
+  if (opts.prio !== 'all') for (const g of pv.groups) g.tasks = g.tasks.filter((x) => passesPrio(x.task, opts.prio));
   const project = pv.project;
   const inbox = isInboxId(project.id);
   const open = pv.groups.reduce((sum, g) => sum + g.tasks.filter((x) => !x.task.checked).length, 0);
@@ -529,7 +534,7 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
   // project een eigen voorkeur, zie server/projectPrefs.ts).
   const readOnly = !canEditProject(view, project.id, me?.id);
   const actions = [
-    style === 'list' && optionsButton(handlers, route, opts),
+    (style === 'list' || onPhone()) && optionsButton(handlers, route, opts), // op een telefoon staat Lijst/Bord/Kalender in dat venster
     viewSwitch({ styles: VIEW_STYLES, current: style, onChange: (next) => handlers.setViewStyle(project, next) }),
     headButton('btn-comments', 'comment', comments > 0 ? t('comment.projectButtonCount', { count: comments }) : t('comment.projectButton'), () => handlers.projectComments(project), { 'aria-label': t('comment.projectButtonLabel', { count: comments }) }),
     !inbox && headButton('btn-share', readOnly ? 'eye' : 'users', readOnly ? t('project.members') : isShared(view, project.id) ? t('project.shared') : t('project.share'), () => handlers.shareProject(project)),

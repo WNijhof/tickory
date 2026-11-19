@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import io.github.wnijhof.tickory.AppShortcuts
 import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.quickadd.QuickAddActivity
@@ -44,6 +45,15 @@ object WidgetIntents {
         return PendingIntent.getActivity(context, REQUEST_ADD, intent, IMMUTABLE)
     }
 
+    /** Een vast overzicht openen (DeepLink.VIEW_TODAY, VIEW_INBOX, VIEW_NEW_NOTE, ...): alleen die vaste keuzes, nooit gegevens. */
+    fun openView(context: Context, view: String): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java)
+            .setAction(AppShortcuts.ACTION)
+            .putExtra(DeepLink.EXTRA_VIEW, view)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(context, REQUEST_VIEW_BASE + view.hashCode().and(0xFF), intent, IMMUTABLE)
+    }
+
     /** Het sjabloon voor de regels van de lijst van widget [appWidgetId]; elke regel vult het aan met [fillIn]. */
     fun itemTemplate(context: Context, appWidgetId: Int): PendingIntent {
         val intent = Intent(context, WidgetActionActivity::class.java)
@@ -71,4 +81,5 @@ object WidgetIntents {
 
     private const val REQUEST_OPEN_APP = 1
     private const val REQUEST_ADD = 2
+    private const val REQUEST_VIEW_BASE = 100
 }
