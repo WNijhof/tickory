@@ -50,7 +50,7 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
 <p>Dit zijn <strong>nagebootste voorbeelden in HTML</strong>, geen schermafbeeldingen van een telefoon. Op een echt toestel kunnen de kleuren, de hoeken en de lettergrootte anders uitvallen, omdat de launcher en het thema van je telefoon daar invloed op hebben.</p>
 
 <h2 id="filters">Een filter in een widget</h2>
-<p>Kies bij <strong>Project of lijst</strong> een van je <a href="filters.html">opgeslagen filters</a> (onderaan de keuzelijst, met <em>(filter)</em> achter de naam). De widget toont dan dezelfde taken als het filter in de app, in dezelfde volgorde. Heeft het filter meer lijsten (met komma's, bijvoorbeeld <code>Werk: #Werk, Thuis: #Thuis</code>), dan krijgt elke lijst een kopje. De telefoon rekent het filter zelf uit, dus ook zonder internet en vlak na middernacht klopt <em>vandaag</em>.</p>
+<p>Kies bij <strong>Project of lijst</strong> een van je <a href="filters.html">opgeslagen filters</a> (onder het kopje <em>Filters</em>, na de vaste filters). De widget toont dan dezelfde taken als het filter in de app, in dezelfde volgorde. Heeft het filter meer lijsten (met komma's, bijvoorbeeld <code>Werk: #Werk, Thuis: #Thuis</code>), dan krijgt elke lijst een kopje. De telefoon rekent het filter zelf uit, dus ook zonder internet en vlak na middernacht klopt <em>vandaag</em>.</p>
 <p>Bijna alles uit de filtertaal werkt: <code>vandaag</code>, <code>te laat</code>, <code>7 dagen</code>, <code>deze week</code>, een datum als <code>31-12</code> of <code>31 december</code>, <code>vóór:</code> en <code>na:</code>, <code>p1</code>, <code>#project</code>, <code>@label</code>, <code>/sectie</code>, <code>toegewezen aan</code>, <code>zoek:</code> en de haakjes en tekens <code>&amp;</code>, <code>|</code> en <code>!</code>. Twee dingen niet:</p>
 <ul>
   <li><strong>Datums in gewone taal</strong>, zoals <em>donderdag</em>, <em>volgende week donderdag</em> of <em>eind januari</em>. Die kent alleen de app. De widget zegt dan welk deel hij niet kan lezen; gebruik in zo'n filter liever <code>7 dagen</code>, <code>deze week</code> of een datum als <code>31 dec</code>.</li>
@@ -65,14 +65,14 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
   <li>Bij <em>Project of lijst</em> opent een scherm waarop je kiest wat de widget toont. Sluit je dat zonder te kiezen, dan wordt de widget niet geplaatst. Later opnieuw kiezen kan op Android 9 en nieuwer door de widget lang in te drukken en de instelling te kiezen; op oudere versies haal je de widget weg en plaats je hem opnieuw.</li>
   <li>Ben je nog niet ingelogd, dan staat er <em>Log in in de app</em>. Tik erop, log in, en de widget vult zich.</li>
 </ol>
-<p>Het <strong>formaat</strong> kun je aanpassen door de widget ingedrukt te houden en aan de randjes te slepen. Klein toont alleen de titel met het aantal en de taken op één regel; middel en groot laten ook de datum, het project en de labels zien, groot met iets grotere letters. De lijst scrolt als er meer taken zijn dan er passen.</p>
+<p>Het <strong>formaat</strong> kun je aanpassen door de widget ingedrukt te houden en aan de randjes te slepen. Net als in Todoist verandert het formaat de letters niet (dat doet de instelling <em>Lettergrootte</em>); de lijst scrolt als er meer taken zijn dan er passen.</p>
 
 <h2>Afvinken en openen</h2>
 <ul>
   <li><strong>Tik op de cirkel</strong> om een taak af te vinken. Hij verdwijnt meteen uit alle widgets. De cirkel en de regel zijn minstens 48 punten groot, het kleinste tikvlak dat Android aanraadt.</li>
   <li><strong>Tik op de titel</strong> om de taak in de app te openen.</li>
   <li><strong>Tik op +</strong> om het <a href="#klein-venster">kleine venster Taak toevoegen</a> te openen. In Vandaag staat de knop <em>Vandaag</em> al aan, in een project komt de taak in dat project, in de andere lijsten in het project dat je de vorige keer koos.</li>
-  <li><strong>Tik op de kop</strong> om de app te openen.</li>
+  <li><strong>Tik op het beeldmerk</strong> om de app te openen en op <strong>de titel met het pijltje</strong> om een ander overzicht te kiezen. <strong>Herplannen</strong>, naast <em>Over tijd</em>, opent Vandaag in de app, waar je alle taken die te laat zijn in één keer naar een andere dag zet.</li>
 </ul>
 
 <h3>Afvinken zonder internet</h3>
@@ -106,6 +106,17 @@ description: De widgets van de Tickory-app voor Android: Vandaag, Project of lij
   <li>direct na het afvinken in een widget.</li>
 </ul>
 <p>Na middernacht tekenen de widgets zich opnieuw, ook zonder verbinding, zodat <em>Vandaag</em> en <em>te laat</em> kloppen. Dat gebeurt met één onnauwkeurig alarm per dag, dat Android mag uitstellen; het kan dus een paar minuten later zijn.</p>
+
+<h2 id="instellingen">Instellingen van de widget</h2>
+<p>Houd een lijstwidget ingedrukt en open de instellingen (Android 9 en nieuwer), of ze openen bij het plaatsen. Net als in de Todoist-app stel je in:</p>
+<ul>
+  <li>een <strong>voorgestelde stijl</strong>: Aangepast, Standaard, Compact, Transparant donker (donker, 70% ondoorzichtig) of Transparant wit (licht, helemaal doorzichtig);</li>
+  <li>het <strong>thema</strong>, de kleur van de balk en de knoppen: Dynamische kleur (de kleuren van je telefoon), Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos of Goud;</li>
+  <li>de <strong>weergave</strong>: automatisch (zoals de telefoon, op het moment dat de widget wordt getekend), licht of donker;</li>
+  <li>de <strong>lettergrootte</strong> (klein, normaal, groot) en de <strong>ondoorzichtigheid</strong> van de achtergrond (0 tot 100), en de <strong>compacte modus</strong> (de datum op dezelfde regel als de titel);</li>
+  <li><strong>wat hij toont</strong>, onder de kopjes Standaard weergaven, Projecten, Labels en Filters: de Inbox, Vandaag, Aankomend, een project, een label, een van de vaste filters (Aan mij toegewezen, Aan anderen toegewezen, Prioriteit 1 tot 4, Bekijk alles, Geen deadline) of een van je opgeslagen filters.</li>
+</ul>
+<p>Bovenaan zie je een voorbeeld dat elke keuze volgt. <strong>Productiviteit</strong> en <strong>Snelle acties</strong> hebben een eigen instellingenscherm met het thema, de weergave en de ondoorzichtigheid (bij Productiviteit ook wat een tik op de widget doet: Productiviteit of de startpagina openen).</p>
 
 <h2>Uiterlijk</h2>
 <ul>

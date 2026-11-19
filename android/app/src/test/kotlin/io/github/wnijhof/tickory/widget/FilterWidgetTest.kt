@@ -63,12 +63,12 @@ class FilterWidgetTest : WidgetTestBase() {
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, Intent(app, WidgetConfigActivity::class.java).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
         val choices = (list.adapter as android.widget.HeaderViewListAdapter).wrappedAdapter
-        val labels = (0 until choices.count).map { (choices.getView(it, null, list) as TextView).text.toString() }
+        val labels = (0 until choices.count).map { choices.getView(it, null, list).findViewById<TextView>(R.id.choice_label).text.toString() }
         assertEquals(
-            listOf("Vandaag", "Aankomend", "Inbox", "Werk", "Dringend (filter)", "Vandaag en werk (filter)", "Donderdag (filter)", "Oud project (filter)"),
+            listOf("Vandaag", "Aankomend", "Inbox", "Werk", "Aan mij toegewezen", "Aan anderen toegewezen", "Prioriteit 1", "Prioriteit 2", "Prioriteit 3", "Prioriteit 4", "Bekijk alles", "Geen deadline", "Dringend", "Vandaag en werk", "Donderdag", "Oud project"),
             labels,
         )
-        list.performItemClick(null, 4 + list.headerViewsCount, 4) // kiezen, en dan Opslaan
+        list.performItemClick(null, 12 + list.headerViewsCount, 12) // het filter Dringend; kiezen, en dan Opslaan
         activity.findViewById<View>(R.id.config_save).performClick()
         assertEquals("filter:f-dringend", WidgetConfigStore.get(app, id))
         assertEquals("Dringend", text(view(id), R.id.title))
@@ -122,6 +122,7 @@ class FilterWidgetTest : WidgetTestBase() {
         signIn(withData = data.copy(filters = listOf(WidgetFilter("f-leeg", "Leeg", "p2", "a0"))))
         val id = place()
         choose(id, "filter:f-leeg")
-        assertEquals("Niets in dit filter", text(view(id), R.id.message))
+        assertEquals(View.VISIBLE, view(id).findViewById<View>(R.id.empty_state).visibility)
+        assertEquals("Geen taken", text(view(id), R.id.empty_title))
     }
 }

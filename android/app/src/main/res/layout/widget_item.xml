@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Een taak in een lijstwidget: links de cirkel om af te vinken (48dp), rechts de titel; tikken op de titel opent de taak. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<!--
+  Een taak in een lijstwidget, zoals in de takenlijst van Todoist: links de cirkel om af te vinken (in de kleur van de prioriteit), de titel,
+  eronder de eigenschappen (subtaken, datum met herhaling, deadline, herinnering, labels) en rechts het project. 
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -17,9 +19,9 @@
         android:layout_height="@dimen/widget_row_min"
         android:background="@drawable/widget_ripple"
         android:importantForAccessibility="yes"
-        tools:ignore="ContentDescription"
         android:scaleType="center"
-        android:src="@drawable/widget_check_p4" />
+        android:src="@drawable/widget_check_p4"
+        tools:ignore="ContentDescription" />
 
     <LinearLayout
         android:id="@+id/text_area"
@@ -30,7 +32,7 @@
         android:gravity="center_vertical"
         android:minHeight="@dimen/widget_row_min"
         android:orientation="vertical"
-        android:paddingStart="4dp"
+        android:paddingStart="2dp"
         android:paddingEnd="12dp">
 
         <TextView
@@ -46,25 +48,101 @@
             android:id="@+id/item_line2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/icon_subtasks"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_subtasks" />
+
+            <TextView
+                android:id="@+id/item_subtasks"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="8dp"
+                android:maxLines="1"
+                android:textColor="@color/widget_text_soft"
+                android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/icon_due"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_calendar" />
 
             <TextView
                 android:id="@+id/item_due"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
                 android:maxLines="1"
                 android:textColor="@color/widget_text_soft"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/icon_recurring"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="3dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_recurring" />
+
+            <ImageView
+                android:id="@+id/icon_deadline"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="8dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_deadline" />
+
+            <ImageView
+                android:id="@+id/icon_reminder"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="8dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_reminder" />
 
             <TextView
-                android:id="@+id/item_meta"
+                android:id="@+id/item_labels"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_text_soft"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
+
+            <ImageView
+                android:id="@+id/icon_project"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="6dp"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_attr_hash" />
+
+            <TextView
+                android:id="@+id/item_project"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:maxWidth="84dp"
+                android:textColor="@color/widget_text_soft"
+                android:textSize="11sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

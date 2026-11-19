@@ -1,8 +1,6 @@
 package io.github.wnijhof.tickory.core
 
-import kotlin.math.abs
-
-/** Het thema van één widget: het thema van het toestel (met de kleuren van Android 12 en nieuwer), altijd licht of altijd donker. */
+/** De weergave van een widget: zoals het toestel (automatisch), altijd licht of altijd donker. */
 enum class WidgetTheme(val key: String) {
     SYSTEM("system"),
     LIGHT("light"),
@@ -16,22 +14,22 @@ enum class WidgetTheme(val key: String) {
 }
 
 /**
- * De instellingen van één lijstwidget, zoals in de widget van Todoist: het [theme], de [compact]e weergave (de datum staat rechts op
- * dezelfde regel als de titel, zonder tweede regel) en de [opacity] van de achtergrond (100 = dicht, 0 = helemaal doorzichtig).
+ * De instellingen van één lijstwidget, zoals in de widget van Todoist: het [accent] (het thema met kleur), de [theme] (de weergave:
+ * automatisch, licht of donker), de [font]grootte, de [compact]e weergave (de datum staat rechts op dezelfde regel als de titel, zonder
+ * tweede regel) en de [opacity] van de achtergrond (100 = dicht, 0 = helemaal doorzichtig, elke stap van 1).
  */
 data class WidgetOptions(
     val theme: WidgetTheme = WidgetTheme.SYSTEM,
     val compact: Boolean = false,
     val opacity: Int = 100,
+    val accent: WidgetAccent = WidgetAccent.DYNAMIC,
+    val font: WidgetFont = WidgetFont.NORMAL,
 ) {
     /** De doorzichtigheid als waarde voor `setImageAlpha` (0 … 255). */
     val alpha: Int get() = opacity.coerceIn(0, 100) * 255 / 100
 
     companion object {
-        /** De keuzes voor de achtergrond, van dicht naar doorzichtig. */
-        val OPACITIES = listOf(100, 75, 50, 25, 0)
-
-        /** De dichtstbijzijnde keuze; iets onzinnigs wordt 100. */
-        fun normalizeOpacity(value: Int): Int = if (value !in 0..100) 100 else OPACITIES.minByOrNull { abs(it - value) } ?: 100
+        /** Een waarde buiten 0 tot en met 100 is 100 (een kapotte of onbekende waarde laat de widget gewoon dicht). */
+        fun normalizeOpacity(value: Int): Int = if (value !in 0..100) 100 else value
     }
 }

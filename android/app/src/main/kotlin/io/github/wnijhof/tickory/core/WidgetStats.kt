@@ -11,6 +11,7 @@ import java.time.LocalDate
  *
  * @param perDay datum 'YYYY-MM-DD' naar het aantal afvinkingen (alleen dagen met minstens één)
  * @param daysOff vrije dagen, ISO: 1 = maandag … 7 = zondag
+ * @param vacations vakantieperiodes (`settings.general.vacations`): een gemiste dag erin breekt de reeks niet; `to` null = loopt nog
  * @param windowDays hoeveel dagen terug de gegevens gaan; een reeks kan niet langer lijken dan dit
  */
 data class WidgetStats(
@@ -20,7 +21,15 @@ data class WidgetStats(
     val goalWeekly: Int,
     val daysOff: List<Int>,
     val windowDays: Int,
+    val vacations: List<Vacation> = emptyList(),
 ) {
+    /** Een vakantie: van [from] tot en met [to] (null: loopt nog). */
+    data class Vacation(val from: LocalDate, val to: LocalDate?) {
+        operator fun contains(day: LocalDate): Boolean = !day.isBefore(from) && (to == null || !day.isAfter(to))
+    }
+
+    private fun onVacation(day: LocalDate): Boolean = vacations.any { day in it }
+
     fun doneOn(day: LocalDate): Int = perDay[day.toString()] ?: 0
 
     /** Vandaag afgevinkt. */
@@ -45,7 +54,7 @@ data class WidgetStats(
         while (!day.isAfter(today)) {
             when {
                 doneOn(day) >= goalDaily -> run += 1
-                day != today && day.dayOfWeek.value !in daysOff -> run = 0
+                day != today && day.dayOfWeek.value !in daysOff && !onVacation(day) -> run = 0
             }
             day = day.plusDays(1)
         }
@@ -69,6 +78,7 @@ object WidgetStatsCodec {
         mapOf(
             "v" to VERSION, "account" to s.accountId, "daily" to s.goalDaily.toLong(), "weekly" to s.goalWeekly.toLong(),
             "off" to s.daysOff.map { it.toLong() }, "window" to s.windowDays.toLong(),
+            "vacations" to s.vacations.map { listOf(it.from.toString(), it.to?.toString()) },
             "perDay" to s.perDay.mapValues { it.value.toLong() },
         ),
     )
@@ -81,9 +91,25 @@ object WidgetStatsCodec {
         val off = root.list("off")?.mapNotNull { (it as? Number)?.toInt() } ?: WidgetStats.DEFAULT_DAYS_OFF
         return WidgetStats(
             account, perDay, root.whole("daily")?.toInt() ?: WidgetStats.DEFAULT_DAILY, root.whole("weekly")?.toInt() ?: WidgetStats.DEFAULT_WEEKLY,
-            off, root.whole("window")?.toInt() ?: 60,
+            off, root.whole("window")?.toInt() ?: 60, root.list("vacations")?.mapNotNull { vacationOf(it) } ?: emptyList(),
         )
     }
+
+    private fun vacationOf(raw: Any?): WidgetStats.Vacation? {
+        val pair = (raw as? List<*>)?.takeIf { it.size == 2 } ?: return null
+        val from = runCatching { LocalDate.parse(pair[0] as? String) }.getOrNull() ?: return null
+        val to = (pair[1] as? String)?.let { runCatching { LocalDate.parse(it) }.getOrNull() ?: return null }
+        return WidgetStats.Vacation(from, to)
+    }
+
+    /** De vakanties uit `settings.general.vacations`; een ongeldige periode telt niet. */
+    fun vacationsOf(settings: Map<String, Any?>?): List<WidgetStats.Vacation> =
+        (settings?.let { Json.asObject(it["general"]) }?.list("vacations") ?: emptyList()).mapNotNull { entry ->
+            val o = Json.asObject(entry) ?: return@mapNotNull null
+            val from = runCatching { LocalDate.parse(o.text("from")) }.getOrNull() ?: return@mapNotNull null
+            val to = o.text("to")?.let { runCatching { LocalDate.parse(it) }.getOrNull() ?: return@mapNotNull null }
+            WidgetStats.Vacation(from, to)
+        }
 
     /**
      * Uit de antwoorden van `POST /sync` met alleen `settings` (de doelen, `me.id`) en `GET /stats` (`per_day`).
@@ -104,7 +130,7 @@ object WidgetStatsCodec {
         }?.toMap() ?: return null
         return WidgetStats(
             account, perDay, goal("goal_daily", WidgetStats.MAX_DAILY, WidgetStats.DEFAULT_DAILY), goal("goal_weekly", WidgetStats.MAX_WEEKLY, WidgetStats.DEFAULT_WEEKLY),
-            off, stats.whole("days")?.toInt() ?: 60,
+            off, stats.whole("days")?.toInt() ?: 60, vacationsOf(settings),
         )
     }
 }

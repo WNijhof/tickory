@@ -73,6 +73,11 @@ data class WidgetSnapshot(
     val users: List<WidgetUser> = emptyList(),
     /** Je eigen volgorde in Vandaag (`settings.day_order`, zie shared/dayOrder.js); leeg als Vandaag anders gesorteerd is. */
     val dayOrder: List<String> = emptyList(),
+    /** Hoe lang een herinnering wacht na de eerste uitstelknop (`settings.general.snooze_minutes`, zie shared/general.js); standaard 10. */
+    val snoozeMinutes: Int = WidgetParser.DEFAULT_SNOOZE_MINUTES,
+    /** Het ochtendoverzicht en de avondreview (`settings.general.morning_overview` en `evening_review`, "UU:MM"); null: uit. */
+    val morningOverview: String? = null,
+    val eveningReview: String? = null,
 ) {
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
@@ -91,6 +96,18 @@ object WidgetParser {
 
     /** Zoveel taken onthoudt je eigen volgorde in Vandaag hooguit (MAX_DAY_ORDER in shared/dayOrder.js). */
     const val MAX_DAY_ORDER = 500
+
+    /** De duur van uitstel in minuten (SNOOZE_MINUTES in shared/general.js) en de standaard. */
+    val SNOOZE_CHOICES = setOf(5, 10, 15, 30, 60, 360, 720, 1440)
+    const val DEFAULT_SNOOZE_MINUTES = 10
+
+    /** De uitstelduur uit je instellingen; een ontbrekende of onbekende waarde is de standaard. */
+    fun snoozeMinutesOf(raw: List<Any?>?, accountId: String): Int {
+        val mine = raw?.mapNotNull { Json.asObject(it) }?.firstOrNull { o ->
+            !o.flag("is_deleted") && (o.text("owner_id") ?: accountId) == accountId
+        } ?: return DEFAULT_SNOOZE_MINUTES
+        return mine.obj("general")?.whole("snooze_minutes")?.toInt()?.takeIf { it in SNOOZE_CHOICES } ?: DEFAULT_SNOOZE_MINUTES
+    }
 
     /**
      * Je eigen volgorde in Vandaag uit je instellingen, zoals de web-app hem gebruikt: alleen zolang Vandaag op de standaardsortering
@@ -223,7 +240,9 @@ object WidgetParser {
             WidgetUser(id, o.text("name") ?: "", o.text("username") ?: "")
         }.take(MAX_USERS)
         val dayOrder = dayOrderOf(root.list("settings"), accountId)
-        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users, dayOrder)
+        val snooze = snoozeMinutesOf(root.list("settings"), accountId)
+        val (morning, evening) = DailyOverview.timesOf(root.list("settings"), accountId)
+        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users, dayOrder, snooze, morning, evening)
     }
 }
 
@@ -255,6 +274,8 @@ object WidgetCodec {
             "filters" to s.filters.map { mapOf("id" to it.id, "name" to it.name, "query" to it.query, "order" to it.orderKey) },
             "users" to s.users.map { mapOf("id" to it.id, "name" to it.name, "username" to it.username) },
             "dayOrder" to s.dayOrder,
+            "snooze" to s.snoozeMinutes.toLong(),
+            "morning" to s.morningOverview, "evening" to s.eveningReview,
         ),
     )
 
@@ -300,6 +321,10 @@ object WidgetCodec {
         val users = objects("users").mapNotNull { o -> WidgetUser(o.text("id")?.takeIf { Ids.isSafeId(it) } ?: return@mapNotNull null, o.text("name") ?: "", o.text("username") ?: "") }
         // bewaard door een oudere versie: zonder "dayOrder", dan de gewone volgorde (tot de volgende verversing)
         val dayOrder = root.list("dayOrder")?.mapNotNull { (it as? String)?.takeIf { id -> Ids.isSafeId(id) } }?.distinct()?.take(WidgetParser.MAX_DAY_ORDER) ?: emptyList()
-        return WidgetSnapshot(account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users, dayOrder)
+        val snooze = root.whole("snooze")?.toInt()?.takeIf { it in WidgetParser.SNOOZE_CHOICES } ?: WidgetParser.DEFAULT_SNOOZE_MINUTES
+        return WidgetSnapshot(
+            account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users, dayOrder, snooze,
+            root.text("morning")?.takeIf { DailyOverview.validTime(it) }, root.text("evening")?.takeIf { DailyOverview.validTime(it) },
+        )
     }
 }

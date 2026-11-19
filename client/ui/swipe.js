@@ -7,7 +7,7 @@
 // (ui/dragdrop.js en ui/selection.js): die beginnen pas na een halve seconde stilhouden, vegen begint al bij een korte beweging.
 
 import { reschedule } from '../core/quickDates.js';
-import { swipeAction } from '../core/swipe.js';
+import { SWIPE_DEFAULTS, swipeAction, swipeActionFor } from '../core/swipe.js';
 import { formatDate, todayString } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { dateDialog } from './bulkDialogs.js';
@@ -20,10 +20,14 @@ const START = 14;
  * @param {{
  *   content: HTMLElement,
  *   store: import('../core/store.js').Store,
- *   handlers: { toggle: (task: object) => unknown, planTask: (task: object, changes: object, text: string) => Promise<unknown> },
+ *   handlers: { toggle: (task: object) => unknown, planTask: (task: object, changes: object, text: string) => Promise<unknown>, open: (task: object) => unknown, removeTask: (task: object) => unknown },
+ *   selection?: { select: (id: string) => void },
+ *   getPrefs?: () => { right: string, left: string },
  * }} options
  */
-export function installSwipe({ content, store, handlers }) {
+const ICON = { complete: 'check', schedule: 'calendar', select: 'selectAll', reminders: 'bell', delete: 'trash' };
+
+export function installSwipe({ content, store, handlers, selection = null, getPrefs = () => SWIPE_DEFAULTS }) {
   let s = null;
 
   const release = () => {
@@ -66,12 +70,14 @@ export function installSwipe({ content, store, handlers }) {
     if (!s.active) {
       if (Math.abs(dy) > 10 && Math.abs(dy) >= Math.abs(dx)) { s = null; return; } // scrollen
       if (Math.abs(dx) < START || Math.abs(dx) < 2 * Math.abs(dy)) return;
+      if (!swipeActionFor(dx, getPrefs())) { s = null; return; } // in deze richting doet vegen niets (Instellingen › Algemeen)
       s.active = true;
+      s.prefs = getPrefs();
       // de kleur en het pictogram komen onder de taak, in de lijst zelf (de taak heeft een eigen achtergrond en schuift erover)
       const parent = s.row.parentElement;
       parent.classList.add('swipe-host');
       s.under = h('div', { class: 'swipe-under', 'aria-hidden': 'true' },
-        h('span', { class: 'swipe-left' }, icon('check')), h('span', { class: 'swipe-right' }, icon('calendar')));
+        h('span', { class: 'swipe-left' }, icon(ICON[s.prefs.right] ?? 'check')), h('span', { class: 'swipe-right' }, icon(ICON[s.prefs.left] ?? 'calendar')));
       s.under.style.top = `${s.row.offsetTop}px`;
       s.under.style.height = `${s.row.offsetHeight}px`;
       parent.append(s.under);
@@ -82,16 +88,18 @@ export function installSwipe({ content, store, handlers }) {
     s.dx = dx;
     const width = s.row.offsetWidth;
     s.row.style.transform = `translateX(${Math.max(-width, Math.min(width, dx))}px)`;
-    const action = swipeAction(dx, width);
-    s.under.dataset.side = dx > 0 ? 'complete' : 'schedule';
+    const action = swipeAction(dx, width, s.prefs);
+    const dir = dx > 0 ? 'right' : 'left';
+    s.under.dataset.side = dir;
+    s.under.dataset.action = swipeActionFor(dx, s.prefs) ?? '';
     s.under.classList.toggle('swipe-armed', action !== null);
   });
 
   const finish = async (e) => {
     if (!s || e.pointerId !== s.id) return;
     if (!s.active) { s = null; return; }
-    const { row, task, dx } = s;
-    const action = e.type === 'pointerup' ? swipeAction(dx, row.offsetWidth) : null;
+    const { row, task, dx, prefs } = s;
+    const action = e.type === 'pointerup' ? swipeAction(dx, row.offsetWidth, prefs) : null;
     // een veeg is geen tik: de klik die erop volgt opent de taak niet
     window.addEventListener('click', (c) => { c.stopPropagation(); c.preventDefault(); }, { capture: true, once: true });
     setTimeout(() => window.dispatchEvent(new Event('swipe-done')), 0);
@@ -103,6 +111,9 @@ export function installSwipe({ content, store, handlers }) {
       return;
     }
     reset();
+    if (action === 'select') { selection?.select(task.id); return; }
+    if (action === 'reminders') { await handlers.open(task); return; } // het taakvenster heeft de herinneringen
+    if (action === 'delete') { await handlers.removeTask(task); return; }
     const today = todayString();
     const picked = await dateDialog({ today, hasDue: Boolean(task.due), count: 1, title: t('swipe.dateTitle', { name: task.content }) });
     if (!picked) return;

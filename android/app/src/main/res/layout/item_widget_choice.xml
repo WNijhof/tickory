@@ -1,15 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/choice_label"
+<!-- Een keuze in de lijst van een widget: eventueel met het kopje van het soort erboven (Standaard weergaven, Projecten, Labels, Filters). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:ellipsize="end"
-    android:gravity="center_vertical"
-    android:maxLines="2"
-    android:minHeight="48dp"
-    android:paddingStart="16dp"
-    android:paddingTop="8dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="8dp"
-    android:textColor="@color/text"
-    android:textSize="16sp" />
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/choice_section"
+        style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/choice_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:maxLines="2"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:textColor="@color/text"
+        android:textSize="16sp" />
+</LinearLayout>

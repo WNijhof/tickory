@@ -1147,9 +1147,11 @@ li.task.swipe-back { transition: transform 0.18s ease-out; }
   position: absolute; left: 0; right: 0; z-index: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
   color: #fff; background: var(--line); pointer-events: none;
 }
-.swipe-under[data-side="complete"] .swipe-right, .swipe-under[data-side="schedule"] .swipe-left { visibility: hidden; }
-.swipe-under.swipe-armed[data-side="complete"] { background: var(--ok, #2b9a45); }
-.swipe-under.swipe-armed[data-side="schedule"] { background: var(--accent); }
+.swipe-under[data-side="right"] .swipe-right, .swipe-under[data-side="left"] .swipe-left { visibility: hidden; }
+.swipe-under.swipe-armed[data-action="complete"] { background: var(--ok, #2b9a45); }
+.swipe-under.swipe-armed[data-action="schedule"], .swipe-under.swipe-armed[data-action="select"] { background: var(--accent); }
+.swipe-under.swipe-armed[data-action="reminders"] { background: #b86e00; }
+.swipe-under.swipe-armed[data-action="delete"] { background: var(--danger, #c0372c); }
 .swipe-under svg { width: 22px; height: 22px; }
 
 /* de beschrijving van een sectie onder de kop (render.js group) */

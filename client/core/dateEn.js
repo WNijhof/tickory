@@ -18,6 +18,7 @@
 // 14 november is dan vier dagen geleden, niet volgend jaar.
 
 import { isValidDate, isValidRecurrence } from '../../shared/recurrence.js';
+import { getDayPrefs } from '../../shared/dayPrefs.js';
 import { normalizeText } from '../../shared/text.js';
 import { firstOccurrence, localDate } from './dateNl.js';
 
@@ -114,7 +115,7 @@ function singleDate(s, today) {
   if (s === '' || s === 'today' || s === 'tod') return today;
   if (s === 'tomorrow' || s === 'tom' || s === 'tmrw' || s === 'tmr') return plusDays(today, 1);
   if (s === 'yesterday') return plusDays(today, -1);
-  if (s === 'next week') return nextWeekday(1, today);
+  if (s === 'next week') return nextWeekday(getDayPrefs().nextWeek, today);
   if (s === 'next month') return new Date(today.getFullYear(), today.getMonth() + 1, 1);
   let m = new RegExp(`^in\\s+(${NUM})\\s+(days?|weeks?|months?|years?)$`).exec(s);
   if (m) {

@@ -66,7 +66,18 @@
     <string name="notification_geo_leave">You have left %1$s</string>
     <string name="task_untitled">Untitled task</string>
     <string name="action_complete">Complete</string>
-    <string name="action_snooze">In 10 minutes</string>
+    <plurals name="action_snooze_minutes">
+        <item quantity="one">In %d minute</item>
+        <item quantity="other">In %d minutes</item>
+    </plurals>
+    <plurals name="action_snooze_hours">
+        <item quantity="one">In %d hour</item>
+        <item quantity="other">In %d hours</item>
+    </plurals>
+    <plurals name="action_snooze_days">
+        <item quantity="one">In %d day</item>
+        <item quantity="other">In %d days</item>
+    </plurals>
     <string name="action_snooze_hour">In 1 hour</string>
     <string name="complete_working">Completing…</string>
     <string name="complete_queued">No connection. The task will be completed as soon as there is a connection again.</string>
@@ -146,7 +157,7 @@
     <string name="widget_config_title">What should the widget show?</string>
     <string name="widget_settings_title">Widget settings</string>
     <string name="widget_settings_save">Save</string>
-    <string name="widget_theme">Theme</string>
+    <string name="widget_theme">Appearance</string>
     <string name="widget_theme_system">Same as the phone</string>
     <string name="widget_theme_light">Light</string>
     <string name="widget_theme_dark">Dark</string>
@@ -271,4 +282,62 @@
     <string name="shortcut_today_long">Open Today</string>
     <string name="shortcut_note_short">Note</string>
     <string name="shortcut_note_long">New note</string>
+    <string name="widget_open_app">Open Tickory</string>
+    <string name="widget_choose_overview">%1$s. Tap to choose another overview</string>
+    <string name="widget_empty_title">No tasks</string>
+    <string name="widget_empty_text">Want to add something?</string>
+    <string name="widget_overdue_header">Overdue</string>
+    <string name="widget_reschedule">Reschedule</string>
+    <string name="widget_more_tasks">Tap here to open Tickory and see more tasks</string>
+    <string name="widget_preset">Choose a suggested style</string>
+    <string name="widget_preset_custom">Custom</string>
+    <string name="widget_preset_standard">Default</string>
+    <string name="widget_preset_compact">Compact</string>
+    <string name="widget_preset_transparent_dark">Transparent dark</string>
+    <string name="widget_preset_transparent_light">Transparent white</string>
+    <string name="widget_accent">Theme</string>
+    <string name="widget_accent_dynamic">Dynamic color</string>
+    <string name="widget_accent_tomato">Tomato</string>
+    <string name="widget_accent_moonstone">Moonstone</string>
+    <string name="widget_accent_tangerine">Tangerine</string>
+    <string name="widget_accent_kale">Kale</string>
+    <string name="widget_accent_blueberry">Blueberry</string>
+    <string name="widget_accent_lavender">Lavender</string>
+    <string name="widget_accent_raspberry">Raspberry</string>
+    <string name="widget_accent_gold">Gold</string>
+    <string name="widget_font">Font size</string>
+    <string name="widget_font_small">Small</string>
+    <string name="widget_font_normal">Normal</string>
+    <string name="widget_font_large">Large</string>
+    <string name="widget_tap_action">Tapping the widget</string>
+    <string name="widget_tap_productivity">Open Productivity</string>
+    <string name="widget_tap_home">Open the home page</string>
+    <string name="widget_section_default">Default views</string>
+    <string name="widget_section_projects">Projects</string>
+    <string name="widget_section_labels">Labels</string>
+    <string name="widget_section_filters">Filters</string>
+    <string name="widget_title_label_fallback">Label</string>
+    <string name="widget_preset_me">Assigned to me</string>
+    <string name="widget_preset_others">Assigned to others</string>
+    <string name="widget_preset_p1">Priority 1</string>
+    <string name="widget_preset_p2">Priority 2</string>
+    <string name="widget_preset_p3">Priority 3</string>
+    <string name="widget_preset_p4">Priority 4</string>
+    <string name="widget_preset_all">View all</string>
+    <string name="widget_preset_nodeadline">No deadline</string>
+    <string name="widget_preview_project">Work</string>
+    <string name="channel_overview">Daily overview</string>
+    <string name="channel_overview_description">The morning overview and the evening review of your tasks</string>
+    <string name="overview_morning_title">Plan your day</string>
+    <string name="overview_morning_empty">Nothing planned for today</string>
+    <string name="overview_evening_title">Evening review</string>
+    <string name="overview_with_overdue">%1$s, %2$d overdue</string>
+    <plurals name="overview_today_count">
+        <item quantity="one">%d task today</item>
+        <item quantity="other">%d tasks today</item>
+    </plurals>
+    <plurals name="overview_left_count">
+        <item quantity="one">%d task left for today</item>
+        <item quantity="other">%d tasks left for today</item>
+    </plurals>
 </resources>

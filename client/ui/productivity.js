@@ -12,12 +12,12 @@
 import { DAYS_OFF_MAX, GOALS, STATS_MAX_DAYS, goalsOf } from '../../shared/stats.js';
 import { completionMark, createStatsFeed, summarize } from '../core/productivity.js';
 import { dayLabel, isoWeekday, weekdayNames } from '../core/calendar.js';
-import { addDays } from '../core/format.js';
+import { addDays, todayString } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
 import { generalOf } from '../../shared/general.js';
 import { getLocale, t } from '../core/i18n.js';
 import { timeAgo } from '../core/timeAgo.js';
-import { h } from './dom.js';
+import { h, toast } from './dom.js';
 import { icon } from './icons.js';
 import { viewHooks } from './render.js';
 import { barChart } from './charts.js';
@@ -72,15 +72,42 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   /** Instellingen › Algemeen › Productiviteit: uit = geen strook, geen cijfers ophalen, een scherm dat vraagt of je het aanzet. */
   const enabled = () => generalOf(settingsOf()).productivity;
   const setEnabled = (on) => actions.updateSettings({ general: { ...generalOf(settingsOf()), productivity: on } });
+  const saveGeneral = (changes) => actions.updateSettings({ general: { ...generalOf(settingsOf()), ...changes } });
+  /** Vakantiemodus aan of uit: een lopende periode ({ from, to: null }) erbij, of de lopende afsluiten. */
+  const setVacation = (on) => {
+    const list = generalOf(settingsOf()).vacations;
+    const today = todayString();
+    const last = list[list.length - 1];
+    if (on) {
+      if (last && last.to !== null && last.to >= today) last.to = null; // meteen weer aan: de periode loopt door
+      else if (!last || last.to !== null) list.push({ from: today, to: null });
+    } else if (last && last.to === null) {
+      last.to = last.from > today ? last.from : today;
+    }
+    return saveGeneral({ vacations: list.slice(-50) });
+  };
+  /** Doelen vieren (Instellingen › Productiviteit): een bericht zodra je het dagdoel of weekdoel haalt. */
+  const celebrating = () => enabled() && generalOf(settingsOf()).goal_celebrations;
   const visible = () => {
     if (!enabled()) return false;
     const r = getRoute();
     return r.type === 'productivity' || r.type === 'today' || (r.type === 'completed' && !r.id);
   };
+  // wat we de vorige keer zagen, om te merken dat een doel net gehaald is (de eerste keer is er niets om mee te vergelijken)
+  let seen = null;
+  const checkGoals = () => {
+    if (!celebrating()) { seen = null; return; }
+    const s = summarize(feed.state.data, { settings: settingsOf(), today: todayString() });
+    if (!s || s.stale) return;
+    const now = { day: s.today.date, week: s.week.start, dailyMet: s.today.met, weeklyMet: s.week.met };
+    if (seen && seen.day === now.day && !seen.dailyMet && now.dailyMet) toast(t('celebrate.daily', { count: s.today.count }), { kind: 'success' });
+    else if (seen && seen.week === now.week && !seen.weeklyMet && now.weeklyMet) toast(t('celebrate.weekly', { count: s.week.count }), { kind: 'success' });
+    seen = now;
+  };
   const feed = createStatsFeed({
     fetchStats: ({ tz }) => api.stats({ tz }),
     storage,
-    onChange: () => queueMicrotask(() => { if (visible()) handlers.refresh(); }),
+    onChange: () => queueMicrotask(() => { checkGoals(); if (visible()) handlers.refresh(); }),
   });
   let weeks = 12;
   try {
@@ -104,7 +131,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
     if (timer) return;
     timer = setTimeout(() => {
       timer = null;
-      if (!visible() || !store.me) return;
+      if (!(visible() || celebrating()) || !store.me) return;
       const wait = MIN_GAP_MS - (Date.now() - lastFetch);
       if (wait > 0) {
         schedule(wait);
@@ -117,7 +144,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
     // wie er is: zonder aangemelde gebruiker (afgemeld, of een ander account op komst) blijft er niets bewaard
     if (store.ready && !store.me) feed.forget();
     else if (store.me) feed.use(store.me.id);
-    if (enabled() && visible() && store.me && lastMark !== null && mark() !== lastMark) schedule(1500); // iets afgevinkt of heropend
+    if (enabled() && (visible() || celebrating()) && store.me && lastMark !== null && mark() !== lastMark) schedule(1500); // iets afgevinkt of heropend (ook buiten het overzicht, om een doel te vieren)
   };
   store.subscribe(follow);
   follow();
@@ -216,6 +243,8 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   const weekly = goalField('weekly', GOALS.weekly);
   const daysOffHint = h('p', { class: 'hint goal-hint', id: 'days-off-hint', 'aria-live': 'polite' });
 
+  const vacationOn = () => { const l = generalOf(settingsOf()).vacations; return l.length > 0 && l[l.length - 1].to === null; };
+
   function goalsSection(goals) {
     const locale = getLocale();
     for (const [field, value] of [[daily, goals.daily], [weekly, goals.weekly]]) {
@@ -252,7 +281,16 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
           h('input', { type: 'checkbox', checked: off.has(day), dataset: { fk: `day-off-${day}` }, onchange: (e) => toggle(day, e.target.checked) }),
           h('span', { 'aria-hidden': 'true' }, short[day - 1]), h('span', { class: 'sr-only' }, long[day - 1])))),
         h('p', { class: 'hint', id: 'days-off-help' }, t('productivity.daysOffHelp')),
-        daysOffHint));
+        daysOffHint),
+      h('fieldset', { class: 'days-off' },
+        h('legend', { class: 'goal-label' }, t('productivity.vacation')),
+        h('label', { class: 'check-row' },
+          h('input', { type: 'checkbox', checked: vacationOn(), dataset: { fk: 'vacation-mode' }, onchange: (e) => setVacation(e.target.checked) }), t('productivity.vacationOn')),
+        h('p', { class: 'hint' }, t('productivity.vacationHelp'))),
+      h('fieldset', { class: 'days-off' },
+        h('legend', { class: 'goal-label' }, t('productivity.celebrate')),
+        h('label', { class: 'check-row' },
+          h('input', { type: 'checkbox', checked: generalOf(settingsOf()).goal_celebrations, dataset: { fk: 'goal-celebrate' }, onchange: (e) => saveGeneral({ goal_celebrations: e.target.checked }) }), t('productivity.celebrateOn'))));
   }
 
   // ---------- het scherm ----------

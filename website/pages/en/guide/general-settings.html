@@ -20,5 +20,23 @@ description: Where the app opens, the first day of the week, 24 or 12-hour time,
 <h2><x-ui k="general.sidebar"></x-ui></h2>
 <p>If you do not use notes or labels, for example, you can take them out of the sidebar here. The parts themselves stay: you can still reach them through search or a link.</p>
 
+<h2 id="next-week"><x-ui k="general.nextWeek"></x-ui> and <x-ui k="general.weekend"></x-ui></h2>
+<p>Which day the date picker uses for <em>Next week</em> and <em>Weekend</em>: Monday and Saturday by default, but you can pick any weekday (a Friday weekend, a Sunday start of the week). Typing <code>next week</code> in quick add follows the same choice; the Dutch <code>volgende week</code> still means the coming Monday.</p>
+
+<h2 id="swipe"><x-ui k="general.swipe"></x-ui></h2>
+<p>On a touch screen you can swipe a task to the right or to the left. By default right completes it and left lets you choose a new date. For each direction you can choose <em>None</em>, <em>Select</em>, <em>Complete</em>, <em>Schedule</em>, <em>Reminders</em> or <em>Delete</em>. Completing and scheduling can be undone, and Delete asks first.</p>
+
+<h2 id="recurring"><x-ui k="general.recurring"></x-ui></h2>
+<p><em>Reset subtasks</em>: when you complete a recurring task, its completed subtasks open again for the next time (off by default).</p>
+
+<h2 id="snooze"><x-ui k="general.snooze"></x-ui></h2>
+<p>How long a reminder waits when you tap the snooze button in its notification: 5, 10, 15 or 30 minutes, 1, 6 or 12 hours, or a day (10 minutes by default). The button names the time. It applies to notifications from the server and to the first snooze button of the Android app.</p>
+
+<h2 id="overview"><x-ui k="general.overview"></x-ui></h2>
+<p>Switch on the <em>Morning overview</em> and the <em>Evening review</em> and choose a time. Every day at that time the Android app tells you how many tasks are due today (in the morning, with how many are overdue) or still left (in the evening; it stays quiet when everything is done). The notification only shows numbers, no task names.</p>
+
+<h2 id="sound"><x-ui k="general.sound"></x-ui></h2>
+<p>A short tone when you complete a task. Off by default.</p>
+
 <h2 id="bottom-bar"><x-ui k="general.bottomBar"></x-ui></h2>
 <p>On a phone there are three buttons and <em>Browse</em> at the bottom. By default they are Inbox, Today and Upcoming; here you choose three others from Inbox, Today, Upcoming, Notes, Notifications, Completed, Filters and Labels. Browse (with everything from the sidebar) is always to their right.</p>

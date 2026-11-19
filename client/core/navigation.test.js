@@ -9,7 +9,7 @@ import { MemoryAdapter, Store } from './store.js';
 import { SyncClient } from './syncClient.js';
 import { createActions } from './actions.js';
 import { archivedList, favoriteProjects, foldRows, isArchivedProject, navProjects, projectDescendantIds, projectList, subtaskCounts, subtasksOf } from './selectors.js';
-import { quickDates, reschedule } from './quickDates.js';
+import { quickDates, reschedule, setQuickDayPrefs } from './quickDates.js';
 
 function sample() {
   const v = emptyState();
@@ -192,4 +192,21 @@ test('reschedule: het tijdstip blijft, een herhaling blijft herhalen, de oude te
   assert.deepEqual(reschedule({ date: '2026-11-12T09:30', string: 'morgen om half 10', lang: 'nl' }, '2026-11-14'), { date: '2026-11-14T09:30' });
   const weekly = { date: '2026-11-13', string: 'elke vrijdag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [5] } };
   assert.deepEqual(reschedule(weekly, '2026-11-20'), { date: '2026-11-20', string: 'elke vrijdag', lang: 'nl', recurrence: { freq: 'weekly', byweekday: [5] } });
+});
+
+test('quickDates: volgende week en weekend volgen de gekozen weekdag (Instellingen › Algemeen)', () => {
+  try {
+    setQuickDayPrefs({ nextWeek: 7, weekend: 5 }); // volgende week = zondag, weekend = vrijdag
+    // donderdag 2026-11-12
+    assert.equal(quickDates('2026-11-12').weekend, '2026-11-13');
+    assert.equal(quickDates('2026-11-12').nextWeek, '2026-11-15');
+    assert.equal(quickDates('2026-11-13').weekend, '2026-11-13', 'op de dag zelf: vandaag');
+    assert.equal(quickDates('2026-11-15').nextWeek, '2026-11-22', 'op de dag zelf: over een week');
+    setQuickDayPrefs({ nextWeek: 99, weekend: 0 }); // onzin verandert niets
+    assert.equal(quickDates('2026-11-12').weekend, '2026-11-13');
+  } finally {
+    setQuickDayPrefs({ nextWeek: 1, weekend: 6 });
+  }
+  assert.equal(quickDates('2026-11-12').weekend, '2026-11-14');
+  assert.equal(quickDates('2026-11-12').nextWeek, '2026-11-16');
 });

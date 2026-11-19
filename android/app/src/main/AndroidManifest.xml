@@ -264,6 +264,11 @@
             android:name=".widget.WidgetTickReceiver"
             android:exported="false" />
 
+        <!-- Het ochtendoverzicht en de avondreview: het alarm van elke dag. -->
+        <receiver
+            android:name=".reminders.OverviewReceiver"
+            android:exported="false" />
+
         <!-- De tegel "Taak toevoegen" in de snelle instellingen. Alleen het systeem (BIND_QUICK_SETTINGS_TILE) mag hem binden. -->
         <service
             android:name=".AddTaskTileService"
@@ -362,6 +367,15 @@
             android:name=".widget.WidgetConfigActivity"
             android:exported="true"
             android:label="@string/widget_project_name"
+            android:theme="@style/Theme.Tickory">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".widget.WidgetStyleActivity"
+            android:exported="true"
+            android:label="@string/widget_settings_title"
             android:theme="@style/Theme.Tickory">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />

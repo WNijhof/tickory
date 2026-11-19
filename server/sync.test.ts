@@ -492,3 +492,30 @@ test('alle commandonamen zijn aanwezig', () => {
   }
   assert.equal(newId().length, 16);
 });
+
+test('Subtaken resetten (Instellingen › Algemeen): een terugkerende taak opent haar afgevinkte subtaken weer, anders blijven ze af', () => {
+  for (const reset of [false, true]) {
+    const db = mkdb();
+    const { P } = seed(db);
+    const user = firstUser(db).id;
+    if (reset) {
+      const s = cmd('settings_update', { id: `settings-${user}`, general: { reset_subtasks: true } });
+      ok(run(db, [s]), s);
+    }
+    const add = cmd('task_add', { id: 'rec-aaaaaaa11', project_id: P, content: 'Boodschappen', due: { date: '2026-11-13', recurrence: { freq: 'weekly', byweekday: [5] } } });
+    const k1 = cmd('task_add', { id: 'kid-aaaaaaa11', project_id: P, parent_id: 'rec-aaaaaaa11', content: 'Brood' });
+    const k2 = cmd('task_add', { id: 'kid-aaaaaaa22', project_id: P, parent_id: 'rec-aaaaaaa11', content: 'Melk' });
+    run(db, [add, k1, k2]);
+    const doneKid = cmd('task_complete', { id: 'kid-aaaaaaa11' });
+    ok(run(db, [doneKid]), doneKid);
+    const done = cmd('task_complete', { id: 'rec-aaaaaaa11' });
+    const res = run(db, [done]);
+    ok(res, done);
+    const all = rows(run(db, []), 'tasks');
+    const kid = all.find((t) => t.id === 'kid-aaaaaaa11')!;
+    assert.equal(all.find((t) => t.id === 'rec-aaaaaaa11')!.due.date, '2026-11-20');
+    assert.equal(kid.checked, !reset, reset ? 'de subtaak is weer open' : 'de subtaak blijft afgevinkt');
+    if (reset) assert.equal(kid.completed_at, null);
+    assert.equal(all.find((t) => t.id === 'kid-aaaaaaa22')!.checked, false);
+  }
+});

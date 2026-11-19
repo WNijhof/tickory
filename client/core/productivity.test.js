@@ -97,7 +97,7 @@ test('samenvatting: vandaag, deze week, reeksen, de laatste 7 dagen en 12 weken,
     '2026-11-09': 7, '2026-11-10': 5, '2026-11-11': 8, '2026-11-12': 3, '2026-11-13': 5, '2026-11-14': { p1: 1, p2: 2 }, // week 46: 31
   });
   const s = summarize(stats, { settings: null, today: '2026-11-14' });
-  assert.deepEqual(s.goals, { daily: 5, weekly: 25, daysOff: [6, 7] });
+  assert.deepEqual(s.goals, { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
   assert.equal(s.from, '2026-05-19');
   assert.equal(s.stale, false);
   assert.deepEqual(s.today, { date: '2026-11-14', count: 3, goal: 5, met: false, off: true });
@@ -249,4 +249,13 @@ test('de dag van het apparaat is de dag waarin de server telt, in elke tijdzone 
 test('dayCounts: een Map van datum naar aantal', () => {
   assert.deepEqual([...dayCounts(answer('2026-11-14', '2026-05-19', { '2026-11-13': 2, '2026-11-14': 1 }))], [['2026-11-13', 2], ['2026-11-14', 1]]);
   assert.deepEqual([...dayCounts(null)], []);
+});
+
+test('vakantie: een dag zonder gehaald doel in een vakantie breekt de reeks niet', () => {
+  // doel 2 per dag; woensdag 2026-07-08 gemist, in een vakantie van 6 tot en met 10 juli
+  const counts = new Map([['2026-07-06', 2], ['2026-07-07', 2], ['2026-07-09', 2], ['2026-07-10', 2]]);
+  const base = { from: '2026-07-06', today: '2026-07-10', goal: 2, daysOff: [] };
+  assert.equal(dayStreaks(counts, base).current, 2, 'zonder vakantie breekt woensdag de reeks');
+  assert.equal(dayStreaks(counts, { ...base, vacations: [{ from: '2026-07-08', to: '2026-07-08' }] }).current, 4, 'met vakantie loopt de reeks door');
+  assert.equal(dayStreaks(counts, { ...base, vacations: [{ from: '2026-07-08', to: null }] }).current, 4, 'een lopende vakantie ook');
 });

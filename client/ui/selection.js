@@ -436,6 +436,10 @@ export function installSelection({ content, store, actions, handlers }) {
     announce,
     order,
     nameList,
+    /** Een taak kiezen (de veegactie Selecteren). */
+    select(id) {
+      if (taskOf(id)) sel.add(id);
+    },
     /** Op een telefoon: lang indrukken kiest de taak. */
     longPress(id) {
       if (!taskOf(id)) return;

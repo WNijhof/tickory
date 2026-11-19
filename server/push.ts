@@ -24,13 +24,13 @@ import { currentRev, fail, newId } from './rows.ts';
 import type { Row } from './rows.ts';
 import { handleSync, tokenFor } from './sync.ts';
 import { pushChoices } from '../shared/notifications.js';
+import { generalOf } from '../shared/general.js';
 import { canEditRole } from '../shared/roles.js';
 import { lastNoteReminder, noteHeadline } from '../shared/notes.js';
 import { noteRole } from './noteAccess.ts';
 
 /** Hoe lang na het tijdstip een herinnering nog verstuurd wordt (bijvoorbeeld na een herstart van de server). */
 export const LATE_WINDOW_MS = 60 * 60_000;
-const SNOOZE_MS = 10 * 60_000;
 const ACTION_VALID_S = 24 * 3600;
 const MAX_SUBSCRIPTIONS_PER_USER = 20;
 /** Hoeveel herinneringen één gebruiker per ronde krijgt, en hoe lang een ronde hooguit werk begint (de rest volgt de volgende ronde). */
@@ -194,6 +194,16 @@ export function createPush(cfg: PushConfig) {
     }
   }
 
+  /** Hoe lang een herinnering wacht na "Uitstellen": Instellingen › Algemeen (standaard 10 minuten). */
+  const snoozeMinutesOf = (userId: string): number => {
+    const row = db.prepare('SELECT general FROM user_settings WHERE owner_id = ?').get(userId) as { general: string | null } | undefined;
+    try {
+      return generalOf({ general: row?.general ? JSON.parse(row.general) : null }).snooze_minutes;
+    } catch {
+      return 10; // een kapotte waarde: de standaard
+    }
+  };
+
   const zoneOf = (userId: string): string => {
     const row = db.prepare('SELECT timezone FROM user_settings WHERE owner_id = ?').get(userId) as { timezone: string | null } | undefined;
     return row?.timezone || defaultZone;
@@ -216,7 +226,7 @@ export function createPush(cfg: PushConfig) {
     const command = data.a === 'complete'
       ? { type: 'task_complete', uuid, args: { id: data.t } }
       : data.a === 'snooze'
-        ? { type: 'reminder_add', uuid, args: { id: `sn${uuid.slice(5, 27)}`, task_id: data.t, type: 'absolute', due: { date: epochToFloating(now() + SNOOZE_MS, zoneOf(data.u)) } } }
+        ? { type: 'reminder_add', uuid, args: { id: `sn${uuid.slice(5, 27)}`, task_id: data.t, type: 'absolute', due: { date: epochToFloating(now() + snoozeMinutesOf(data.u as string) * 60_000, zoneOf(data.u)) } } }
         : null;
     if (!command) return { ok: false, userId: null, error: 'onbekende handeling' };
     try {
@@ -390,6 +400,7 @@ export function createPush(cfg: PushConfig) {
             v: 1, type: 'reminder', id: r.id, task_id: r.task_id, title: String(r.content).slice(0, 300), time: taskDue?.date ?? null, moment,
             // een lezer (shared/roles.js) kan de taak niet afvinken: dan geen knop "Voltooien", alleen "Over 10 minuten"
             complete: canEditRole(r.role as string | null) ? sign({ ...base, a: 'complete' }) : null, snooze: sign({ ...base, a: 'snooze' }),
+            snooze_minutes: snoozeMinutesOf(owner),
           };
           const topic = createHash('sha256').update(`${r.id as string}|${moment}`).digest('base64url').slice(0, 32);
           const results = await Promise.all(subscriptionsOf(owner).map((s) => deliver(s, payload, topic)));

@@ -32,6 +32,8 @@ import { openGeneralDialog } from './generalDialog.js';
 import { settingsMenuDialog } from './settingsMenu.js';
 import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
+import { setQuickDayPrefs } from '../core/quickDates.js';
+import { playDone } from '../core/sound.js';
 import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
@@ -232,6 +234,7 @@ function applyGeneral() {
     appliedSignature = signature;
     setClockFormat(general.time_format);
     setWeekStart(general.week_start);
+    setQuickDayPrefs({ nextWeek: general.next_week, weekend: general.weekend });
     document.body.dataset.hideNav = general.sidebar_hidden.join(' ');
     invalidate();
   }
@@ -312,6 +315,7 @@ const handlers = {
     if (!canEditProject(store.view, task.project_id, store.userId)) return handlers.readOnlyNotice(task);
     if (task.checked) return actions.track(t('task.completed'), () => actions.uncompleteTask(task.id));
     const { entry } = await actions.track(t('task.completed'), () => actions.completeTask(task.id));
+    if (generalOf(mySettings(store.view, store.userId)).completion_sound) playDone(); // Instellingen › Algemeen › Geluid
     if (task.due?.recurrence) {
       const next = store.view.tasks.get(task.id);
       return undoToast(next?.due ? t('task.nextTime', { date: formatDue({ date: next.due.date }, todayString()) }) : t('task.completed'), entry);
@@ -1028,7 +1032,10 @@ async function boot() {
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
-  installSwipe({ content: $('content'), store, handlers }); // vegen op een aanraakscherm: afvinken of een datum (ui/swipe.js)
+  installSwipe({
+    content: $('content'), store, handlers, selection,
+    getPrefs: () => { const g = generalOf(mySettings(store.view, store.userId)); return { right: g.swipe_right, left: g.swipe_left }; },
+  }); // vegen op een aanraakscherm: standaard afvinken of een datum, in te stellen (ui/swipe.js)
   installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
   // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
   productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });

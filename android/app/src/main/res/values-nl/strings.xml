@@ -67,7 +67,18 @@
     <string name="notification_geo_leave">Je bent vertrokken bij %1$s</string>
     <string name="task_untitled">Taak zonder titel</string>
     <string name="action_complete">Voltooien</string>
-    <string name="action_snooze">Over 10 minuten</string>
+    <plurals name="action_snooze_minutes">
+        <item quantity="one">Over %d minuut</item>
+        <item quantity="other">Over %d minuten</item>
+    </plurals>
+    <plurals name="action_snooze_hours">
+        <item quantity="one">Over %d uur</item>
+        <item quantity="other">Over %d uur</item>
+    </plurals>
+    <plurals name="action_snooze_days">
+        <item quantity="one">Over %d dag</item>
+        <item quantity="other">Over %d dagen</item>
+    </plurals>
     <string name="action_snooze_hour">Over 1 uur</string>
     <string name="complete_working">Bezig met voltooien…</string>
     <string name="complete_queued">Geen verbinding. De taak wordt voltooid zodra er weer verbinding is.</string>
@@ -147,7 +158,7 @@
     <string name="widget_config_title">Wat moet de widget tonen?</string>
     <string name="widget_settings_title">Widget-instellingen</string>
     <string name="widget_settings_save">Opslaan</string>
-    <string name="widget_theme">Thema</string>
+    <string name="widget_theme">Weergave</string>
     <string name="widget_theme_system">Zoals de telefoon</string>
     <string name="widget_theme_light">Licht</string>
     <string name="widget_theme_dark">Donker</string>
@@ -272,4 +283,62 @@
     <string name="shortcut_today_long">Vandaag openen</string>
     <string name="shortcut_note_short">Notitie</string>
     <string name="shortcut_note_long">Nieuwe notitie</string>
+    <string name="widget_open_app">Tickory openen</string>
+    <string name="widget_choose_overview">%1$s. Tik om een ander overzicht te kiezen</string>
+    <string name="widget_empty_title">Geen taken</string>
+    <string name="widget_empty_text">Wil je iets toevoegen?</string>
+    <string name="widget_overdue_header">Over tijd</string>
+    <string name="widget_reschedule">Herplannen</string>
+    <string name="widget_more_tasks">Tik hier om Tickory te openen en meer taken te zien</string>
+    <string name="widget_preset">Kies een voorgestelde stijl</string>
+    <string name="widget_preset_custom">Aangepast</string>
+    <string name="widget_preset_standard">Standaard</string>
+    <string name="widget_preset_compact">Compact</string>
+    <string name="widget_preset_transparent_dark">Transparant donker</string>
+    <string name="widget_preset_transparent_light">Transparant wit</string>
+    <string name="widget_accent">Thema</string>
+    <string name="widget_accent_dynamic">Dynamische kleur</string>
+    <string name="widget_accent_tomato">Tomaat</string>
+    <string name="widget_accent_moonstone">Maansteen</string>
+    <string name="widget_accent_tangerine">Mandarijn</string>
+    <string name="widget_accent_kale">Kale</string>
+    <string name="widget_accent_blueberry">Bosbes</string>
+    <string name="widget_accent_lavender">Lavendel</string>
+    <string name="widget_accent_raspberry">Framboos</string>
+    <string name="widget_accent_gold">Goud</string>
+    <string name="widget_font">Lettergrootte</string>
+    <string name="widget_font_small">Klein</string>
+    <string name="widget_font_normal">Normaal</string>
+    <string name="widget_font_large">Groot</string>
+    <string name="widget_tap_action">Tikken op de widget</string>
+    <string name="widget_tap_productivity">Productiviteit openen</string>
+    <string name="widget_tap_home">De startpagina openen</string>
+    <string name="widget_section_default">Standaard weergaven</string>
+    <string name="widget_section_projects">Projecten</string>
+    <string name="widget_section_labels">Labels</string>
+    <string name="widget_section_filters">Filters</string>
+    <string name="widget_title_label_fallback">Label</string>
+    <string name="widget_preset_me">Aan mij toegewezen</string>
+    <string name="widget_preset_others">Aan anderen toegewezen</string>
+    <string name="widget_preset_p1">Prioriteit 1</string>
+    <string name="widget_preset_p2">Prioriteit 2</string>
+    <string name="widget_preset_p3">Prioriteit 3</string>
+    <string name="widget_preset_p4">Prioriteit 4</string>
+    <string name="widget_preset_all">Bekijk alles</string>
+    <string name="widget_preset_nodeadline">Geen deadline</string>
+    <string name="widget_preview_project">Werk</string>
+    <string name="channel_overview">Dagelijks overzicht</string>
+    <string name="channel_overview_description">Het ochtendoverzicht en de avondreview van je taken</string>
+    <string name="overview_morning_title">Plan je dag</string>
+    <string name="overview_morning_empty">Niets gepland voor vandaag</string>
+    <string name="overview_evening_title">Avondreview</string>
+    <string name="overview_with_overdue">%1$s, %2$d over tijd</string>
+    <plurals name="overview_today_count">
+        <item quantity="one">%d taak vandaag</item>
+        <item quantity="other">%d taken vandaag</item>
+    </plurals>
+    <plurals name="overview_left_count">
+        <item quantity="one">Nog %d taak voor vandaag</item>
+        <item quantity="other">Nog %d taken voor vandaag</item>
+    </plurals>
 </resources>

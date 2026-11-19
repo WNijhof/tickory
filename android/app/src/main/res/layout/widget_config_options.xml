@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- De instellingen van een lijstwidget, zoals in Todoist: voorgestelde stijl, thema (kleur), weergave, lettergrootte, ondoorzichtigheid, compact en wat hij toont. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:paddingBottom="8dp">
+
+    <!-- Het voorbeeld van de widget met de gekozen instellingen (WidgetPreview). -->
+    <FrameLayout
+        android:id="@+id/config_preview"
+        android:layout_width="match_parent"
+        android:layout_height="190dp"
+        android:layout_margin="16dp"
+        android:background="#33808080"
+        android:importantForAccessibility="no"
+        android:padding="12dp" />
 
     <TextView
         android:id="@+id/config_hint"
@@ -27,6 +38,34 @@
         android:minHeight="48dp"
         android:text="@string/widget_config_open_app"
         android:visibility="gone" />
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
+        android:text="@string/widget_preset" />
+
+    <Spinner
+        android:id="@+id/config_preset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/widget_preset"
+        android:minHeight="48dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp" />
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
+        android:text="@string/widget_accent" />
+
+    <Spinner
+        android:id="@+id/config_accent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/widget_accent"
+        android:minHeight="48dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp" />
 
     <TextView
         style="@style/WidgetConfigSection"
@@ -66,12 +105,52 @@
     <TextView
         style="@style/WidgetConfigSection"
         android:accessibilityHeading="true"
-        android:text="@string/widget_layout" />
+        android:text="@string/widget_font" />
+
+    <Spinner
+        android:id="@+id/config_font"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/widget_font"
+        android:minHeight="48dp"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp" />
+
+    <TextView
+        style="@style/WidgetConfigSection"
+        android:accessibilityHeading="true"
+        android:text="@string/widget_opacity" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <SeekBar
+            android:id="@+id/config_opacity"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:contentDescription="@string/widget_opacity"
+            android:max="100" />
+
+        <TextView
+            android:id="@+id/config_opacity_value"
+            android:layout_width="56dp"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:textColor="@color/text"
+            android:textSize="15sp" />
+    </LinearLayout>
 
     <Switch
         android:id="@+id/config_compact"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
         android:minHeight="48dp"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
@@ -88,20 +167,6 @@
         android:text="@string/widget_compact_hint"
         android:textColor="@color/text_soft"
         android:textSize="13sp" />
-
-    <TextView
-        style="@style/WidgetConfigSection"
-        android:accessibilityHeading="true"
-        android:text="@string/widget_opacity" />
-
-    <Spinner
-        android:id="@+id/config_opacity"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:contentDescription="@string/widget_opacity"
-        android:minHeight="48dp"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp" />
 
     <TextView
         android:id="@+id/config_source_label"

@@ -55,7 +55,23 @@ object WidgetModel {
         WidgetSource.Inbox -> content?.projectName ?: context.getString(R.string.widget_title_inbox)
         is WidgetSource.Project -> content?.projectName ?: context.getString(R.string.widget_title_project_fallback)
         is WidgetSource.Filter -> content?.projectName?.ifBlank { null } ?: context.getString(R.string.widget_title_filter_fallback)
+        is WidgetSource.Preset -> presetTitle(context, source.id)
+        is WidgetSource.Label -> content?.projectName?.ifBlank { null } ?: context.getString(R.string.widget_title_label_fallback)
     }
+
+    /** De naam van een vast filter, zoals in Todoist. */
+    fun presetTitle(context: Context, id: String): String = context.getString(
+        when (id) {
+            "me" -> R.string.widget_preset_me
+            "others" -> R.string.widget_preset_others
+            "p1" -> R.string.widget_preset_p1
+            "p2" -> R.string.widget_preset_p2
+            "p3" -> R.string.widget_preset_p3
+            "p4" -> R.string.widget_preset_p4
+            "all" -> R.string.widget_preset_all
+            else -> R.string.widget_preset_nodeadline
+        },
+    )
 
     /** Waar "+" in de widget een taak laat toevoegen: Vandaag met vandaag als datum, een project in dat project. */
     fun addTarget(source: WidgetSource, snapshot: WidgetSnapshot?): String? = when (source) {
@@ -64,5 +80,7 @@ object WidgetModel {
         WidgetSource.Inbox -> snapshot?.inboxId
         is WidgetSource.Project -> if (snapshot?.project(source.id) != null) source.id else null
         is WidgetSource.Filter -> null
+        is WidgetSource.Preset -> null
+        is WidgetSource.Label -> null
     }
 }

@@ -5,11 +5,17 @@
   values-night-v31. De prioriteitskleuren blijven vast: die betekenen iets (hetzelfde als in de web-app, client/app.css).
 -->
 <resources>
-    <color name="widget_bg">#FBFCFC</color>
-    <color name="widget_text">#1C1F23</color>
-    <color name="widget_text_soft">#5B6670</color>
+    <color name="widget_bg">#FFFFFF</color>
+    <color name="widget_toolbar">#FCFAF8</color>
+    <color name="widget_faint">#999999</color>
+    <color name="widget_divider">#EEEEEE</color>
+    <color name="widget_today">#058527</color>
+    <color name="widget_tomorrow">#AD6200</color>
+    <color name="widget_soon">#692EC2</color>
+    <color name="widget_text">#202020</color>
+    <color name="widget_text_soft">#666666</color>
     <color name="widget_accent">#C92E1D</color>
-    <color name="widget_overdue">#B42318</color>
+    <color name="widget_overdue">#C9372C</color>
     <color name="widget_ripple">#1F000000</color>
 
     <!-- Vast licht of vast donker, voor een widget waarvan het thema is gekozen (WidgetOptions.theme); los van het thema van het toestel. -->

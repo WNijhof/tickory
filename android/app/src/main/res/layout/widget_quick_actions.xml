@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Snelle acties: twee rijen van twee knoppen. Elke knop is een vlak met een pictogram; de naam staat in de beschrijving voor TalkBack. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- De achtergrond als eigen laag: kleur (thema) en doorzichtigheid zijn per widget in te stellen. -->
+    <ImageView
+        android:id="@+id/quick_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
     android:orientation="vertical"
     android:padding="10dp">
 
@@ -20,10 +32,19 @@
             android:layout_marginEnd="4dp"
             android:layout_marginBottom="4dp"
             android:layout_weight="1"
-            android:background="@drawable/widget_tile"
+            android:background="@drawable/widget_ripple"
             android:contentDescription="@string/widget_quick_today">
 
             <ImageView
+                android:id="@+id/quick_today_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_tile_bg" />
+
+            <ImageView
+                android:id="@+id/quick_today_icon"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center"
@@ -38,10 +59,19 @@
             android:layout_marginStart="4dp"
             android:layout_marginBottom="4dp"
             android:layout_weight="1"
-            android:background="@drawable/widget_tile"
+            android:background="@drawable/widget_ripple"
             android:contentDescription="@string/widget_quick_inbox">
 
             <ImageView
+                android:id="@+id/quick_inbox_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_tile_bg" />
+
+            <ImageView
+                android:id="@+id/quick_inbox_icon"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center"
@@ -63,10 +93,19 @@
             android:layout_marginTop="4dp"
             android:layout_marginEnd="4dp"
             android:layout_weight="1"
-            android:background="@drawable/widget_tile"
+            android:background="@drawable/widget_ripple"
             android:contentDescription="@string/widget_quick_note">
 
             <ImageView
+                android:id="@+id/quick_note_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_tile_bg" />
+
+            <ImageView
+                android:id="@+id/quick_note_icon"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center"
@@ -81,10 +120,19 @@
             android:layout_marginStart="4dp"
             android:layout_marginTop="4dp"
             android:layout_weight="1"
-            android:background="@drawable/widget_tile"
+            android:background="@drawable/widget_ripple"
             android:contentDescription="@string/widget_add_task">
 
             <ImageView
+                android:id="@+id/quick_add_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_tile_bg" />
+
+            <ImageView
+                android:id="@+id/quick_add_icon"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_gravity="center"
@@ -93,3 +141,4 @@
         </FrameLayout>
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>

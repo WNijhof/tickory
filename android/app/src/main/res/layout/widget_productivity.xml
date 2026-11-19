@@ -3,11 +3,24 @@
   De widget Productiviteit: drie rijen, elk met een pictogram, een getal en een naam met een voortgangsbalk (Dagelijks, Wekelijks
   en Reeks). Het hele vlak is één knop die het scherm Productiviteit in de app opent.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/prod_root"
     android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- De achtergrond als eigen laag: kleur (thema) en doorzichtigheid zijn per widget in te stellen. -->
+    <ImageView
+        android:id="@+id/prod_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
+
+<LinearLayout
+    android:id="@+id/prod_content"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
     android:gravity="center_vertical"
     android:orientation="vertical"
     android:paddingStart="16dp"
@@ -36,6 +49,7 @@
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:importantForAccessibility="no"
+            android:id="@+id/prod_daily_icon"
             android:src="@drawable/ic_widget_daily" />
 
         <TextView
@@ -58,6 +72,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/prod_daily_label"
                 android:text="@string/widget_prod_daily"
                 android:textColor="@color/widget_text_soft"
                 android:textSize="11sp"
@@ -86,6 +101,7 @@
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:importantForAccessibility="no"
+            android:id="@+id/prod_weekly_icon"
             android:src="@drawable/ic_widget_weekly" />
 
         <TextView
@@ -108,6 +124,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/prod_weekly_label"
                 android:text="@string/widget_prod_weekly"
                 android:textColor="@color/widget_text_soft"
                 android:textSize="11sp"
@@ -136,6 +153,7 @@
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:importantForAccessibility="no"
+            android:id="@+id/prod_streak_icon"
             android:src="@drawable/ic_widget_streak" />
 
         <TextView
@@ -158,6 +176,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:id="@+id/prod_streak_label"
                 android:text="@string/widget_prod_streak"
                 android:textColor="@color/widget_text_soft"
                 android:textSize="11sp"
@@ -174,3 +193,4 @@
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
+</FrameLayout>

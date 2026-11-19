@@ -1,24 +1,29 @@
 // De snelle datumkeuzes in het taakvenster en de lijst: vandaag, morgen, dit weekend, volgende week en geen datum.
 
+import { getDayPrefs, setDayPrefs } from '../../shared/dayPrefs.js';
 import { addDays } from './format.js';
 
 /** Weekdag van een datum 'YYYY-MM-DD': 0 = zondag … 6 = zaterdag (rekenen in UTC, zodat zomertijd niets uitmaakt). */
 const weekday = (date) => new Date(`${date}T00:00:00Z`).getUTCDay();
 
+/** Welke weekdag "Volgende week" en "Weekend" zijn (Instellingen › Algemeen); zie shared/dayPrefs.js. */
+export const setQuickDayPrefs = setDayPrefs;
+
 /**
  * De data achter de snelle keuzes, vanaf `today` ('YYYY-MM-DD'):
  * - vandaag en morgen spreken voor zich;
- * - dit weekend is de zaterdag van deze week (op zaterdag zelf: vandaag; op zondag: de zaterdag over zes dagen);
- * - volgende week is de eerstvolgende maandag (op maandag zelf: over een week).
+ * - dit weekend is de gekozen weekdag (standaard zaterdag; op die dag zelf: vandaag, anders de eerstvolgende);
+ * - volgende week is de gekozen weekdag (standaard maandag; de eerstvolgende, op die dag zelf over een week).
  * @returns {{ today: string, tomorrow: string, weekend: string, nextWeek: string }}
  */
 export function quickDates(today) {
-  const dow = weekday(today);
+  const iso = weekday(today) || 7; // 1 = maandag … 7 = zondag
+  const { nextWeek, weekend } = getDayPrefs();
   return {
     today,
     tomorrow: addDays(today, 1),
-    weekend: addDays(today, 6 - dow), // zaterdag: 0 dagen; zondag (dow 0): 6 dagen, dus de volgende zaterdag
-    nextWeek: addDays(today, ((1 - dow + 7) % 7) || 7),
+    weekend: addDays(today, (weekend - iso + 7) % 7), // op de dag zelf: vandaag
+    nextWeek: addDays(today, ((nextWeek - iso + 7) % 7) || 7),
   };
 }
 

@@ -20,6 +20,8 @@ import io.github.wnijhof.tickory.core.WidgetFixtures.project
 import io.github.wnijhof.tickory.core.WidgetFixtures.snapshot
 import io.github.wnijhof.tickory.core.WidgetFixtures.task
 import io.github.wnijhof.tickory.core.WidgetLabel
+import io.github.wnijhof.tickory.core.WidgetAccent
+import io.github.wnijhof.tickory.core.WidgetFont
 import io.github.wnijhof.tickory.core.WidgetOptions
 import io.github.wnijhof.tickory.core.WidgetTheme
 import io.github.wnijhof.tickory.core.WidgetRow
@@ -89,7 +91,7 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("vr 13 nov · 2 taken", text(v, R.id.subtitle))
         assertEquals(View.VISIBLE, v.findViewById<View>(R.id.list).visibility)
         assertEquals(View.GONE, v.findViewById<View>(R.id.message).visibility)
-        assertEquals("Vandaag, 2 taken", v.findViewById<View>(R.id.header_text).contentDescription)
+        assertEquals("Vandaag, 2 taken. Tik om een ander overzicht te kiezen", v.findViewById<View>(R.id.header_text).contentDescription)
         assertEquals("Taak toevoegen", v.findViewById<View>(R.id.add).contentDescription)
     }
 
@@ -110,10 +112,14 @@ class WidgetUiTest : WidgetTestBase() {
         WidgetConfigStore.set(app, projectWidget, "inbox")
         WidgetUpdater.updateAll(app)
 
-        assertEquals("Niets te doen vandaag", text(view(today), R.id.message))
-        assertEquals(View.GONE, view(today).findViewById<View>(R.id.list).visibility)
-        assertEquals("Niets gepland de komende twee weken", text(view(upcoming), R.id.message))
-        assertEquals("Geen open taken", text(view(projectWidget), R.id.message))
+        // zoals in Todoist: een pictogram met "Geen taken" en "Wil je iets toevoegen?"; een tik opent Taak toevoegen
+        for (w in listOf(today, upcoming, projectWidget)) {
+            assertEquals(View.VISIBLE, view(w).findViewById<View>(R.id.empty_state).visibility)
+            assertEquals("Geen taken", text(view(w), R.id.empty_title))
+            assertEquals("Wil je iets toevoegen?", text(view(w), R.id.empty_text))
+            assertEquals(View.GONE, view(w).findViewById<View>(R.id.list).visibility)
+            assertEquals(View.GONE, view(w).findViewById<View>(R.id.message).visibility)
+        }
         assertEquals("Inbox", text(view(projectWidget), R.id.title))
     }
 
@@ -183,33 +189,42 @@ class WidgetUiTest : WidgetTestBase() {
     // ---------- de formaten ----------
 
     @Test
-    fun `klein - geen ondertitel, het aantal naast de titel, geen tweede regel in de lijst`() {
+    fun `klein - alleen de titel in de balk`() {
         signIn(withData = data)
         val id = place(TodayWidgetProvider::class.java)
         size(id, 110, 110)
         WidgetUpdater.updateAll(app)
         val v = view(id)
-        assertEquals("Vandaag · 2", text(v, R.id.title))
+        assertEquals("Vandaag", text(v, R.id.title))
         assertEquals(View.GONE, v.findViewById<View>(R.id.subtitle).visibility)
-        assertEquals(View.GONE, rowView(factory(id), 0).findViewById<View>(R.id.item_line2).visibility)
+        assertEquals("klein houdt ook de tweede regel van een taak", View.VISIBLE, rowView(factory(id), 1).findViewById<View>(R.id.item_line2).visibility)
     }
 
     @Test
-    fun `middel en groot - ondertitel en tweede regel, groot met grotere letters`() {
+    fun `middel en groot - tweede regel, de lettergrootte komt uit de instelling en niet uit het formaat`() {
         signIn(withData = data)
         val id = place(TodayWidgetProvider::class.java)
         size(id, 250, 250)
         WidgetUpdater.updateAll(app)
         assertEquals("Vandaag", text(view(id), R.id.title))
-        val medium = rowView(factory(id), 0)
+        val medium = rowView(factory(id), 1) // na de kop "Over tijd"
         assertEquals(View.VISIBLE, medium.findViewById<View>(R.id.item_line2).visibility)
         val mediumSize = medium.findViewById<TextView>(R.id.item_title).textSize
 
         size(id, 320, 450)
         WidgetUpdater.updateAll(app)
-        val large = rowView(factory(id), 0)
-        assertTrue(large.findViewById<TextView>(R.id.item_title).textSize > mediumSize)
+        val large = rowView(factory(id), 1)
+        assertEquals("zoals in Todoist verandert het formaat de letters niet", mediumSize, large.findViewById<TextView>(R.id.item_title).textSize, 0.01f)
         assertTrue(view(id).findViewById<TextView>(R.id.title).textSize > 0)
+
+        // de instelling Lettergrootte doet dat wel: klein, normaal en groot
+        WidgetConfigStore.setOptions(app, id, WidgetOptions(font = WidgetFont.LARGE))
+        WidgetUpdater.updateAll(app)
+        val big = rowView(factory(id), 1).findViewById<TextView>(R.id.item_title).textSize
+        WidgetConfigStore.setOptions(app, id, WidgetOptions(font = WidgetFont.SMALL))
+        WidgetUpdater.updateAll(app)
+        val small = rowView(factory(id), 1).findViewById<TextView>(R.id.item_title).textSize
+        assertTrue("groot > normaal > klein", big > mediumSize && mediumSize > small)
     }
 
     @Test
@@ -220,7 +235,7 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("Vandaag", text(view(id), R.id.title))
         size(id, 100, 100)
         TodayWidgetProvider().onAppWidgetOptionsChanged(app, manager, id, manager.getAppWidgetOptions(id))
-        assertEquals("Vandaag · 2", text(view(id), R.id.title))
+        assertEquals("Vandaag", text(view(id), R.id.title))
     }
 
     // ---------- de regels ----------
@@ -231,22 +246,31 @@ class WidgetUiTest : WidgetTestBase() {
         val id = place(TodayWidgetProvider::class.java)
         WidgetUpdater.updateAll(app)
         val f = factory(id)
-        assertEquals(2, f.count)
+        assertEquals("kop Over tijd, een te late taak, de kop van vandaag en een taak van vandaag", 4, f.count)
 
-        // te laat komt eerst
-        val overdue = rowView(f, 0)
+        // zoals in Todoist: eerst "Over tijd" met de knop Herplannen
+        val overdueHeader = rowView(f, 0)
+        assertEquals("Over tijd", text(overdueHeader, R.id.header_label))
+        assertEquals(View.VISIBLE, overdueHeader.findViewById<View>(R.id.header_button).visibility)
+        assertEquals("Herplannen", text(overdueHeader, R.id.header_button))
+        val dayHeader = rowView(f, 2)
+        assertEquals(View.GONE, dayHeader.findViewById<View>(R.id.header_button).visibility)
+
+        val overdue = rowView(f, 1)
         assertEquals("Boodschappen", text(overdue, R.id.item_title))
-        assertEquals("gisteren · ", text(overdue, R.id.item_due)) // zonder project in de naam "Inbox"? het project staat erachter
-        assertEquals("Inbox", text(overdue, R.id.item_meta))
+        assertEquals("gisteren", text(overdue, R.id.item_due))
+        assertEquals("Inbox", text(overdue, R.id.item_project))
+        assertEquals(View.VISIBLE, overdue.findViewById<View>(R.id.item_line2).visibility)
         assertEquals(app.getColor(R.color.widget_overdue), overdue.findViewById<TextView>(R.id.item_due).currentTextColor)
         assertEquals("Voltooien: Boodschappen", overdue.findViewById<View>(R.id.check).contentDescription)
         assertEquals("Taak openen: Boodschappen", overdue.findViewById<View>(R.id.text_area).contentDescription)
 
-        val today = rowView(f, 1)
+        val today = rowView(f, 3)
         assertEquals("Tandarts bellen", text(today, R.id.item_title))
-        assertEquals("14:00 · ", text(today, R.id.item_due))
-        assertEquals("Werk · @bellen", text(today, R.id.item_meta))
-        assertEquals(app.getColor(R.color.widget_text_soft), today.findViewById<TextView>(R.id.item_due).currentTextColor)
+        assertEquals("14:00", text(today, R.id.item_due))
+        assertEquals("Werk", text(today, R.id.item_project))
+        assertEquals("@bellen", text(today, R.id.item_labels))
+        assertEquals("vandaag is groen, zoals in Todoist", app.getColor(R.color.widget_today), today.findViewById<TextView>(R.id.item_due).currentTextColor)
 
         // de cirkel heeft de kleur van de prioriteit
         assertNotNull(rowView(f, 1).findViewById<ImageView>(R.id.check).drawable)
@@ -300,18 +324,18 @@ class WidgetUiTest : WidgetTestBase() {
         val f = factory(id)
         assertEquals("Morgen", text(rowView(f, 0), R.id.header_label))
         assertEquals("Bakker", text(rowView(f, 1), R.id.item_title))
-        assertEquals("10:00 · ", text(rowView(f, 1), R.id.item_due))
+        assertEquals("10:00", text(rowView(f, 1), R.id.item_due))
         assertEquals("1 taak", text(view(id), R.id.subtitle))
         assertEquals(2, f.count)
     }
 
     @Test
-    fun `de lijst heeft stabiele id's en drie soorten regels (kop, gewoon, compact)`() {
+    fun `de lijst heeft stabiele id's en vier soorten regels (kop, gewoon, compact, meer taken)`() {
         signIn(withData = data)
         val id = place(UpcomingWidgetProvider::class.java)
         WidgetUpdater.updateAll(app)
         val f = factory(id)
-        assertEquals(3, f.viewTypeCount)
+        assertEquals(4, f.viewTypeCount)
         assertTrue(f.hasStableIds())
         assertEquals(f.getItemId(1), factory(id).getItemId(1))
         assertNull(f.loadingView)
@@ -347,11 +371,15 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `de kop opent de app`() {
+    fun `het beeldmerk opent de app en de titel de keuze van het overzicht`() {
         signIn(withData = data)
         val id = place(TodayWidgetProvider::class.java)
         WidgetUpdater.updateAll(app)
         view(id).findViewById<View>(R.id.header_text).performClick()
+        val choose = shadowOf(app).nextStartedActivity
+        assertEquals(WidgetConfigActivity::class.java.name, choose.component!!.className)
+        assertTrue(choose.getBooleanExtra(WidgetConfigActivity.EXTRA_CHOOSE_ONLY, false))
+        view(id).findViewById<View>(R.id.logo).performClick()
         assertEquals(MainActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
         // en de melding "Log in in de app" ook
         Session.signOut(app)
@@ -621,10 +649,10 @@ class WidgetUiTest : WidgetTestBase() {
         now = at("2026-11-14T00:05")
         WidgetUpdater.updateAll(app)
         val f = factory(id)
-        assertEquals(listOf("Vandaag", "Morgen"), (0 until f.count).map { text(rowView(f, it), R.id.item_title) })
-        assertEquals("gisteren · ", text(rowView(f, 0), R.id.item_due))
-        assertEquals(app.getColor(R.color.widget_overdue), rowView(f, 0).findViewById<TextView>(R.id.item_due).currentTextColor)
-        assertEquals("", text(rowView(f, 1), R.id.item_due))
+        assertEquals(listOf("Vandaag", "Morgen"), (0 until f.count).mapNotNull { rowView(f, it).findViewById<TextView>(R.id.item_title)?.text?.toString() })
+        assertEquals("gisteren", text(rowView(f, 1), R.id.item_due)) // rij 0 is de kop "Over tijd"
+        assertEquals(app.getColor(R.color.widget_overdue), rowView(f, 1).findViewById<TextView>(R.id.item_due).currentTextColor)
+        assertEquals("", text(rowView(f, 3), R.id.item_due))
     }
 
     // ---------- het configuratiescherm ----------
@@ -639,8 +667,11 @@ class WidgetUiTest : WidgetTestBase() {
 
         val list = activity.findViewById<ListView>(R.id.config_list)
         val choices = choicesOf(list)
-        val labels = (0 until choices.count).map { (choices.getView(it, null, list) as TextView).text.toString() }
-        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Werk"), labels)
+        val labels = (0 until choices.count).map { choices.getView(it, null, list).findViewById<TextView>(R.id.choice_label).text.toString() }
+        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Werk", "@bellen", "Aan mij toegewezen", "Aan anderen toegewezen", "Prioriteit 1", "Prioriteit 2", "Prioriteit 3", "Prioriteit 4", "Bekijk alles", "Geen deadline"), labels)
+        // de kopjes staan boven de eerste keuze van elk soort
+        val captions = (0 until choices.count).map { choices.getView(it, null, list).findViewById<TextView>(R.id.choice_section).let { c -> if (c.visibility == View.VISIBLE) c.text.toString() else "" } }
+        assertEquals(listOf("Standaard weergaven", "", "", "Projecten", "Labels", "Filters"), captions.take(6))
         assertEquals(View.GONE, activity.optionsView.findViewById<View>(R.id.config_hint).visibility)
 
         list.performItemClick(null, 3 + list.headerViewsCount, 3)
@@ -664,14 +695,16 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals(WidgetOptions(), WidgetConfigStore.options(app, id))
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         val options = activity.optionsView
-        assertEquals("Vandaag heeft geen keuze van wat hij toont", 0, choicesOf(activity.findViewById<ListView>(R.id.config_list)).count)
+        assertEquals("elke lijstwidget kiest zijn overzicht zelf", 13, choicesOf(activity.findViewById<ListView>(R.id.config_list)).count)
         options.findViewById<android.widget.RadioButton>(R.id.config_theme_dark).isChecked = true
         options.findViewById<android.widget.Switch>(R.id.config_compact).isChecked = true
-        options.findViewById<android.widget.Spinner>(R.id.config_opacity).setSelection(2) // 50%
+        options.findViewById<android.widget.SeekBar>(R.id.config_opacity).progress = 50
+        options.findViewById<android.widget.Spinner>(R.id.config_accent).setSelection(WidgetAccent.BLUEBERRY.ordinal)
+        options.findViewById<android.widget.Spinner>(R.id.config_font).setSelection(WidgetFont.LARGE.ordinal)
         activity.findViewById<View>(R.id.config_save).performClick()
 
         assertTrue(activity.isFinishing)
-        assertEquals(WidgetOptions(WidgetTheme.DARK, true, 50), WidgetConfigStore.options(app, id))
+        assertEquals(WidgetOptions(WidgetTheme.DARK, true, 50, WidgetAccent.BLUEBERRY, WidgetFont.LARGE), WidgetConfigStore.options(app, id))
         assertEquals("een andere widget blijft zoals hij was", WidgetOptions(), WidgetConfigStore.options(app, other))
         assertEquals("today", WidgetConfigStore.get(app, id))
         // de widget is opnieuw getekend met de gekozen doorzichtigheid
@@ -680,7 +713,9 @@ class WidgetUiTest : WidgetTestBase() {
         val again = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         assertTrue(again.optionsView.findViewById<android.widget.RadioButton>(R.id.config_theme_dark).isChecked)
         assertTrue(again.optionsView.findViewById<android.widget.Switch>(R.id.config_compact).isChecked)
-        assertEquals(2, again.optionsView.findViewById<android.widget.Spinner>(R.id.config_opacity).selectedItemPosition)
+        assertEquals(50, again.optionsView.findViewById<android.widget.SeekBar>(R.id.config_opacity).progress)
+        assertEquals(WidgetAccent.BLUEBERRY.ordinal, again.optionsView.findViewById<android.widget.Spinner>(R.id.config_accent).selectedItemPosition)
+        assertEquals(WidgetFont.LARGE.ordinal, again.optionsView.findViewById<android.widget.Spinner>(R.id.config_font).selectedItemPosition)
     }
 
     @Test
@@ -692,7 +727,8 @@ class WidgetUiTest : WidgetTestBase() {
         factory.onDataSetChanged()
         val row = (0 until factory.count).mapNotNull { factory.getViewAt(it) }.first { it.layoutId == R.layout.widget_item_compact }
         assertEquals(R.layout.widget_item_compact, row.layoutId)
-        assertEquals(3, factory.viewTypeCount)
+        assertEquals(4, factory.viewTypeCount)
+        assertEquals("compact: de datum staat op de regel zelf", "gisteren", row.let { it.apply(app, android.widget.FrameLayout(app)) }.findViewById<TextView>(R.id.item_due).text.toString())
     }
 
     @Test
@@ -725,8 +761,8 @@ class WidgetUiTest : WidgetTestBase() {
         val id = place(ProjectWidgetProvider::class.java)
         val activity = Robolectric.buildActivity(WidgetConfigActivity::class.java, configIntent(id)).setup().get()
         val list = activity.findViewById<ListView>(R.id.config_list)
-        val rows = (0 until choicesOf(list).count).map { choicesOf(list).getView(it, null, list) as TextView }
-        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Alfa", "Alfa-sub"), rows.map { it.text.toString() })
+        val rows = (0 until choicesOf(list).count).map { choicesOf(list).getView(it, null, list).findViewById<TextView>(R.id.choice_label) }
+        assertEquals(listOf("Vandaag", "Aankomend", "Inbox", "Alfa", "Alfa-sub"), rows.take(5).map { it.text.toString() })
         assertTrue(rows[4].paddingLeft > rows[3].paddingLeft)
         assertTrue("minstens 48dp hoog om te tikken", rows[3].minHeight >= (48 * app.resources.displayMetrics.density).toInt())
     }
@@ -848,10 +884,10 @@ class WidgetUiTest : WidgetTestBase() {
         assertEquals("Today", text(view(id), R.id.title))
         assertEquals("Fri 13 Nov · 2 tasks", text(view(id), R.id.subtitle))
         assertEquals("Add task", view(id).findViewById<View>(R.id.add).contentDescription)
-        val row = rowView(factory(id), 0)
+        val row = rowView(factory(id), 1)
         assertEquals("Complete: Boodschappen", row.findViewById<View>(R.id.check).contentDescription)
         assertEquals("Open task: Boodschappen", row.findViewById<View>(R.id.text_area).contentDescription)
-        assertEquals("yesterday · ", text(row, R.id.item_due))
+        assertEquals("yesterday", text(row, R.id.item_due))
         Session.signOut(app)
         assertEquals("Sign in via the app", text(view(id), R.id.message))
     }

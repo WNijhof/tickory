@@ -22,6 +22,8 @@ object WidgetIntents {
     const val EXTRA_KIND = "io.github.wnijhof.tickory.extra.WIDGET_KIND"
     const val KIND_COMPLETE = "complete"
     const val KIND_OPEN = "open"
+    const val KIND_VIEW = "view"
+    const val EXTRA_TARGET_VIEW = "io.github.wnijhof.tickory.extra.WIDGET_VIEW"
 
     private val IMMUTABLE = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
@@ -72,6 +74,9 @@ object WidgetIntents {
 
     /** Wat een regel aan het sjabloon toevoegt: wat er moet gebeuren ([KIND_COMPLETE] of [KIND_OPEN]) en voor welke taak. */
     fun fillIn(kind: String, taskId: String): Intent = Intent().putExtra(EXTRA_KIND, kind).putExtra(Notifications.EXTRA_TASK_ID, taskId)
+
+    /** Een tik op een kop of op "meer taken": de app op een vast overzicht ([view] = DeepLink.VIEW_*; null = gewoon de app). */
+    fun fillInView(view: String?): Intent = Intent().putExtra(EXTRA_KIND, KIND_VIEW).putExtra(EXTRA_TARGET_VIEW, view ?: "")
 
     /** Het kleine venster van een taak over het startscherm (TaskPopupActivity); daar kan hij worden afgevinkt of in de app geopend. */
     fun taskPopup(context: Context, taskId: String): Intent =

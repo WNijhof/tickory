@@ -476,3 +476,19 @@ test('een proefmelding gaat naar alle eigen apparaten en meldt wat niet lukte', 
   const after = await w.push.sendTest(w.alice.id);
   assert.deepEqual([after.sent, a.received().length, b.received().length], [1, 1, 1]);
 });
+
+test('de duur van uitstel komt uit Instellingen › Algemeen, en de melding vertelt hem', async () => {
+  const w = world();
+  const d = w.device(w.alice, 'telefoon');
+  const res = handleSync(w.db, { sync_token: '*', resource_types: ['settings'], commands: [{ type: 'settings_update', uuid: 'u-snooze', args: { id: `settings-${w.alice.id}`, general: { snooze_minutes: 30 } } }] }, w.alice.id);
+  assert.equal(res.sync_status['u-snooze'], 'ok');
+  w.taskWithReminder(w.alice, 'aaa1', '2026-12-01T09:00', 0);
+  w.state.clock = at('2026-12-01T08:00:00Z');
+  await w.push.tick();
+  const [m] = d.received();
+  assert.equal(m.snooze_minutes, 30, 'de melding noemt de duur, voor de tekst op de knop');
+  w.state.clock = at('2026-12-01T08:05:00Z');
+  assert.equal(w.push.handleAction(m.snooze).ok, true);
+  const reminders = (handleSync(w.db, {}, w.alice.id).reminders as Row[]).filter((r) => r.task_id === 'task-aaa1' && r.type === 'absolute');
+  assert.deepEqual(reminders.map((r) => r.due.date), ['2026-12-01T09:35'], 'een half uur later (08:05 UTC is 09:05 in Amsterdam)');
+});

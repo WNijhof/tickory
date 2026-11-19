@@ -10,13 +10,13 @@ import { DAYS_OFF_DEFAULT, GOALS, STATS_MAX_DAYS, dayIn, daysOffCheck, goalsOf, 
 const col = (name) => ENTITIES.settings.cols.find((c) => c.name === name);
 
 test('doelen: standaard 5 per dag, 25 per week en het weekend vrij; null, ontbrekend of ongeldig geeft de standaard', () => {
-  assert.deepEqual(goalsOf(null), { daily: 5, weekly: 25, daysOff: [6, 7] });
-  assert.deepEqual(goalsOf({}), { daily: 5, weekly: 25, daysOff: [6, 7] });
-  assert.deepEqual(goalsOf({ goal_daily: null, goal_weekly: null, days_off: null }), { daily: 5, weekly: 25, daysOff: [6, 7] });
-  assert.deepEqual(goalsOf({ goal_daily: 0, goal_weekly: 0, days_off: [] }), { daily: 0, weekly: 0, daysOff: [] }, '0 is uit, een lege lijst is geen vrije dag');
-  assert.deepEqual(goalsOf({ goal_daily: 100, goal_weekly: 700, days_off: [7, 3] }), { daily: 100, weekly: 700, daysOff: [3, 7] }, 'de grenzen zelf mogen; gesorteerd');
-  assert.deepEqual(goalsOf({ goal_daily: 101, goal_weekly: 701, days_off: [8] }), { daily: 5, weekly: 25, daysOff: [6, 7] });
-  assert.deepEqual(goalsOf({ goal_daily: -1, goal_weekly: 2.5, days_off: 'za' }), { daily: 5, weekly: 25, daysOff: [6, 7] });
+  assert.deepEqual(goalsOf(null), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
+  assert.deepEqual(goalsOf({}), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
+  assert.deepEqual(goalsOf({ goal_daily: null, goal_weekly: null, days_off: null }), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
+  assert.deepEqual(goalsOf({ goal_daily: 0, goal_weekly: 0, days_off: [] }), { daily: 0, weekly: 0, daysOff: [], vacations: [] }, '0 is uit, een lege lijst is geen vrije dag');
+  assert.deepEqual(goalsOf({ goal_daily: 100, goal_weekly: 700, days_off: [7, 3] }), { daily: 100, weekly: 700, daysOff: [3, 7], vacations: [] }, 'de grenzen zelf mogen; gesorteerd');
+  assert.deepEqual(goalsOf({ goal_daily: 101, goal_weekly: 701, days_off: [8] }), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
+  assert.deepEqual(goalsOf({ goal_daily: -1, goal_weekly: 2.5, days_off: 'za' }), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
   const given = [5, 1];
   goalsOf({ days_off: given });
   assert.deepEqual(given, [5, 1], 'de lijst van de instellingen blijft ongemoeid');
@@ -174,4 +174,11 @@ test('telling: een project-id als "__proto__" is gewoon een sleutel', () => {
   assert.equal(r.per_day[0].projects.__proto__, 2);
   assert.equal(JSON.stringify(r.per_day[0].projects), '{"__proto__":2}');
   assert.equal(Object.getPrototypeOf({}).polluted, undefined);
+});
+
+test('vakanties komen uit de algemene instellingen; iets ongeldigs telt niet', () => {
+  const v = [{ from: '2026-07-01', to: '2026-07-14' }];
+  assert.deepEqual(goalsOf({ general: { vacations: v } }).vacations, v);
+  assert.deepEqual(goalsOf({ general: { vacations: [{ from: 'x', to: null }] } }).vacations, []);
+  assert.deepEqual(goalsOf({ general: null }).vacations, []);
 });

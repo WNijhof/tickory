@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
 import io.github.wnijhof.tickory.core.QueuedComplete
+import io.github.wnijhof.tickory.core.WidgetAccent
+import io.github.wnijhof.tickory.core.WidgetFont
 import io.github.wnijhof.tickory.core.WidgetOptions
 import io.github.wnijhof.tickory.core.WidgetStats
 import io.github.wnijhof.tickory.core.WidgetStatsCodec
@@ -150,14 +152,28 @@ object WidgetConfigStore {
             theme = WidgetTheme.parse(p.getString("t$appWidgetId", null)),
             compact = p.getBoolean("c$appWidgetId", false),
             opacity = WidgetOptions.normalizeOpacity(p.getInt("a$appWidgetId", 100)),
+            accent = WidgetAccent.parse(p.getString("x$appWidgetId", null)),
+            font = WidgetFont.parse(p.getString("f$appWidgetId", null)),
         )
     }
+
+    /** Wat een tik op de widget Productiviteit doet: "productivity" (het scherm Productiviteit, standaard) of "home" (de startpagina). */
+    fun tapAction(context: Context, appWidgetId: Int): String = prefs(context).getString("p$appWidgetId", null)?.takeIf { it == TAP_HOME } ?: TAP_PRODUCTIVITY
+
+    fun setTapAction(context: Context, appWidgetId: Int, action: String) {
+        prefs(context).edit { putString("p$appWidgetId", if (action == TAP_HOME) TAP_HOME else TAP_PRODUCTIVITY) }
+    }
+
+    const val TAP_PRODUCTIVITY = "productivity"
+    const val TAP_HOME = "home"
 
     fun setOptions(context: Context, appWidgetId: Int, options: WidgetOptions) {
         prefs(context).edit {
             putString("t$appWidgetId", options.theme.key)
             putBoolean("c$appWidgetId", options.compact)
             putInt("a$appWidgetId", WidgetOptions.normalizeOpacity(options.opacity))
+            putString("x$appWidgetId", options.accent.key)
+            putString("f$appWidgetId", options.font.key)
         }
     }
 
@@ -168,6 +184,9 @@ object WidgetConfigStore {
                 remove("t$id")
                 remove("c$id")
                 remove("a$id")
+                remove("x$id")
+                remove("f$id")
+                remove("p$id")
             }
         }
     }

@@ -81,12 +81,25 @@ class AddWidgetProvider : AppWidgetProvider() {
  */
 class QuickActionsWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        for (id in appWidgetIds) manager.updateAppWidget(id, render(context))
+        for (id in appWidgetIds) manager.updateAppWidget(id, render(context, id))
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        WidgetConfigStore.remove(context, appWidgetIds)
     }
 
     companion object {
-        fun render(context: Context): RemoteViews {
+        fun render(context: Context, appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_quick_actions)
+            val options = WidgetConfigStore.options(context, appWidgetId)
+            val look = WidgetPalette.resolve(context, options)
+            views.setInt(R.id.quick_bg, "setImageAlpha", options.alpha)
+            views.setInt(R.id.quick_bg, "setColorFilter", look.background)
+            for (name in listOf(R.id.quick_today_bg, R.id.quick_inbox_bg, R.id.quick_note_bg, R.id.quick_add_bg)) {
+                views.setInt(name, "setImageAlpha", options.alpha)
+                views.setInt(name, "setColorFilter", look.toolbar)
+            }
+            for (name in listOf(R.id.quick_today_icon, R.id.quick_inbox_icon, R.id.quick_note_icon, R.id.quick_add_icon)) views.setInt(name, "setColorFilter", look.accent)
             views.setOnClickPendingIntent(R.id.quick_today, WidgetIntents.openView(context, DeepLink.VIEW_TODAY))
             views.setOnClickPendingIntent(R.id.quick_inbox, WidgetIntents.openView(context, DeepLink.VIEW_INBOX))
             views.setOnClickPendingIntent(R.id.quick_note, WidgetIntents.addNote(context))
@@ -103,11 +116,15 @@ class QuickActionsWidgetProvider : AppWidgetProvider() {
  */
 class ProductivityWidgetProvider : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
-        for (id in appWidgetIds) manager.updateAppWidget(id, render(context))
+        for (id in appWidgetIds) manager.updateAppWidget(id, render(context, appWidgetId = id))
     }
 
     override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?) {
-        manager.updateAppWidget(appWidgetId, render(context))
+        manager.updateAppWidget(appWidgetId, render(context, appWidgetId = appWidgetId))
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        WidgetConfigStore.remove(context, appWidgetIds)
     }
 
     override fun onEnabled(context: Context) {
@@ -125,9 +142,27 @@ class ProductivityWidgetProvider : AppWidgetProvider() {
         /** De reeks tegenover een week: zeven dagen achter elkaar is een volle balk. */
         const val STREAK_FULL_DAYS = 7
 
-        fun render(context: Context, today: LocalDate = LocalDate.now(ZoneId.systemDefault())): RemoteViews {
+        fun render(context: Context, today: LocalDate = LocalDate.now(ZoneId.systemDefault()), appWidgetId: Int = AppWidgetManager.INVALID_APPWIDGET_ID): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_productivity)
-            views.setOnClickPendingIntent(R.id.prod_root, WidgetIntents.openView(context, io.github.wnijhof.tickory.core.DeepLink.VIEW_PRODUCTIVITY))
+            val options = WidgetConfigStore.options(context, appWidgetId)
+            val look = WidgetPalette.resolve(context, options)
+            views.setInt(R.id.prod_bg, "setImageAlpha", options.alpha)
+            views.setInt(R.id.prod_bg, "setColorFilter", look.background)
+            for (id in intArrayOf(R.id.prod_daily_count, R.id.prod_weekly_count, R.id.prod_streak_count)) views.setTextColor(id, look.text)
+            for (id in intArrayOf(R.id.prod_daily_label, R.id.prod_weekly_label, R.id.prod_streak_label, R.id.prod_message)) views.setTextColor(id, look.textSoft)
+            for (id in intArrayOf(R.id.prod_daily_icon, R.id.prod_weekly_icon, R.id.prod_streak_icon)) views.setInt(id, "setColorFilter", look.accent)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) { // de balken in de kleur van het thema (kan pas vanaf Android 12)
+                for (id in intArrayOf(R.id.prod_daily_bar, R.id.prod_weekly_bar, R.id.prod_streak_bar)) {
+                    views.setColorStateList(id, "setProgressTintList", android.content.res.ColorStateList.valueOf(look.accent))
+                    views.setColorStateList(id, "setProgressBackgroundTintList", android.content.res.ColorStateList.valueOf(look.divider))
+                }
+            }
+            // "Tikken op de widget" (instelling): het scherm Productiviteit, of de startpagina
+            views.setOnClickPendingIntent(
+                R.id.prod_root,
+                if (WidgetConfigStore.tapAction(context, appWidgetId) == WidgetConfigStore.TAP_HOME) WidgetIntents.openApp(context)
+                else WidgetIntents.openView(context, io.github.wnijhof.tickory.core.DeepLink.VIEW_PRODUCTIVITY),
+            )
             val stats: WidgetStats? = if (Session.isActive(context)) WidgetStore.stats(context) else null
             val rows = intArrayOf(R.id.prod_row_daily, R.id.prod_row_weekly, R.id.prod_row_streak)
             if (stats == null) {

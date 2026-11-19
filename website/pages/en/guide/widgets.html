@@ -50,7 +50,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <p>These are <strong>simulated examples made in HTML</strong>, not screenshots of a phone. On a real device the colours, the corners and the text size can turn out differently, because your launcher and the theme of your phone influence them.</p>
 
 <h2 id="filters">A filter in a widget</h2>
-<p>With <strong>Project or list</strong>, choose one of your <a href="filters.html">saved filters</a> (at the bottom of the list, with <em>(filter)</em> after the name). The widget then shows the same tasks as the filter in the app, in the same order. If the filter has more lists (with commas, for example <code>Work: #Work, Home: #Home</code>), each list gets a heading. The phone works out the filter itself, so <em>today</em> is right even without internet and just after midnight.</p>
+<p>With <strong>Project or list</strong>, choose one of your <a href="filters.html">saved filters</a> (under the heading <em>Filters</em>, after the built-in ones). The widget then shows the same tasks as the filter in the app, in the same order. If the filter has more lists (with commas, for example <code>Work: #Work, Home: #Home</code>), each list gets a heading. The phone works out the filter itself, so <em>today</em> is right even without internet and just after midnight.</p>
 <p>Almost everything in the filter language works: <code>today</code>, <code>overdue</code>, <code>7 days</code>, <code>this week</code>, a date such as <code>31-12</code> or <code>31 december</code>, <code>before:</code> and <code>after:</code>, <code>p1</code>, <code>#project</code>, <code>@label</code>, <code>/section</code>, <code>assigned to</code>, <code>search:</code> and the brackets and the signs <code>&amp;</code>, <code>|</code> and <code>!</code>. Two things do not:</p>
 <ul>
   <li><strong>Dates in everyday words</strong>, such as the Dutch <em>donderdag</em> (Thursday) or <em>eind januari</em> (end of January). Only the app understands those. The widget then says which part it cannot read; in such a filter, use <code>7 days</code>, <code>this week</code> or a date such as <code>31 dec</code> instead.</li>
@@ -65,14 +65,14 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   <li>For <em>Project or list</em> a screen opens where you choose what the widget shows. If you close it without choosing, the widget is not placed. Choosing again later works on Android 9 and newer by pressing and holding the widget and picking the setting; on older versions you remove the widget and place it again.</li>
   <li>If you are not signed in yet, it says <em>Sign in via the app</em>. Tap it, sign in, and the widget fills up.</li>
 </ol>
-<p>You can change the <strong>size</strong> by pressing and holding the widget and dragging the edges. Small shows only the title with the count and the tasks on one line each; medium and large also show the date, the project and the labels, large with slightly bigger letters. The list scrolls when there are more tasks than fit.</p>
+<p>You can change the <strong>size</strong> by pressing and holding the widget and dragging the edges. As in Todoist the size does not change the letters (that is the <em>Font size</em> setting); the list scrolls when there are more tasks than fit.</p>
 
 <h2>Completing and opening</h2>
 <ul>
   <li><strong>Tap the circle</strong> to complete a task. It disappears from all widgets right away. The circle and the row are at least 48 points big, the smallest tap target Android recommends.</li>
   <li><strong>Tap the title</strong> to open the task in the app.</li>
   <li><strong>Tap +</strong> to open the <a href="#small-window">small Add task window</a>. In Today the <em>Today</em> button is already on, in a project the task goes into that project, in the other lists into the project you chose last time.</li>
-  <li><strong>Tap the header</strong> to open the app.</li>
+  <li><strong>Tap the logo</strong> to open the app, and <strong>the title with the arrow</strong> to choose another overview. <strong>Reschedule</strong>, next to <em>Overdue</em>, opens Today in the app, where you can move all overdue tasks to another day at once.</li>
 </ul>
 
 <h3>Completing without internet</h3>
@@ -106,6 +106,17 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   <li>right after completing something in a widget.</li>
 </ul>
 <p>After midnight the widgets redraw themselves, also without a connection, so that <em>Today</em> and <em>overdue</em> are right. This uses one inexact alarm per day that Android may postpone, so it can be a few minutes later.</p>
+
+<h2 id="settings">Widget settings</h2>
+<p>Press and hold a list widget and open its settings (Android 9 and newer), or they open when you place it. As in the Todoist app you set:</p>
+<ul>
+  <li>a <strong>suggested style</strong>: Custom, Default, Compact, Transparent dark (dark, 70% opaque) or Transparent white (light, fully transparent);</li>
+  <li>the <strong>theme</strong>, the colour of the bar and the buttons: Dynamic color (the colours of your phone), Tomato, Moonstone, Tangerine, Kale, Blueberry, Lavender, Raspberry or Gold;</li>
+  <li>the <strong>appearance</strong>: automatic (like the phone, at the moment the widget is drawn), light or dark;</li>
+  <li>the <strong>font size</strong> (small, normal, large) and the <strong>opacity</strong> of the background (0 to 100), and <strong>compact mode</strong> (the date on the same line as the title);</li>
+  <li><strong>what it shows</strong>, under the headings Default views, Projects, Labels and Filters: the Inbox, Today, Upcoming, a project, a label, one of the built-in filters (Assigned to me, Assigned to others, Priority 1 to 4, View all, No deadline) or one of your saved filters.</li>
+</ul>
+<p>At the top you see a preview that follows every choice. <strong>Productivity</strong> and <strong>Quick actions</strong> have their own settings screen with the theme, the appearance and the opacity (Productivity also what tapping the widget does: open Productivity or the home page).</p>
 
 <h2>Appearance</h2>
 <ul>

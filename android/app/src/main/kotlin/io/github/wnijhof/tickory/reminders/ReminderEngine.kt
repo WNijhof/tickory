@@ -6,6 +6,7 @@ import io.github.wnijhof.tickory.core.PlanOutcome
 import io.github.wnijhof.tickory.core.PlannedReminder
 import io.github.wnijhof.tickory.core.ReminderLogic
 import io.github.wnijhof.tickory.core.SyncSnapshot
+import io.github.wnijhof.tickory.core.WidgetParser
 import io.github.wnijhof.tickory.store.ReminderStore
 import java.time.ZoneId
 
@@ -42,8 +43,12 @@ object ReminderEngine {
         }
     }
 
+    /** Hoe lang de eerste uitstelknop uitstelt, uit je instellingen (op het toestel bewaard bij de laatste verversing); standaard 10 minuten. */
+    fun snoozeMinutes(context: Context): Int =
+        io.github.wnijhof.tickory.store.WidgetStore.visibleSnapshot(context.applicationContext)?.snoozeMinutes ?: WidgetParser.DEFAULT_SNOOZE_MINUTES
+
     /** "Over 10 minuten" of "Over 1 uur": de melding verdwijnt en komt over [delayMs] terug. */
-    fun snooze(context: Context, reminder: PlannedReminder, delayMs: Long = ReminderLogic.SNOOZE_MS) {
+    fun snooze(context: Context, reminder: PlannedReminder, delayMs: Long = snoozeMinutes(context) * 60_000L) {
         val app = context.applicationContext
         synchronized(lock) {
             val (state, snoozed) = ReminderLogic.snooze(ReminderStore.load(app), reminder, AppClock.now(), delayMs)

@@ -12,6 +12,7 @@
 // wintertijd tellen zo vanzelf goed (een dag van 23 of 25 uur), en een afvinking om 00:30 hoort bij de nieuwe dag.
 
 import { ACTIVITY_RETENTION_DAYS } from './activity.js';
+import { vacationsCheck } from './general.js';
 
 /** Zoveel dagen kan het overzicht teruggaan: zo lang bewaart de server het logboek. Ook de standaard. */
 export const STATS_MAX_DAYS = 365; // een jaar (het logboek blijft wat langer: ACTIVITY_RETENTION_DAYS)
@@ -40,12 +41,13 @@ const goal = (value, { min, max, default: fallback }) => (Number.isInteger(value
  * De doelen uit de instellingen, met de standaard voor wat ontbreekt (een oudere server of client kent de velden niet) of
  * ongeldig is. `daysOff` is gesorteerd.
  * @param {{ goal_daily?: unknown, goal_weekly?: unknown, days_off?: unknown } | null | undefined} settings
- * @returns {{ daily: number, weekly: number, daysOff: number[] }}
+ * @returns {{ daily: number, weekly: number, daysOff: number[], vacations: { from: string, to: string | null }[] }} `vacations`: uit `settings.general`
  */
 export function goalsOf(settings) {
   const s = settings ?? {};
+  const vacations = Array.isArray(s.general?.vacations) && vacationsCheck(s.general.vacations) === null ? s.general.vacations.map((p) => ({ ...p })) : [];
   const daysOff = s.days_off !== null && s.days_off !== undefined && daysOffCheck(s.days_off) === null ? [...s.days_off] : [...DAYS_OFF_DEFAULT];
-  return { daily: goal(s.goal_daily, GOALS.daily), weekly: goal(s.goal_weekly, GOALS.weekly), daysOff: daysOff.sort((a, b) => a - b) };
+  return { daily: goal(s.goal_daily, GOALS.daily), weekly: goal(s.goal_weekly, GOALS.weekly), daysOff: daysOff.sort((a, b) => a - b), vacations };
 }
 
 // ---------- dagen ----------

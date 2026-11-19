@@ -5,7 +5,7 @@
 // Een wijziging in de app is daardoor na de eerstvolgende keer openen actief.
 // Voeg je een bestand toe aan de app, zet het dan in SHELL (een test controleert dat de lijst compleet is).
 
-const CACHE = 'tickory-v145';
+const CACHE = 'tickory-v146';
 const SHELL = [
   '/',
   '/app.css',
@@ -74,6 +74,7 @@ const SHELL = [
   '/ui/generalDialog.js',
   '/ui/settingsMenu.js',
   '/ui/datePopup.js',
+  '/shared/dayPrefs.js',
   '/shared/general.js',
   '/shared/version.js',
   '/core/quickSuggest.js',
@@ -140,6 +141,7 @@ const SHELL = [
   '/core/push.js',
   '/core/qr.js',
   '/core/quickDates.js',
+  '/core/sound.js',
   '/core/repeat.js',
   '/core/updates.js',
   '/core/reminderText.js',
@@ -278,15 +280,25 @@ self.addEventListener('fetch', (event) => {
 // De server stuurt een versleuteld bericht; hier wordt het een melding. De paar woorden die daarbij horen staan hier zelf
 // (de service worker kan de woordenlijsten van de app niet laden); het bericht zegt in welke taal dit apparaat werkt.
 
+// De knop Uitstellen noemt de duur uit je instellingen ("Over 30 minuten", "In 1 hour"); een bericht zonder duur zegt 10 minuten.
+function snoozeTitle(text, data) {
+  const m = data && Number.isInteger(data.snooze_minutes) ? data.snooze_minutes : 10;
+  if (m === 10) return text.snooze;
+  const en = data && data.lang === 'en';
+  const amount = m < 60 ? m : m < 1440 ? m / 60 : m / 1440;
+  const unit = m < 60 ? (en ? 'minutes' : 'minuten') : m < 1440 ? (en ? (amount === 1 ? 'hour' : 'hours') : 'uur') : (en ? (amount === 1 ? 'day' : 'days') : (amount === 1 ? 'dag' : 'dagen'));
+  return `${text.in} ${amount} ${unit}`;
+}
+
 const PUSH_TEXT = {
   nl: {
-    reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen', note: 'Notitie',
+    reminder: 'Herinnering', complete: 'Voltooien', snooze: 'Over 10 minuten', in: 'Over', test: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.', open: 'Openen', note: 'Notitie',
     assigned: '{actor} heeft je een taak toegewezen', comment: '{actor} reageerde op een taak', commentProject: '{actor} schreef een opmerking bij het project',
     mention: '{actor} noemde je in een opmerking', completed: '{actor} heeft je taak afgevinkt', shared: '{actor} heeft je toegevoegd aan een project',
     sharedNote: '{actor} heeft een notitie met je gedeeld', other: '{actor} deed iets in een gedeeld project', someone: 'Iemand',
   },
   en: {
-    reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open', note: 'Note',
+    reminder: 'Reminder', complete: 'Complete', snooze: 'In 10 minutes', in: 'In', test: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.', open: 'Open', note: 'Note',
     assigned: '{actor} assigned you a task', comment: '{actor} commented on a task', commentProject: '{actor} commented on the project',
     mention: '{actor} mentioned you in a comment', completed: '{actor} completed your task', shared: '{actor} added you to a project',
     sharedNote: '{actor} shared a note with you', other: '{actor} did something in a shared project', someone: 'Someone',
@@ -352,7 +364,7 @@ function notificationFor(data) {
       requireInteraction: true,
       data: { taskId: data.task_id, complete: data.complete, snooze: data.snooze, message: data },
       // zonder token geen knop "Voltooien" (een lezer kan de taak niet afvinken; zie shared/roles.js)
-      actions: [data.complete && { action: 'complete', title: text.complete }, { action: 'snooze', title: text.snooze }].filter(Boolean),
+      actions: [data.complete && { action: 'complete', title: text.complete }, { action: 'snooze', title: snoozeTitle(text, data) }].filter(Boolean),
     },
   };
 }

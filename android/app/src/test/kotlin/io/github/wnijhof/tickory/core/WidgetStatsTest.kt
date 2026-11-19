@@ -37,6 +37,35 @@ class WidgetStatsTest {
     }
 
     @Test
+    fun `een vakantie breekt de reeks niet, ook niet een lopende`() {
+        // dinsdag 17 gemist: zonder vakantie is de reeks maar 2 lang; met vakantie 3 (de vakantiedag telt zelf niet mee)
+        val perDay = mapOf("2026-11-16" to 5, "2026-11-18" to 5, "2026-11-19" to 5)
+        assertEquals(2, stats(perDay).dayStreak(today))
+        val vacation = WidgetStats.Vacation(LocalDate.parse("2026-11-17"), LocalDate.parse("2026-11-17"))
+        assertEquals(3, stats(perDay).copy(vacations = listOf(vacation)).dayStreak(today))
+        val running = WidgetStats.Vacation(LocalDate.parse("2026-11-17"), null)
+        assertEquals(3, stats(perDay).copy(vacations = listOf(running)).dayStreak(today))
+        // een vakantie na de gemiste dag helpt niet
+        val late = WidgetStats.Vacation(LocalDate.parse("2026-11-18"), null)
+        assertEquals(2, stats(perDay).copy(vacations = listOf(late)).dayStreak(today))
+        // bewaren en teruglezen
+        val back = WidgetStatsCodec.decode(WidgetStatsCodec.encode(stats(perDay).copy(vacations = listOf(vacation, running))))!!
+        assertEquals(listOf(vacation, running), back.vacations)
+        // een oudere bewaarde versie zonder vakanties
+        assertEquals(emptyList<WidgetStats.Vacation>(), WidgetStatsCodec.decode(WidgetStatsCodec.encode(stats(perDay)).replace(",\"vacations\":[]", ""))!!.vacations)
+    }
+
+    @Test
+    fun `de vakanties komen uit de algemene instellingen van de server`() {
+        val sync = """{"me":{"id":"u1"},"settings":[{"goal_daily":2,"general":{"vacations":[{"from":"2026-11-17","to":"2026-11-17"},{"from":"2026-12-24","to":null},{"from":"kapot","to":null}]}}]}"""
+        val statsBody = """{"days":60,"per_day":[{"date":"2026-11-18","count":2}]}"""
+        val s = WidgetStatsCodec.fromResponses(sync, statsBody)!!
+        assertEquals(2, s.vacations.size)
+        assertEquals(LocalDate.parse("2026-12-24"), s.vacations[1].from)
+        assertNull(s.vacations[1].to)
+    }
+
+    @Test
     fun `de reeks - geen dagdoel betekent geen reeks`() {
         assertNull(stats(mapOf("2026-11-19" to 3), daily = 0).dayStreak(today))
     }

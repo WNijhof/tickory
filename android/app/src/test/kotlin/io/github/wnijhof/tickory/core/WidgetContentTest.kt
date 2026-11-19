@@ -7,6 +7,7 @@ import io.github.wnijhof.tickory.core.WidgetFixtures.snapshot
 import io.github.wnijhof.tickory.core.WidgetFixtures.task
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.ZoneId
@@ -134,6 +135,48 @@ class WidgetContentTest {
             labels = listOf(WidgetLabel("l1", "bellen"), WidgetLabel("l2", "thuis"), WidgetLabel("l3", "later")),
         )
         assertEquals("Werk · @bellen · @thuis", items(build(s, WidgetSource.Today)).single().meta)
+    }
+
+    @Test
+    fun `vandaag - Over tijd en de dag van vandaag als koppen, zoals in Todoist`() {
+        val s = snapshot(listOf(task("oud", "2026-11-12"), task("nu", "2026-11-13T14:00")))
+        val rows = build(s, WidgetSource.Today).rows
+        assertEquals(WidgetRow.Header(WidgetContentBuilder.OVERDUE_HEADER, overdue = true), rows[0])
+        assertEquals("oud", (rows[1] as WidgetRow.Item).id)
+        assertEquals(WidgetRow.Header("Vrijdag, 13 nov"), rows[2])
+        assertEquals("nu", (rows[3] as WidgetRow.Item).id)
+        // Engels, en zonder te late taken geen koppen
+        assertEquals("Friday, 13 Nov", (build(s, WidgetSource.Today, lang = Lang.EN).rows[2] as WidgetRow.Header).text)
+        val onlyToday = build(snapshot(listOf(task("nu", "2026-11-13"))), WidgetSource.Today).rows
+        assertEquals(1, onlyToday.size)
+    }
+
+    @Test
+    fun `een regel - datumkleur, herhaling, subtaken, project en labels apart`() {
+        val s = snapshot(
+            tasks = listOf(
+                task("ouder", "2026-11-12", project = "werk", labels = listOf("l1", "l2", "l3"), recurring = true),
+                task("kind", "2026-11-12", parent = "ouder"), task("kind2", "2026-11-12", parent = "ouder"),
+                task("morgen", "2026-11-14"), task("week", "2026-11-18"), task("later", "2026-12-01"), task("nu", "2026-11-13"), task("geen", null),
+            ),
+            projects = listOf(project("inbox-project", "Inbox"), project("werk", "Werk")),
+            labels = listOf(WidgetLabel("l1", "bellen"), WidgetLabel("l2", "thuis"), WidgetLabel("l3", "later")),
+        )
+        val byId = items(build(s, WidgetSource.Today)).associateBy { it.id }
+        val ouder = byId.getValue("ouder")
+        assertEquals(DueKind.OVERDUE, ouder.dueKind)
+        assertTrue(ouder.recurring)
+        assertEquals(2, ouder.subtasks)
+        assertEquals("Werk", ouder.project)
+        assertFalse(ouder.inbox)
+        assertEquals("hooguit twee labels", "@bellen @thuis", ouder.labels)
+        assertEquals(DueKind.TODAY, byId.getValue("nu").dueKind)
+        assertEquals(0, byId.getValue("nu").subtasks)
+        assertTrue("een taak in de Inbox heet zo", byId.getValue("nu").inbox)
+        // de overige soorten komen uit Binnenkort
+        val up = items(build(s, WidgetSource.Upcoming)).associateBy { it.id }
+        assertEquals(DueKind.TOMORROW, up.getValue("morgen").dueKind)
+        assertEquals(DueKind.SOON, up.getValue("week").dueKind)
     }
 
     @Test
@@ -274,17 +317,47 @@ class WidgetContentTest {
                 project("wees", "Wees", parent = "bestaat-niet", order = "a3"),
             ),
         )
-        val choices = WidgetChoices.list(s)
+        val choices = WidgetChoices.list(s).filter { it.kind != WidgetChoice.Kind.PRESET }
         assertEquals(listOf("today", "upcoming", "inbox", "project:a", "project:a1", "project:b", "project:wees"), choices.map { it.source.key })
         assertEquals(listOf(0, 0, 0, 0, 1, 0, 0), choices.map { it.depth })
+        // de vaste filters van Todoist staan erachter, in zijn volgorde
+        assertEquals(listOf("me", "others", "p1", "p2", "p3", "p4", "all", "nodeadline").map { "preset:$it" }, WidgetChoices.list(s).filter { it.kind == WidgetChoice.Kind.PRESET }.map { it.source.key })
         assertEquals(listOf("today", "upcoming", "inbox"), WidgetChoices.list(null).map { it.source.key })
     }
 
     @Test
     fun `keuzelijst - een ring in de projectenboom blijft niet hangen`() {
         val s = snapshot(projects = listOf(project("inbox-project", "Inbox"), project("a", parent = "b"), project("b", parent = "a")))
-        assertEquals(listOf("today", "upcoming", "inbox"), WidgetChoices.list(s).map { it.source.key }) // niemand is een wortel: geen oneindige lus
+        assertEquals(listOf("today", "upcoming", "inbox"), WidgetChoices.list(s).filter { it.kind != WidgetChoice.Kind.PRESET }.map { it.source.key }) // niemand is een wortel: geen oneindige lus
         assertTrue(WidgetChoices.isArchived(s, "a").not())
+    }
+
+    @Test
+    fun `vaste filters en labels als bron - Aan mij toegewezen, Prioriteit, Geen deadline en een label`() {
+        val s = snapshot(
+            tasks = listOf(
+                task("a", "2026-11-13", priority = 1).copy(assigneeId = "user-anna-0001", deadline = true), task("b", "2026-11-14", priority = 2).copy(assigneeId = "iemand-anders"),
+                task("c", null, priority = 4, labels = listOf("l1")), task("d", "2026-11-12", priority = 1, labels = listOf("l1")),
+            ),
+            labels = listOf(WidgetLabel("l1", "bellen")),
+        )
+        fun keys(source: WidgetSource) = ids(build(s, source)).sorted()
+        assertEquals(listOf("a"), keys(WidgetSource.Preset("me")))
+        assertEquals(listOf("b"), keys(WidgetSource.Preset("others")))
+        assertEquals(listOf("a", "d"), keys(WidgetSource.Preset("p1")))
+        assertEquals(listOf("b"), keys(WidgetSource.Preset("p2")))
+        assertEquals(listOf("a", "b", "c", "d"), keys(WidgetSource.Preset("all")))
+        assertEquals("alleen a heeft een deadline", listOf("b", "c", "d"), keys(WidgetSource.Preset("nodeadline")))
+        // een label: op datum, dan prioriteit; taken zonder datum staan achteraan
+        assertEquals(listOf("d", "c"), ids(build(s, WidgetSource.Label("l1"))))
+        assertEquals(ContentKind.FILTER, build(s, WidgetSource.Label("l1")).kind)
+        assertEquals("bellen", build(s, WidgetSource.Label("l1")).projectName)
+        assertTrue("een label dat er niet meer is", build(s, WidgetSource.Label("weg")).missing)
+        // de sleutels van de keuze, en onzin wordt niets
+        assertEquals(WidgetSource.Preset("p3"), WidgetSource.parse("preset:p3"))
+        assertEquals(WidgetSource.Label("l1"), WidgetSource.parse("label:l1"))
+        assertNull(WidgetSource.parse("preset:nonsens"))
+        assertNull(WidgetSource.parse("label:met spatie"))
     }
 
     @Test

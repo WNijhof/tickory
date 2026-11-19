@@ -25,6 +25,7 @@ import type { Col, Entity, EntityName } from './schema.ts';
 import { keyAfter, isValidKey } from '../shared/orderKey.js';
 import { isValidDate, nextDue, nextOccurrence } from '../shared/recurrence.js';
 import { epochToFloating } from '../shared/reminders.js';
+import { generalOf } from '../shared/general.js';
 import { deepNormalize, nameKey } from '../shared/text.js';
 import { templateStats } from '../shared/template.js';
 import { bumpRev, chunked, currentRev, epochOf, fail, getRow, has, insertRow, mark, newId, placeholders, SyncError, updateRow } from './rows.ts';
@@ -781,6 +782,14 @@ function taskComplete(ctx: Ctx, args: Args): void {
   if (due && next) {
     // terugkerend: naar de volgende datum, blijft open
     updateRow(ctx, ENTITIES.task, id, { due: { ...due, date: next }, completed_count: count });
+    // Instellingen › Algemeen › Subtaken resetten (van wie afvinkt): de afgevinkte subtaken gaan voor de volgende keer weer open
+    if (resetsSubtasks(ctx)) {
+      for (const part of chunked(descendantIds(ctx.db, [id]))) {
+        ctx.db
+          .prepare(`UPDATE tasks SET checked = 0, completed_at = NULL, rev = ?, updated_at = ? WHERE checked = 1 AND id IN (${placeholders(part.length)})`)
+          .run(ctx.rev, ctx.now, ...part);
+      }
+    }
     return;
   }
   // Niet terugkerend, of er is geen volgende keer meer (de volgende datum valt na 9999-12-31): gewoon afvinken.
@@ -789,6 +798,16 @@ function taskComplete(ctx: Ctx, args: Args): void {
     ctx.db
       .prepare(`UPDATE tasks SET checked = 1, completed_at = ?, rev = ?, updated_at = ? WHERE checked = 0 AND id IN (${placeholders(part.length)})`)
       .run(ctx.now, ctx.rev, ctx.now, ...part);
+  }
+}
+
+/** Zet de gebruiker van dit verzoek "Subtaken resetten" aan (Instellingen › Algemeen)? */
+function resetsSubtasks(ctx: Ctx): boolean {
+  const row = ctx.db.prepare('SELECT general FROM user_settings WHERE owner_id = ?').get(ctx.userId) as { general: string | null } | undefined;
+  try {
+    return generalOf({ general: row?.general ? JSON.parse(row.general) : null }).reset_subtasks;
+  } catch {
+    return false;
   }
 }
 

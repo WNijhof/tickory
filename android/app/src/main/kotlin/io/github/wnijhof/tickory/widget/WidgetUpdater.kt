@@ -39,14 +39,17 @@ object WidgetUpdater {
             val addIds = manager.getAppWidgetIds(ComponentName(app, AddWidgetProvider::class.java))
             for (id in addIds) manager.updateAppWidget(id, AddWidgetProvider.render(app, manager, id))
             if (addIds.isNotEmpty()) any = true
+            val quickIds = manager.getAppWidgetIds(ComponentName(app, QuickActionsWidgetProvider::class.java))
+            for (id in quickIds) manager.updateAppWidget(id, QuickActionsWidgetProvider.render(app, id))
             val addNoteIds = manager.getAppWidgetIds(ComponentName(app, AddNoteWidgetProvider::class.java))
             for (id in addNoteIds) manager.updateAppWidget(id, AddNoteWidgetProvider.render(app, manager, id))
             val prodIds = manager.getAppWidgetIds(ComponentName(app, ProductivityWidgetProvider::class.java))
-            for (id in prodIds) manager.updateAppWidget(id, ProductivityWidgetProvider.render(app))
+            for (id in prodIds) manager.updateAppWidget(id, ProductivityWidgetProvider.render(app, appWidgetId = id))
             if (prodIds.isNotEmpty()) any = true
             val noteIds = manager.getAppWidgetIds(ComponentName(app, NotesWidgetProvider::class.java))
             if (noteIds.isNotEmpty()) NotesWidget.update(app, manager, noteIds)
             if (any) WidgetClock.scheduleMidnight(app) else WidgetClock.cancel(app)
+            io.github.wnijhof.tickory.reminders.DailyOverviewNotifier.schedule(app) // elke verversing, tijdwissel en opstart: de tijden van het ochtendoverzicht en de avondreview
         } catch (e: RuntimeException) {
             // een widget die niet getekend kan worden (launcher weg, gegevens onleesbaar) mag niets anders breken
             Log.w(TAG, "widgets verversen mislukt: ${e.javaClass.simpleName}")

@@ -102,6 +102,12 @@ Zonder emulator is dit alleen op een toestel te controleren. Zet de app op een t
 - **Niet storen** of een stil profiel houdt het geluid tegen; de melding staat er dan wel.
 - **Net ingelogd of een herinnering net gemaakt?** De app ververst direct, daarna elk kwartier en telkens als je hem opent.
 
+## Uitstellen, ochtendoverzicht en avondreview
+
+**Uitstelduur.** De eerste uitstelknop van een herinnering uitstelt zo lang als je in de web-app koos (Instellingen › Algemeen › "Bij uitstellen van een herinnering": 5, 10, 15, 30 minuten, 1, 6, 12 uur of 1 dag; standaard 10 minuten). De tweede knop blijft "In 1 uur" en vervalt als de eerste al een uur is. De duur komt mee met de gewone verversing (`WidgetSnapshot.snoozeMinutes`, `WidgetParser.snoozeMinutesOf`) en staat dus ook zonder verbinding op het toestel.
+
+**Ochtendoverzicht en avondreview** (`core/DailyOverview.kt`, `reminders/DailyOverviewNotifier.kt`). Kies je in de web-app een tijd, dan meldt de app elke dag op die tijd hoeveel taken er vandaag zijn (ochtend, met "over tijd" erbij) of nog over zijn (avond; stil als alles af is). Het is één onnauwkeurig alarm per soort (`setAndAllowWhileIdle`, geen toestemming voor exacte alarmen nodig, Android mag het wat later bezorgen), dat na elke verversing, opstart en tijdwissel opnieuw wordt gezet (`WidgetUpdater.updateAll`) en na het afgaan voor morgen. De melding noemt alleen aantallen, geen taaknamen, en opent Vandaag. Meldingen kunnen per kanaal ("Dagelijks overzicht") worden uitgezet in de instellingen van Android.
+
 ## Meldingen bij samenwerken
 
 Wijst iemand je een taak toe, reageert iemand, noemt iemand je met `@`, vinkt iemand je taak af of voegt iemand je toe aan een
@@ -339,18 +345,25 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 
 | Widget | Wat |
 |---|---|
-| Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
-| Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag, Aankomend of een opgeslagen filter; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, `filter:<id>`). Een filter rekent `FilterLang` uit, de filtertaal van de web-app in Kotlin (zonder datums in gewone taal); `src/test/resources/filter-vectors.json` komt uit `scripts/filter-vectors.ts` en `FilterLangVectorsTest` eist dezelfde uitkomsten als de web-app |
+| Vandaag | Opgebouwd als de takenlijst van Todoist: een balk met het beeldmerk (opent de app), de **titel met een pijltje** (opent de keuze van het overzicht) en de ronde "+" (Taak toevoegen); daaronder de groep **Over tijd** met de knop **Herplannen** (opent Vandaag in de app) en de kop van de dag, met per taak: cirkel in de kleur van de prioriteit (afvinken), titel, en een tweede regel met subtaken, datum (groen vandaag, rood te laat, oranje morgen, paars de komende week) met herhaling, deadline, herinnering, labels en rechts het project; een rij "Tik hier om Tickory te openen en meer taken te zien" bij een lange lijst, en een lege staat met pictogram ("Geen taken", "Wil je iets toevoegen?") |
+| Project of lijst | Zoals Vandaag, maar bij het plaatsen kies je (`WidgetConfigActivity`, met kopjes Standaard weergaven, Projecten, Labels en Filters, en een voorbeeld dat meebeweegt) de Inbox, een label (`label:<id>`), een van de vaste filters van Todoist (Aan mij toegewezen, Aan anderen toegewezen, Prioriteit 1 tot en met 4, Bekijk alles, Geen deadline; `preset:<naam>`), een project, Vandaag, Aankomend of een opgeslagen filter; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, `filter:<id>`). Een filter rekent `FilterLang` uit, de filtertaal van de web-app in Kotlin (zonder datums in gewone taal); `src/test/resources/filter-vectors.json` komt uit `scripts/filter-vectors.ts` en `FilterLangVectorsTest` eist dezelfde uitkomsten als de web-app |
 | Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
 | Notities | Je notities (`NotesWidget`, `WidgetNotes`) als kaartjes in de kleur van de notitie, vastgepinde eerst en dan de laatst gewijzigde: kop, een paar regels zonder Markdown (checklist met ○ en ✓), "1 van 3 gedaan" en "gedeeld". Tik opent de notitie (`note_<id>` via `WidgetActionActivity`), "+" het [kleine venster Notitie toevoegen](#het-kleine-venster-notitie-toevoegen), de kop de notities |
-| Productiviteit | Dagelijks, wekelijks en reeks (4×2, te vergroten): hoeveel je vandaag en deze week afvinkte tegenover je doelen, en je dagen achter elkaar. De gegevens (`GET /api/v1/stats` en de doelen uit de instellingen) haalt de verversing op de achtergrond erbij, alleen als zo'n widget er is (`ApiClient.fetchProductivity`, bewaard in `widget-stats.json`; de rekenregels staan zonder Android in `core/WidgetStats.kt` en zijn die van `client/core/productivity.js`). Een tik opent het scherm Productiviteit (`#view=productivity`). Er is geen karma in Tickory: de derde rij is de reeks |
-| Snelle acties | Vier knoppen (2×2, niet te vergroten): Vandaag, Inbox, Nieuwe notitie en Taak toevoegen. Alleen vaste intenties naar de app (`WidgetIntents.openView`), geen gegevens |
+| Productiviteit | Dagelijks, wekelijks en reeks (4×2, te vergroten; thema, weergave, ondoorzichtigheid en "Tikken op de widget" instelbaar in `WidgetStyleActivity`): hoeveel je vandaag en deze week afvinkte tegenover je doelen, en je dagen achter elkaar. De gegevens (`GET /api/v1/stats` en de doelen uit de instellingen) haalt de verversing op de achtergrond erbij, alleen als zo'n widget er is (`ApiClient.fetchProductivity`, bewaard in `widget-stats.json`; de rekenregels staan zonder Android in `core/WidgetStats.kt` en zijn die van `client/core/productivity.js`). Een tik opent het scherm Productiviteit (`#view=productivity`). Er is geen karma in Tickory: de derde rij is de reeks |
+| Snelle acties | Vier knoppen (2×2, niet te vergroten): Vandaag, Inbox, Nieuwe notitie en Taak toevoegen, met thema, weergave en ondoorzichtigheid instelbaar (`WidgetStyleActivity`). Alleen vaste intenties naar de app (`WidgetIntents.openView`), geen gegevens |
 | Notitie toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Notitie toevoegen](#het-kleine-venster-notitie-toevoegen) opent, op dezelfde manier als de knop Taak toevoegen |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
-Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie
-klassen (`WidgetSize`: klein, middel, groot) bepalen de opmaak: klein zet het aantal naast de titel en laat de tweede regel
-weg, groot gebruikt iets grotere letters. Licht en donker volgen het systeem (`values` en `values-night`); op Android 12 en
+**Uiterlijk en instellingen (lijsten).** Elke lijstwidget heeft, zoals in Todoist: een **voorgestelde stijl** (Aangepast, Standaard, Compact,
+Transparant donker, Transparant wit), een **thema** (Dynamische kleur, Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud;
+`core/WidgetLook.kt`, de kleurwaarden komen uit de resources van Todoist en zijn getest), een **weergave** (automatisch, licht, donker),
+een **lettergrootte** (klein, normaal, groot), een **ondoorzichtigheid** van 0 tot 100 in stappen van 1, en de **compacte weergave** (de datum
+op dezelfde regel als de titel). Elke lijstwidget kiest zijn overzicht zelf (Inbox, Vandaag, Aankomend, een project of een filter); een tik op de
+titel in de widget opent alleen die keuze (`WidgetConfigActivity.EXTRA_CHOOSE_ONLY`). De weergave "automatisch" volgt het toestel op het
+moment dat de widget wordt getekend (bij elke verversing), dus niet op het moment dat het toestel omschakelt.
+
+Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Zoals in Todoist
+verandert het formaat de lettergrootte niet (dat doet alleen de instelling). Licht en donker volgen het systeem (`values` en `values-night`); op Android 12 en
 nieuwer volgen achtergrond, tekst en accent het thema van de gebruiker (`values-v31` en `values-night-v31`, de kleuren
 `system_neutral1_*` en `system_accent1_*`) en de hoeken die van het systeem; de prioriteitskleuren blijven vast. Elke regel is
 minstens 48 dp hoog en de cirkel is 48 dp breed. De cirkel, de titel en de kop hebben een beschrijving voor TalkBack. De teksten

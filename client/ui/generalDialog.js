@@ -1,7 +1,7 @@
 // Instellingen › Algemeen (SPEC 5m, shared/general.js): de startpagina, de tijdnotatie, of snel toevoegen datums in gewone taal
 // herkent, en welke onderdelen in de zijbalk staan. Bewaard in je instellingen op de server, dus op al je apparaten hetzelfde.
 
-import { BOTTOM_TAB_CHOICES, BOTTOM_TAB_COUNT, SIDEBAR_ITEMS, START_PAGES, TIME_FORMATS, WEEK_STARTS, generalOf } from '../../shared/general.js';
+import { BOTTOM_TAB_CHOICES, BOTTOM_TAB_COUNT, SIDEBAR_ITEMS, SNOOZE_MINUTES, START_PAGES, SWIPE_ACTIONS, TIME_FORMATS, WEEKDAYS, WEEK_STARTS, generalOf } from '../../shared/general.js';
 import { weekdayNames } from '../core/calendar.js';
 import { getLocale, t } from '../core/i18n.js';
 import { mySettings } from '../core/selectors.js';
@@ -10,6 +10,14 @@ import { h, openDialog } from './dom.js';
 // letterlijke sleutels, zodat de controle op ontbrekende en ongebruikte teksten ze vindt
 const START_LABEL = {
   last: () => t('general.startLast'), inbox: () => t('bottomNav.inbox'), today: () => t('nav.today'), upcoming: () => t('nav.upcoming'), notes: () => t('note.title'),
+};
+const SWIPE_LABEL = {
+  none: () => t('swipe.action.none'), select: () => t('swipe.action.select'), complete: () => t('swipe.action.complete'),
+  schedule: () => t('swipe.action.schedule'), reminders: () => t('swipe.action.reminders'), delete: () => t('swipe.action.delete'),
+};
+const SNOOZE_LABEL = {
+  5: () => t('general.snoozeFive'), 10: () => t('general.snoozeTen'), 15: () => t('general.snoozeQuarter'), 30: () => t('general.snoozeHalf'),
+  60: () => t('general.snoozeHour'), 360: () => t('general.snoozeSixHours'), 720: () => t('general.snoozeHalfDay'), 1440: () => t('general.snoozeDay'),
 };
 const CLOCK_LABEL = { '24h': () => t('general.clockFull'), '12h': () => t('general.clockHalf') };
 const TAB_LABEL = {
@@ -36,6 +44,26 @@ export function openGeneralDialog({ store, actions }) {
     const dayNames = weekdayNames(getLocale(), 'long');
     const weekStart = h('select', { class: 'field', dataset: { fk: 'general-week' } },
       WEEK_STARTS.map((d) => h('option', { value: String(d), selected: d === now.week_start }, dayNames[d - 1])));
+    const daySelect = (fk, value) => h('select', { class: 'field', dataset: { fk } },
+      WEEKDAYS.map((d) => h('option', { value: String(d), selected: d === value }, dayNames[d - 1])));
+    const nextWeek = daySelect('general-nextweek', now.next_week);
+    const weekend = daySelect('general-weekend', now.weekend);
+    const swipeSelect = (fk, value) => h('select', { class: 'field', dataset: { fk } },
+      SWIPE_ACTIONS.map((a) => h('option', { value: a, selected: a === value }, SWIPE_LABEL[a]())));
+    const swipeRight = swipeSelect('general-swipe-right', now.swipe_right);
+    const swipeLeft = swipeSelect('general-swipe-left', now.swipe_left);
+    // het ochtendoverzicht en de avondreview (Android): een vinkje en een tijd
+    const overviewRow = (fk, value, fallback, label) => {
+      const on = h('input', { type: 'checkbox', checked: value !== null, dataset: { fk: `${fk}-on` } });
+      const time = h('input', { type: 'time', class: 'field', value: value ?? fallback, 'aria-label': label, dataset: { fk: `${fk}-time` } });
+      return { on, time, row: h('div', { class: 'check-row general-overview' }, h('label', { class: 'check-row' }, on, label), time), get value() { return on.checked && time.value ? time.value : null; } };
+    };
+    const morning = overviewRow('general-morning', now.morning_overview, '08:00', t('general.morning'));
+    const evening = overviewRow('general-evening', now.evening_review, '18:00', t('general.evening'));
+    const resetSubtasks = h('input', { type: 'checkbox', checked: now.reset_subtasks, dataset: { fk: 'general-reset-subtasks' } });
+    const sound = h('input', { type: 'checkbox', checked: now.completion_sound, dataset: { fk: 'general-sound' } });
+    const snooze = h('select', { class: 'field', dataset: { fk: 'general-snooze' } },
+      SNOOZE_MINUTES.map((m) => h('option', { value: String(m), selected: m === now.snooze_minutes }, SNOOZE_LABEL[m]())));
     const tabSelects = Array.from({ length: BOTTOM_TAB_COUNT }, (_, i) => h('select', {
       class: 'field', 'aria-label': t('general.tabN', { n: i + 1 }), dataset: { fk: `general-tab:${i}` },
     }, BOTTOM_TAB_CHOICES.map((c) => h('option', { value: c, selected: c === now.bottom_tabs[i] }, TAB_LABEL[c]()))));
@@ -50,6 +78,7 @@ export function openGeneralDialog({ store, actions }) {
         const bottomTabs = tabSelects.map((s) => s.value);
         if (new Set(bottomTabs).size !== bottomTabs.length) { tabError.textContent = t('general.tabsTwice'); tabSelects[0].focus(); return; }
         const next = {
+          ...now, // wat dit venster niet toont (de vakanties) blijft zoals het was
           start_page: start.value,
           time_format: clocks.map((l) => l.querySelector('input')).find((i) => i.checked)?.value ?? '24h',
           date_recognition: dates.checked,
@@ -57,6 +86,15 @@ export function openGeneralDialog({ store, actions }) {
           week_start: Number(weekStart.value),
           bottom_tabs: bottomTabs,
           productivity: productivity.checked,
+          next_week: Number(nextWeek.value),
+          weekend: Number(weekend.value),
+          swipe_right: swipeRight.value,
+          swipe_left: swipeLeft.value,
+          completion_sound: sound.checked,
+          reset_subtasks: resetSubtasks.checked,
+          morning_overview: morning.value,
+          evening_review: evening.value,
+          snooze_minutes: Number(snooze.value),
         };
         await actions.updateSettings({ general: next });
         finish(true);
@@ -65,10 +103,26 @@ export function openGeneralDialog({ store, actions }) {
     h('h2', {}, t('settings.general')),
     h('label', { class: 'field-label' }, t('general.start'), start),
     h('label', { class: 'field-label' }, t('general.weekStart'), weekStart),
+    h('label', { class: 'field-label' }, t('general.nextWeek'), nextWeek),
+    h('label', { class: 'field-label' }, t('general.weekend'), weekend),
+    h('p', { class: 'hint' }, t('general.dayHint')),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.clock')), clocks),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.quickAdd')),
       h('label', { class: 'check-row' }, dates, t('general.dates')),
       h('p', { class: 'hint' }, t('general.datesHint'))),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.swipe')),
+      h('label', { class: 'field-label' }, t('general.swipeRight'), swipeRight),
+      h('label', { class: 'field-label' }, t('general.swipeLeft'), swipeLeft)),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.recurring')),
+      h('label', { class: 'check-row' }, resetSubtasks, t('general.resetSubtasks')),
+      h('p', { class: 'hint' }, t('general.resetSubtasksHint'))),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.overview')),
+      morning.row, evening.row,
+      h('p', { class: 'hint' }, t('general.overviewHint'))),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sound')),
+      h('label', { class: 'check-row' }, sound, t('general.soundOn'))),
+    h('label', { class: 'field-label' }, t('general.snooze'), snooze),
+    h('p', { class: 'hint' }, t('general.snoozeHint')),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.productivity')),
       h('label', { class: 'check-row' }, productivity, t('general.productivityShow')),
       h('p', { class: 'hint' }, t('general.productivityHint'))),

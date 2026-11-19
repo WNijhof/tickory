@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Een lijstwidget (Vandaag, Binnenkort, project): kop met titel, aantal en "+", daaronder de lijst of een melding. -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Een lijstwidget, zoals de takenlijst van de Todoist-app: bovenaan een balk (beeldmerk, titel met een pijltje om een ander overzicht te
+  kiezen, en de ronde "+"), daaronder de lijst of een melding / lege staat. Kleur, doorzichtigheid en lettergrootte zijn per widget in te
+  stellen (ListWidgets.render).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- De achtergrond als eigen laag: kleur (thema) en doorzichtigheid zijn per widget in te stellen (ListWidgets.render). -->
+    <!-- De achtergrond als eigen laag: kleur (thema) en doorzichtigheid zijn per widget in te stellen. -->
     <ImageView
         android:id="@+id/widget_bg"
         android:layout_width="match_parent"
@@ -19,79 +23,168 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-    <LinearLayout
-        android:id="@+id/header"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingEnd="4dp">
+        <FrameLayout
+            android:id="@+id/header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
-        <LinearLayout
-            android:id="@+id/header_text"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/widget_ripple"
-            android:gravity="center_vertical"
-            android:minHeight="@dimen/widget_row_min"
-            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/toolbar_bg"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="fitXY"
+                android:src="@drawable/widget_toolbar_bg" />
 
-            <TextView
-                android:id="@+id/title"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/widget_text"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:gravity="center_vertical"
+                android:minHeight="@dimen/widget_row_min"
+                android:orientation="horizontal"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp">
+
+                <ImageView
+                    android:id="@+id/logo"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/widget_ripple"
+                    android:contentDescription="@string/widget_open_app"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_widget_logo" />
+
+                <LinearLayout
+                    android:id="@+id/header_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/widget_ripple"
+                    android:gravity="center_vertical"
+                    android:minHeight="@dimen/widget_row_min"
+                    android:orientation="horizontal"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp">
+
+                    <TextView
+                        android:id="@+id/title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/chevron"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="2dp"
+                        android:importantForAccessibility="no"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_widget_chevron" />
+
+                    <TextView
+                        android:id="@+id/subtitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:layout_weight="1"
+                        android:ellipsize="end"
+                        android:maxLines="1"
+                        android:textColor="@color/widget_text_soft"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:id="@+id/add"
+                    android:layout_width="@dimen/widget_row_min"
+                    android:layout_height="@dimen/widget_row_min"
+                    android:background="@drawable/widget_ripple"
+                    android:contentDescription="@string/widget_add_task">
+
+                    <ImageView
+                        android:id="@+id/add_circle"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_widget_add_circle" />
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_widget_add_plus" />
+                </FrameLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <ListView
+                android:id="@+id/list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="@drawable/widget_divider"
+                android:dividerHeight="1dp"
+                android:paddingBottom="8dp"
+                android:scrollbars="none" />
+
+            <LinearLayout
+                android:id="@+id/empty_state"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_ripple"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/empty_icon"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_widget_empty" />
+
+                <TextView
+                    android:id="@+id/empty_title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
+                    android:textColor="@color/widget_text"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/empty_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center"
+                    android:textColor="@color/widget_text_soft"
+                    android:textSize="13sp" />
+            </LinearLayout>
 
             <TextView
-                android:id="@+id/subtitle"
+                android:id="@+id/message"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:maxLines="1"
+                android:layout_height="match_parent"
+                android:background="@drawable/widget_ripple"
+                android:gravity="center"
+                android:padding="16dp"
                 android:textColor="@color/widget_text_soft"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <ImageButton
-            android:id="@+id/add"
-            android:layout_width="@dimen/widget_row_min"
-            android:layout_height="@dimen/widget_row_min"
-            android:background="@drawable/widget_ripple"
-            android:contentDescription="@string/widget_add_task"
-            android:scaleType="center"
-            android:src="@drawable/ic_widget_add" />
-    </LinearLayout>
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <ListView
-            android:id="@+id/list"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:divider="@null"
-            android:dividerHeight="0dp"
-            android:paddingBottom="8dp"
-            android:scrollbars="none" />
-
-        <TextView
-            android:id="@+id/message"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/widget_ripple"
-            android:gravity="center"
-            android:padding="16dp"
-            android:textColor="@color/widget_text_soft"
-            android:textSize="14sp"
-            android:visibility="gone" />
-    </FrameLayout>
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 </FrameLayout>

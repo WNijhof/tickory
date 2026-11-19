@@ -145,7 +145,7 @@ test('instellingen: dag- en weekdoel en vrije dagen, met grenzen; null is de sta
   const id = `settings-${anna.id}`;
   const settings = () => (handleSync(db, { sync_token: '*', resource_types: ['settings'] }, anna.id).settings as Row[])[0];
   assert.deepEqual([settings().goal_daily, settings().goal_weekly, settings().days_off], [null, null, null]);
-  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7] });
+  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
   run(db, anna, [cmd('settings_update', { id, goal_daily: 8, goal_weekly: 0, days_off: [7, 3] })]);
   assert.deepEqual([settings().goal_daily, settings().goal_weekly, settings().days_off], [8, 0, [7, 3]]);
   const status = (args: Record<string, unknown>) => {
@@ -162,11 +162,11 @@ test('instellingen: dag- en weekdoel en vrije dagen, met grenzen; null is de sta
   assert.equal(status({ days_off: [6, 6] }), 'INVALID_ARG');
   assert.deepEqual([settings().goal_daily, settings().goal_weekly, settings().days_off], [8, 0, [7, 3]], 'een geweigerde wijziging laat niets achter');
   assert.equal(status({ goal_daily: null, goal_weekly: null, days_off: null }), 'ok');
-  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7] }, 'null zet de standaard terug');
+  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] }, 'null zet de standaard terug');
   // een database van vóór deze velden: createSchema voegt de kolommen toe, de bestaande rij heeft dan de standaard
   for (const c of ['goal_daily', 'goal_weekly', 'days_off']) db.exec(`ALTER TABLE user_settings DROP COLUMN ${c}`);
   createSchema(db);
-  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7] });
+  assert.deepEqual(goalsOf(settings()), { daily: 5, weekly: 25, daysOff: [6, 7], vacations: [] });
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'activity_actor'").get(), 'een index voor de eigen afvinkingen');
 });
 

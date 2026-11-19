@@ -30,6 +30,30 @@ sealed class WidgetSource {
         override val key = "filter:$id"
     }
 
+    /**
+     * Een vast filter zoals in Todoist (Aan mij toegewezen, Aan anderen toegewezen, Prioriteit 1 tot en met 4, Bekijk alles, Geen
+     * deadline): een vaste zoekopdracht voor [FilterLang], zonder dat de gebruiker er een filter voor hoeft te maken.
+     */
+    data class Preset(val id: String) : WidgetSource() {
+        override val key = "preset:$id"
+
+        /** De zoekopdracht van dit filter in de filtertaal. */
+        val query: String get() = QUERIES.getValue(id)
+
+        companion object {
+            /** De vaste filters in de volgorde van Todoist, met hun zoekopdracht. */
+            val QUERIES: Map<String, String> = linkedMapOf(
+                "me" to "assigned to: me", "others" to "assigned to: others", "p1" to "p1", "p2" to "p2", "p3" to "p3", "p4" to "p4",
+                "all" to "all", "nodeadline" to "no deadline",
+            )
+        }
+    }
+
+    /** Alle open taken met dit label (Labels in de keuzelijst van Todoist). */
+    data class Label(val id: String) : WidgetSource() {
+        override val key = "label:$id"
+    }
+
     companion object {
         /** De bewaarde sleutel terug naar een bron, of null als de tekst niets betekent. */
         fun parse(key: String?): WidgetSource? = when {
@@ -38,6 +62,8 @@ sealed class WidgetSource {
             key == Upcoming.key -> Upcoming
             key == Inbox.key -> Inbox
             key.startsWith("project:") -> key.removePrefix("project:").takeIf { Ids.isSafeId(it) }?.let { Project(it) }
+            key.startsWith("preset:") -> key.removePrefix("preset:").takeIf { it in Preset.QUERIES }?.let { Preset(it) }
+            key.startsWith("label:") -> key.removePrefix("label:").takeIf { Ids.isSafeId(it) }?.let { Label(it) }
             key.startsWith("filter:") -> key.removePrefix("filter:").takeIf { Ids.isSafeId(it) }?.let { Filter(it) }
             else -> null
         }
@@ -46,14 +72,25 @@ sealed class WidgetSource {
 
 /** Eén regel in de keuzelijst van het configuratiescherm. */
 data class WidgetChoice(val source: WidgetSource, val kind: Kind, val label: String, val depth: Int) {
-    enum class Kind { TODAY, UPCOMING, INBOX, PROJECT, FILTER }
+    enum class Kind { TODAY, UPCOMING, INBOX, PROJECT, LABEL, PRESET, FILTER }
+
+    /** Het kopje boven dit soort keuzes (zoals in Todoist: Standaard weergaven, Projecten, Labels, Filters). */
+    enum class Section { DEFAULT, PROJECTS, LABELS, FILTERS }
+
+    val section: Section
+        get() = when (kind) {
+            Kind.TODAY, Kind.UPCOMING, Kind.INBOX -> Section.DEFAULT
+            Kind.PROJECT -> Section.PROJECTS
+            Kind.LABEL -> Section.LABELS
+            Kind.PRESET, Kind.FILTER -> Section.FILTERS
+        }
 }
 
 /** Welke keuzes het configuratiescherm toont: de vaste lijsten, de projecten van de gebruiker als boom, en de opgeslagen filters. */
 object WidgetChoices {
     /**
      * Vandaag, Binnenkort, Inbox, daarna alle niet-gearchiveerde projecten (zonder de Inbox) in de volgorde van de
-     * projectenboom, en tot slot de opgeslagen filters in hun eigen volgorde.
+     * projectenboom, de labels, de vaste filters en tot slot de opgeslagen filters in hun eigen volgorde.
      */
     fun list(snapshot: WidgetSnapshot?): List<WidgetChoice> {
         val out = arrayListOf(
@@ -73,6 +110,10 @@ object WidgetChoices {
             }
         }
         walk(null, 0, emptySet())
+        for (l in snapshot.labels.sortedWith(compareBy({ it.name.lowercase() }, { it.id }))) {
+            out.add(WidgetChoice(WidgetSource.Label(l.id), WidgetChoice.Kind.LABEL, l.name, 0))
+        }
+        for (id in WidgetSource.Preset.QUERIES.keys) out.add(WidgetChoice(WidgetSource.Preset(id), WidgetChoice.Kind.PRESET, "", 0))
         for (f in snapshot.filters.sortedWith(compareBy({ it.orderKey }, { it.id }))) {
             out.add(WidgetChoice(WidgetSource.Filter(f.id), WidgetChoice.Kind.FILTER, f.name, 0))
         }

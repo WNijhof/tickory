@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Kleuren van de widgets, donkere weergave (zie values/widget_colors.xml). -->
 <resources>
-    <color name="widget_bg">#1E2226</color>
-    <color name="widget_text">#E8EAED</color>
-    <color name="widget_text_soft">#9AA5B1</color>
+    <color name="widget_bg">#1F1F1F</color>
+    <color name="widget_toolbar">#262626</color>
+    <color name="widget_faint">#808080</color>
+    <color name="widget_divider">#3D3D3D</color>
+    <color name="widget_today">#25B84C</color>
+    <color name="widget_tomorrow">#FF9A14</color>
+    <color name="widget_soon">#A970FF</color>
+    <color name="widget_text">#FFFFFF</color>
+    <color name="widget_text_soft">#CCCCCC</color>
     <color name="widget_accent">#F0786B</color>
-    <color name="widget_overdue">#F97066</color>
+    <color name="widget_overdue">#FF7066</color>
     <color name="widget_ripple">#33FFFFFF</color>
 
     <color name="widget_p1">#F2776C</color>

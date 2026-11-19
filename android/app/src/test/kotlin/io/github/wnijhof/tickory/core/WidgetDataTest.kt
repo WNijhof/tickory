@@ -108,6 +108,24 @@ class WidgetDataTest {
     }
 
     @Test
+    fun `de uitstelduur komt uit je instellingen en is anders 10 minuten`() {
+        fun parse(settings: String?): Int {
+            val body = WidgetFixtures.syncBody().trimEnd().dropLast(1) + (if (settings != null) ",\"settings\":$settings}" else "}")
+            return WidgetParser.parse(body)!!.snoozeMinutes
+        }
+        val me = "\"owner_id\":\"user-anna-0001\",\"is_deleted\":false"
+        assertEquals(30, parse("""[{"id":"s1",$me,"general":{"snooze_minutes":30}}]"""))
+        assertEquals("een dag", 1440, parse("""[{"id":"s1",$me,"general":{"snooze_minutes":1440}}]"""))
+        assertEquals("onbekende waarde", 10, parse("""[{"id":"s1",$me,"general":{"snooze_minutes":7}}]"""))
+        assertEquals("geen algemene instellingen", 10, parse("""[{"id":"s1",$me,"general":null}]"""))
+        assertEquals("een ander", 10, parse("""[{"id":"s9","owner_id":"user-bob","is_deleted":false,"general":{"snooze_minutes":60}}]"""))
+        assertEquals("geen instellingen", 10, parse(null))
+        // en het blijft staan als de gegevens op het toestel worden bewaard
+        val saved = WidgetCodec.decode(WidgetCodec.encode(WidgetParser.parse(WidgetFixtures.syncBody())!!.copy(snoozeMinutes = 360)))
+        assertEquals(360, saved!!.snoozeMinutes)
+    }
+
+    @Test
     fun `je eigen volgorde in Vandaag komt uit je instellingen, alleen bij de standaardsortering`() {
         fun parse(settings: String?): List<String> {
             val body = WidgetFixtures.syncBody().trimEnd().dropLast(1) + (if (settings != null) ",\"settings\":$settings}" else "}")

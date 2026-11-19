@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Een taak in een lijstwidget in de compacte weergave (zoals in de widget van Todoist): één regel, links de cirkel om af te vinken, dan
-  de titel, en rechts, uitgelijnd aan de rand, de datum. Geen tweede regel en geen project. Dezelfde id's als widget_item.xml.
+  Een taak in een lijstwidget, zoals in de takenlijst van Todoist: links de cirkel om af te vinken (in de kleur van de prioriteit), de titel,
+  eronder de eigenschappen (subtaken, datum met herhaling, deadline, herinnering, labels) en rechts het project. Compact: de datum staat rechts op de regel van de titel, zonder tweede regel.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -16,7 +15,7 @@
 
     <ImageView
         android:id="@+id/check"
-        android:layout_width="@dimen/widget_row_compact"
+        android:layout_width="@dimen/widget_row_min"
         android:layout_height="@dimen/widget_row_compact"
         android:background="@drawable/widget_ripple"
         android:importantForAccessibility="yes"
@@ -33,7 +32,7 @@
         android:gravity="center_vertical"
         android:minHeight="@dimen/widget_row_compact"
         android:orientation="horizontal"
-        android:paddingStart="4dp"
+        android:paddingStart="2dp"
         android:paddingEnd="12dp">
 
         <TextView
@@ -50,9 +49,8 @@
             android:id="@+id/item_due"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:gravity="end"
+            android:layout_marginStart="8dp"
             android:maxLines="1"
-            android:paddingStart="8dp"
             android:textColor="@color/widget_text_soft"
             android:textSize="12sp" />
     </LinearLayout>

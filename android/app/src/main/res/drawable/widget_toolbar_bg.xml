@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De achtergrond van de balk bovenaan een lijstwidget: afgeronde bovenhoeken; de widget kleurt hem met het thema en de doorzichtigheid. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FFFFFF" />
+    <corners android:topLeftRadius="@dimen/widget_radius" android:topRightRadius="@dimen/widget_radius" />
+</shape>

@@ -7,7 +7,7 @@ import java.time.ZoneId
 /** Eén regel in een lijstwidget. */
 sealed class WidgetRow {
     /** Een kop: een dag (Binnenkort) of een sectie (project). */
-    data class Header(val text: String) : WidgetRow()
+    data class Header(val text: String, val overdue: Boolean = false) : WidgetRow()
 
     /**
      * @property due de datum als korte tekst ("14:00", "morgen", "wo 18 nov 09:30"), of null
@@ -15,6 +15,11 @@ sealed class WidgetRow {
      * @property depth 0 = taak, 1 = subtaak, enzovoort (hooguit 3)
      * @property meta het project (in lijsten over meerdere projecten) en de labels, bijvoorbeeld "Werk · @bellen"
      * @property readOnly de taak staat in een project waar de gebruiker alleen lezer is: geen cirkel om af te vinken
+     * @property dueKind hoe de datum gekleurd wordt: te laat, vandaag, morgen, de komende week, later
+     * @property recurring de taak herhaalt zich; [deadline] heeft een deadline; [reminder] heeft een herinnering
+     * @property subtasks het aantal open subtaken direct onder deze taak
+     * @property project de naam van het project (rechts op de regel), alleen in lijsten over meerdere projecten; [inbox] is het de Inbox
+     * @property labels de labels, bijvoorbeeld "@bellen @thuis" (hooguit twee)
      */
     data class Item(
         val id: String,
@@ -25,6 +30,14 @@ sealed class WidgetRow {
         val depth: Int,
         val meta: String?,
         val readOnly: Boolean = false,
+        val dueKind: DueKind = DueKind.NONE,
+        val recurring: Boolean = false,
+        val deadline: Boolean = false,
+        val reminder: Boolean = false,
+        val subtasks: Int = 0,
+        val project: String? = null,
+        val inbox: Boolean = false,
+        val labels: String? = null,
     ) : WidgetRow()
 }
 
@@ -58,6 +71,9 @@ data class WidgetContent(
  */
 object WidgetContentBuilder {
     const val MAX_ROWS = 200
+
+    /** De kop boven te late taken; de widget vertaalt hem (WidgetRow.Header.overdue). */
+    const val OVERDUE_HEADER = "overdue"
     const val UPCOMING_DAYS = 14L
     private const val MAX_DEPTH = 3
 
@@ -85,6 +101,8 @@ object WidgetContentBuilder {
             WidgetSource.Inbox -> project(ctx, open, snapshot.inboxId, maxRows)
             is WidgetSource.Project -> project(ctx, open, source.id, maxRows)
             is WidgetSource.Filter -> filter(ctx, open, source.id, maxRows)
+            is WidgetSource.Preset -> query(ctx, open, source.query, "", maxRows)
+            is WidgetSource.Label -> label(ctx, open, source.id, maxRows)
         }
     }
 
@@ -92,6 +110,7 @@ object WidgetContentBuilder {
         val projectNames = snapshot.projects.associate { it.id to it.name }
         val labelNames = snapshot.labels.associate { it.id to it.name }
         val readOnly = snapshot.projects.filter { it.readOnly }.mapTo(HashSet()) { it.id }
+        val subtaskCounts: Map<String, Int> = snapshot.tasks.filter { it.parentId != null }.groupingBy { it.parentId!! }.eachCount()
     }
 
     /** De verborgen taken plus, bij een gewone taak, alles eronder. Een terugkerende taak blijft open, dus zijn subtaken ook. */
@@ -133,9 +152,14 @@ object WidgetContentBuilder {
         // zoals Vandaag in de web-app: eerst wat te laat is, dan vandaag; elk op tijdstip en prioriteit, met je eigen volgorde erover
         val overdue = dated.filter { (_, day) -> day < ctx.today }.map { it.first }.sortedWith(byDue)
         val dueToday = dated.filter { (_, day) -> day == ctx.today }.map { it.first }.sortedWith(byDue)
-        val sorted = applyDayOrder(overdue, ctx.snapshot.dayOrder) + applyDayOrder(dueToday, ctx.snapshot.dayOrder)
-        val rows = sorted.map { item(ctx, it, sourceIsProject = false, depth = 0, timeOnly = true) }
-        return WidgetContent(ContentKind.TODAY, null, rows.take(maxRows), rows.size)
+        val rows = ArrayList<WidgetRow>()
+        // zoals in Todoist: "Over tijd" (met Herplannen) en daaronder de dag van vandaag; zonder te late taken geen koppen
+        if (overdue.isNotEmpty()) rows.add(WidgetRow.Header(OVERDUE_HEADER, overdue = true))
+        for (t in applyDayOrder(overdue, ctx.snapshot.dayOrder)) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = true))
+        if (overdue.isNotEmpty() && dueToday.isNotEmpty()) rows.add(WidgetRow.Header(DueText.dayLong(ctx.today, ctx.today, ctx.lang)))
+        for (t in applyDayOrder(dueToday, ctx.snapshot.dayOrder)) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = true))
+        val count = overdue.size + dueToday.size
+        return WidgetContent(ContentKind.TODAY, null, capped(rows, maxRows), count)
     }
 
     private fun upcoming(ctx: Ctx, open: List<WidgetTask>, maxRows: Int): WidgetContent {
@@ -191,6 +215,20 @@ object WidgetContentBuilder {
     private fun filter(ctx: Ctx, open: List<WidgetTask>, filterId: String, maxRows: Int): WidgetContent {
         val filter = ctx.snapshot.filters.firstOrNull { it.id == filterId }
             ?: return WidgetContent(ContentKind.FILTER, null, emptyList(), 0, missing = true)
+        return query(ctx, open, filter.query, filter.name, maxRows)
+    }
+
+    /** Alle open taken met dit label, op datum (dan prioriteit) gesorteerd; een label dat er niet meer is, geeft "bestaat niet meer". */
+    private fun label(ctx: Ctx, open: List<WidgetTask>, labelId: String, maxRows: Int): WidgetContent {
+        val name = ctx.labelNames[labelId] ?: return WidgetContent(ContentKind.FILTER, null, emptyList(), 0, missing = true)
+        val tasks = open.filter { labelId in it.labelIds }.sortedWith(compareBy<WidgetTask>({ dayOf(it) ?: LocalDate.MAX }, { it.priority }).then(byOrder))
+        val rows = tasks.map { item(ctx, it, sourceIsProject = false, depth = 0, timeOnly = false) }
+        return WidgetContent(ContentKind.FILTER, name, capped(rows, maxRows), rows.size)
+    }
+
+    /** Een zoekopdracht in de filtertaal (een opgeslagen filter of een vast filter) als lijst; [name] is de titel, leeg: de widget kiest hem. */
+    private fun query(ctx: Ctx, open: List<WidgetTask>, text: String, name: String, maxRows: Int): WidgetContent {
+        val filter = WidgetFilter("", name, text, "")
         return when (val outcome = FilterLang.evaluate(filter.query, ctx.snapshot, open, ctx.nowMs, ctx.zone)) {
             is FilterLang.Outcome.Failed -> {
                 val e = outcome.error
@@ -242,7 +280,21 @@ object WidgetContentBuilder {
             if (!sourceIsProject) ctx.projectNames[t.projectId]?.takeIf { it.isNotBlank() }?.let { add(it) }
             t.labelIds.mapNotNull { ctx.labelNames[it]?.takeIf { n -> n.isNotBlank() } }.take(2).forEach { add("@$it") }
         }.joinToString(" · ").ifEmpty { null }
-        return WidgetRow.Item(t.id, t.content, t.priority, due, overdue, depth, meta, t.projectId in ctx.readOnly)
+        val kind = when {
+            day == null -> DueKind.NONE
+            day < ctx.today -> DueKind.OVERDUE
+            day == ctx.today -> DueKind.TODAY
+            day == ctx.today.plusDays(1) -> DueKind.TOMORROW
+            day <= ctx.today.plusDays(6) -> DueKind.SOON
+            else -> DueKind.LATER
+        }
+        val labels = t.labelIds.mapNotNull { ctx.labelNames[it]?.takeIf { n -> n.isNotBlank() } }.take(2).joinToString(" ") { "@$it" }.ifEmpty { null }
+        val project = if (sourceIsProject) null else ctx.projectNames[t.projectId]?.takeIf { it.isNotBlank() }
+        return WidgetRow.Item(
+            t.id, t.content, t.priority, due, overdue, depth, meta, t.projectId in ctx.readOnly,
+            dueKind = kind, recurring = t.recurring && t.due != null, deadline = t.deadline, reminder = t.hasReminder,
+            subtasks = ctx.subtaskCounts[t.id] ?: 0, project = project, inbox = t.projectId == ctx.snapshot.inboxId, labels = labels,
+        )
     }
 
     private fun capped(rows: List<WidgetRow>, max: Int): List<WidgetRow> {

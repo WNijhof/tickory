@@ -57,6 +57,17 @@ object DueText {
         }
     }
 
+    private val DAYS_LONG_NL = arrayOf("Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag")
+    private val DAYS_LONG_EN = arrayOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
+    /** "Donderdag, 19 nov": de kop van een dag in de lijst (met het jaar als het niet dit jaar is). */
+    fun dayLong(date: LocalDate, today: LocalDate, lang: Lang): String {
+        val weekday = date.dayOfWeek.value - 1 // maandag = 0
+        val month = date.monthValue - 1
+        val base = if (lang == Lang.EN) "${DAYS_LONG_EN[weekday]}, ${date.dayOfMonth} ${MONTHS_EN[month]}" else "${DAYS_LONG_NL[weekday]}, ${date.dayOfMonth} ${MONTHS_NL[month]}"
+        return if (date.year == today.year) base else "$base ${date.year}"
+    }
+
     /** "vr 13 nov" (met het jaar als het niet dit jaar is). */
     fun dayMonth(date: LocalDate, today: LocalDate, lang: Lang): String {
         val weekday = date.dayOfWeek.value - 1 // maandag = 0

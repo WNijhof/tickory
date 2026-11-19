@@ -6,7 +6,8 @@
 // Afspraak: `state` bevat per resource een Map (id -> rij) met alleen niet-verwijderde rijen. De Maps zijn een
 // eigen kopie en mogen worden gewijzigd; rij-objecten worden altijd vervangen, nooit aangepast.
 
-import { ENTITIES, ENTITY_LIST, isInboxId } from '../../shared/schema.js';
+import { ENTITIES, ENTITY_LIST, isInboxId, settingsId } from '../../shared/schema.js';
+import { generalOf } from '../../shared/general.js';
 import { isValidKey, keyAfter } from '../../shared/orderKey.js';
 import { nextDue, nextOccurrence } from '../../shared/recurrence.js';
 import { canEditRole, SHARE_ROLES } from '../../shared/roles.js';
@@ -421,7 +422,7 @@ function taskMove(state, args, now, userId) {
   }
 }
 
-function taskComplete(state, args, now) {
+function taskComplete(state, args, now, userId = null) {
   const row = state.tasks.get(args.id);
   if (!row || row.checked) return;
   // zoals de server: een terugkerende taak die al is doorgeschoven sinds de afzender hem zag, schuift niet nog eens door
@@ -431,6 +432,10 @@ function taskComplete(state, args, now) {
   if (next) {
     // terugkerend: door naar de volgende datum, de taak blijft open
     patch(state, 'tasks', row.id, { due: { ...row.due, date: next }, completed_count: count }, now);
+    // Instellingen › Algemeen › Subtaken resetten: de afgevinkte subtaken gaan voor de volgende keer weer open (zoals de server)
+    if (userId && generalOf(state.settings.get(settingsId(userId))).reset_subtasks) {
+      for (const kid of descendantIds(state, [row.id])) if (state.tasks.get(kid).checked) patch(state, 'tasks', kid, { checked: false, completed_at: null }, now);
+    }
     return;
   }
   // niet terugkerend, of geen volgende keer meer (na 9999-12-31): gewoon afvinken, zoals de server
@@ -521,7 +526,7 @@ export function applyCommand(state, cmd, now, userId = null) {
       // een taak in een project dat je alleen leest, vink je niet af (zoals de server)
       const task = state.tasks.get(args.id);
       if (task && !mayEdit(state, userId, task.project_id)) return undefined;
-      return cmd.type === 'task_complete' ? taskComplete(state, args, now) : taskUncomplete(state, args, now);
+      return cmd.type === 'task_complete' ? taskComplete(state, args, now, userId) : taskUncomplete(state, args, now);
     }
     case 'task_restore': case 'section_restore': return restore(state, cmd, now, userId);
     case 'notification_read_all': return readAllNotifications(state, args, now, userId);

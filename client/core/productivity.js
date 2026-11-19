@@ -13,6 +13,7 @@
 //   - doel 0 = uit: dan is er geen reeks;
 //   - vóór `from` (180 dagen terug, zo lang bewaart de server het logboek) is niets bekend: een reeks begint daar op zijn vroegst.
 
+import { inVacation } from '../../shared/general.js';
 import { goalsOf } from '../../shared/stats.js';
 import { addDays } from './format.js';
 import { isoWeek, isoWeekday, startOfWeek } from './calendar.js';
@@ -30,7 +31,7 @@ export function dayCounts(stats) {
  * De reeksen dagen waarin het dagdoel gehaald is, van `from` tot en met `today`.
  * @returns {{ current: number, longest: number } | null} null als het doel uit staat
  */
-export function dayStreaks(counts, { from, today, goal, daysOff = [] }) {
+export function dayStreaks(counts, { from, today, goal, daysOff = [], vacations = [] }) {
   if (!(goal > 0)) return null;
   const off = new Set(daysOff);
   let run = 0;
@@ -39,7 +40,7 @@ export function dayStreaks(counts, { from, today, goal, daysOff = [] }) {
     if ((counts.get(d) ?? 0) >= goal) {
       run += 1;
       if (run > longest) longest = run;
-    } else if (d !== today && !off.has(isoWeekday(d))) run = 0;
+    } else if (d !== today && !off.has(isoWeekday(d)) && !inVacation(vacations, d)) run = 0; // een vrije dag of een vakantie breekt niet
   }
   return { current: run, longest };
 }
@@ -126,13 +127,13 @@ export function summarize(stats, { settings = null, today, weeks = 12, nameOf } 
     goals,
     from,
     stale: today > stats.today,
-    today: { date: today, count: todayCount, goal: goals.daily, met: goals.daily > 0 && todayCount >= goals.daily, off: off.has(isoWeekday(today)) },
+    today: { date: today, count: todayCount, goal: goals.daily, met: goals.daily > 0 && todayCount >= goals.daily, off: off.has(isoWeekday(today)) || inVacation(goals.vacations, today) },
     week: { start: weekStart, count: thisWeek.count, goal: goals.weekly, met: goals.weekly > 0 && thisWeek.count >= goals.weekly },
-    dayStreak: dayStreaks(counts, { from, today: end, goal: goals.daily, daysOff: goals.daysOff }),
+    dayStreak: dayStreaks(counts, { from, today: end, goal: goals.daily, daysOff: goals.daysOff, vacations: goals.vacations }),
     weekStreak: weekStreaks(allWeeks, goals.weekly),
     days: Array.from({ length: 7 }, (_, i) => {
       const date = addDays(today, i - 6);
-      return { date, count: counts.get(date) ?? 0, off: off.has(isoWeekday(date)), known: known(date), today: date === today };
+      return { date, count: counts.get(date) ?? 0, off: off.has(isoWeekday(date)) || inVacation(goals.vacations, date), known: known(date), today: date === today };
     }),
     weeks: shownWeeks,
     projects: projectShare(stats, { start: weekStart, end: today, nameOf }),

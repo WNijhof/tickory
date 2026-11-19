@@ -135,8 +135,9 @@ object Notifications {
             builder.addAction(0, context.getString(R.string.action_complete), actionIntent(context, ACTION_COMPLETE, reminder))
         }
         if (actions != Actions.NONE) {
-            builder.addAction(0, context.getString(R.string.action_snooze), actionIntent(context, ACTION_SNOOZE, reminder))
-            builder.addAction(0, context.getString(R.string.action_snooze_hour), actionIntent(context, ACTION_SNOOZE_HOUR, reminder))
+            val minutes = ReminderEngine.snoozeMinutes(context)
+            builder.addAction(0, snoozeLabel(context, minutes), actionIntent(context, ACTION_SNOOZE, reminder))
+            if (minutes != 60) builder.addAction(0, context.getString(R.string.action_snooze_hour), actionIntent(context, ACTION_SNOOZE_HOUR, reminder))
         }
 
         val notification = builder.build()
@@ -175,6 +176,13 @@ object Notifications {
     }
 
     /** De herinnering waar een knop van de melding bij hoort, of null als de gegevens niet kloppen. */
+    /** De tekst van de eerste uitstelknop: "In 10 minuten", "In 1 uur", "In 1 dag" (de duur uit je instellingen). */
+    fun snoozeLabel(context: Context, minutes: Int): String = when {
+        minutes < 60 -> context.resources.getQuantityString(R.plurals.action_snooze_minutes, minutes, minutes)
+        minutes < 1440 -> context.resources.getQuantityString(R.plurals.action_snooze_hours, minutes / 60, minutes / 60)
+        else -> context.resources.getQuantityString(R.plurals.action_snooze_days, minutes / 1440, minutes / 1440)
+    }
+
     fun reminderFrom(intent: Intent): PlannedReminder? {
         val reminderId = intent.getStringExtra(EXTRA_REMINDER_ID)?.takeIf(Ids::isSafeId) ?: return null
         val taskId = intent.getStringExtra(EXTRA_TASK_ID)?.takeIf(Ids::isSafeId) ?: return null
