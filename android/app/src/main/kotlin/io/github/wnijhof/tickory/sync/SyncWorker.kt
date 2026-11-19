@@ -53,6 +53,16 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
             ReminderEngine.replan(app)
             return Result.success()
         }
+        // de notities uit het kleine venster "Notitie toevoegen" (zelfde aanmelding, zelfde controle van wie ze zijn)
+        when (QuickNoteSync.flush(app, client, token)) {
+            QuickNoteSync.Outcome.OFFLINE -> return failed(app, prefs, origin)
+            QuickNoteSync.Outcome.UNAUTHORIZED -> {
+                ReminderEngine.replan(app)
+                return Result.success()
+            }
+            QuickNoteSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
+            QuickNoteSync.Outcome.NOTHING -> Unit
+        }
         // de taken uit het kleine venster "Taak toevoegen" (zelfde aanmelding, zelfde controle van wie ze zijn)
         when (QuickAddSync.flush(app, client, token)) {
             QuickAddSync.Outcome.OFFLINE -> return failed(app, prefs, origin)

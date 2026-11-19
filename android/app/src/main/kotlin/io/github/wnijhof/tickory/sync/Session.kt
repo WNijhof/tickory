@@ -8,6 +8,8 @@ import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.inbox.InboxNotifier
 import io.github.wnijhof.tickory.reminders.ReminderEngine
 import io.github.wnijhof.tickory.quickadd.QuickAddNotifier
+import io.github.wnijhof.tickory.quicknote.QuickNoteNotifier
+import io.github.wnijhof.tickory.store.QuickNoteStore
 import io.github.wnijhof.tickory.store.QuickAddStore
 import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.widget.WidgetUpdater
@@ -67,6 +69,7 @@ object Session {
         WidgetStore.clearAll(app) // taken, projecten en de wachtrij van deze gebruiker: weg
         // de taken uit het kleine venster die nog niet verstuurd waren: weg, maar met een melding met de tekst (niets stil verloren)
         for (item in QuickAddStore.clearAll(app)) QuickAddNotifier.notDelivered(app, item, QuickAddNotifier.Reason.SIGNED_OUT)
+        for (item in QuickNoteStore.clearAll(app)) QuickNoteNotifier.notDelivered(app, item, QuickAddNotifier.Reason.SIGNED_OUT) // idem voor notities
         InboxNotifier.clear(app) // en wat er van de meldingen bij samenwerken bekend is
         WidgetUpdater.updateAll(app)
     }

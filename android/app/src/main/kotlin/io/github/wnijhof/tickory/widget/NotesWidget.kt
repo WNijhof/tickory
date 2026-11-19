@@ -123,7 +123,8 @@ object NotesWidget {
         return PendingIntent.getActivity(context, request, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    fun newNote(context: Context): PendingIntent = openView(context, DeepLink.VIEW_NEW_NOTE, REQUEST_NEW_NOTE)
+    /** De "+": het kleine venster Notitie toevoegen over het startscherm, op dezelfde manier als de "+" van een takenlijst. */
+    fun newNote(context: Context): PendingIntent = WidgetIntents.addNote(context)
 
     fun openNotes(context: Context): PendingIntent = openView(context, DeepLink.VIEW_NOTES, REQUEST_OPEN_NOTES)
 

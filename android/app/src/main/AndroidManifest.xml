@@ -250,6 +250,17 @@
                 android:resource="@xml/widget_productivity_info" />
         </receiver>
         <receiver
+            android:name=".widget.AddNoteWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_addnote_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_add_note_info" />
+        </receiver>
+        <receiver
             android:name=".widget.WidgetTickReceiver"
             android:exported="false" />
 
@@ -259,6 +270,18 @@
             android:exported="true"
             android:icon="@drawable/ic_tile_add"
             android:label="@string/tile_add_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <!-- De tegel "Notitie toevoegen" in de snelle instellingen. Alleen het systeem (BIND_QUICK_SETTINGS_TILE) mag hem binden. -->
+        <service
+            android:name=".AddNoteTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_note"
+            android:label="@string/tile_note_label"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -307,6 +330,17 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:label="@string/quick_title"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Tickory.QuickAdd"
+            android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />
+
+        <!-- Het kleine venster "Notitie toevoegen" over het startscherm, op dezelfde manier als "Taak toevoegen" hierboven. -->
+        <activity
+            android:name=".quicknote.QuickNoteActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/quick_note_title"
             android:taskAffinity=""
             android:theme="@style/Theme.Tickory.QuickAdd"
             android:windowSoftInputMode="stateAlwaysVisible|adjustResize" />

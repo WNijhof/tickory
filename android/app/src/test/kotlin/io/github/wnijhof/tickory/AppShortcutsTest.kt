@@ -20,7 +20,7 @@ class AppShortcutsTest {
 
     @Test
     @Config(sdk = [34], qualifiers = "nl")
-    fun `drie snelkoppelingen - Taak toevoegen in het kleine venster, Vandaag en Nieuwe notitie in de app`() {
+    fun `drie snelkoppelingen - Taak toevoegen en Notitie toevoegen in een klein venster, Vandaag in de app`() {
         val list = AppShortcuts.build(app)
         assertEquals(listOf(AppShortcuts.ADD, AppShortcuts.TODAY, AppShortcuts.NOTE), list.map { it.id })
         assertEquals(listOf("Nieuwe taak", "Vandaag", "Notitie"), list.map { it.shortLabel.toString() })
@@ -28,11 +28,12 @@ class AppShortcutsTest {
         val add = list[0].intent
         assertEquals(ComponentName(app, QuickAddActivity::class.java), add.component)
         assertEquals("add", DeepLink.add(add.getStringExtra(DeepLink.EXTRA_ADD)))
-        for ((shortcut, fragment) in list.drop(1).zip(listOf("view=today", "note=new"))) {
-            assertEquals(ComponentName(app, MainActivity::class.java), shortcut.intent.component)
-            assertEquals("geen VIEW: die hoort bij de terugkeer van de inlogdienst", AppShortcuts.ACTION, shortcut.intent.action)
-            assertEquals(fragment, DeepLink.view(shortcut.intent.getStringExtra(DeepLink.EXTRA_VIEW)))
-        }
+        val today = list[1].intent
+        assertEquals(ComponentName(app, MainActivity::class.java), today.component)
+        assertEquals("geen VIEW: die hoort bij de terugkeer van de inlogdienst", AppShortcuts.ACTION, today.action)
+        assertEquals("view=today", DeepLink.view(today.getStringExtra(DeepLink.EXTRA_VIEW)))
+        // Nieuwe notitie: het kleine venster Notitie toevoegen, zoals Taak toevoegen
+        assertEquals(ComponentName(app, io.github.wnijhof.tickory.quicknote.QuickNoteActivity::class.java), list[2].intent.component)
     }
 
     @Test

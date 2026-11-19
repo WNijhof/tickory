@@ -334,7 +334,7 @@ maakt er een titel en beschrijving van en opent het venster Taak toevoegen, in d
 
 ## Widgets
 
-Zeven widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
+Acht widgets, zonder extra bibliotheken (`AppWidgetProvider`, `RemoteViews` en een `RemoteViewsService`; Glance zou Compose en
 meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 
 | Widget | Wat |
@@ -342,9 +342,10 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Vandaag | Achterstallige taken en wat vandaag moet, afvinken met een tik op de cirkel (kleur van de prioriteit), tik op de titel opent de taak, kop met datum en aantal, knop "+" voor Taak toevoegen, een lege staat |
 | Project of lijst | Bij het plaatsen kies je (`WidgetConfigActivity`) de Inbox, een project, Vandaag, Aankomend of een opgeslagen filter; opnieuw kiezen kan vanaf Android 9. De keuze is een tekst per widget (`WidgetSource`: `today`, `upcoming`, `inbox`, `project:<id>`, `filter:<id>`). Een filter rekent `FilterLang` uit, de filtertaal van de web-app in Kotlin (zonder datums in gewone taal); `src/test/resources/filter-vectors.json` komt uit `scripts/filter-vectors.ts` en `FilterLangVectorsTest` eist dezelfde uitkomsten als de web-app |
 | Aankomend | Vanaf morgen veertien dagen, per dag met een kop |
-| Notities | Je notities (`NotesWidget`, `WidgetNotes`) als kaartjes in de kleur van de notitie, vastgepinde eerst en dan de laatst gewijzigde: kop, een paar regels zonder Markdown (checklist met ○ en ✓), "1 van 3 gedaan" en "gedeeld". Tik opent de notitie (`note_<id>` via `WidgetActionActivity`), "+" een nieuwe notitie, de kop de notities |
+| Notities | Je notities (`NotesWidget`, `WidgetNotes`) als kaartjes in de kleur van de notitie, vastgepinde eerst en dan de laatst gewijzigde: kop, een paar regels zonder Markdown (checklist met ○ en ✓), "1 van 3 gedaan" en "gedeeld". Tik opent de notitie (`note_<id>` via `WidgetActionActivity`), "+" het [kleine venster Notitie toevoegen](#het-kleine-venster-notitie-toevoegen), de kop de notities |
 | Productiviteit | Dagelijks, wekelijks en reeks (4×2, te vergroten): hoeveel je vandaag en deze week afvinkte tegenover je doelen, en je dagen achter elkaar. De gegevens (`GET /api/v1/stats` en de doelen uit de instellingen) haalt de verversing op de achtergrond erbij, alleen als zo'n widget er is (`ApiClient.fetchProductivity`, bewaard in `widget-stats.json`; de rekenregels staan zonder Android in `core/WidgetStats.kt` en zijn die van `client/core/productivity.js`). Een tik opent het scherm Productiviteit (`#view=productivity`). Er is geen karma in Tickory: de derde rij is de reeks |
 | Snelle acties | Vier knoppen (2×2, niet te vergroten): Vandaag, Inbox, Nieuwe notitie en Taak toevoegen. Alleen vaste intenties naar de app (`WidgetIntents.openView`), geen gegevens |
+| Notitie toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Notitie toevoegen](#het-kleine-venster-notitie-toevoegen) opent, op dezelfde manier als de knop Taak toevoegen |
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 Formaat: minstens 2×2 voor de lijsten (verkleinen tot ongeveer 110×110 dp en vergroten tot 450×600 dp), de knop vanaf 1×1. Drie
@@ -354,6 +355,15 @@ nieuwer volgen achtergrond, tekst en accent het thema van de gebruiker (`values-
 `system_neutral1_*` en `system_accent1_*`) en de hoeken die van het systeem; de prioriteitskleuren blijven vast. Elke regel is
 minstens 48 dp hoog en de cirkel is 48 dp breed. De cirkel, de titel en de kop hebben een beschrijving voor TalkBack. De teksten
 staan in `strings.xml` in beide talen (`lintDebug` controleert dat).
+
+### Het kleine venster Notitie toevoegen
+
+Notities gaan op dezelfde manier als taken: een klein venster over het startscherm (`quicknote/QuickNoteActivity`, zonder WebView), met een titel, de tekst, een knop **Checklist** (zet een regel `- [ ] `), **Vastpinnen**, **Toevoegen** en **Openen in de app**. Het opent vanaf de "+" van de widget Notities, de knop-widget Notitie toevoegen, de knop Nieuwe notitie van Snelle acties, de tegel **Notitie toevoegen** in de snelle instellingen (`AddNoteTileService`) en de snelkoppeling Notitie onder het app-icoon.
+
+- **Toevoegen** zet de notitie in een wachtrij op het toestel (`store/QuickNoteStore`, `files/quicknote/queue.json`, atomair; de regels staan zonder Android in `core/QuickNote.kt`). De gewone verversing (`SyncWorker`) verstuurt hem als commando `note_add` (`sync/QuickNoteSync`, met een vast uuid en een door het toestel bedacht notitie-id: opnieuw proberen maakt hooguit één notitie). Met verbinding duurt dat een paar seconden, anders gaat hij mee zodra die er is; het venster zegt welke van de twee.
+- **Niets gaat stil verloren.** Terug of ernaast tikken sluit zonder toe te voegen en bewaart de tekst als concept (en het venster zegt dat, ook de volgende keer). Wat de server weigert, wat veertien dagen wacht en wat niet van deze gebruiker blijkt te zijn, komt als melding met de tekst terug (kanaal en uitleg als bij een taak, `QuickAddNotifier`) en als concept in het venster. Afmelden wist de wachtrij en het concept, met een melding bij wat nog niet verstuurd was.
+- **Niet aangemeld**: het venster opent de app op een nieuwe notitie (`#note=new`).
+- **Alleen op een toestel te controleren:** hoe het venster zich boven het toetsenbord en de gebarenbalk van een merk gedraagt, en de tegel.
 
 **Gegevens.** De widgets lezen alleen wat op het toestel staat: `widget-cache.json` (open taken, projecten, secties, labels en
 het gebruikers-id) en `widget-queue.json` (afgevinkt, nog niet bevestigd) in `files/widgets/`, beide atomair geschreven. De cache

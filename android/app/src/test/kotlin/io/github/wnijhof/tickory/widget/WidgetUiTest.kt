@@ -484,12 +484,14 @@ class WidgetUiTest : WidgetTestBase() {
         val id = place(QuickActionsWidgetProvider::class.java, R.layout.widget_quick_actions)
         WidgetUpdater.updateAll(app)
         val v = view(id)
-        for ((button, view) in listOf(R.id.quick_today to DeepLink.VIEW_TODAY, R.id.quick_inbox to DeepLink.VIEW_INBOX, R.id.quick_note to DeepLink.VIEW_NEW_NOTE)) {
+        for ((button, view) in listOf(R.id.quick_today to DeepLink.VIEW_TODAY, R.id.quick_inbox to DeepLink.VIEW_INBOX)) {
             v.findViewById<View>(button).performClick()
             val started = shadowOf(app).nextStartedActivity
             assertEquals(MainActivity::class.java.name, started.component!!.className)
             assertEquals(view, started.getStringExtra(DeepLink.EXTRA_VIEW))
         }
+        v.findViewById<View>(R.id.quick_note).performClick() // Nieuwe notitie: het kleine venster, zoals Taak toevoegen
+        assertEquals(io.github.wnijhof.tickory.quicknote.QuickNoteActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
         v.findViewById<View>(R.id.quick_add).performClick()
         assertEquals(io.github.wnijhof.tickory.quickadd.QuickAddActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
         // elke knop heeft een naam voor TalkBack
@@ -537,9 +539,23 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
+    fun `de knop Notitie toevoegen - het kleine venster Notitie toevoegen, en alleen het icoon als hij smal is`() {
+        val id = place(AddNoteWidgetProvider::class.java, R.layout.widget_add_note)
+        WidgetUpdater.updateAll(app)
+        val v = view(id)
+        assertEquals("Notitie toevoegen", v.findViewById<View>(R.id.add_note_root).contentDescription)
+        v.findViewById<View>(R.id.add_note_root).performClick()
+        assertEquals(io.github.wnijhof.tickory.quicknote.QuickNoteActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
+        assertEquals(View.VISIBLE, v.findViewById<View>(R.id.add_note_label).visibility)
+        size(id, 60, 60)
+        WidgetUpdater.updateAll(app)
+        assertEquals(View.GONE, view(id).findViewById<View>(R.id.add_note_label).visibility)
+    }
+
+    @Test
     fun `manifest - alleen wat moet is exporteerbaar, de lijst alleen voor Android zelf`() {
         val pm = app.packageManager
-        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java, WidgetTickReceiver::class.java)) {
+        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, AddNoteWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java, WidgetTickReceiver::class.java)) {
             assertFalse(cls.simpleName, pm.getReceiverInfo(ComponentName(app, cls), 0).exported)
         }
         val service = pm.getServiceInfo(ComponentName(app, WidgetListService::class.java), PackageManager.GET_META_DATA)
@@ -548,7 +564,7 @@ class WidgetUiTest : WidgetTestBase() {
         assertFalse(pm.getActivityInfo(ComponentName(app, WidgetActionActivity::class.java), 0).exported)
         assertTrue("Android moet het configuratiescherm kunnen starten", pm.getActivityInfo(ComponentName(app, WidgetConfigActivity::class.java), 0).exported)
         // de vijf widgets hebben elk een beschrijving voor Android
-        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java)) {
+        for (cls in listOf(TodayWidgetProvider::class.java, UpcomingWidgetProvider::class.java, ProjectWidgetProvider::class.java, AddWidgetProvider::class.java, AddNoteWidgetProvider::class.java, QuickActionsWidgetProvider::class.java, ProductivityWidgetProvider::class.java)) {
             val info = pm.getReceiverInfo(ComponentName(app, cls), PackageManager.GET_META_DATA)
             assertTrue(cls.simpleName, info.metaData.getInt("android.appwidget.provider") != 0)
         }

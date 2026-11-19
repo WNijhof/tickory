@@ -9,6 +9,7 @@ import io.github.wnijhof.tickory.AppShortcuts
 import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.quickadd.QuickAddActivity
+import io.github.wnijhof.tickory.quicknote.QuickNoteActivity
 import io.github.wnijhof.tickory.reminders.Notifications
 
 /**
@@ -43,6 +44,13 @@ object WidgetIntents {
             .putExtra(DeepLink.EXTRA_ADD, target ?: "")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return PendingIntent.getActivity(context, REQUEST_ADD, intent, IMMUTABLE)
+    }
+
+    /** De knop "Notitie toevoegen": het kleine venster Notitie toevoegen over het startscherm (zoals [addTask] voor een taak). */
+    fun addNote(context: Context): PendingIntent {
+        val intent = QuickNoteActivity.launchIntent(context)
+            .setData(Uri.Builder().scheme("tickory").authority("widget").appendPath("addnote").build())
+        return PendingIntent.getActivity(context, REQUEST_ADD_NOTE, intent, IMMUTABLE)
     }
 
     /** Een vast overzicht openen (DeepLink.VIEW_TODAY, VIEW_INBOX, VIEW_NEW_NOTE, ...): alleen die vaste keuzes, nooit gegevens. */
@@ -81,5 +89,6 @@ object WidgetIntents {
 
     private const val REQUEST_OPEN_APP = 1
     private const val REQUEST_ADD = 2
+    private const val REQUEST_ADD_NOTE = 3
     private const val REQUEST_VIEW_BASE = 100
 }

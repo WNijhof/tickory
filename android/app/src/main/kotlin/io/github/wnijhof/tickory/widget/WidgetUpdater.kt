@@ -39,6 +39,8 @@ object WidgetUpdater {
             val addIds = manager.getAppWidgetIds(ComponentName(app, AddWidgetProvider::class.java))
             for (id in addIds) manager.updateAppWidget(id, AddWidgetProvider.render(app, manager, id))
             if (addIds.isNotEmpty()) any = true
+            val addNoteIds = manager.getAppWidgetIds(ComponentName(app, AddNoteWidgetProvider::class.java))
+            for (id in addNoteIds) manager.updateAppWidget(id, AddNoteWidgetProvider.render(app, manager, id))
             val prodIds = manager.getAppWidgetIds(ComponentName(app, ProductivityWidgetProvider::class.java))
             for (id in prodIds) manager.updateAppWidget(id, ProductivityWidgetProvider.render(app))
             if (prodIds.isNotEmpty()) any = true

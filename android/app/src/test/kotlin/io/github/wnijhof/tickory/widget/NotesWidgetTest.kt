@@ -77,8 +77,8 @@ class NotesWidgetTest : WidgetTestBase() {
         assertEquals("note=note-boods-001", DeepLink.task(fill.getStringExtra(Notifications.EXTRA_TASK_ID)))
 
         val add = shadowOf(NotesWidget.newNote(app)).savedIntent
-        assertEquals(ComponentName(app, MainActivity::class.java), add.component)
-        assertEquals("note=new", DeepLink.view(add.getStringExtra(DeepLink.EXTRA_VIEW)))
+        // de plus opent het kleine venster Notitie toevoegen, zoals de plus van een takenlijst Taak toevoegen opent
+        assertEquals(ComponentName(app, io.github.wnijhof.tickory.quicknote.QuickNoteActivity::class.java), add.component)
         val open = shadowOf(NotesWidget.openNotes(app)).savedIntent
         assertEquals("view=notes", DeepLink.view(open.getStringExtra(DeepLink.EXTRA_VIEW)))
     }

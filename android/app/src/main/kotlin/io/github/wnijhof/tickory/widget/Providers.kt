@@ -89,7 +89,7 @@ class QuickActionsWidgetProvider : AppWidgetProvider() {
             val views = RemoteViews(context.packageName, R.layout.widget_quick_actions)
             views.setOnClickPendingIntent(R.id.quick_today, WidgetIntents.openView(context, DeepLink.VIEW_TODAY))
             views.setOnClickPendingIntent(R.id.quick_inbox, WidgetIntents.openView(context, DeepLink.VIEW_INBOX))
-            views.setOnClickPendingIntent(R.id.quick_note, WidgetIntents.openView(context, DeepLink.VIEW_NEW_NOTE))
+            views.setOnClickPendingIntent(R.id.quick_note, WidgetIntents.addNote(context))
             views.setOnClickPendingIntent(R.id.quick_add, WidgetIntents.addTask(context, null))
             return views
         }
@@ -152,6 +152,27 @@ class ProductivityWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.prod_streak_count, streak?.toString() ?: "–")
             views.setProgressBar(R.id.prod_streak_bar, 100, if (streak == null) 0 else percent(streak, STREAK_FULL_DAYS), false)
             views.setContentDescription(R.id.prod_row_streak, if (streak == null) context.getString(R.string.widget_prod_streak_off) else context.getString(R.string.widget_prod_streak_desc, streak))
+            return views
+        }
+    }
+}
+
+/** De knop "Notitie toevoegen": opent het kleine venster Notitie toevoegen, op dezelfde manier als de knop Taak toevoegen. */
+class AddNoteWidgetProvider : AppWidgetProvider() {
+    override fun onUpdate(context: Context, manager: AppWidgetManager, appWidgetIds: IntArray) {
+        for (id in appWidgetIds) manager.updateAppWidget(id, render(context, manager, id))
+    }
+
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle?) {
+        manager.updateAppWidget(appWidgetId, render(context, manager, appWidgetId))
+    }
+
+    companion object {
+        fun render(context: Context, manager: AppWidgetManager, appWidgetId: Int): RemoteViews {
+            val views = RemoteViews(context.packageName, R.layout.widget_add_note)
+            val width = manager.getAppWidgetOptions(appWidgetId)?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) ?: 0
+            views.setViewVisibility(R.id.add_note_label, if (width == 0 || width >= AddWidgetProvider.LABEL_MIN_WIDTH_DP) View.VISIBLE else View.GONE)
+            views.setOnClickPendingIntent(R.id.add_note_root, WidgetIntents.addNote(context))
             return views
         }
     }

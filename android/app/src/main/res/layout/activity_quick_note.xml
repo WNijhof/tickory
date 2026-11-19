@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Het kleine venster "Notitie toevoegen" (QuickNoteActivity), over het startscherm, op dezelfde manier als "Taak toevoegen". Ernaast
+  tikken sluit het (de lege ruimte is note_root); het vlak onderaan (note_sheet) vangt zijn eigen tikken. Alle tikvlakken zijn
+  minstens 48 dp hoog.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/note_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:importantForAccessibility="no"
+    tools:ignore="MergeRootFrame">
+
+    <LinearLayout
+        android:id="@+id/note_sheet"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:accessibilityPaneTitle="@string/quick_note_title"
+        android:background="@drawable/quick_sheet"
+        android:clickable="true"
+        android:elevation="8dp"
+        android:focusable="false"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp"
+        tools:ignore="UselessParent"
+        tools:targetApi="28">
+
+        <View
+            android:layout_width="36dp"
+            android:layout_height="4dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="4dp"
+            android:background="@drawable/quick_handle"
+            android:importantForAccessibility="no" />
+
+        <EditText
+            android:id="@+id/note_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:hint="@string/quick_note_title_hint"
+            android:imeOptions="actionNext|flagNoExtractUi"
+            android:importantForAutofill="no"
+            android:inputType="textCapSentences|textAutoCorrect"
+            android:maxLength="200"
+            android:maxLines="2"
+            android:minHeight="48dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:textColor="@color/text"
+            android:textColorHint="@color/text_soft"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/note_body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:gravity="top"
+            android:hint="@string/quick_note_body_hint"
+            android:imeOptions="flagNoExtractUi"
+            android:importantForAutofill="no"
+            android:inputType="textMultiLine|textCapSentences|textAutoCorrect"
+            android:maxLength="100000"
+            android:maxLines="8"
+            android:minHeight="96dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp"
+            android:textColor="@color/text"
+            android:textColorHint="@color/text_soft"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/note_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:accessibilityLiveRegion="polite"
+            android:paddingTop="2dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/text_soft"
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/note_checklist"
+                    style="@style/QuickChip"
+                    android:text="@string/quick_note_checklist" />
+
+                <ToggleButton
+                    android:id="@+id/note_pin"
+                    style="@style/QuickChip"
+                    android:textOff="@string/quick_note_pin"
+                    android:textOn="@string/quick_note_pin" />
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/note_open_app"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="48dp"
+                android:minHeight="48dp"
+                android:text="@string/quick_open_app"
+                android:textAllCaps="false"
+                android:textColor="@color/brand"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/note_add"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/button_primary"
+                android:enabled="false"
+                android:minWidth="96dp"
+                android:minHeight="48dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:text="@string/quick_add"
+                android:textAllCaps="false"
+                android:textColor="@color/on_brand"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

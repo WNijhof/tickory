@@ -6,10 +6,11 @@ import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.quicknote.QuickNoteActivity
 
 /**
  * De snelkoppelingen onder het app-icoon (lang indrukken in de launcher): Taak toevoegen (het kleine venster, zoals de tegel),
- * Vandaag en Nieuwe notitie. Ze worden bij elke start van de app opnieuw gezet: zo wijzen de intenties altijd naar dit pakket
+ * Vandaag en Nieuwe notitie (het kleine venster Notitie toevoegen). Ze worden bij elke start van de app opnieuw gezet: zo wijzen de intenties altijd naar dit pakket
  * en volgen de namen de taal van het toestel. Ze geven alleen een vaste keuze mee (DeepLink.EXTRA_VIEW), nooit gegevens.
  */
 object AppShortcuts {
@@ -34,7 +35,7 @@ object AppShortcuts {
         return listOf(
             shortcut(ADD, R.string.shortcut_add_short, R.string.shortcut_add_long, R.drawable.ic_shortcut_add, AddTaskTileService.launchIntent(context).setAction(ACTION)),
             shortcut(TODAY, R.string.shortcut_today_short, R.string.shortcut_today_long, R.drawable.ic_shortcut_today, open(DeepLink.VIEW_TODAY)),
-            shortcut(NOTE, R.string.shortcut_note_short, R.string.shortcut_note_long, R.drawable.ic_shortcut_note, open(DeepLink.VIEW_NEW_NOTE)),
+            shortcut(NOTE, R.string.shortcut_note_short, R.string.shortcut_note_long, R.drawable.ic_shortcut_note, QuickNoteActivity.launchIntent(context).setAction(ACTION)),
         )
     }
 
