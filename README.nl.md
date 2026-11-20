@@ -27,7 +27,7 @@ Tickory is een zelf te hosten, offline-first app voor taken en notities: een syn
 - **Herinneringen:** in de browser (Web Push) en als alarm in de Android-app, ook op een plek.
 - **Zoeken, filters, sjablonen, ongedaan maken, meerdere taken tegelijk, sneltoetsen.**
 - **Offline** op meerdere apparaten tegelijk; wijzigingen van anderen zijn er binnen seconden.
-- **Apps:** installeerbare web-app (PWA), Android-app met widgets, browserextensie.
+- **Apps:** installeerbare web-app (PWA), Android-app met widgets, desktop-app voor Windows (systeemvak, sneltoets voor Taak toevoegen, herinneringen als meldingen van Windows), browserextensie.
 - **Accounts:** meerdere gebruikers, tweestapsverificatie, SSO (OpenID Connect), back-ups vanuit de app.
 - **Importeren** uit Todoist (back-up-zip of CSV) en Google Keep; exporteren als CSV of JSON.
 - **Talen:** Engels en Nederlands, ook de datums die je typt.

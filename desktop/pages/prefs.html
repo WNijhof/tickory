@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tickory</title>
+  <link rel="stylesheet" href="pages.css">
+</head>
+<body>
+  <main>
+    <section id="setup" hidden>
+      <img class="logo" src="../assets/icon.png" alt="">
+      <h1 data-t="setupTitle"></h1>
+      <p class="hint" data-t="setupText"></p>
+      <form id="server-form">
+        <label for="server" data-t="serverLabel"></label>
+        <input id="server" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="taken.voorbeeld.nl" required>
+        <p id="server-error" class="error" role="alert"></p>
+        <button type="submit" class="primary" data-t="connect"></button>
+      </form>
+    </section>
+
+    <section id="prefs" hidden>
+      <h1 data-t="settings"></h1>
+      <form id="prefs-form">
+        <fieldset>
+          <legend data-t="shortcuts"></legend>
+          <label for="sc-quickadd" data-t="quickAdd"></label>
+          <input id="sc-quickadd" type="text" spellcheck="false">
+          <label for="sc-activate" data-t="show"></label>
+          <input id="sc-activate" type="text" spellcheck="false">
+          <p class="hint" data-t="shortcutHint"></p>
+        </fieldset>
+        <fieldset>
+          <legend data-t="startup"></legend>
+          <label class="check"><input id="open-at-login" type="checkbox"> <span data-t="openAtLogin"></span></label>
+          <label class="check"><input id="start-minimized" type="checkbox"> <span data-t="startMinimized"></span></label>
+          <label class="check"><input id="stay-in-tray" type="checkbox"> <span data-t="stayInTray"></span></label>
+        </fieldset>
+        <fieldset>
+          <legend data-t="serverLabel"></legend>
+          <p id="server-now" class="hint"></p>
+        </fieldset>
+        <p id="prefs-error" class="error" role="alert"></p>
+        <div class="buttons">
+          <button type="button" id="close" data-t="close"></button>
+          <button type="submit" class="primary" data-t="save"></button>
+        </div>
+      </form>
+    </section>
+  </main>
+  <script src="prefs.js"></script>
+</body>
+</html>

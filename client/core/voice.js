@@ -27,6 +27,8 @@ export function voiceSupport(env = globalThis) {
       return null;
     }
   }
+  // De desktop-app (Electron) heeft de browser-API wel, maar zonder spraakdienst erachter: daar dus geen microfoon.
+  if (env.TickoryDesktop) return null;
   return recognitionOf(env) ? 'browser' : null;
 }
 

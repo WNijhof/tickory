@@ -1,0 +1,81 @@
+{
+  "name": "tickory-desktop",
+  "productName": "Tickory",
+  "version": "0.10.0",
+  "description": "Tickory voor Windows: de web-app van je eigen Tickory-server in een eigen venster, met systeemvak, sneltoetsen en meldingen",
+  "author": "Tickory",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "main": "main.mjs",
+  "private": true,
+  "scripts": {
+    "copy": "node scripts/copy-shared.mjs",
+    "start": "node scripts/copy-shared.mjs && electron .",
+    "test": "node scripts/copy-shared.mjs && node --test test/",
+    "dist": "node scripts/copy-shared.mjs && electron-builder --win --publish never"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.12"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "io.github.wnijhof.tickory.desktop",
+    "productName": "Tickory",
+    "copyright": "Tickory",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.mjs",
+      "preload.cjs",
+      "lib/**",
+      "pages/**",
+      "assets/**",
+      "shared/**",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "main.mjs"
+    },
+    "protocols": [
+      {
+        "name": "Tickory",
+        "schemes": [
+          "tickory"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Tickory-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Tickory"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "WNijhof",
+        "repo": "tickory",
+        "releaseType": "release"
+      }
+    ]
+  }
+}

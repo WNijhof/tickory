@@ -1,0 +1,103 @@
+name: Desktop-app (Windows)
+
+# Bouwt de desktop-app voor Windows (desktop/, Electron) zodra je een versie-tag zet, en hangt de installer aan de GitHub Release
+# van die tag, samen met latest.yml en de blockmap: daarmee werkt de desktop-app zichzelf bij (electron-updater leest de Releases).
+#   git tag v0.10.0 && git push origin v0.10.0
+# De versie komt uit package.json in de hoofdmap; de tag moet daarmee overeenkomen.
+# Handmatig starten (Actions > Desktop-app (Windows) > Run workflow) bouwt alleen en bewaart de installer bij de run.
+#
+# Ondertekening: de installer is (nog) niet ondertekend met een code-signing-certificaat; Windows SmartScreen kan bij de eerste
+# keer waarschuwen ("Meer informatie" > "Toch uitvoeren").
+#
+# Rechten: de bouw leest alleen (contents: read). Alleen de job "release" mag schrijven en draait geen code uit de repo.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '26'
+
+      - name: Versie bepalen
+        id: version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "$IS_TAG" = "true" ] && [ "v$version" != "$TAG" ]; then
+            echo "::error::De tag ($TAG) en de versie in package.json ($version) zijn niet gelijk."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Pakketten en tests
+        working-directory: desktop
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          npm test
+
+      - name: Installer bouwen
+        working-directory: desktop
+        run: npm run dist
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: tickory-desktop-${{ steps.version.outputs.version }}
+          path: |
+            desktop/dist/Tickory-Setup-${{ steps.version.outputs.version }}.exe
+            desktop/dist/Tickory-Setup-${{ steps.version.outputs.version }}.exe.blockmap
+            desktop/dist/latest.yml
+          if-no-files-found: error
+
+  release:
+    name: Installer aan de GitHub Release hangen
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: tickory-desktop-${{ needs.build.outputs.version }}
+          path: desktop
+
+      - name: Aan de Release hangen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          files=("desktop/Tickory-Setup-$VERSION.exe" "desktop/Tickory-Setup-$VERSION.exe.blockmap" "desktop/latest.yml")
+          # de Android-workflow kan de Release net aanmaken: bestaat hij, dan erbij; anders aanmaken, en bij een botsing alsnog erbij
+          for attempt in 1 2 3; do
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              gh release upload "$TAG" "${files[@]}" --clobber && exit 0
+            else
+              gh release create "$TAG" "${files[@]}" --title "$TAG" --generate-notes --verify-tag && exit 0
+            fi
+            sleep 20
+          done
+          exit 1

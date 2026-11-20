@@ -1,0 +1,47 @@
+<!--
+title: Desktop-app voor Windows
+description: Tickory als programma op Windows, zoals de desktop-app van Todoist: een eigen venster, een icoon in het systeemvak, Ctrl+Spatie voor een klein venster Taak toevoegen, een stip op de taakbalk als er taken voor vandaag zijn, en herinneringen als meldingen van Windows met Voltooien en Uitstellen.
+-->
+<h1>Desktop-app voor Windows</h1>
+<p class="intro">De desktop-app toont de web-app van je eigen server in een eigen venster, net zoals de desktop-app van Todoist dat met todoist.com doet. Daarbovenop krijg je wat een browser niet kan: een icoon in het systeemvak, sneltoetsen die overal werken, een stip op de taakbalk, en herinneringen als gewone meldingen van Windows.</p>
+
+<div class="note warn">
+  <span class="note-label">Nieuw</span>
+  <p>De installer (<code>Tickory-Setup-….exe</code>) staat vanaf versie 0.10.0 bij elke versie op de <a href="{{repo}}/releases">releasepagina op GitHub</a>. Hij is nog niet ondertekend met een certificaat: Windows SmartScreen kan de eerste keer waarschuwen. Kies dan <em>Meer informatie</em> en <em>Toch uitvoeren</em>.</p>
+</div>
+
+<h2 id="installeren">Installeren en verbinden</h2>
+<ol>
+  <li>Download <code>Tickory-Setup-….exe</code> van de releasepagina en start hem. Je kunt kiezen waar het programma komt; het komt in het Startmenu en op het bureaublad.</li>
+  <li>Bij de eerste start vraagt Tickory het <strong>adres van je server</strong>, bijvoorbeeld <code>taken.voorbeeld.nl</code>. Buiten je eigen netwerk moet dat https zijn.</li>
+  <li>Log daarna in zoals in de browser. Je blijft ingelogd, ook na een herstart.</li>
+</ol>
+
+<h2 id="systeemvak">Het systeemvak</h2>
+<p>Het icoon rechtsonder op de taakbalk opent een menu met <em>Taak toevoegen</em>, <em>Tickory tonen</em>, de taken van vandaag (met een stip in de kleur van de prioriteit; klik om de taak te openen), de vaste overzichten (Inbox, Vandaag, Aankomend, Voltooid, Notities), <em>Instellingen</em>, <em>In systeemvak blijven draaien</em> en <em>Tickory afsluiten</em>. Sluit je het venster, dan blijft Tickory in het systeemvak draaien, zodat herinneringen en sneltoetsen blijven werken; dat zet je uit met <em>In systeemvak blijven draaien</em>.</p>
+
+<h2 id="sneltoetsen">Sneltoetsen</h2>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>Spatie</kbd>, overal in Windows: een klein venster <strong>Taak toevoegen</strong> bovenaan het scherm. Typ de taak zoals altijd (<code>Tandarts morgen 9:00 p1</code>), voeg toe, en het venster verdwijnt weer.</li>
+  <li><kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>: Tickory tonen of verbergen.</li>
+</ul>
+<p>Beide zijn te wijzigen of uit te zetten onder <em>Instellingen</em> (in het menu Bestand of het systeemvak). Is een sneltoets al in gebruik door een ander programma, dan zegt Tickory dat.</p>
+
+<h2 id="herinneringen">Herinneringen</h2>
+<p>De desktop-app haalt je herinneringen van de server (bij het starten, elke vijf minuten en meteen als je iets wijzigt) en laat ze zelf afgaan als melding van Windows, met de knoppen <strong>Voltooien</strong> en <strong>Uitstellen</strong> (zo lang als je onder <a href="algemeen.html#uitstellen">Instellingen › Algemeen</a> koos). Een klik op de melding opent de taak. Dat werkt zolang Tickory draait, ook in het systeemvak. Een herinnering die je net miste (de pc sliep), komt nog als ze niet ouder is dan een kwartier.</p>
+
+<h2 id="meer">Verder</h2>
+<ul>
+  <li><strong>Stip op de taakbalk</strong> als er taken voor vandaag (of te laat) zijn.</li>
+  <li><strong>Menu</strong>: Bestand (Taak toevoegen, Nieuw venster, Instellingen, Andere server, Applicatiegegevens verwijderen), Bewerken, Weergave (terug, verder, opnieuw laden, in- en uitzoomen, schermvullend), Venster (<em>Zwevend op voorgrond</em>) en Help (handleiding, wat is er nieuw, controleren op updates).</li>
+  <li><strong>Opstarten met Windows</strong>, eventueel meteen in het systeemvak: onder <em>Instellingen</em>.</li>
+  <li><strong>Updates</strong> komen vanzelf: de app kijkt bij het starten op GitHub, downloadt een nieuwe versie op de achtergrond en vraagt dan om te herstarten.</li>
+  <li><strong>Notities</strong> zitten gewoon in de app, net als in de browser.</li>
+</ul>
+
+<h2>Wat (nog) niet kan</h2>
+<ul>
+  <li>Spraak in het venster Taak toevoegen: Electron, waar de app op draait, heeft geen spraakdienst.</li>
+  <li>Herinneringen terwijl Tickory helemaal is afgesloten (dus ook niet in het systeemvak).</li>
+  <li>Een versie voor macOS of Linux; de code is er wel op voorbereid.</li>
+</ul>
