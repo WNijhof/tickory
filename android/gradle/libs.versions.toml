@@ -5,7 +5,7 @@
 #     (--warning-mode all, 2026-11-16). Komt er een Kotlin die deze versies wel noemt, dan die nemen.
 #   - Gradle zelf staat in gradle/wrapper/gradle-wrapper.properties (9.9.1).
 [versions]
-agp = "9.5.1"
+agp = "9.5.2"
 kotlin = "2.4.21"
 androidxCore = "1.19.1"
 androidxActivity = "1.13.0"
