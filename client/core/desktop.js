@@ -1,7 +1,7 @@
 // De brug naar de desktop-app voor Windows (eigen-tool/desktop, een Electron-schil zoals de desktop-app van Todoist). Draait de
 // web-app daarin, dan bestaat `window.TickoryDesktop` (desktop/preload.cjs). Net als bij Android: het sessietoken (de desktop-app
 // plant de herinneringen zelf, Electron kent geen web-push), een seintje als herinneringen veranderen, het aantal taken van vandaag
-// voor de badge op de taakbalk, en het sluiten van het losse venster Taak toevoegen.
+// voor de badge op de taakbalk, het thema (Weergave, ook te kiezen in de app zelf) en het sluiten van het losse venster Taak toevoegen.
 
 /** @param {object | undefined} [host] het object dat de desktop-app aanbiedt (standaard `window.TickoryDesktop`) */
 export function desktopBridge(host = globalThis.window?.TickoryDesktop) {
@@ -21,6 +21,10 @@ export function desktopBridge(host = globalThis.window?.TickoryDesktop) {
     /** Heeft de desktop-app gevraagd Taak toevoegen te openen? (Eén keer true per verzoek.) */
     takeQuickAddRequest: () => call('takeQuickAddRequest') === true,
     setLanguage: (lang) => call('setLanguage', lang),
+    /** Het thema uit Weergave doorgeven (titelbalk, andere vensters); `initial` bij het opstarten van dit venster. */
+    setAppearance: ({ theme, accent }, initial = false) => call('setAppearance', { theme, accent }, initial),
+    /** Het thema is elders gekozen (de eigen Instellingen van de desktop-app of een ander venster). */
+    onAppearance: (callback) => call('onAppearance', callback),
   };
 }
 

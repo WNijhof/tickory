@@ -1,6 +1,6 @@
 // De brug tussen de web-app (van je eigen server) en de desktop-app: `window.TickoryDesktop`, zoals `window.TickoryAndroid` in de
 // Android-app. De web-app geeft zo het sessietoken door (voor de herinneringen), zegt dat er iets aan de herinneringen veranderde,
-// geeft het aantal taken van vandaag door (voor de badge) en sluit het venster Taak toevoegen. De desktop-app kan de web-app naar een
+// geeft het aantal taken van vandaag door (voor de badge), het thema (Weergave) en sluit het venster Taak toevoegen. De desktop-app kan de web-app naar een
 // vast overzicht sturen (#view=…) of een taak laten openen (#task=…). Niets anders gaat over deze brug.
 const { contextBridge, ipcRenderer } = require('electron');
 
@@ -26,6 +26,15 @@ contextBridge.exposeInMainWorld('TickoryDesktop', {
   },
   /** De taal van de web-app (nl of en), voor de menu's van de desktop-app. */
   setLanguage: (lang) => ipcRenderer.send('desktop:language', lang === 'nl' ? 'nl' : 'en'),
+  /** Het thema uit Instellingen › Weergave (zoals het apparaat, licht of donker, en de accentkleur), voor de titelbalk en de andere vensters. */
+  setAppearance: (a, initial = false) => ipcRenderer.send('desktop:appearance', { theme: safeText(a?.theme, 10), accent: safeText(a?.accent, 20), initial: initial === true }),
+  /** Wat te doen als het thema elders gekozen is (de eigen Instellingen van de app, of een ander venster). */
+  onAppearance: (callback) => { appearanceListener = typeof callback === 'function' ? callback : null; },
+});
+
+let appearanceListener = null;
+ipcRenderer.on('desktop:appearance', (_event, a) => {
+  if (appearanceListener && a && typeof a === 'object') appearanceListener({ theme: safeText(a.theme, 10), accent: safeText(a.accent, 20) });
 });
 
 // de desktop-app vraagt om een plek in de web-app: alleen een fragment (#view=…, #task=…), nooit een ander adres

@@ -21,6 +21,10 @@ const NL = {
   openAtLogin: 'Tickory starten als Windows start', startMinimized: 'Daarbij geminimaliseerd starten (in het systeemvak)', save: 'Bewaren', close: 'Sluiten',
   shortcutInvalid: 'Een sneltoets klopt niet of is al in gebruik door een andere app.',
   cancel: 'Annuleren', clear: 'Verwijderen', completedNote: '"{title}" is afgevinkt', snoozedNote: 'Uitgesteld: "{title}"', failedNote: 'Dat lukte niet: geen verbinding met de server.',
+  appearance: 'Weergave', theme: 'Thema', theme_system: 'Zoals het apparaat', theme_light: 'Licht', theme_dark: 'Donker', accent: 'Accentkleur',
+  accent_tomato: 'Tomaat', accent_teal: 'Zeegroen', accent_blue: 'Blauw', accent_indigo: 'Indigo', accent_violet: 'Paars', accent_rose: 'Roze',
+  accent_orange: 'Oranje', accent_green: 'Groen', accent_graphite: 'Grafiet',
+  appearanceHint: 'Werkt meteen, in alle vensters van Tickory en in de titelbalk. Dezelfde keuze als in Tickory onder Instellingen › Weergave.',
 };
 const EN = {
   quickAdd: 'Add task', show: 'Show Tickory', settings: 'Settings', stayInTray: 'Keep running in the tray',
@@ -42,6 +46,10 @@ const EN = {
   openAtLogin: 'Start Tickory when Windows starts', startMinimized: 'Start minimized (in the tray)', save: 'Save', close: 'Close',
   shortcutInvalid: 'A shortcut is not valid or is already used by another app.',
   cancel: 'Cancel', clear: 'Clear', completedNote: '"{title}" completed', snoozedNote: 'Snoozed: "{title}"', failedNote: 'That did not work: no connection with the server.',
+  appearance: 'Appearance', theme: 'Theme', theme_system: 'Same as the device', theme_light: 'Light', theme_dark: 'Dark', accent: 'Accent colour',
+  accent_tomato: 'Tomato', accent_teal: 'Teal', accent_blue: 'Blue', accent_indigo: 'Indigo', accent_violet: 'Violet', accent_rose: 'Rose',
+  accent_orange: 'Orange', accent_green: 'Green', accent_graphite: 'Graphite',
+  appearanceHint: 'Takes effect at once, in all Tickory windows and in the title bar. The same choice as in Tickory under Settings › Appearance.',
 };
 
 /** De taal: wat je in de app koos, anders die van Windows (Nederlands bij nl-*, anders Engels). */

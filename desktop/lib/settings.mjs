@@ -1,6 +1,7 @@
 // De instellingen van de desktop-app (niet die van je account: die staan op de server), in settings.json in de gebruikersmap van de app.
 // Zoals Todoist: sneltoetsen (Tickory tonen: Win+Alt+S, Taak toevoegen: Ctrl+Spatie), in het systeemvak blijven draaien, opstarten
-// met Windows (eventueel geminimaliseerd), zwevend op de voorgrond, en waar het venster stond.
+// met Windows (eventueel geminimaliseerd), zwevend op de voorgrond, waar het venster stond, en het thema (zie appearance.mjs).
+import { appearanceOf } from './appearance.mjs';
 
 export const DEFAULT_SHORTCUTS = Object.freeze({ activate: 'Super+Alt+S', quickAdd: 'Control+Space' });
 
@@ -14,6 +15,7 @@ export const DEFAULTS = Object.freeze({
   zoom: 0,
   bounds: null,
   lang: null,
+  appearance: null,
   shown: Object.freeze([]),
 });
 
@@ -42,6 +44,7 @@ export function settingsOf(raw) {
     zoom: Number.isInteger(v.zoom) && v.zoom >= -5 && v.zoom <= 5 ? v.zoom : 0,
     bounds: bounds(v.bounds),
     lang: v.lang === 'nl' || v.lang === 'en' ? v.lang : null,
+    appearance: appearanceOf(v.appearance), // null: nog niets gekozen (dan volgt de app de web-app)
     shown: Array.isArray(v.shown) ? v.shown.filter((x) => typeof x === 'string' && x.length < 200).slice(-MAX_SHOWN) : [],
   };
 }

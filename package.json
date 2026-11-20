@@ -1,11 +1,13 @@
 {
   "name": "tickory",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "private": true,
   "license": "AGPL-3.0-only",
   "description": "Tickory: zelf te hosten takenapp met gedeelde projecten (sync-server en web-app, zero dependencies, Node 26)",
   "type": "module",
-  "engines": { "node": ">=26" },
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "pretest": "node scripts/check-node.js",
     "test": "node --test --test-timeout=120000 shared/ server/ client/core/ extension/",

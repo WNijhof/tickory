@@ -3,6 +3,26 @@
 @media (prefers-color-scheme: dark) {
   :root { --bg: #202020; --bg2: #272727; --text: #f2f2f2; --soft: #b3b3b3; --line: #3d3d3d; --accent: #f0786b; --fill: #d33322; --on-fill: #ffffff; --error: #ff8a80; }
 }
+/* de accentkleur uit Weergave (dezelfde waarden als client/app.css; in het donker de lichtere tint met donkere tekst op knoppen) */
+:root[data-accent="teal"] { --accent: #0f766e; --fill: #0f766e; }
+:root[data-accent="blue"] { --accent: #1d5fd1; --fill: #1d5fd1; }
+:root[data-accent="indigo"] { --accent: #4f46e5; --fill: #4f46e5; }
+:root[data-accent="violet"] { --accent: #7c3aed; --fill: #7c3aed; }
+:root[data-accent="rose"] { --accent: #be185d; --fill: #be185d; }
+:root[data-accent="orange"] { --accent: #b45309; --fill: #b45309; }
+:root[data-accent="green"] { --accent: #15803d; --fill: #15803d; }
+:root[data-accent="graphite"] { --accent: #374151; --fill: #374151; }
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="teal"] { --accent: #2dd4bf; --fill: #2dd4bf; --on-fill: #06201d; }
+  :root[data-accent="blue"] { --accent: #7aa7ff; --fill: #7aa7ff; --on-fill: #06142e; }
+  :root[data-accent="indigo"] { --accent: #a5b4fc; --fill: #a5b4fc; --on-fill: #11134a; }
+  :root[data-accent="violet"] { --accent: #c4a7ff; --fill: #c4a7ff; --on-fill: #250b4d; }
+  :root[data-accent="rose"] { --accent: #f9a8c9; --fill: #f9a8c9; --on-fill: #4a0a25; }
+  :root[data-accent="orange"] { --accent: #fdba74; --fill: #fdba74; --on-fill: #3b1d02; }
+  :root[data-accent="green"] { --accent: #6ee7a0; --fill: #6ee7a0; --on-fill: #052e16; }
+  :root[data-accent="graphite"] { --accent: #cbd5e1; --fill: #cbd5e1; --on-fill: #111827; }
+}
+:root { color-scheme: light dark; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
 main { max-width: 460px; margin: 0 auto; padding: 28px 24px; }
@@ -11,8 +31,11 @@ h1 { font-size: 1.35rem; margin: 8px 0 6px; }
 .hint { color: var(--soft); font-size: 0.9rem; margin: 4px 0 12px; }
 label { display: block; font-weight: 600; margin: 12px 0 4px; }
 label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+input[type=checkbox] { accent-color: var(--accent); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); color: var(--text); font: inherit; }
-input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); color: var(--text); font: inherit; }
 fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px 12px; margin: 0 0 14px; }
 legend { color: var(--accent); font-weight: 600; padding: 0 4px; }
 button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); cursor: pointer; min-height: 40px; }
