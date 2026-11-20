@@ -10,7 +10,7 @@
   <a href="README.nl.md">Nederlands</a>
 </p>
 
-Tickory is a self-hosted, offline-first task and notes app: a sync server and an installable web app in a single Docker container, plus an Android app and a browser extension. Your data stays on your own server. No npm packages and no build step: Node 26 runs the TypeScript directly and SQLite is part of Node.
+Tickory is a self-hosted, offline-first task and notes app: a sync server and an installable web app in a single Docker container, plus an Android app, a Windows desktop app and a browser extension. Your data stays on your own server. No npm packages and no build step: Node 26 runs the TypeScript directly and SQLite is part of Node.
 
 If you are looking for a free Todoist alternative that you run yourself: Tickory has no paid tier, so things Todoist keeps for Premium (now called Pro), such as the calendar view, reminders at a place and the full activity history, are simply part of it, and it imports your Todoist backup.
 
@@ -29,7 +29,7 @@ If you are looking for a free Todoist alternative that you run yourself: Tickory
 - **Reminders:** in the browser (Web Push) and as alarms in the Android app, also at a place.
 - **Search, filters, templates, undo, selecting several tasks, keyboard shortcuts.**
 - **Offline** on several devices at once; changes from others arrive within seconds.
-- **Apps:** installable web app (PWA), Android app with widgets, browser extension.
+- **Apps:** installable web app (PWA), Android app with widgets, Windows desktop app (tray, global Add task shortcut, reminders as Windows notifications), browser extension.
 - **Accounts:** multiple users, two-step verification, SSO (OpenID Connect), backups from the app.
 - **Import** from Todoist (backup zip or CSV) and Google Keep; export as CSV or JSON.
 - **Languages:** English and Dutch, including the dates you type.
@@ -56,7 +56,7 @@ The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in En
 
 - **Using it:** [adding tasks](https://wnijhof.github.io/tickory/en/guide/adding-tasks.html), [dates and recurrences](https://wnijhof.github.io/tickory/en/guide/dates-and-recurrence.html), [notes](https://wnijhof.github.io/tickory/en/guide/notes.html), [reminders](https://wnijhof.github.io/tickory/en/guide/reminders.html), [sharing](https://wnijhof.github.io/tickory/en/guide/sharing.html), [the Android app](https://wnijhof.github.io/tickory/en/guide/android-app.html), [switching from Todoist](https://wnijhof.github.io/tickory/en/guide/switching-from-todoist.html).
 - **Running a server:** [installing](https://wnijhof.github.io/tickory/en/guide/installing.html), [HTTPS](https://wnijhof.github.io/tickory/en/guide/https.html), [managing users](https://wnijhof.github.io/tickory/en/guide/managing-users.html), [SSO](https://wnijhof.github.io/tickory/en/guide/sign-in-with-sso.html), [attachments](https://wnijhof.github.io/tickory/en/guide/attachments.html), [updating](https://wnijhof.github.io/tickory/en/guide/updating.html), [backup and restore](https://wnijhof.github.io/tickory/en/guide/backup.html), [troubleshooting](https://wnijhof.github.io/tickory/en/guide/troubleshooting.html).
-- **For developers:** the protocol and data model in [SPEC.md](SPEC.md) (in Dutch), the Android app in [android/README.md](android/README.md), the extension in [extension/README.md](extension/README.md). All settings are in [.env.example](.env.example).
+- **For developers:** the protocol and data model in [SPEC.md](SPEC.md) (in Dutch), the Android app in [android/README.md](android/README.md), the desktop app in [desktop/README.md](desktop/README.md), the extension in [extension/README.md](extension/README.md). All settings are in [.env.example](.env.example).
 
 ## Status
 

@@ -1,0 +1,47 @@
+<!--
+title: Desktop app for Windows
+description: Tickory as a Windows program, like the Todoist desktop app: its own window, a tray icon, Ctrl+Space for a small Add task window, a dot on the taskbar when tasks are due today, and reminders as Windows notifications with Complete and Snooze.
+-->
+<h1>Desktop app for Windows</h1>
+<p class="intro">The desktop app shows the web app of your own server in its own window, just like the Todoist desktop app does with todoist.com. On top of that you get what a browser cannot do: a tray icon, shortcuts that work everywhere, a dot on the taskbar, and reminders as regular Windows notifications.</p>
+
+<div class="note warn">
+  <span class="note-label">New</span>
+  <p>The installer (<code>Tickory-Setup-….exe</code>) is attached to every version from 0.10.0 on the <a href="{{repo}}/releases">releases page on GitHub</a>. It is not signed with a certificate yet: Windows SmartScreen may warn the first time. Choose <em>More info</em> and <em>Run anyway</em>.</p>
+</div>
+
+<h2 id="install">Installing and connecting</h2>
+<ol>
+  <li>Download <code>Tickory-Setup-….exe</code> from the releases page and run it. You can choose where the program goes; it is added to the Start menu and the desktop.</li>
+  <li>On the first start Tickory asks for the <strong>address of your server</strong>, for example <code>tasks.example.com</code>. Outside your own network it has to be https.</li>
+  <li>Then sign in as in the browser. You stay signed in, also after a restart.</li>
+</ol>
+
+<h2 id="tray">The tray</h2>
+<p>The icon at the bottom right of the taskbar opens a menu with <em>Add task</em>, <em>Show Tickory</em>, today's tasks (with a dot in the priority colour; click to open the task), the fixed views (Inbox, Today, Upcoming, Completed, Notes), <em>Settings</em>, <em>Keep running in the tray</em> and <em>Quit Tickory</em>. When you close the window, Tickory keeps running in the tray, so reminders and shortcuts keep working; turn that off with <em>Keep running in the tray</em>.</p>
+
+<h2 id="shortcuts">Shortcuts</h2>
+<ul>
+  <li><kbd>Ctrl</kbd>+<kbd>Space</kbd>, anywhere in Windows: a small <strong>Add task</strong> window at the top of the screen. Type the task as always (<code>Dentist tomorrow 9am p1</code>), add it, and the window goes away again.</li>
+  <li><kbd>Win</kbd>+<kbd>Alt</kbd>+<kbd>S</kbd>: show or hide Tickory.</li>
+</ul>
+<p>Both can be changed or turned off under <em>Settings</em> (in the File menu or the tray). If a shortcut is already used by another program, Tickory says so.</p>
+
+<h2 id="reminders">Reminders</h2>
+<p>The desktop app fetches your reminders from the server (at start, every five minutes and right after you change something) and fires them itself as Windows notifications, with the buttons <strong>Complete</strong> and <strong>Snooze</strong> (as long as you chose under <a href="general-settings.html#snooze">Settings › General</a>). Clicking the notification opens the task. This works while Tickory is running, also in the tray. A reminder you just missed (the computer was asleep) still comes if it is not older than a quarter of an hour.</p>
+
+<h2 id="more">More</h2>
+<ul>
+  <li><strong>A dot on the taskbar</strong> when tasks are due today (or overdue).</li>
+  <li><strong>Menu</strong>: File (Add task, New window, Settings, Other server, Clear application data), Edit, View (back, forward, reload, zoom, full screen), Window (<em>Float on top</em>) and Help (guide, what's new, check for updates).</li>
+  <li><strong>Start with Windows</strong>, optionally straight into the tray: under <em>Settings</em>.</li>
+  <li><strong>Updates</strong> come by themselves: the app checks GitHub at start, downloads a new version in the background and then asks you to restart.</li>
+  <li><strong>Notes</strong> are simply in the app, as in the browser.</li>
+</ul>
+
+<h2>What does not work (yet)</h2>
+<ul>
+  <li>Voice in the Add task window: Electron, which the app runs on, has no speech service.</li>
+  <li>Reminders while Tickory is fully closed (so not in the tray either).</li>
+  <li>A version for macOS or Linux; the code is prepared for it.</li>
+</ul>

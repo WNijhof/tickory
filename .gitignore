@@ -10,3 +10,8 @@ _site/
 # De gebouwde browserextensie (node scripts/build-extension.ts) en de werkmap van haar e2e-test
 /dist/
 .e2e-ext/
+
+# De desktop-app: pakketten, gekopieerde gedeelde regels en de gebouwde installer
+/desktop/node_modules/
+/desktop/shared/
+/desktop/dist/

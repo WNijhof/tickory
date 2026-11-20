@@ -6,6 +6,7 @@ import { SyncClient } from '../core/syncClient.js';
 import { createActions, newId } from '../core/actions.js';
 import { createUndo } from '../core/undo.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
+import { desktopBridge, isDesktopQuickAdd, watchBadge } from '../core/desktop.js';
 import { fetchSharedFiles, shareFromHash } from '../core/share.js';
 import { ApiError, deviceName } from '../core/auth.js';
 import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.js';
@@ -89,7 +90,12 @@ const inboxId = () => store?.me?.inbox_project_id ?? null;
 const bridge = androidBridge(backend.demo ? undefined : window.TickoryAndroid);
 /** Meldingen in de browser (Web Push). In de Android-app niet nodig: die plant zijn meldingen zelf in. */
 const pushClient = createPushClient({ getToken, lang: getLanguage });
-const usesPush = () => !backend.demo && !bridge.available;
+/** De brug naar de desktop-app voor Windows (core/desktop.js); daarbuiten doet hij niets. Niet in de demo. */
+const desktop = desktopBridge(backend.demo ? undefined : window.TickoryDesktop);
+/** Is dit het losse venster Taak toevoegen van de desktop-app? Dan alleen dat venster, zonder de rest van de app. */
+const desktopQuickAdd = desktop.available && isDesktopQuickAdd();
+// Electron kent geen web-push: de desktop-app plant de herinneringen zelf, net als de Android-app
+const usesPush = () => !backend.demo && !bridge.available && !desktop.available;
 const deviceZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 let adapter;
 /** Meldingen over een nieuwere versie van de server of de Android-app (ui/updates.js). */
@@ -124,6 +130,7 @@ const templatesUi = () => (templatesUiInstance ??= createTemplatesUi({ store, ac
  */
 function applyLanguage() {
   document.documentElement.lang = getLanguage();
+  desktop.setLanguage(getLanguage()); // de menu's van de desktop-app in dezelfde taal
   $('sidebar').setAttribute('aria-label', t('shell.navigation'));
   $('sync-status').title = t('shell.syncTitle');
   $('quick-input').placeholder = t('quick.placeholder');
@@ -610,6 +617,30 @@ async function chooseLanguage() {
   if (usesPush()) pushClient.refresh().catch(() => {}); // de melding komt in de nieuwe taal
 }
 
+/**
+ * Het losse venster Taak toevoegen van de desktop-app (globale sneltoets, zoals bij Todoist): alleen het venster Taak toevoegen, en
+ * als je klaar bent (toegevoegd of geannuleerd) gaat het venster weer weg. De desktop-app vraagt het venster te openen met een
+ * gebeurtenis; tot je bent ingelogd staat gewoon het inlogvenster er.
+ */
+function installDesktopQuickAdd() {
+  document.body.classList.add('desktop-quickadd');
+  let open = false;
+  // het verzoek blijft in de brug staan tot de app klaar is (ingelogd, gegevens er): dan pas het venster openen
+  const tryShow = async () => {
+    if (open || !store.me || document.querySelector('dialog[open]') || !desktop.takeQuickAddRequest()) return;
+    open = true;
+    try {
+      await handlers.quickAdd({});
+    } finally {
+      open = false;
+      desktop.closeQuickAdd();
+    }
+  };
+  window.addEventListener('tickory-desktop-quickadd', tryShow);
+  store.subscribe(tryShow);
+  tryShow();
+}
+
 /** Het accountscherm, met doorverwijzing naar gebruikersbeheer of afmelden. */
 async function accountFlow() {
   // koppelen met SSO: naar de inlogdienst en terug (core/sso.js); de terugkeer handelt finishSso af
@@ -650,7 +681,7 @@ async function askLogin(note = '') {
       sso: methods.sso ?? null,
       passwordLogin: methods.password !== false || !methods.sso,
       // "Onthoud mij": in de Android-app altijd (geen vinkje); bij SSO onthouden we de keuze tot de terugkeer van de inlogdienst
-      askRemember: !window.TickoryAndroid,
+      askRemember: !window.TickoryAndroid && !desktop.available, // in de apps blijf je altijd ingelogd (zoals Todoist)
       onSso: (remember = true) => {
         try { sessionStorage.setItem(REMEMBER_KEY, remember ? '1' : '0'); } catch { /* zonder opslag: dan onthouden */ }
         return startSso({ api, purpose: 'login', bridge, storage: localStorage, location, deviceName: device(), lang: getLanguage() });
@@ -697,6 +728,7 @@ async function adoptLogin(res, remember = true) {
   }
   backend.setToken(res.token, { remember });
   bridge.setSession(res.token);
+  desktop.setSession(res.token);
   if (other) {
     location.reload();
     return res;
@@ -750,6 +782,7 @@ async function logout() {
   if (usesPush()) await pushClient.disable().catch(() => { /* de server ruimt een aanmelding zonder sessie ook zelf op */ });
   await api.logout().catch(() => { /* zonder verbinding: het token wordt hier toch gewist; intrekken kan later via Account */ });
   bridge.setSession(''); // de Android-app wist dan zijn token en alle geplande herinneringen
+  desktop.setSession('');
   backend.clearToken();
   backend.clearForgotten(); // alles gaat hier al weg
   localStorage.removeItem(ROUTE_KEY);
@@ -767,6 +800,7 @@ async function afterAccountDeleted() {
   events.stop();
   sync.stop();
   bridge.setSession(''); // de Android-app wist zijn token en alle geplande herinneringen
+  desktop.setSession('');
   backend.clearToken();
   localStorage.removeItem(ROUTE_KEY);
   if (adapter.clear) await adapter.clear();
@@ -1020,6 +1054,11 @@ async function boot() {
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
+  if (desktop.available && !desktopQuickAdd) {
+    watchReminders({ store, bridge: desktop }); // de desktop-app plant de herinneringen opnieuw
+    watchBadge({ store, bridge: desktop, today: todayString }); // en zet de stip op de taakbalk
+  }
+  if (desktopQuickAdd) installDesktopQuickAdd();
   window.addEventListener('online', () => {
     attachments.process();
     events.restart();
@@ -1120,6 +1159,7 @@ async function boot() {
   const ssoFailed = ssoReturn ? await finishSso(ssoReturn) : null;
   if (getToken() && !ssoFailed?.login) {
     bridge.setSession(getToken()); // bij elke start, ook als de app al was ingelogd
+    if (!desktopQuickAdd) desktop.setSession(getToken());
     if (usesPush()) pushClient.refresh().catch(() => {});
     sync.requestSync(0);
   } else {

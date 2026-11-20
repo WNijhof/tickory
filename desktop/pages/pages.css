@@ -1,0 +1,23 @@
+/* De eigen schermen van de desktop-app (serveradres, instellingen), in de kleuren van de web-app: Tomaat en neutrale grijzen. */
+:root { --bg: #ffffff; --bg2: #faf7f4; --text: #202020; --soft: #666666; --line: #e5e5e5; --accent: #c92e1d; --fill: #d33322; --on-fill: #ffffff; --error: #b3261e; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #202020; --bg2: #272727; --text: #f2f2f2; --soft: #b3b3b3; --line: #3d3d3d; --accent: #f0786b; --fill: #d33322; --on-fill: #ffffff; --error: #ff8a80; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "Segoe UI", system-ui, sans-serif; }
+main { max-width: 460px; margin: 0 auto; padding: 28px 24px; }
+h1 { font-size: 1.35rem; margin: 8px 0 6px; }
+.logo { width: 56px; height: 56px; border-radius: 14px; }
+.hint { color: var(--soft); font-size: 0.9rem; margin: 4px 0 12px; }
+label { display: block; font-weight: 600; margin: 12px 0 4px; }
+label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg2); color: var(--text); font: inherit; }
+input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+fieldset { border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px 12px; margin: 0 0 14px; }
+legend { color: var(--accent); font-weight: 600; padding: 0 4px; }
+button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); color: var(--text); cursor: pointer; min-height: 40px; }
+button.primary { background: var(--fill); color: var(--on-fill); border-color: var(--fill); font-weight: 600; }
+button:disabled { opacity: 0.6; }
+.buttons { display: flex; justify-content: flex-end; gap: 8px; }
+#server-form button { margin-top: 8px; width: 100%; }
+.error { color: var(--error); min-height: 1.2em; margin: 6px 0; }
