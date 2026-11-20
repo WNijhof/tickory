@@ -19,6 +19,7 @@ import { planReminders, snoozeMs, todayItems } from './lib/reminderPlan.mjs';
 import { appMenu, trayMenu } from './lib/menuModel.mjs';
 import { langOf, translator } from './lib/i18n.mjs';
 import { parseActionUrl, reminderToastXml } from './lib/toast.mjs';
+import { ACCENTS, BACKGROUND, appearanceOf, appearanceOrDefault, fromWeb, sameAppearance } from './lib/appearance.mjs';
 import { epochToFloating } from './shared/reminders.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -93,6 +94,35 @@ function present(win) {
 }
 const webPreferences = (preload) => ({ preload, contextIsolation: true, sandbox: true, nodeIntegration: false, spellcheck: true });
 
+// ---------- thema (zie lib/appearance.mjs) ----------
+
+/** De achtergrond van een venster: die van de web-app bij het gekozen thema (nativeTheme volgt de keuze, zie applyTheme). */
+const windowBg = () => (nativeTheme.shouldUseDarkColors ? BACKGROUND.dark : BACKGROUND.light);
+
+/** Zoals Todoist: de titelbalk in de kleur van de pagina (setAccentColor, alleen Windows), en de achtergrond bij het thema. */
+function themed(win) {
+  if (!win || win.isDestroyed() || win === quickAdd) return; // het venster Taak toevoegen is doorzichtig en zonder rand
+  win.setBackgroundColor(windowBg());
+  if (process.platform === 'win32') win.setAccentColor?.(windowBg());
+}
+
+/** Het bewaarde thema toepassen op Windows zelf (titelbalk, menu's, prefers-color-scheme in alle vensters) en op elk venster. */
+function applyTheme() {
+  nativeTheme.themeSource = appearanceOrDefault(settings.appearance).theme;
+  for (const win of BrowserWindow.getAllWindows()) themed(win);
+}
+
+/** De vensters met de web-app (hoofdvenster, Taak toevoegen, extra vensters): alleen die van de eigen server. */
+const webWindows = () => BrowserWindow.getAllWindows().filter((w) => w !== pages && !w.isDestroyed() && settings.server && sameOrigin(w.webContents.getURL(), settings.server));
+
+/** Een nieuwe keuze bewaren, toepassen en aan de vensters met de web-app geven (behalve het venster waar hij vandaan kwam). */
+function setAppearance(next, from = null) {
+  saveSettings({ ...settings, appearance: next });
+  applyTheme();
+  for (const w of webWindows()) if (w.webContents !== from) w.webContents.send('desktop:appearance', next);
+  if (pages && !pages.isDestroyed()) pages.webContents.send('pages:appearance', next); // de eigen Instellingen, als die open staan
+}
+
 /** Alleen de eigen server in het venster; links naar elders openen in de browser (zoals Todoist). */
 function guard(win) {
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -111,7 +141,8 @@ function guard(win) {
 }
 
 function openWindow(url) {
-  const win = new BrowserWindow({ width: 1100, height: 760, minWidth: 400, minHeight: 300, icon: icon(), backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff', webPreferences: webPreferences(join(here, 'preload.cjs')) });
+  const win = new BrowserWindow({ width: 1100, height: 760, minWidth: 400, minHeight: 300, icon: icon(), backgroundColor: windowBg(), webPreferences: webPreferences(join(here, 'preload.cjs')) });
+  themed(win);
   guard(win);
   win.loadURL(url);
   return win;
@@ -123,9 +154,10 @@ function createMain({ hidden = false } = {}) {
   main = new BrowserWindow({
     ...(onScreen ? { x: b.x, y: b.y, width: b.width, height: b.height } : { width: 1200, height: 800 }),
     minWidth: 400, minHeight: 300, show: false, icon: icon(), title: 'Tickory', alwaysOnTop: settings.floatOnTop,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
+    backgroundColor: windowBg(),
     webPreferences: webPreferences(join(here, 'preload.cjs')),
   });
+  themed(main);
   guard(main);
   main.webContents.setZoomLevel(settings.zoom);
   main.loadURL(`${settings.server}/`);
@@ -187,10 +219,11 @@ function showQuickAdd() {
 function openPages(mode) {
   if (pages) { pages.focus(); return; }
   pages = new BrowserWindow({
-    width: 520, height: mode === 'setup' ? 520 : 640, resizable: false, show: !DEV_SHOT, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
-    autoHideMenuBar: true, backgroundColor: nativeTheme.shouldUseDarkColors ? '#202020' : '#ffffff',
+    width: 520, height: mode === 'setup' ? 520 : Math.min(960, screen.getPrimaryDisplay().workAreaSize.height - 40), resizable: false, show: !DEV_SHOT, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
+    autoHideMenuBar: true, backgroundColor: windowBg(),
     webPreferences: { ...webPreferences(join(here, 'pages', 'pages-preload.cjs')), spellcheck: false },
   });
+  themed(pages);
   pages.removeMenu();
   pages.loadFile(join(here, 'pages', 'prefs.html'), { query: { mode } });
   pages.on('closed', () => { pages = null; });
@@ -460,11 +493,32 @@ ipcMain.on('desktop:language', (_event, value) => {
   refreshMenus();
 });
 
+// het thema van de web-app (Instellingen › Weergave); `initial` bij het opstarten van een venster
+ipcMain.on('desktop:appearance', (event, value) => {
+  if (!settings.server || !sameOrigin(event.sender.getURL(), settings.server)) return;
+  const { save, reply } = fromWeb(settings.appearance, value, value?.initial === true);
+  if (save) setAppearance(save, event.sender);
+  if (reply) event.sender.send('desktop:appearance', reply);
+});
+
+const pagesSender = (event) => pages && event.sender === pages.webContents;
 ipcMain.handle('pages:load', (event) => {
   const mode = new URL(event.sender.getURL()).searchParams.get('mode') === 'setup' ? 'setup' : 'prefs';
   const keys = ['setupTitle', 'setupText', 'serverLabel', 'connect', 'serverError_empty', 'serverError_invalid', 'serverError_http', 'serverError_unreachable', 'settings',
-    'shortcuts', 'quickAdd', 'show', 'shortcutHint', 'startup', 'openAtLogin', 'startMinimized', 'stayInTray', 'save', 'close', 'shortcutInvalid'];
-  return { mode, lang, texts: Object.fromEntries(keys.map((k) => [k, t(k)])), settings: { server: settings.server, shortcuts: settings.shortcuts, openAtLogin: settings.openAtLogin, startMinimized: settings.startMinimized, stayInTray: settings.stayInTray } };
+    'shortcuts', 'quickAdd', 'show', 'shortcutHint', 'startup', 'openAtLogin', 'startMinimized', 'stayInTray', 'save', 'close', 'shortcutInvalid',
+    'appearance', 'theme', 'theme_system', 'theme_light', 'theme_dark', 'accent', 'appearanceHint', ...ACCENTS.map((a) => `accent_${a.name}`)];
+  return {
+    mode, lang, texts: Object.fromEntries(keys.map((k) => [k, t(k)])),
+    accents: ACCENTS.map((a) => a.name),
+    settings: { server: settings.server, shortcuts: settings.shortcuts, openAtLogin: settings.openAtLogin, startMinimized: settings.startMinimized, stayInTray: settings.stayInTray, appearance: appearanceOrDefault(settings.appearance) },
+  };
+});
+// het thema in de eigen Instellingen: werkt meteen, net als Weergave in de web-app
+ipcMain.handle('pages:set-appearance', (event, value) => {
+  const next = appearanceOf(value);
+  if (!pagesSender(event) || !next) return { ok: false };
+  if (!sameAppearance(next, settings.appearance)) setAppearance(next);
+  return { ok: true };
 });
 ipcMain.handle('pages:set-server', async (_event, text) => {
   const { origin, error } = normalizeServer(text);
@@ -521,6 +575,9 @@ app.whenReady().then(async () => {
   settings = loadSettings(() => (existsSync(settingsFile()) ? readFileSync(settingsFile(), 'utf8') : null));
   lang = langOf(settings.lang, app.getLocale());
   t = translator(lang);
+  applyTheme();
+  // "zoals het apparaat" en Windows wisselt tussen licht en donker: de achtergrond en titelbalk gaan mee
+  nativeTheme.on('updated', () => { for (const win of BrowserWindow.getAllWindows()) themed(win); });
   // in de rooktest niets aan Windows veranderen: geen tickory://-koppeling, geen icoon, geen sneltoetsen, niet opstarten met Windows
   if (!DEV_SHOT) {
     if (process.defaultApp) app.setAsDefaultProtocolClient('tickory', process.execPath, [join(here)]);
@@ -567,6 +624,29 @@ async function smokeShots(dir) {
       writeFileSync(join(dir, 'quickadd.png'), (await quickAdd.webContents.capturePage()).toPNG());
       writeFileSync(join(dir, 'quickadd.json'), JSON.stringify(await quickAdd.webContents.executeJavaScript(`(() => { const d = document.querySelector('dialog[open]'); const r = d?.getBoundingClientRect(); return { url: location.href, quickadd: document.body.classList.contains('desktop-quickadd'), dialog: d ? d.className : null, rect: r ? [r.x, r.y, r.width, r.height] : null, me: Boolean(document.querySelector('#view-title')) }; })()`)));
     }
+  }
+  // een thema kiezen zoals in de eigen Instellingen (TICKORY_DESKTOP_APPEARANCE=dark:teal) of in Weergave van de web-app
+  // (web:light:blue): gaan alle vensters mee?
+  const look = process.env.TICKORY_DESKTOP_APPEARANCE?.split(':');
+  if (look) {
+    if (look[0] === 'web') {
+      // via het echte scherm: Instellingen › Weergave, dan het thema en de accentkleur aanklikken
+      const js = (code) => main?.webContents.executeJavaScript(code);
+      await js(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Instellingen') || b.textContent.includes('Settings'))?.click(); true`);
+      await wait(800);
+      await js(`document.querySelector('[data-fk="settings:appearance"]')?.click(); true`);
+      await wait(800);
+      await js(`document.querySelector('dialog[open] [data-role="theme-choice"] input[value=${JSON.stringify(look[1])}]')?.click(); document.querySelector('dialog[open] [data-role="accent-choice"] input[value=${JSON.stringify(look[2])}]')?.click(); true`);
+    } else if (look[0] !== 'check') { // check: alleen kijken hoe het na het opstarten staat
+      setAppearance(appearanceOf({ theme: look[0], accent: look[1] }));
+    }
+    await wait(1500);
+    const read = (win) => win?.webContents.executeJavaScript(`({ theme: document.documentElement.dataset.theme ?? 'system', accent: document.documentElement.dataset.accent ?? 'tomato', stored: localStorage.getItem('tickory.theme'), bg: getComputedStyle(document.body).backgroundColor })`);
+    openPages('prefs');
+    await wait(2500);
+    writeFileSync(join(dir, 'appearance.json'), JSON.stringify({ settings: settings.appearance, themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, main: await read(main), quickAdd: await read(quickAdd), pages: await pages?.webContents.executeJavaScript(`({ accent: document.documentElement.dataset.accent, theme: document.getElementById('theme')?.value, bg: getComputedStyle(document.body).backgroundColor })`) }, null, 1));
+    if (main) writeFileSync(join(dir, 'main-themed.png'), (await main.webContents.capturePage()).toPNG());
+    if (pages) writeFileSync(join(dir, 'prefs-themed.png'), (await pages.webContents.capturePage()).toPNG());
   }
   // een knop uit een melding nabootsen (tickory://complete?… of tickory://snooze?…), na even wachten (zodat een herinnering kan afgaan)
   const action = process.env.TICKORY_DESKTOP_ACTION;

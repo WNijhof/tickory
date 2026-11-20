@@ -7,6 +7,31 @@ import { HORIZON_MS, LATE_MS, planReminders, snoozeMs, todayItems } from '../lib
 import { NAV, appMenu, trayMenu } from '../lib/menuModel.mjs';
 import { KEYS, KEYS_EN, langOf, translator } from '../lib/i18n.mjs';
 import { actionUrl, parseActionUrl, reminderToastXml } from '../lib/toast.mjs';
+import { ACCENTS, BACKGROUND, appearanceOf, appearanceOrDefault, backgroundOf, fromWeb } from '../lib/appearance.mjs';
+
+test('thema: dezelfde keuzes als Weergave in de web-app, en wie wint bij het opstarten', () => {
+  assert.deepEqual(appearanceOf({ theme: 'dark', accent: 'teal' }), { theme: 'dark', accent: 'teal' });
+  assert.deepEqual(appearanceOf({ theme: 'light', accent: 'rommel' }), { theme: 'light', accent: 'tomato' });
+  for (const bad of [null, 'dark', { theme: 'paars' }, []]) assert.equal(appearanceOf(bad), null, JSON.stringify(bad));
+  assert.deepEqual(appearanceOrDefault(null), { theme: 'system', accent: 'tomato' });
+  assert.deepEqual(ACCENTS.map((a) => a.name), ['tomato', 'teal', 'blue', 'indigo', 'violet', 'rose', 'orange', 'green', 'graphite']);
+  assert.equal(backgroundOf('dark', false), BACKGROUND.dark);
+  assert.equal(backgroundOf('light', true), BACKGROUND.light);
+  assert.equal(backgroundOf('system', true), BACKGROUND.dark);
+  const dark = { theme: 'dark', accent: 'teal' };
+  const light = { theme: 'light', accent: 'tomato' };
+  // nog niets bewaard (een installatie van vóór deze versie): de keuze van de web-app overnemen
+  assert.deepEqual(fromWeb(null, dark, true), { save: dark, reply: null });
+  // in de eigen Instellingen gekozen terwijl de web-app dicht was: bij het opstarten krijgt de web-app dat terug
+  assert.deepEqual(fromWeb(light, dark, true), { save: null, reply: light });
+  assert.deepEqual(fromWeb(dark, dark, true), { save: null, reply: null });
+  // daarna is een keuze in de web-app gewoon een nieuwe keuze
+  assert.deepEqual(fromWeb(light, dark, false), { save: dark, reply: null });
+  assert.deepEqual(fromWeb(dark, dark, false), { save: null, reply: null });
+  assert.deepEqual(fromWeb(light, { theme: 'x' }, false), { save: null, reply: null });
+  assert.deepEqual(settingsOf({ appearance: dark }).appearance, dark);
+  assert.equal(settingsOf({ appearance: { theme: 'x' } }).appearance, null);
+});
 
 test('serveradres: https erbij, pad weg; http alleen in je eigen netwerk', () => {
   assert.deepEqual(normalizeServer('taken.voorbeeld.nl'), { origin: 'https://taken.voorbeeld.nl' });

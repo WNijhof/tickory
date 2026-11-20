@@ -18,14 +18,16 @@ const ACCENT_LABEL = {
 };
 
 /**
- * @param {{ persist?: boolean }} [options] persist=false in de demo: dan werkt het alleen voor nu
+ * @param {{ persist?: boolean, onChange?: (a: { theme: string, accent: string }) => void }} [options] persist=false in de demo: dan
+ *   werkt het alleen voor nu; onChange: na elke keuze (de desktop-app zet dan de titelbalk en de andere vensters om)
  */
-export function appearanceDialog({ persist = true } = {}) {
+export function appearanceDialog({ persist = true, onChange = null } = {}) {
   const current = readAppearance();
   const choose = (change) => {
     Object.assign(current, change);
     applyAppearance(document, current);
     if (persist) saveAppearance(current);
+    onChange?.({ ...current });
   };
   return openDialog((finish) => {
     const radio = (group, value, checked, label, extra = null) => h('label', { class: `choice-option${extra ? ' choice-accent' : ''}`, dataset: { value } },

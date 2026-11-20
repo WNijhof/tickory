@@ -39,6 +39,24 @@
           <label class="check"><input id="stay-in-tray" type="checkbox"> <span data-t="stayInTray"></span></label>
         </fieldset>
         <fieldset>
+          <legend data-t="appearance"></legend>
+          <div class="pair">
+            <div>
+              <label for="theme" data-t="theme"></label>
+              <select id="theme">
+                <option value="system" data-t="theme_system"></option>
+                <option value="light" data-t="theme_light"></option>
+                <option value="dark" data-t="theme_dark"></option>
+              </select>
+            </div>
+            <div>
+              <label for="accent" data-t="accent"></label>
+              <select id="accent"></select>
+            </div>
+          </div>
+          <p class="hint" data-t="appearanceHint"></p>
+        </fieldset>
+        <fieldset>
           <legend data-t="serverLabel"></legend>
           <p id="server-now" class="hint"></p>
         </fieldset>

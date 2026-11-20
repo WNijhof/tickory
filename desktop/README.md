@@ -20,6 +20,7 @@ zelf (code, beelden, teksten van betekenis) zit erin.
 | `lib/menuModel.mjs` | Het systeemvak-menu en het hoofdmenu als gegevens |
 | `lib/toast.mjs` | De melding van Windows (ToastGeneric met knoppen) en de adressen `tickory://open|complete|snooze?task=…` |
 | `lib/i18n.mjs` | De teksten van de app zelf, Nederlands en Engels |
+| `lib/appearance.mjs` | Het thema (zoals het apparaat, licht, donker) en de accentkleur, met de lijst uit `client/core/theme.js` |
 | `pages/` | De eigen schermen: het serveradres kiezen en de instellingen |
 
 In de web-client: `client/core/desktop.js` (de brug) en `installDesktopQuickAdd` in `client/ui/app.js` (het losse venster Taak toevoegen,
@@ -30,6 +31,13 @@ Windows-account), haalt elke vijf minuten (en meteen na een wijziging of na de s
 de herinneringen van de komende 26 uur als timers. Een getoonde herinnering wordt onthouden (niet dubbel). De knoppen van een melding gaan via
 het protocol `tickory://`, zodat ze ook werken als de melding uit het Actiecentrum komt; Voltooien stuurt `task_complete`, Uitstellen een
 `reminder_add` (zo lang als in Instellingen › Algemeen gekozen), elk met een eigen uuid.
+
+**Thema.** Zoals in de Android-app is het thema te kiezen: in de web-app (Instellingen › Weergave) en in de eigen Instellingen van de
+app. Zoals bij Todoist (`setTheme` over de brug) geeft de web-app haar keuze door; de app zet dan `nativeTheme.themeSource` (titelbalk,
+menu's, `prefers-color-scheme` in alle vensters), de achtergrond en `setAccentColor` van de vensters, en geeft de keuze aan de andere
+vensters (Taak toevoegen). De keuze staat ook in `settings.json`; bij het opstarten wint die (gekozen terwijl de web-app dicht was),
+tenzij er nog niets stond (dan neemt de app de keuze van de web-app over). Rooktest: `TICKORY_DESKTOP_APPEARANCE=dark:teal` (eigen
+Instellingen), `web:light:blue` (via het scherm Weergave) of `check`, met `appearance.json` als uitkomst.
 
 **Veiligheid.** De pagina's van de server draaien met `contextIsolation` en `sandbox`, zonder Node. Andere adressen dan je server openen in
 de browser. De brug neemt alleen het token, een getal en vaste waarden aan; de app stuurt de web-app alleen een fragment (`#view=…`, `#task=…`).

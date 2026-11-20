@@ -52,7 +52,7 @@ import { configureAttachments, rejectionText } from './attachments.js';
 import { appearanceDialog } from './appearance.js';
 import { exportDialog } from './exportDialog.js';
 import { allImportable, announceImport, importDialog } from './importDialog.js';
-import { applyAppearance, readAppearance } from '../core/theme.js';
+import { applyAppearance, readAppearance, saveAppearance } from '../core/theme.js';
 import { placesDialog } from './placesUi.js';
 import { createTemplatesUi } from './templateUi.js';
 import { setUpcomingStyle, upcomingStyle } from './viewSwitch.js';
@@ -594,7 +594,7 @@ const handlers = {
     else if (choice === 'export') await exportDialog({ store, bridge, attachments });
     else if (choice === 'import') announceImport(await importDialog({ store, actions }), navigate);
     else if (choice === 'templates') await templatesUi().manage();
-    else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo });
+    else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo, onChange: (a) => desktop.setAppearance(a) });
     else if (choice === 'language') await chooseLanguage();
     else if (choice === 'logout') logout();
     return undefined;
@@ -979,6 +979,14 @@ function startAppearance() {
   apply();
   window.addEventListener('load', apply, { once: true });
   globalThis.matchMedia?.('(prefers-color-scheme: dark)').addEventListener?.('change', apply);
+  if (desktop.available) {
+    // de desktop-app: het thema gaat ook naar Windows (titelbalk, menu's) en naar de andere vensters; in de app zelf is het ook te kiezen
+    desktop.onAppearance((a) => {
+      saveAppearance(a);
+      apply();
+    });
+    desktop.setAppearance(readAppearance(), true);
+  }
 }
 
 async function boot() {

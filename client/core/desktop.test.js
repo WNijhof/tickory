@@ -17,6 +17,20 @@ test('de brug: zonder desktop-app doet hij niets, en een fout in de app breekt d
   assert.equal(desktopBridge({ takeQuickAddRequest: () => 'ja' }).takeQuickAddRequest(), false, 'alleen echt true');
 });
 
+test('het thema: alleen thema en accent gaan naar de app, en een keuze in de app komt terug', () => {
+  const sent = [];
+  let listener = null;
+  const b = desktopBridge({ setAppearance: (a, initial) => sent.push([a, initial]), onAppearance: (fn) => { listener = fn; } });
+  b.setAppearance({ theme: 'dark', accent: 'teal', extra: 'x' }, true);
+  b.setAppearance({ theme: 'light', accent: 'tomato' });
+  assert.deepEqual(sent, [[{ theme: 'dark', accent: 'teal' }, true], [{ theme: 'light', accent: 'tomato' }, false]]);
+  const got = [];
+  b.onAppearance((a) => got.push(a));
+  listener({ theme: 'dark', accent: 'rose' });
+  assert.deepEqual(got, [{ theme: 'dark', accent: 'rose' }]);
+  assert.equal(desktopBridge(undefined).setAppearance({ theme: 'dark', accent: 'teal' }), undefined, 'zonder app: niets');
+});
+
 test('het losse venster Taak toevoegen herkent zichzelf aan ?desktop=quickadd', () => {
   assert.equal(isDesktopQuickAdd('?desktop=quickadd'), true);
   assert.equal(isDesktopQuickAdd('?desktop=iets'), false);
