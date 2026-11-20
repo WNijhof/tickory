@@ -372,6 +372,16 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+        <!-- Herplannen vanuit een widget: een klein venster over het startscherm, alleen door de app zelf te openen. -->
+        <activity
+            android:name=".widget.RescheduleActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:label="@string/reschedule_title"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Tickory.QuickAdd" />
+
         <activity
             android:name=".widget.WidgetStyleActivity"
             android:exported="true"

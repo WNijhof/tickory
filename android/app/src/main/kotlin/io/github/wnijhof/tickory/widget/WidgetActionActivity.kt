@@ -44,6 +44,16 @@ class WidgetActionActivity : Activity() {
     }
 
     private fun handle() {
+        if (intent?.getStringExtra(WidgetIntents.EXTRA_KIND) == WidgetIntents.KIND_RESCHEDULE) {
+            val ids = intent?.getStringArrayExtra(RescheduleActivity.EXTRA_TASK_IDS)?.filter(Ids::isSafeId)?.take(500) ?: return
+            if (ids.isEmpty()) return
+            try {
+                startActivity(Intent(this, RescheduleActivity::class.java).putExtra(RescheduleActivity.EXTRA_TASK_IDS, ids.toTypedArray()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            } catch (_: ActivityNotFoundException) {
+                // de app zelf ontbreekt niet; dit vangt alleen een rare toestand af
+            }
+            return
+        }
         if (intent?.getStringExtra(WidgetIntents.EXTRA_KIND) == WidgetIntents.KIND_VIEW) {
             openView(intent?.getStringExtra(WidgetIntents.EXTRA_TARGET_VIEW))
             return
@@ -51,6 +61,7 @@ class WidgetActionActivity : Activity() {
         val taskId = intent?.getStringExtra(Notifications.EXTRA_TASK_ID)?.takeIf(Ids::isSafeId) ?: return
         when (intent?.getStringExtra(WidgetIntents.EXTRA_KIND)) {
             WidgetIntents.KIND_COMPLETE -> WidgetActions.complete(this, taskId)
+            WidgetIntents.KIND_UNDO -> WidgetActions.undo(this, taskId)
             // een tik op een taak: het kleine venster over het startscherm (zoals Todoist), niet de hele app
             WidgetIntents.KIND_OPEN -> try {
                 startActivity(WidgetIntents.taskPopup(this, taskId))

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- De instellingen van de widget: een tandwiel. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="14dp"
+    android:height="14dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M12,9a3,3 0,1 0,0 6a3,3 0,0 0,0 -6zM19.4,13.5l1.6,1.2l-2,3.4l-1.9,-0.7a7,7 0,0 1,-1.7 1l-0.3,2h-4l-0.3,-2a7,7 0,0 1,-1.7 -1l-1.9,0.7l-2,-3.4l1.6,-1.2a7,7 0,0 1,0 -2l-1.6,-1.2l2,-3.4l1.9,0.7a7,7 0,0 1,1.7 -1l0.3,-2h4l0.3,2a7,7 0,0 1,1.7 1l1.9,-0.7l2,3.4l-1.6,1.2a7,7 0,0 1,0 2z"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.8" />
+</vector>

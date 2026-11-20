@@ -53,7 +53,8 @@ class WidgetSyncTest : WidgetTestBase() {
     private fun worker(): SyncWorker =
         TestWorkerBuilder.from(app, SyncWorker::class.java, Executors.newSingleThreadExecutor()).setInputData(workDataOf(SyncWorker.KEY_PERIODIC to false)).build()
 
-    private fun items(): List<String> = (WidgetModel.state(app, WidgetSource.Today) as WidgetModel.State.Ready).content.rows.filterIsInstance<WidgetRow.Item>().map { it.id }.sorted()
+    /** De open taken in de widget (een net afgevinkte staat er doorgestreept bij, zoals in Todoist, maar telt hier niet). */
+    private fun items(): List<String> = (WidgetModel.state(app, WidgetSource.Today) as WidgetModel.State.Ready).content.rows.filterIsInstance<WidgetRow.Item>().filter { !it.done }.map { it.id }.sorted()
 
     private fun prepare(server: FakeServer, data: io.github.wnijhof.tickory.core.WidgetSnapshot = snapshot(listOf(task("t1", "2026-11-13"), task("t2", "2026-11-13")))) {
         signIn(server.origin, data)

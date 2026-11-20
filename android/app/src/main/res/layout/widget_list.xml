@@ -98,6 +98,17 @@
                         android:textSize="12sp" />
                 </LinearLayout>
 
+                <ImageView
+                    android:id="@+id/settings"
+                    android:layout_width="40dp"
+                    android:layout_height="@dimen/widget_row_min"
+                    android:background="@drawable/widget_ripple"
+                    android:contentDescription="@string/widget_settings_title"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_widget_settings" />
+
                 <FrameLayout
                     android:id="@+id/add"
                     android:layout_width="@dimen/widget_row_min"

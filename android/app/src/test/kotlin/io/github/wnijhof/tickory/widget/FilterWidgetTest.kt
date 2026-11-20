@@ -94,7 +94,12 @@ class FilterWidgetTest : WidgetTestBase() {
         choose(id, "filter:f-dringend")
         WidgetStore.enqueue(app, QueuedComplete("t1", "tickory-w-t1-00000000", "2026-11-13T14:00", data.accountId, now))
         WidgetUpdater.updateAll(app)
-        assertEquals(listOf("Boodschappen"), titles(factory(id)))
+        // zoals in Todoist blijft hij doorgestreept staan tot de server het bevestigt
+        assertEquals(listOf("Boodschappen", "Tandarts bellen"), titles(factory(id)))
+        val struck = (0 until factory(id).count).map { row(factory(id), it) }.first { it.findViewById<TextView>(R.id.item_title)?.text?.toString() == "Tandarts bellen" }
+        assertTrue(struck.findViewById<TextView>(R.id.item_title).paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG != 0)
+        assertEquals("Tik: weer openzetten", "Weer openzetten: Tandarts bellen", struck.findViewById<View>(R.id.check).contentDescription)
+        assertEquals("de titel telt hem niet meer mee", "1 taak", text(view(id), R.id.subtitle))
     }
 
     @Test

@@ -16,6 +16,7 @@ import io.github.wnijhof.tickory.store.ReminderStore
 import io.github.wnijhof.tickory.store.WidgetStore
 import io.github.wnijhof.tickory.sync.Session
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -34,8 +35,12 @@ class WidgetActionsTest : WidgetTestBase() {
         ),
     )
 
-    private fun visible(): List<String> =
-        ((WidgetModel.state(app, WidgetSource.Today) as WidgetModel.State.Ready).content.rows.filterIsInstance<io.github.wnijhof.tickory.core.WidgetRow.Item>()).map { it.id }.sorted()
+    private fun rows() = (WidgetModel.state(app, WidgetSource.Today) as WidgetModel.State.Ready).content.rows.filterIsInstance<io.github.wnijhof.tickory.core.WidgetRow.Item>()
+
+    /** De open taken; een net afgevinkte staat er doorgestreept bij (zoals in Todoist) en telt hier niet. */
+    private fun visible(): List<String> = rows().filter { !it.done }.map { it.id }.sorted()
+
+    private fun struck(): List<String> = rows().filter { it.done }.map { it.id }.sorted()
 
     @Test
     fun `afvinken zet de taak in de wachtrij en haalt hem meteen uit de widget - zonder internet`() {
@@ -45,6 +50,13 @@ class WidgetActionsTest : WidgetTestBase() {
         assertEquals(WidgetActions.Result.QUEUED, WidgetActions.complete(app, "gewoon"))
 
         assertEquals("de taak en zijn subtaak zijn weg", listOf("andere", "terug", "terugkind"), visible())
+        assertEquals("de taak zelf staat er doorgestreept bij, de subtaak niet", listOf("gewoon"), struck())
+        // nog een tik op de volle cirkel: weer open, zolang de server het nog niet heeft
+        assertTrue(WidgetActions.undo(app, "gewoon"))
+        assertEquals(listOf("andere", "gewoon", "kind", "terug", "terugkind"), visible())
+        assertTrue(WidgetStore.queue(app).isEmpty())
+        assertFalse("twee keer terugzetten doet niets", WidgetActions.undo(app, "gewoon"))
+        assertEquals(WidgetActions.Result.QUEUED, WidgetActions.complete(app, "gewoon"))
         val item = WidgetStore.queue(app).single()
         assertEquals("gewoon", item.taskId)
         assertEquals("user-anna-0001", item.accountId)

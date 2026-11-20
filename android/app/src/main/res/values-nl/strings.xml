@@ -341,4 +341,18 @@
         <item quantity="one">Nog %d taak voor vandaag</item>
         <item quantity="other">Nog %d taken voor vandaag</item>
     </plurals>
+    <string name="widget_subtasks_count">%1$d/%2$d</string>
+    <string name="widget_undo_task">Weer openzetten: %1$s</string>
+    <string name="widget_priority_flag">Prioriteit %1$d</string>
+    <string name="reschedule_title">Herplannen</string>
+    <string name="reschedule_count">%1$d over tijd</string>
+    <string name="reschedule_today">Vandaag</string>
+    <string name="reschedule_tomorrow">Morgen</string>
+    <string name="reschedule_weekend">Dit weekend</string>
+    <string name="reschedule_next_week">Volgende week</string>
+    <string name="reschedule_no_date">Geen datum</string>
+    <string name="reschedule_pick">Datum kiezen…</string>
+    <string name="reschedule_done">Herpland naar %1$s</string>
+    <string name="reschedule_done_none">Datum weggehaald</string>
+    <string name="reschedule_failed">Herplannen lukte niet: geen verbinding met de server. Probeer het opnieuw, of open Vandaag in de app.</string>
 </resources>
