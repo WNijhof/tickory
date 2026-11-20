@@ -141,7 +141,7 @@ class WidgetContentTest {
     fun `vandaag - Over tijd en de dag van vandaag als koppen, zoals in Todoist`() {
         val s = snapshot(listOf(task("oud", "2026-11-12"), task("nu", "2026-11-13T14:00")))
         val rows = build(s, WidgetSource.Today).rows
-        assertEquals(WidgetRow.Header(WidgetContentBuilder.OVERDUE_HEADER, overdue = true), rows[0])
+        assertEquals("Herplannen krijgt de te late taken mee", WidgetRow.Header(WidgetContentBuilder.OVERDUE_HEADER, overdue = true, taskIds = listOf("oud")), rows[0])
         assertEquals("oud", (rows[1] as WidgetRow.Item).id)
         assertEquals(WidgetRow.Header("Vrijdag, 13 nov"), rows[2])
         assertEquals("nu", (rows[3] as WidgetRow.Item).id)

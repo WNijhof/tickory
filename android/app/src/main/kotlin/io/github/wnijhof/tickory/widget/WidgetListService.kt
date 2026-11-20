@@ -3,6 +3,7 @@ package io.github.wnijhof.tickory.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Paint
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
@@ -87,8 +88,9 @@ class WidgetListService : RemoteViewsService() {
                 views.setTextViewText(R.id.header_button, context.getString(R.string.widget_reschedule))
                 views.setTextColor(R.id.header_button, look.accent)
                 views.setTextViewTextSize(R.id.header_button, TypedValue.COMPLEX_UNIT_SP, scaled(13f))
-                // Herplannen: de app op Vandaag, waar je alle te late taken in één keer naar een andere dag zet
-                views.setOnClickFillInIntent(R.id.header_button, WidgetIntents.fillInView(DeepLink.VIEW_TODAY))
+                // Herplannen, zoals in Todoist: een klein venster met de datumkeuzes voor precies deze te late taken
+                views.setViewVisibility(R.id.header_button, if (row.taskIds.isEmpty()) View.GONE else View.VISIBLE)
+                views.setOnClickFillInIntent(R.id.header_button, WidgetIntents.fillInReschedule(row.taskIds))
             }
             return views
         }
@@ -113,29 +115,37 @@ class WidgetListService : RemoteViewsService() {
             val views = RemoteViews(context.packageName, if (compact) R.layout.widget_item_compact else R.layout.widget_item)
             val title = row.title.ifBlank { context.getString(R.string.task_untitled) }
             views.setTextViewText(R.id.item_title, title)
-            views.setTextColor(R.id.item_title, look.text)
+            // net afgevinkt: doorgestreept in de tweede tekstkleur, zoals in Todoist (gqa.k)
+            views.setTextColor(R.id.item_title, if (row.done) look.textSoft else look.text)
+            views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG or (if (row.done) Paint.STRIKE_THRU_TEXT_FLAG else 0))
             views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, scaled(14f))
-            // de cirkel in de kleur van de prioriteit; alleen lezen: geen cirkel (afvinken zou de server weigeren), de plek blijft
-            views.setImageViewResource(R.id.check, R.drawable.widget_check_p4)
-            views.setInt(R.id.check, "setColorFilter", look.priority(row.priority))
-            views.setViewVisibility(R.id.check, if (row.readOnly) View.INVISIBLE else View.VISIBLE)
-
             val dueColor = look.dueColor(row.dueKind)
+            val indent = row.depth * context.resources.getDimensionPixelSize(R.dimen.widget_indent)
+            views.setViewPadding(R.id.item_root, indent + context.resources.getDimensionPixelSize(R.dimen.widget_item_start), 0, 0, 0)
+            views.setContentDescription(R.id.text_area, context.getString(R.string.widget_open_task, title))
+
             if (compact) {
-                // compact: één regel, de datum rechts uitgelijnd; geen tweede regel en geen project
+                // compact, zoals Todoist: geen cirkel; de datum met herhaling en de vlag van de prioriteit rechts; de hele rij opent de taak
                 views.setTextViewText(R.id.item_due, row.due ?: "")
                 views.setViewVisibility(R.id.item_due, if (row.due != null) View.VISIBLE else View.GONE)
                 views.setTextColor(R.id.item_due, dueColor)
                 views.setTextViewTextSize(R.id.item_due, TypedValue.COMPLEX_UNIT_SP, scaled(12f))
-            } else {
-                attributes(views, row, dueColor)
+                views.setViewVisibility(R.id.icon_recurring, if (row.due != null && row.recurring) View.VISIBLE else View.GONE)
+                views.setInt(R.id.icon_recurring, "setColorFilter", dueColor)
+                views.setViewVisibility(R.id.icon_priority, if (row.priority in 1..3) View.VISIBLE else View.GONE)
+                views.setInt(R.id.icon_priority, "setColorFilter", look.priority(row.priority))
+                views.setOnClickFillInIntent(R.id.text_area, clickIntents(row).second)
+                return views
             }
-            val indent = row.depth * context.resources.getDimensionPixelSize(R.dimen.widget_indent)
-            views.setViewPadding(R.id.item_root, indent + context.resources.getDimensionPixelSize(R.dimen.widget_item_start), 0, 0, 0)
+
+            // de cirkel in de kleur van de prioriteit; vol met een vinkje als hij net is afgevinkt; alleen lezen: geen cirkel, de plek blijft
+            views.setImageViewResource(R.id.check, if (row.done) R.drawable.widget_check_done else R.drawable.widget_check_p4)
+            views.setInt(R.id.check, "setColorFilter", look.priority(row.priority))
+            views.setViewVisibility(R.id.check, if (row.readOnly) View.INVISIBLE else View.VISIBLE)
+            attributes(views, row, dueColor)
 
             // Voor TalkBack: wat een tik doet, met de naam van de taak erbij.
-            views.setContentDescription(R.id.check, context.getString(R.string.widget_complete_task, title))
-            views.setContentDescription(R.id.text_area, context.getString(R.string.widget_open_task, title))
+            views.setContentDescription(R.id.check, context.getString(if (row.done) R.string.widget_undo_task else R.string.widget_complete_task, title))
             val (complete, open) = clickIntents(row)
             views.setOnClickFillInIntent(R.id.check, complete)
             views.setOnClickFillInIntent(R.id.text_area, open)
@@ -148,11 +158,13 @@ class WidgetListService : RemoteViewsService() {
             fun visible(id: Int, on: Boolean) = views.setViewVisibility(id, if (on) View.VISIBLE else View.GONE)
             fun tint(id: Int, color: Int) = views.setInt(id, "setColorFilter", color)
 
-            visible(R.id.icon_subtasks, row.subtasks > 0)
-            visible(R.id.item_subtasks, row.subtasks > 0)
-            if (row.subtasks > 0) {
+            // subtaken als "af/totaal", zoals in Todoist (item_subtasks)
+            val totalKids = row.subtasks + row.subtasksDone
+            visible(R.id.icon_subtasks, totalKids > 0)
+            visible(R.id.item_subtasks, totalKids > 0)
+            if (totalKids > 0) {
                 tint(R.id.icon_subtasks, look.textSoft)
-                views.setTextViewText(R.id.item_subtasks, row.subtasks.toString())
+                views.setTextViewText(R.id.item_subtasks, context.getString(R.string.widget_subtasks_count, row.subtasksDone, totalKids))
                 views.setTextColor(R.id.item_subtasks, look.textSoft)
                 views.setTextViewTextSize(R.id.item_subtasks, TypedValue.COMPLEX_UNIT_SP, small)
             }
@@ -170,6 +182,23 @@ class WidgetListService : RemoteViewsService() {
             if (row.deadline) tint(R.id.icon_deadline, look.textSoft)
             visible(R.id.icon_reminder, row.reminder)
             if (row.reminder) tint(R.id.icon_reminder, look.textSoft)
+            // het aantal herinneringen, de beschrijving en de opmerkingen (met hun aantal), zoals in Todoist
+            visible(R.id.item_reminders, row.reminder && row.reminders > 0)
+            if (row.reminder && row.reminders > 0) {
+                views.setTextViewText(R.id.item_reminders, row.reminders.toString())
+                views.setTextColor(R.id.item_reminders, look.textSoft)
+                views.setTextViewTextSize(R.id.item_reminders, TypedValue.COMPLEX_UNIT_SP, small)
+            }
+            visible(R.id.icon_description, row.description)
+            if (row.description) tint(R.id.icon_description, look.textSoft)
+            visible(R.id.icon_comments, row.comments > 0)
+            visible(R.id.item_comments, row.comments > 0)
+            if (row.comments > 0) {
+                tint(R.id.icon_comments, look.textSoft)
+                views.setTextViewText(R.id.item_comments, if (row.comments > 99) "99+" else row.comments.toString())
+                views.setTextColor(R.id.item_comments, look.textSoft)
+                views.setTextViewTextSize(R.id.item_comments, TypedValue.COMPLEX_UNIT_SP, small)
+            }
             visible(R.id.item_labels, row.labels != null)
             if (row.labels != null) {
                 views.setTextViewText(R.id.item_labels, row.labels)
@@ -187,13 +216,19 @@ class WidgetListService : RemoteViewsService() {
                 views.setTextColor(R.id.item_project, look.textSoft)
                 views.setTextViewTextSize(R.id.item_project, TypedValue.COMPLEX_UNIT_SP, small)
             }
-            val any = row.subtasks > 0 || row.due != null || row.deadline || row.reminder || row.labels != null || project != null
+            val any = totalKids > 0 || row.due != null || row.deadline || row.reminder || row.description || row.comments > 0 || row.labels != null || project != null
             visible(R.id.item_line2, any)
         }
 
         /** Wat de twee tikvlakken van een regel aan het sjabloon toevoegen: eerst de cirkel (afvinken), dan de tekst (openen). */
-        internal fun clickIntents(row: WidgetRow.Item): Pair<Intent, Intent> =
-            WidgetIntents.fillIn(if (row.readOnly) WidgetIntents.KIND_OPEN else WidgetIntents.KIND_COMPLETE, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)
+        internal fun clickIntents(row: WidgetRow.Item): Pair<Intent, Intent> {
+            val circle = when {
+                row.readOnly -> WidgetIntents.KIND_OPEN
+                row.done -> WidgetIntents.KIND_UNDO // nog een tik: weer open, zoals in Todoist ("uncomplete")
+                else -> WidgetIntents.KIND_COMPLETE
+            }
+            return WidgetIntents.fillIn(circle, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)
+        }
 
         override fun getLoadingView(): RemoteViews? = null
 

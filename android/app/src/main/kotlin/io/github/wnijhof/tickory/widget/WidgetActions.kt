@@ -33,6 +33,25 @@ object WidgetActions {
      * actie (dus hooguit één keer uitgevoerd, ook bij opnieuw proberen of dubbel tikken); WorkManager herhaalt dat bij fouten.
      * Herinneringen, uitstel en meldingen van de taak vervallen meteen.
      */
+    /**
+     * Een net afgevinkte taak weer openzetten (nog een tik op de volle cirkel, zoals in Todoist). Dat kan zolang de afvinkactie nog in de
+     * wachtrij staat; is ze al bij de server, dan staat de taak niet meer doorgestreept in de widget en is er niets terug te zetten.
+     * @return true als de actie uit de wachtrij is gehaald
+     */
+    fun undo(context: Context, taskId: String?): Boolean {
+        val app = context.applicationContext
+        val id = taskId?.takeIf(Ids::isSafeId) ?: return false
+        var removed = false
+        WidgetStore.updateQueue(app) { queue ->
+            val rest = queue.filterNot { it.taskId == id }
+            removed = rest.size != queue.size
+            rest
+        }
+        if (removed) ReminderEngine.replan(app) // de herinneringen van de taak gelden weer
+        WidgetUpdater.updateAll(app)
+        return removed
+    }
+
     fun complete(context: Context, taskId: String?): Result {
         val app = context.applicationContext
         val id = taskId?.takeIf(Ids::isSafeId) ?: return Result.IGNORED

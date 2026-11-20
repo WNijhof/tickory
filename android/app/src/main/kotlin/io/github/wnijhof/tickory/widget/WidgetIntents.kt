@@ -23,6 +23,8 @@ object WidgetIntents {
     const val KIND_COMPLETE = "complete"
     const val KIND_OPEN = "open"
     const val KIND_VIEW = "view"
+    const val KIND_UNDO = "undo"
+    const val KIND_RESCHEDULE = "reschedule"
     const val EXTRA_TARGET_VIEW = "io.github.wnijhof.tickory.extra.WIDGET_VIEW"
 
     private val IMMUTABLE = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -74,6 +76,10 @@ object WidgetIntents {
 
     /** Wat een regel aan het sjabloon toevoegt: wat er moet gebeuren ([KIND_COMPLETE] of [KIND_OPEN]) en voor welke taak. */
     fun fillIn(kind: String, taskId: String): Intent = Intent().putExtra(EXTRA_KIND, kind).putExtra(Notifications.EXTRA_TASK_ID, taskId)
+
+    /** De knop Herplannen naast "Over tijd": het venster Herplannen voor deze taken. */
+    fun fillInReschedule(taskIds: List<String>): Intent =
+        Intent().putExtra(EXTRA_KIND, KIND_RESCHEDULE).putExtra(RescheduleActivity.EXTRA_TASK_IDS, taskIds.toTypedArray())
 
     /** Een tik op een kop of op "meer taken": de app op een vast overzicht ([view] = DeepLink.VIEW_*; null = gewoon de app). */
     fun fillInView(view: String?): Intent = Intent().putExtra(EXTRA_KIND, KIND_VIEW).putExtra(EXTRA_TARGET_VIEW, view ?: "")

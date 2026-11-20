@@ -22,6 +22,16 @@ data class WidgetTask(
     val deadline: Boolean = false,
     val assigneeId: String? = null,
     val hasReminder: Boolean = false,
+    /** Het aantal herinneringen (eigen, die kunnen afgaan), voor het getal naast de wekker in de widget. */
+    val reminders: Int = 0,
+    /** Heeft de taak een beschrijving? Dan staat er een pictogram in de widget, zoals in Todoist. */
+    val hasDescription: Boolean = false,
+    /** Het aantal opmerkingen bij de taak (hooguit 99; [manyComments] = meer dan dat). */
+    val comments: Int = 0,
+    /** Het aantal afgevinkte subtaken direct onder deze taak, voor "1/3" in de widget. */
+    val doneSubtasks: Int = 0,
+    /** De datum zoals de server hem stuurt (JSON van `due`, met herhaling en tekst), zodat Herplannen de herhaling bewaart. */
+    val dueJson: String? = null,
 )
 
 /** @property readOnly de gebruiker is in dit project lezer (alleen lezen): de widget toont dan geen cirkel om af te vinken */
@@ -78,6 +88,9 @@ data class WidgetSnapshot(
     /** Het ochtendoverzicht en de avondreview (`settings.general.morning_overview` en `evening_review`, "UU:MM"); null: uit. */
     val morningOverview: String? = null,
     val eveningReview: String? = null,
+    /** Welke weekdag (ISO 1-7) "Volgende week" en "Weekend" zijn (`settings.general.next_week` en `weekend`), voor Herplannen. */
+    val nextWeekDay: Int = 1,
+    val weekendDay: Int = 6,
 ) {
     fun project(id: String): WidgetProject? = projects.firstOrNull { it.id == id }
 }
@@ -100,6 +113,16 @@ object WidgetParser {
     /** De duur van uitstel in minuten (SNOOZE_MINUTES in shared/general.js) en de standaard. */
     val SNOOZE_CHOICES = setOf(5, 10, 15, 30, 60, 360, 720, 1440)
     const val DEFAULT_SNOOZE_MINUTES = 10
+
+    /** Welke weekdag "Volgende week" en "Weekend" zijn (ISO 1-7, zie shared/general.js); standaard maandag en zaterdag. */
+    fun dayPrefsOf(raw: List<Any?>?, accountId: String): Pair<Int, Int> {
+        val mine = raw?.mapNotNull { Json.asObject(it) }?.firstOrNull { o ->
+            !o.flag("is_deleted") && (o.text("owner_id") ?: accountId) == accountId
+        } ?: return 1 to 6
+        val g = mine.obj("general") ?: return 1 to 6
+        fun day(key: String, fallback: Int) = g.whole(key)?.toInt()?.takeIf { it in 1..7 } ?: fallback
+        return day("next_week", 1) to day("weekend", 6)
+    }
 
     /** De uitstelduur uit je instellingen; een ontbrekende of onbekende waarde is de standaard. */
     fun snoozeMinutesOf(raw: List<Any?>?, accountId: String): Int {
@@ -171,6 +194,27 @@ object WidgetParser {
             if (openDue.size >= MAX_TASKS) break
         }
         val reminded = withReminder(root.list("reminders"), accountId, openDue)
+        val reminderCount = HashMap<String, Int>()
+        for (entry in root.list("reminders") ?: emptyList()) {
+            val r = Json.asObject(entry) ?: continue
+            if (r.flag("is_deleted")) continue
+            val taskId = r.text("task_id") ?: continue
+            if (taskId in reminded && (r.text("owner_id") ?: accountId) == accountId) reminderCount[taskId] = (reminderCount[taskId] ?: 0) + 1
+        }
+        val doneKids = HashMap<String, Int>()
+        for (entry in rawTasks) {
+            val o = Json.asObject(entry) ?: continue
+            if (o.flag("is_deleted") || !o.flag("checked")) continue
+            val parent = o.text("parent_id")?.takeIf { Ids.isSafeId(it) } ?: continue
+            doneKids[parent] = (doneKids[parent] ?: 0) + 1
+        }
+        val commentCount = HashMap<String, Int>()
+        for (entry in root.list("comments") ?: emptyList()) {
+            val c = Json.asObject(entry) ?: continue
+            if (c.flag("is_deleted")) continue
+            val taskId = c.text("task_id")?.takeIf { Ids.isSafeId(it) } ?: continue
+            commentCount[taskId] = (commentCount[taskId] ?: 0) + 1
+        }
         for (entry in rawTasks) {
             val o = Json.asObject(entry) ?: continue
             if (o.flag("is_deleted") || o.flag("checked")) continue
@@ -195,6 +239,11 @@ object WidgetParser {
                     deadline = !o.text("deadline").isNullOrEmpty(),
                     assigneeId = o.text("assignee_id")?.takeIf { it.isNotEmpty() },
                     hasReminder = id in reminded,
+                    reminders = reminderCount[id] ?: if (id in reminded) 1 else 0,
+                    hasDescription = description.isNotBlank(),
+                    comments = minOf(commentCount[id] ?: 0, 100),
+                    doneSubtasks = doneKids[id] ?: 0,
+                    dueJson = due?.let { Json.stringify(it) },
                 ),
             )
             if (tasks.size >= MAX_TASKS) break
@@ -242,7 +291,8 @@ object WidgetParser {
         val dayOrder = dayOrderOf(root.list("settings"), accountId)
         val snooze = snoozeMinutesOf(root.list("settings"), accountId)
         val (morning, evening) = DailyOverview.timesOf(root.list("settings"), accountId)
-        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users, dayOrder, snooze, morning, evening)
+        val (nextWeek, weekend) = dayPrefsOf(root.list("settings"), accountId)
+        return WidgetSnapshot(accountId, me.text("inbox_project_id")?.takeIf { Ids.isSafeId(it) }, tasks, projects, sections, labels, notes, filters, users, dayOrder, snooze, morning, evening, nextWeek, weekend)
     }
 }
 
@@ -260,6 +310,7 @@ object WidgetCodec {
                     "id" to it.id, "project" to it.projectId, "section" to it.sectionId, "parent" to it.parentId, "content" to it.content,
                     "due" to it.due, "recurring" to it.recurring, "priority" to it.priority.toLong(), "labels" to it.labelIds, "order" to it.orderKey,
                     "search" to it.search, "deadline" to it.deadline, "assignee" to it.assigneeId, "reminder" to it.hasReminder,
+                    "reminders" to it.reminders.toLong(), "desc" to it.hasDescription, "comments" to it.comments.toLong(), "doneKids" to it.doneSubtasks.toLong(), "dueJson" to it.dueJson,
                 )
             },
             "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey, "readOnly" to it.readOnly) },
@@ -275,7 +326,7 @@ object WidgetCodec {
             "users" to s.users.map { mapOf("id" to it.id, "name" to it.name, "username" to it.username) },
             "dayOrder" to s.dayOrder,
             "snooze" to s.snoozeMinutes.toLong(),
-            "morning" to s.morningOverview, "evening" to s.eveningReview,
+            "morning" to s.morningOverview, "evening" to s.eveningReview, "nextWeek" to s.nextWeekDay.toLong(), "weekend" to s.weekendDay.toLong(),
         ),
     )
 
@@ -293,6 +344,8 @@ object WidgetCodec {
                 labelIds = o.list("labels")?.mapNotNull { it as? String } ?: emptyList(), orderKey = o.text("order") ?: "",
                 // bewaard door een oudere versie: zonder deze velden (tot de volgende verversing vindt een filter dan minder)
                 search = o.text("search") ?: "", deadline = o.flag("deadline"), assigneeId = o.text("assignee"), hasReminder = o.flag("reminder"),
+                reminders = o.whole("reminders")?.toInt() ?: 0, hasDescription = o.flag("desc"), comments = o.whole("comments")?.toInt() ?: 0,
+                doneSubtasks = o.whole("doneKids")?.toInt() ?: 0, dueJson = o.text("dueJson"),
             )
         }
         val projects = objects("projects").mapNotNull { o ->
@@ -325,6 +378,7 @@ object WidgetCodec {
         return WidgetSnapshot(
             account, root.text("inbox"), tasks, projects, sections, labels, notes, filters, users, dayOrder, snooze,
             root.text("morning")?.takeIf { DailyOverview.validTime(it) }, root.text("evening")?.takeIf { DailyOverview.validTime(it) },
+            root.whole("nextWeek")?.toInt()?.takeIf { it in 1..7 } ?: 1, root.whole("weekend")?.toInt()?.takeIf { it in 1..7 } ?: 6,
         )
     }
 }

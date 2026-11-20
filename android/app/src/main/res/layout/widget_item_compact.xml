@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Een taak in een lijstwidget, zoals in de takenlijst van Todoist: links de cirkel om af te vinken (in de kleur van de prioriteit), de titel,
-  eronder de eigenschappen (subtaken, datum met herhaling, deadline, herinnering, labels) en rechts het project. Compact: de datum staat rechts op de regel van de titel, zonder tweede regel.
+  Een taak in de compacte weergave, zoals in Todoist (appwidget_item_list_row_item_compact): geen cirkel, de titel, rechts de datum met
+  het herhalings-pictogram en de vlag van de prioriteit (niet bij prioriteit 4). De hele rij opent de taak.
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/item_root"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -12,16 +13,6 @@
     android:orientation="horizontal"
     android:paddingStart="4dp"
     tools:ignore="RtlSymmetry">
-
-    <ImageView
-        android:id="@+id/check"
-        android:layout_width="@dimen/widget_row_min"
-        android:layout_height="@dimen/widget_row_compact"
-        android:background="@drawable/widget_ripple"
-        android:importantForAccessibility="yes"
-        android:scaleType="center"
-        android:src="@drawable/widget_check_p4"
-        tools:ignore="ContentDescription" />
 
     <LinearLayout
         android:id="@+id/text_area"
@@ -32,7 +23,7 @@
         android:gravity="center_vertical"
         android:minHeight="@dimen/widget_row_compact"
         android:orientation="horizontal"
-        android:paddingStart="2dp"
+        android:paddingStart="12dp"
         android:paddingEnd="12dp">
 
         <TextView
@@ -53,5 +44,23 @@
             android:maxLines="1"
             android:textColor="@color/widget_text_soft"
             android:textSize="12sp" />
+
+        <ImageView
+            android:id="@+id/icon_recurring"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_marginStart="3dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_attr_recurring" />
+
+        <ImageView
+            android:id="@+id/icon_priority"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="8dp"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_flag" />
     </LinearLayout>
 </LinearLayout>

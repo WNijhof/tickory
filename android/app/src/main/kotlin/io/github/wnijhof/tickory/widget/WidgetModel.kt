@@ -42,7 +42,8 @@ object WidgetModel {
         if (!Session.isActive(app)) return State.SignedOut
         val snapshot = WidgetStore.visibleSnapshot(app) ?: return State.Loading
         val hidden = WidgetQueue.forAccount(WidgetStore.queue(app), snapshot.accountId).mapTo(HashSet()) { it.taskId }
-        val content = WidgetContentBuilder.build(snapshot, source, hidden, nowMs, ZoneId.systemDefault(), lang(app), DateFormat.is24HourFormat(app))
+        // wat net is afgevinkt blijft zoals in Todoist doorgestreept staan (en is met nog een tik terug te zetten), tot de server het bevestigt
+        val content = WidgetContentBuilder.build(snapshot, source, hidden, nowMs, ZoneId.systemDefault(), lang(app), DateFormat.is24HourFormat(app), done = hidden)
         return State.Ready(content, snapshot)
     }
 

@@ -340,4 +340,18 @@
         <item quantity="one">%d task left for today</item>
         <item quantity="other">%d tasks left for today</item>
     </plurals>
+    <string name="widget_subtasks_count">%1$d/%2$d</string>
+    <string name="widget_undo_task">Mark as not completed: %1$s</string>
+    <string name="widget_priority_flag">Priority %1$d</string>
+    <string name="reschedule_title">Reschedule</string>
+    <string name="reschedule_count">%1$d overdue</string>
+    <string name="reschedule_today">Today</string>
+    <string name="reschedule_tomorrow">Tomorrow</string>
+    <string name="reschedule_weekend">This weekend</string>
+    <string name="reschedule_next_week">Next week</string>
+    <string name="reschedule_no_date">No date</string>
+    <string name="reschedule_pick">Choose a date…</string>
+    <string name="reschedule_done">Rescheduled to %1$s</string>
+    <string name="reschedule_done_none">Date removed</string>
+    <string name="reschedule_failed">Could not reschedule: no connection with the server. Try again, or open Today in the app.</string>
 </resources>

@@ -7,7 +7,8 @@ import java.time.ZoneId
 /** Eén regel in een lijstwidget. */
 sealed class WidgetRow {
     /** Een kop: een dag (Binnenkort) of een sectie (project). */
-    data class Header(val text: String, val overdue: Boolean = false) : WidgetRow()
+    /** @property taskIds bij "Over tijd": de taken eronder (open), voor de knop Herplannen */
+    data class Header(val text: String, val overdue: Boolean = false, val taskIds: List<String> = emptyList()) : WidgetRow()
 
     /**
      * @property due de datum als korte tekst ("14:00", "morgen", "wo 18 nov 09:30"), of null
@@ -38,6 +39,13 @@ sealed class WidgetRow {
         val project: String? = null,
         val inbox: Boolean = false,
         val labels: String? = null,
+        /** Net afgevinkt (nog niet door de server bevestigd): doorgestreept, met een volle cirkel; een tik zet hem terug (zoals Todoist). */
+        val done: Boolean = false,
+        /** Afgevinkte subtaken, voor "1/3" (met [subtasks] open). */
+        val subtasksDone: Int = 0,
+        val reminders: Int = 0,
+        val comments: Int = 0,
+        val description: Boolean = false,
     ) : WidgetRow()
 }
 
@@ -78,8 +86,9 @@ object WidgetContentBuilder {
     private const val MAX_DEPTH = 3
 
     /**
-     * @param hidden taken die de gebruiker net heeft afgevinkt maar waarvan de server het nog niet bevestigde; ze zijn niet
-     *   te zien, en hun subtaken ook niet (afvinken sluit die mee, behalve bij een terugkerende taak)
+     * @param hidden taken die de gebruiker net heeft afgevinkt maar waarvan de server het nog niet bevestigde; hun subtaken zijn niet
+     *   te zien (afvinken sluit die mee, behalve bij een terugkerende taak), en zijzelf ook niet, tenzij ze ook in [done] staan
+     * @param done de taken uit [hidden] die zoals in Todoist blijven staan, doorgestreept, tot de volgende verversing (tellen niet mee)
      */
     fun build(
         snapshot: WidgetSnapshot,
@@ -90,12 +99,14 @@ object WidgetContentBuilder {
         lang: Lang,
         use24Hour: Boolean = true,
         maxRows: Int = MAX_ROWS,
+        done: Set<String> = emptySet(),
     ): WidgetContent {
         val today = Instant.ofEpochMilli(nowMs).atZone(zone).toLocalDate()
-        val ctx = Ctx(snapshot, today, nowMs, zone, lang, use24Hour)
-        val gone = hideWithSubtasks(snapshot, hidden)
+        val shownDone = done.filterTo(HashSet()) { snapshot.tasks.firstOrNull { t -> t.id == it }?.recurring == false }
+        val ctx = Ctx(snapshot, today, nowMs, zone, lang, use24Hour, shownDone)
+        val gone = hideWithSubtasks(snapshot, hidden) - shownDone
         val open = snapshot.tasks.filter { it.id !in gone }
-        return when (source) {
+        val content = when (source) {
             WidgetSource.Today -> today(ctx, open, maxRows)
             WidgetSource.Upcoming -> upcoming(ctx, open, maxRows)
             WidgetSource.Inbox -> project(ctx, open, snapshot.inboxId, maxRows)
@@ -104,9 +115,13 @@ object WidgetContentBuilder {
             is WidgetSource.Preset -> query(ctx, open, source.query, "", maxRows)
             is WidgetSource.Label -> label(ctx, open, source.id, maxRows)
         }
+        if (shownDone.isEmpty()) return content
+        // wat net is afgevinkt telt niet meer mee
+        val doneRows = content.rows.count { it is WidgetRow.Item && it.done }
+        return content.copy(count = maxOf(0, content.count - doneRows))
     }
 
-    private class Ctx(val snapshot: WidgetSnapshot, val today: LocalDate, val nowMs: Long, val zone: ZoneId, val lang: Lang, val use24Hour: Boolean) {
+    private class Ctx(val snapshot: WidgetSnapshot, val today: LocalDate, val nowMs: Long, val zone: ZoneId, val lang: Lang, val use24Hour: Boolean, val done: Set<String> = emptySet()) {
         val projectNames = snapshot.projects.associate { it.id to it.name }
         val labelNames = snapshot.labels.associate { it.id to it.name }
         val readOnly = snapshot.projects.filter { it.readOnly }.mapTo(HashSet()) { it.id }
@@ -154,7 +169,7 @@ object WidgetContentBuilder {
         val dueToday = dated.filter { (_, day) -> day == ctx.today }.map { it.first }.sortedWith(byDue)
         val rows = ArrayList<WidgetRow>()
         // zoals in Todoist: "Over tijd" (met Herplannen) en daaronder de dag van vandaag; zonder te late taken geen koppen
-        if (overdue.isNotEmpty()) rows.add(WidgetRow.Header(OVERDUE_HEADER, overdue = true))
+        if (overdue.isNotEmpty()) rows.add(WidgetRow.Header(OVERDUE_HEADER, overdue = true, taskIds = overdue.filter { it.id !in ctx.done }.map { it.id }))
         for (t in applyDayOrder(overdue, ctx.snapshot.dayOrder)) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = true))
         if (overdue.isNotEmpty() && dueToday.isNotEmpty()) rows.add(WidgetRow.Header(DueText.dayLong(ctx.today, ctx.today, ctx.lang)))
         for (t in applyDayOrder(dueToday, ctx.snapshot.dayOrder)) rows.add(item(ctx, t, sourceIsProject = false, depth = 0, timeOnly = true))
@@ -294,6 +309,7 @@ object WidgetContentBuilder {
             t.id, t.content, t.priority, due, overdue, depth, meta, t.projectId in ctx.readOnly,
             dueKind = kind, recurring = t.recurring && t.due != null, deadline = t.deadline, reminder = t.hasReminder,
             subtasks = ctx.subtaskCounts[t.id] ?: 0, project = project, inbox = t.projectId == ctx.snapshot.inboxId, labels = labels,
+            done = t.id in ctx.done, subtasksDone = t.doneSubtasks, reminders = t.reminders, comments = t.comments, description = t.hasDescription,
         )
     }
 

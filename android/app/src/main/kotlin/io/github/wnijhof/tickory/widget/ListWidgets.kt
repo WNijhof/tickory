@@ -126,6 +126,7 @@ object ListWidgets {
         views.setOnClickPendingIntent(R.id.logo, WidgetIntents.openApp(context))
         views.setOnClickPendingIntent(R.id.message, WidgetIntents.openApp(context))
         views.setOnClickPendingIntent(R.id.header_text, chooseOverview(context, appWidgetId))
+        views.setOnClickPendingIntent(R.id.settings, settings(context, appWidgetId))
 
         val adapter = Intent(context, WidgetListService::class.java)
             .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
@@ -139,6 +140,16 @@ object ListWidgets {
     private fun todayLabel(context: Context): String {
         val today = Instant.ofEpochMilli(AppClock.now()).atZone(ZoneId.systemDefault()).toLocalDate()
         return DueText.dayMonth(today, today, WidgetModel.lang(context))
+    }
+
+    /** Het tandwiel in de balk (zoals in Todoist): alle instellingen van deze widget. */
+    private fun settings(context: Context, appWidgetId: Int): PendingIntent {
+        val intent = Intent(context, WidgetConfigActivity::class.java)
+            .setAction(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+            .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+            .setData(Uri.Builder().scheme("tickory").authority("widget").appendPath("settings").appendPath(appWidgetId.toString()).build())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return PendingIntent.getActivity(context, 2000 + appWidgetId, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     /** Het pijltje bij de titel: het scherm om een ander overzicht te kiezen (Inbox, Vandaag, Aankomend, een project of een filter). */
@@ -163,6 +174,7 @@ object ListWidgets {
         views.setInt(R.id.toolbar_bg, "setColorFilter", look.toolbar)
         views.setInt(R.id.logo, "setColorFilter", look.accent)
         views.setInt(R.id.chevron, "setColorFilter", look.textSoft)
+        views.setInt(R.id.settings, "setColorFilter", look.textSoft)
         views.setInt(R.id.add_circle, "setColorFilter", look.accent)
         views.setTextColor(R.id.title, look.text)
         views.setTextColor(R.id.subtitle, look.textSoft)
