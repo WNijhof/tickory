@@ -2242,6 +2242,9 @@ if (wants('browser')) {
           assertClean(`startpagina (${accept})`);
         }
         await b.send('Emulation.setUserAgentOverride', { userAgent: ua, acceptLanguage: 'nl-NL,nl' });
+        // eerst een lege pagina: zo zijn de (lui geladen) afbeeldingen van de vorige startpagina klaar of afgebroken vóór we gaan tellen
+        await b.goto('about:blank');
+        await sleep(300);
         b.reset();
         await b.goto(`${site.url}bestaat/niet.html`);
         assert.equal(await evaluate(`document.querySelector('h1').textContent`), 'Page not found');
