@@ -25,7 +25,7 @@
   },
   "snel-toevoegen": {
     "width": 1680,
-    "height": 736
+    "height": 724
   },
   "taak-bewerken": {
     "width": 2056,
@@ -33,7 +33,7 @@
   },
   "taak-toevoegen": {
     "width": 1336,
-    "height": 880
+    "height": 976
   },
   "projectmenu": {
     "width": 976,
@@ -76,8 +76,8 @@
     "height": 1340
   },
   "instellingen": {
-    "width": 976,
-    "height": 1594
+    "width": 1016,
+    "height": 1764
   },
   "meldingen": {
     "width": 1296,
@@ -125,7 +125,7 @@
   },
   "productiviteit": {
     "width": 1680,
-    "height": 3030
+    "height": 3424
   },
   "telefoon-productiviteit": {
     "width": 780,
@@ -157,7 +157,7 @@
   },
   "nl/snel-toevoegen": {
     "width": 1680,
-    "height": 736
+    "height": 724
   },
   "nl/taak-bewerken": {
     "width": 2056,
@@ -165,7 +165,7 @@
   },
   "nl/taak-toevoegen": {
     "width": 1336,
-    "height": 880
+    "height": 976
   },
   "nl/projectmenu": {
     "width": 976,
@@ -208,8 +208,8 @@
     "height": 1340
   },
   "nl/instellingen": {
-    "width": 976,
-    "height": 1594
+    "width": 1016,
+    "height": 1764
   },
   "nl/meldingen": {
     "width": 1296,
@@ -257,7 +257,7 @@
   },
   "nl/productiviteit": {
     "width": 1680,
-    "height": 3000
+    "height": 3384
   },
   "nl/telefoon-productiviteit": {
     "width": 780,

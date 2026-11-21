@@ -355,8 +355,8 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 | Taak toevoegen | Een knop (1×1 en breder, het woord verdwijnt als hij smal is) die het [kleine venster Taak toevoegen](#het-kleine-venster-taak-toevoegen) opent, in het laatst gekozen project (eerst de Inbox) |
 
 **Uiterlijk en instellingen (lijsten).** Elke lijstwidget heeft, zoals in Todoist: een **voorgestelde stijl** (Aangepast, Standaard, Compact,
-Transparant donker, Transparant wit), een **thema** (Dynamische kleur, Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud;
-`core/WidgetLook.kt`, de kleurwaarden komen uit de resources van Todoist en zijn getest), een **weergave** (automatisch, licht, donker),
+Transparant donker, Transparant wit), een **thema** (Dynamische kleur, Zeegroen, Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud;
+`core/WidgetLook.kt`, de kleurwaarden zijn getest), een **weergave** (automatisch, licht, donker),
 een **lettergrootte** (klein, normaal, groot), een **ondoorzichtigheid** van 0 tot 100 in stappen van 1, en de **compacte weergave** (de datum
 op dezelfde regel als de titel). Elke lijstwidget kiest zijn overzicht zelf (Inbox, Vandaag, Aankomend, een project of een filter); een tik op de
 titel in de widget opent alleen die keuze (`WidgetConfigActivity.EXTRA_CHOOSE_ONLY`). De weergave "automatisch" volgt het toestel op het

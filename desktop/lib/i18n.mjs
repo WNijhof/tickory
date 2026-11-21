@@ -1,4 +1,4 @@
-// De teksten van de desktop-app zelf (menu's, systeemvak, meldingen), in het Nederlands en Engels, zoals de Todoist-app ze heeft.
+// De teksten van de desktop-app zelf (menu's, systeemvak, meldingen), in het Nederlands en Engels.
 // De web-app in het venster heeft haar eigen teksten.
 
 const NL = {

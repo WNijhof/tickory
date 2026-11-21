@@ -1,10 +1,10 @@
 package io.github.wnijhof.tickory.core
 
 /**
- * Het uiterlijk van de widgets, zoals in de Todoist-app: een **thema** (de kleur van de balk en de knoppen: Dynamische kleur, Tomaat,
- * Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud), de **weergave** (automatisch, licht of donker, zie [WidgetTheme]), de
+ * Het uiterlijk van de widgets, zoals in de Todoist-app: een **thema** (de kleur van de balk en de knoppen: Dynamische kleur, Zeegroen (de
+ * kleur van Tickory), Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud), de **weergave** (automatisch, licht of donker, zie [WidgetTheme]), de
  * **lettergrootte**, de doorzichtigheid en de compacte weergave. Zuivere Kotlin: de kleuren staan hier als getallen, zodat ze op de pc te
- * testen zijn. De waarden komen uit de kleurtabellen van de Todoist-app (alleen de getallen, geen vormgeving).
+ * testen zijn.
  */
 enum class WidgetAccent(
     val key: String,
@@ -17,6 +17,7 @@ enum class WidgetAccent(
 ) {
     /** Past zich aan aan het thema van het toestel (Material You); zonder vast palet, de kleuren komen uit de resources. */
     DYNAMIC("dynamic", 0, 0, 0, 0),
+    TEAL("teal", 0xFF0F766E.toInt(), 0xFF2DD4BF.toInt(), 0xFFF7FAFA.toInt(), 0xFF242727.toInt()),
     TOMATO("tomato", 0xFFD33322.toInt(), 0xFFDC4C3E.toInt(), 0xFFFCFAF8.toInt(), 0xFF262626.toInt()),
     MOONSTONE("moonstone", 0xFF39485E.toInt(), 0xFF677890.toInt(), 0xFFFAFAFA.toInt(), 0xFF262626.toInt()),
     TANGERINE("tangerine", 0xFFFFBD61.toInt(), 0xFFA36B00.toInt(), 0xFFFCFAF7.toInt(), 0xFF272624.toInt()),
@@ -99,7 +100,7 @@ enum class WidgetFont(val key: String, val scale: Float) {
 }
 
 /**
- * De vooringestelde stijlen van de instellingen (zoals in Todoist): "Standaard" (het thema Tomaat, dicht), "Compact", "Transparant donker"
+ * De vooringestelde stijlen van de instellingen (zoals in Todoist): "Standaard" (het thema Zeegroen, dicht), "Compact", "Transparant donker"
  * (donker, 70% ondoorzichtig) en "Transparant wit" (licht, 0% ondoorzichtig, neutraal thema); "Aangepast" is wat je zelf instelde.
  */
 enum class WidgetPreset(val key: String) {
@@ -113,8 +114,8 @@ enum class WidgetPreset(val key: String) {
     /** De opties van deze stijl; [CUSTOM] verandert niets. */
     fun applyTo(current: WidgetOptions): WidgetOptions = when (this) {
         CUSTOM -> current
-        STANDARD -> current.copy(accent = WidgetAccent.TOMATO, theme = WidgetTheme.SYSTEM, opacity = 100, compact = false, font = WidgetFont.NORMAL)
-        COMPACT -> current.copy(accent = WidgetAccent.TOMATO, theme = WidgetTheme.SYSTEM, opacity = 100, compact = true, font = WidgetFont.NORMAL)
+        STANDARD -> current.copy(accent = WidgetAccent.TEAL, theme = WidgetTheme.SYSTEM, opacity = 100, compact = false, font = WidgetFont.NORMAL)
+        COMPACT -> current.copy(accent = WidgetAccent.TEAL, theme = WidgetTheme.SYSTEM, opacity = 100, compact = true, font = WidgetFont.NORMAL)
         TRANSPARENT_DARK -> current.copy(accent = WidgetAccent.MOONSTONE, theme = WidgetTheme.DARK, opacity = 70, compact = false, font = WidgetFont.NORMAL)
         TRANSPARENT_LIGHT -> current.copy(accent = WidgetAccent.MOONSTONE, theme = WidgetTheme.LIGHT, opacity = 0, compact = false, font = WidgetFont.NORMAL)
     }

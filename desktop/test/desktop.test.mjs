@@ -11,10 +11,10 @@ import { ACCENTS, BACKGROUND, appearanceOf, appearanceOrDefault, backgroundOf, f
 
 test('thema: dezelfde keuzes als Weergave in de web-app, en wie wint bij het opstarten', () => {
   assert.deepEqual(appearanceOf({ theme: 'dark', accent: 'teal' }), { theme: 'dark', accent: 'teal' });
-  assert.deepEqual(appearanceOf({ theme: 'light', accent: 'rommel' }), { theme: 'light', accent: 'tomato' });
+  assert.deepEqual(appearanceOf({ theme: 'light', accent: 'rommel' }), { theme: 'light', accent: 'teal' });
   for (const bad of [null, 'dark', { theme: 'paars' }, []]) assert.equal(appearanceOf(bad), null, JSON.stringify(bad));
-  assert.deepEqual(appearanceOrDefault(null), { theme: 'system', accent: 'tomato' });
-  assert.deepEqual(ACCENTS.map((a) => a.name), ['tomato', 'teal', 'blue', 'indigo', 'violet', 'rose', 'orange', 'green', 'graphite']);
+  assert.deepEqual(appearanceOrDefault(null), { theme: 'system', accent: 'teal' });
+  assert.deepEqual(ACCENTS.map((a) => a.name), ['teal', 'tomato', 'blue', 'indigo', 'violet', 'rose', 'orange', 'green', 'graphite']);
   assert.equal(backgroundOf('dark', false), BACKGROUND.dark);
   assert.equal(backgroundOf('light', true), BACKGROUND.light);
   assert.equal(backgroundOf('system', true), BACKGROUND.dark);

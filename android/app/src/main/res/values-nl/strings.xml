@@ -298,6 +298,7 @@
     <string name="widget_preset_transparent_light">Transparant wit</string>
     <string name="widget_accent">Thema</string>
     <string name="widget_accent_dynamic">Dynamische kleur</string>
+    <string name="widget_accent_teal">Zeegroen</string>
     <string name="widget_accent_tomato">Tomaat</string>
     <string name="widget_accent_moonstone">Maansteen</string>
     <string name="widget_accent_tangerine">Mandarijn</string>

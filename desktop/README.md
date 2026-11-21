@@ -1,12 +1,10 @@
 # Tickory voor Windows (desktop-app)
 
-Een Electron-schil om de web-app van je eigen Tickory-server, gebouwd naar de desktop-app van Todoist (die is hetzelfde: een schil om
-todoist.com). De opbouw en het gedrag zijn uitgelezen uit de installer van Todoist (`Todoist-win32-9.36.2-latest.exe`: NSIS met een 7z-archief,
-daarin `resources/app.asar` met `webpack/electron/electron.js`, de preload en de teksten). Overgenomen: het systeemvak-menu, de globale
+Een Electron-schil om de web-app van je eigen Tickory-server, met wat je van een desktop-app voor taken verwacht: het systeemvak-menu, globale
 sneltoetsen (Windows: `Control+Space` voor Taak toevoegen, `Super+Alt+S` om de app te tonen), een los venster Taak toevoegen, de stip op de
 taakbalk (`setOverlayIcon`) als er taken voor vandaag zijn, meldingen met knoppen, het hoofdmenu (zoom, zwevend op voorgrond, terug/verder),
-"In systeemvak blijven draaien", opstarten met Windows, "Applicatiegegevens verwijderen" en updates via `electron-updater`. Niets van Todoist
-zelf (code, beelden, teksten van betekenis) zit erin.
+"In systeemvak blijven draaien", opstarten met Windows, "Applicatiegegevens verwijderen" en updates via `electron-updater`. De desktop-app van
+Todoist was het voorbeeld voor wat de app kan; de code, beelden en teksten zijn van Tickory zelf.
 
 ## Hoe het in elkaar zit
 
@@ -33,7 +31,7 @@ het protocol `tickory://`, zodat ze ook werken als de melding uit het Actiecentr
 `reminder_add` (zo lang als in Instellingen › Algemeen gekozen), elk met een eigen uuid.
 
 **Thema.** Zoals in de Android-app is het thema te kiezen: in de web-app (Instellingen › Weergave) en in de eigen Instellingen van de
-app. Zoals bij Todoist (`setTheme` over de brug) geeft de web-app haar keuze door; de app zet dan `nativeTheme.themeSource` (titelbalk,
+app. De web-app geeft haar keuze over de brug door; de app zet dan `nativeTheme.themeSource` (titelbalk,
 menu's, `prefers-color-scheme` in alle vensters), de achtergrond en `setAccentColor` van de vensters, en geeft de keuze aan de andere
 vensters (Taak toevoegen). De keuze staat ook in `settings.json`; bij het opstarten wint die (gekozen terwijl de web-app dicht was),
 tenzij er nog niets stond (dan neemt de app de keuze van de web-app over). Rooktest: `TICKORY_DESKTOP_APPEARANCE=dark:teal` (eigen

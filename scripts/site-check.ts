@@ -1985,10 +1985,12 @@ if (wants('browser')) {
           assert.equal(await evaluate(`document.querySelectorAll('td.cal-day').length`), 7);
           await evaluate(`document.querySelector('[data-fk="cal-mode:month"]').click()`);
           await waitFor(`document.querySelector('.cal').dataset.mode === 'month'`, 'maandweergave');
-          // een taak naar een andere dag slepen: de plus bij een dag voegt toe, slepen verzet
+          // een taak naar een andere dag slepen: de plus bij een dag voegt toe, slepen verzet. Eerst vandaag midden in beeld: aan het
+          // eind van de week staan de komende dagen in de volgende rij, en die kan onder de rand van het scherm vallen
+          await evaluate(`document.querySelector('.cal-today').scrollIntoView({ block: 'center' })`);
           const candidate = await evaluate<{ id: string; date: string } | null>(`(() => { const e = [...document.querySelectorAll('li.cal-item[data-real="true"]')].find((i) => !i.closest('.cal-overdue') && i.dataset.date >= ${js(today)} && i.getBoundingClientRect().height > 0); return e ? { id: e.dataset.taskId, date: e.dataset.date } : null; })()`);
           assert.ok(candidate, 'een taak om te verzetten');
-          const target = await evaluate<string>(`[...document.querySelectorAll('td.cal-day')].filter((d) => d.dataset.date !== ${js(candidate!.date)} && d.getBoundingClientRect().height > 0 && d.dataset.date >= ${js(today)})[1].dataset.date`);
+          const target = await evaluate<string>(`[...document.querySelectorAll('td.cal-day')].filter((d) => d.dataset.date !== ${js(candidate!.date)} && d.getBoundingClientRect().height > 0 && d.getBoundingClientRect().bottom <= window.innerHeight && d.dataset.date >= ${js(today)})[1].dataset.date`); // in beeld: de muis van de test kan niet onder de rand van het scherm komen
           await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`); // meldingen met Ongedaan maken liggen anders over de kalender
           const taskFrom = await rectOf(`document.querySelector('li.cal-item[data-task-id="${candidate!.id}"][data-real="true"] .cal-open')`);
           const dayTo = await rectOf(`document.querySelector('td.cal-day[data-date="${target}"]')`);

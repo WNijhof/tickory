@@ -115,7 +115,7 @@ class WidgetListService : RemoteViewsService() {
             val views = RemoteViews(context.packageName, if (compact) R.layout.widget_item_compact else R.layout.widget_item)
             val title = row.title.ifBlank { context.getString(R.string.task_untitled) }
             views.setTextViewText(R.id.item_title, title)
-            // net afgevinkt: doorgestreept in de tweede tekstkleur, zoals in Todoist (gqa.k)
+            // net afgevinkt: doorgestreept in de tweede tekstkleur, zoals in Todoist
             views.setTextColor(R.id.item_title, if (row.done) look.textSoft else look.text)
             views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG or (if (row.done) Paint.STRIKE_THRU_TEXT_FLAG else 0))
             views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, scaled(14f))
@@ -158,7 +158,7 @@ class WidgetListService : RemoteViewsService() {
             fun visible(id: Int, on: Boolean) = views.setViewVisibility(id, if (on) View.VISIBLE else View.GONE)
             fun tint(id: Int, color: Int) = views.setInt(id, "setColorFilter", color)
 
-            // subtaken als "af/totaal", zoals in Todoist (item_subtasks)
+            // subtaken als "af/totaal", zoals in Todoist
             val totalKids = row.subtasks + row.subtasksDone
             visible(R.id.icon_subtasks, totalKids > 0)
             visible(R.id.item_subtasks, totalKids > 0)
@@ -224,7 +224,7 @@ class WidgetListService : RemoteViewsService() {
         internal fun clickIntents(row: WidgetRow.Item): Pair<Intent, Intent> {
             val circle = when {
                 row.readOnly -> WidgetIntents.KIND_OPEN
-                row.done -> WidgetIntents.KIND_UNDO // nog een tik: weer open, zoals in Todoist ("uncomplete")
+                row.done -> WidgetIntents.KIND_UNDO // nog een tik: weer open, zoals in Todoist
                 else -> WidgetIntents.KIND_COMPLETE
             }
             return WidgetIntents.fillIn(circle, row.id) to WidgetIntents.fillIn(WidgetIntents.KIND_OPEN, row.id)

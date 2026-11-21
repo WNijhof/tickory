@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Een taak in de compacte weergave, zoals in Todoist (appwidget_item_list_row_item_compact): geen cirkel, de titel, rechts de datum met
+  Een taak in de compacte weergave, zoals in Todoist: geen cirkel, de titel, rechts de datum met
   het herhalings-pictogram en de vlag van de prioriteit (niet bij prioriteit 4). De hele rij opent de taak.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"

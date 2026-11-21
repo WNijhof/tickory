@@ -14,7 +14,7 @@
     <color name="widget_soon">#692EC2</color>
     <color name="widget_text">#202020</color>
     <color name="widget_text_soft">#666666</color>
-    <color name="widget_accent">#C92E1D</color>
+    <color name="widget_accent">#0F766E</color>
     <color name="widget_overdue">#C9372C</color>
     <color name="widget_ripple">#1F000000</color>
 
@@ -22,12 +22,12 @@
     <color name="widget_light_bg">#FBFCFC</color>
     <color name="widget_light_text">#1C1F23</color>
     <color name="widget_light_text_soft">#5B6670</color>
-    <color name="widget_light_accent">#C92E1D</color>
+    <color name="widget_light_accent">#0F766E</color>
     <color name="widget_light_overdue">#B42318</color>
     <color name="widget_dark_bg">#1E2226</color>
     <color name="widget_dark_text">#E8EAED</color>
     <color name="widget_dark_text_soft">#9AA5B1</color>
-    <color name="widget_dark_accent">#F0786B</color>
+    <color name="widget_dark_accent">#2DD4BF</color>
     <color name="widget_dark_overdue">#F97066</color>
 
     <color name="widget_p1">#D1453B</color>

@@ -804,7 +804,7 @@ try {
   await click('dialog[open] [data-role="theme-choice"] input[value="system"]');
   await waitFor(`!document.documentElement.dataset.theme`, 'zoals het apparaat');
   assert.equal(await bgNow(), DARK_BG, 'zoals het apparaat: donker');
-  await click('dialog[open] [data-role="accent-choice"] input[value="tomato"]');
+  await click('dialog[open] [data-role="accent-choice"] input[value="teal"]');
   await waitFor(`!document.documentElement.dataset.accent`, 'standaardkleur');
   assert.equal(await evaluate(`localStorage.getItem('tickory.theme') === null && localStorage.getItem('tickory.accent') === null`), true, 'de standaard staat niet in de opslag');
   await clickText('Sluiten');

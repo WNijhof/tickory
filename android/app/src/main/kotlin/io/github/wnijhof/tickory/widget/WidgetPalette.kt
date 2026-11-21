@@ -42,6 +42,7 @@ object WidgetPalette {
     fun label(context: Context, accent: WidgetAccent): String = context.getString(
         when (accent) {
             WidgetAccent.DYNAMIC -> R.string.widget_accent_dynamic
+            WidgetAccent.TEAL -> R.string.widget_accent_teal
             WidgetAccent.TOMATO -> R.string.widget_accent_tomato
             WidgetAccent.MOONSTONE -> R.string.widget_accent_moonstone
             WidgetAccent.TANGERINE -> R.string.widget_accent_tangerine

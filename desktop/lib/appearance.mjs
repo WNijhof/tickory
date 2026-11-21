@@ -1,5 +1,5 @@
 // Het thema van de desktop-app, zoals in de Android-app: dezelfde keuze als in de web-app (Instellingen › Weergave: zoals het
-// apparaat, licht of donker, en een accentkleur). Zoals bij Todoist geeft de web-app haar keuze door aan de desktop-app; die zet
+// apparaat, licht of donker, en een accentkleur). De web-app geeft haar keuze door aan de desktop-app; die zet
 // dan Windows zelf om (titelbalk, menu's, de achtergrond van de vensters) en geeft de keuze door aan de andere vensters (het venster
 // Taak toevoegen). In de eigen Instellingen van de app is het thema ook te kiezen; dan gaat het andersom.
 import { ACCENTS, DEFAULT_ACCENT, THEMES, isDark } from '../shared/theme.js';
@@ -17,7 +17,7 @@ export function appearanceOf(raw) {
 
 export const sameAppearance = (a, b) => Boolean(a && b && a.theme === b.theme && a.accent === b.accent);
 
-/** De standaard (zoals het apparaat, Tomaat) als er nog niets gekozen is. */
+/** De standaard (zoals het apparaat, Zeegroen) als er nog niets gekozen is. */
 export const appearanceOrDefault = (a) => appearanceOf(a) ?? { theme: 'system', accent: DEFAULT_ACCENT };
 
 /** De achtergrond van een venster bij dit thema; bij "zoals het apparaat" volgt hij Windows. */

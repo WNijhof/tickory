@@ -641,7 +641,7 @@ async function smokeShots(dir) {
       setAppearance(appearanceOf({ theme: look[0], accent: look[1] }));
     }
     await wait(1500);
-    const read = (win) => win?.webContents.executeJavaScript(`({ theme: document.documentElement.dataset.theme ?? 'system', accent: document.documentElement.dataset.accent ?? 'tomato', stored: localStorage.getItem('tickory.theme'), bg: getComputedStyle(document.body).backgroundColor })`);
+    const read = (win) => win?.webContents.executeJavaScript(`({ theme: document.documentElement.dataset.theme ?? 'system', accent: document.documentElement.dataset.accent ?? 'teal', stored: localStorage.getItem('tickory.theme'), bg: getComputedStyle(document.body).backgroundColor })`);
     openPages('prefs');
     await wait(2500);
     writeFileSync(join(dir, 'appearance.json'), JSON.stringify({ settings: settings.appearance, themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, main: await read(main), quickAdd: await read(quickAdd), pages: await pages?.webContents.executeJavaScript(`({ accent: document.documentElement.dataset.accent, theme: document.getElementById('theme')?.value, bg: getComputedStyle(document.body).backgroundColor })`) }, null, 1));

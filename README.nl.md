@@ -58,7 +58,7 @@ De [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) beschrijft a
 
 ## Stand van zaken
 
-Versie 0.5. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De browserextensie staat nog niet in de winkels.
+Versie 0.10. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De desktop-app voor Windows (installer op de releasepagina) is getest met een rooktest tegen een echte server, maar nog niet op veel pc's. De browserextensie staat nog niet in de winkels.
 
 ## Ontwikkelen
 
@@ -75,4 +75,4 @@ Zie [CONTRIBUTING.md](CONTRIBUTING.md) voor de spelregels (geen afhankelijkheden
 
 ## Licentie
 
-Vrije software onder de [GNU Affero General Public License, versie 3](LICENSE) (AGPL-3.0). De meegeleverde datumherkenning valt onder de MIT-licentie van chrono-node, zie [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Vrije software onder de [GNU Affero General Public License, versie 3](LICENSE) (AGPL-3.0). De meegeleverde datumherkenning valt onder de MIT-licentie van chrono-node; de Android-app en de desktop-app voor Windows (Electron) gebruiken opensourcebibliotheken onder hun eigen licenties. Zie [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -38,7 +38,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * Herplannen vanuit een lijstwidget, zoals in Todoist (de knop naast "Over tijd" opent daar SchedulerDialogActivity met de te late taken):
+ * Herplannen vanuit een lijstwidget, met de knop naast "Over tijd", zoals in Todoist:
  * een klein venster over het startscherm met Vandaag, Morgen, Dit weekend, Volgende week, Geen datum en "Datum kiezen…". De keuze gaat
  * meteen naar de server (één `task_update` per taak, met het tijdstip en de herhaling zoals ze waren); lukt dat niet (geen verbinding),
  * dan zegt het venster dat. Alleen de app zelf kan het openen (exported="false"); de id's worden gecontroleerd.

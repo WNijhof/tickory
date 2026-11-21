@@ -26,8 +26,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-Verder gebruikt dit project geen software van derden in de server en de web-app: die draaien op Node.js zelf en op standaard web-API's. Voor de Android-app zie onderaan.
+Verder gebruikt dit project geen software van derden in de server en de web-app: die draaien op Node.js zelf en op standaard web-API's. Voor de Android-app en de desktop-app zie onderaan.
 
 ## Android-app (APK)
 
 De Android-app (map `android/`) gebruikt, alle onder de Apache-licentie 2.0: AndroidX (core, activity, work, lifecycle, room, sqlite, startup, savedstate, profileinstaller, collection, concurrent, tracing, annotation), de Kotlin-standaardbibliotheek, kotlinx-coroutines, kotlinx-serialization-core, Guava ListenableFuture, JetBrains annotations en JSpecify. In de repo staat verder `gradle-wrapper.jar` (Apache-2.0). De widgets (map `android/app/src/main/kotlin/.../widget`) gebruiken alleen klassen van Android zelf (`AppWidgetProvider`, `RemoteViews`, `RemoteViewsService`); daar is geen bibliotheek voor bijgekomen. Alleen voor de tests: JUnit 4 (EPL-1.0), Robolectric (MIT) en AndroidX Test (Apache-2.0); die komen niet in de APK.
+
+## Desktop-app voor Windows
+
+De desktop-app (map `desktop/`) is gebouwd op **Electron** (MIT, Copyright (c) Electron contributors en GitHub Inc.). Electron bevat Chromium en Node.js, elk met hun eigen licenties; de installer zet die mee in de map van de app (`LICENSE` en `LICENSES.chromium.html`).
+
+Voor updates zit **electron-updater** in de app (MIT, Copyright (c) Loopline Systems en electron-builder-bijdragers), met de pakketten die het zelf nodig heeft: builder-util-runtime, debug, fs-extra, jsonfile, universalify, js-yaml, lazy-val, lodash.escaperegexp, lodash.isequal, ms en tiny-typed-emitter (MIT), semver (ISC), graceful-fs en sax (Blue Oak Model License 1.0.0) en argparse (Python Software Foundation License 2.0). De licentietekst van elk pakket staat in zijn eigen map in `node_modules` en gaat zo mee in de installer.
+
+Alleen voor het bouwen, niet in de app: **electron-builder** (MIT).

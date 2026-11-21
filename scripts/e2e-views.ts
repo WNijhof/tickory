@@ -157,8 +157,10 @@ export async function calendarDragScenario(c: any): Promise<void> {
   // meldingen van eerdere stappen onderin beeld kunnen precies over een taak liggen (dan pakt de muis de melding): eerst weg
   await evaluate(`document.querySelectorAll('.toast-close').forEach((b) => b.click())`);
   await waitFor(`document.querySelector('.cal[data-mode="month"]')`, 'maandweergave');
-  // een dag waar de taak naartoe kan: de eerste van de komende dagen die in beeld is
-  const target = await evaluate(`(() => { for (const n of [2, 3, 1, 4]) { const d = ${js(today)}; const t = new Date(Date.parse(d + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10); const c = document.querySelector('td.cal-day[data-date="' + t + '"]'); if (c && c.getBoundingClientRect().height > 0) return t; } return null; })()`) as string;
+  // vandaag midden in beeld: aan het eind van de week staan de komende dagen in de volgende rij, die anders onder de rand kan vallen
+  await evaluate(`document.querySelector('.cal-today')?.scrollIntoView({ block: 'center' })`);
+  // een dag waar de taak naartoe kan: de eerste van de komende dagen die in beeld is (ook niet onder de rand van het scherm)
+  const target = await evaluate(`(() => { for (const n of [2, 3, 1, 4]) { const d = ${js(today)}; const t = new Date(Date.parse(d + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10); const c = document.querySelector('td.cal-day[data-date="' + t + '"]'); if (c && c.getBoundingClientRect().height > 0 && c.getBoundingClientRect().bottom <= window.innerHeight) return t; } return null; })()`) as string;
   assert.ok(target, 'een dag in beeld om naartoe te slepen');
 
   // 1. een taak naar een andere dag: datum verzet, tijd en herhaling blijven, melding met ongedaan maken
@@ -204,6 +206,8 @@ export async function calendarDragScenario(c: any): Promise<void> {
     const yesterday = addDays(today, -1);
     assert.equal((await syncAs(otherToken, 'ander-apparaat', [{ type: 'task_add', uuid: 'e2e-kalender-telaat-2', args: { id: 'e2ekalendertelaat02', project_id: thuisId, content: 'Brief posten', due: { date: yesterday } } }])).status, 200);
     await waitFor(`document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"]')`, 'te late taak in beeld', 15_000);
+    // de lijst met te late taken staat boven de kalender: weer bovenaan beginnen (ook als de kalender zelf scrolt)
+    await evaluate(`(() => { window.scrollTo(0, 0); document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"]').scrollIntoView({ block: 'nearest' }); })()`);
     const from = await rectOf(`document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"] .cal-open')`);
     const to = await rectOf(dayCell(today));
     await drag(grab(from), center(to));

@@ -11,8 +11,8 @@ export const THEMES = ['system', 'light', 'dark'];
 
 /** De accentkleuren, met de hoofdkleur in licht en donker (ook voor de kleur van de adresbalk). De eerste is de standaard. */
 export const ACCENTS = [
-  { name: 'tomato', light: '#c92e1d', dark: '#f0786b' },
   { name: 'teal', light: '#0f766e', dark: '#2dd4bf' },
+  { name: 'tomato', light: '#c92e1d', dark: '#f0786b' },
   { name: 'blue', light: '#1d5fd1', dark: '#7aa7ff' },
   { name: 'indigo', light: '#4f46e5', dark: '#a5b4fc' },
   { name: 'violet', light: '#7c3aed', dark: '#c4a7ff' },

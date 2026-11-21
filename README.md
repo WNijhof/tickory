@@ -60,7 +60,7 @@ The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in En
 
 ## Status
 
-Version 0.5. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The browser extension is not in the stores yet.
+Version 0.10. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The Windows desktop app (installer on the releases page) has passed a smoke test against a real server, but has not been tried on many PCs yet. The browser extension is not in the stores yet.
 
 ## Development
 
@@ -77,6 +77,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (zero dependencies, 
 
 ## License
 
-Free software under the [GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0). The bundled date parser falls under the MIT license of chrono-node, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Free software under the [GNU Affero General Public License, version 3](LICENSE) (AGPL-3.0). The bundled date parser falls under the MIT license of chrono-node; the Android app and the Windows desktop app (Electron) use open-source libraries under their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Tickory is not affiliated with or endorsed by Doist. Todoist is a trademark of Doist.

@@ -6,7 +6,7 @@
   const $ = (id) => document.getElementById(id);
   // het thema: licht/donker volgt Windows (de app zet dat om), de accentkleur staat als data-accent op de html (pages.css)
   const showAccent = (accent) => {
-    if (accent && accent !== 'tomato') document.documentElement.dataset.accent = accent;
+    if (accent && accent !== 'teal') document.documentElement.dataset.accent = accent;
     else delete document.documentElement.dataset.accent;
   };
   showAccent(settings.appearance?.accent);

@@ -12,10 +12,10 @@
   --text-soft: #666666;
   --line: #eeeeee;
   --line-strong: #d3d3d3;
-  --accent: #c92e1d;
-  --accent-soft: #fde7e4;
+  --accent: #0f766e;
+  --accent-soft: #e3f3f1;
   --accent-text: #ffffff;
-  --accent-fill: var(--accent); /* gevulde knoppen: in het donker Todoist-rood met witte tekst, terwijl --accent (tekst en pictogrammen) helderder is */
+  --accent-fill: var(--accent); /* gevulde knoppen; bij Tomaat in het donker een diepere tint met witte tekst, terwijl --accent (tekst en pictogrammen) helderder is */
   --accent-on-fill: var(--accent-text);
   --danger: #b42318;
   --warn: #b54708;
@@ -50,11 +50,11 @@
     --text-soft: #b3b3b3;
     --line: #353535;
     --line-strong: #4d4d4d;
-    --accent: #f0786b;
-    --accent-soft: #3d2220;
-    --accent-text: #1a0604;
-    --accent-fill: #d33322;
-    --accent-on-fill: #ffffff;
+    --accent: #2dd4bf;
+    --accent-soft: #14312e;
+    --accent-text: #06201d;
+    --accent-fill: var(--accent);
+    --accent-on-fill: var(--accent-text);
     --danger: #f97066;
     --warn: #fdb022;
     --ok: #4ade80;
@@ -75,7 +75,7 @@
 /* Accentkleuren (Instellingen › Weergave, per apparaat; core/theme.js). De standaard (teal) staat hierboven in :root.
    Bewaakt door core/theme.test.js: genoeg contrast in licht en donker. */
 /* accent-licht */
-:root[data-accent="teal"] { --accent: #0f766e; --accent-soft: #e3f3f1; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
+:root[data-accent="tomato"] { --accent: #c92e1d; --accent-soft: #fde7e4; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
 :root[data-accent="blue"] { --accent: #1d5fd1; --accent-soft: #e7effc; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
 :root[data-accent="indigo"] { --accent: #4f46e5; --accent-soft: #ecebfc; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
 :root[data-accent="violet"] { --accent: #7c3aed; --accent-soft: #f1eafd; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
@@ -85,7 +85,7 @@
 :root[data-accent="graphite"] { --accent: #374151; --accent-soft: #eceef1; --accent-text: #ffffff; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
 /* accent-donker */
 @media (prefers-color-scheme: dark) {
-  :root[data-accent="teal"] { --accent: #2dd4bf; --accent-soft: #14312e; --accent-text: #06201d; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
+  :root[data-accent="tomato"] { --accent: #f0786b; --accent-soft: #3d2220; --accent-text: #1a0604; --accent-fill: #d33322; --accent-on-fill: #ffffff; }
   :root[data-accent="blue"] { --accent: #7aa7ff; --accent-soft: #172a47; --accent-text: #06142e; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
   :root[data-accent="indigo"] { --accent: #a5b4fc; --accent-soft: #23244a; --accent-text: #11134a; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }
   :root[data-accent="violet"] { --accent: #c4a7ff; --accent-soft: #2c2147; --accent-text: #250b4d; --accent-fill: var(--accent); --accent-on-fill: var(--accent-text); }

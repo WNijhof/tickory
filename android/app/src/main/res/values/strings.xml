@@ -297,6 +297,7 @@
     <string name="widget_preset_transparent_light">Transparent white</string>
     <string name="widget_accent">Theme</string>
     <string name="widget_accent_dynamic">Dynamic color</string>
+    <string name="widget_accent_teal">Teal</string>
     <string name="widget_accent_tomato">Tomato</string>
     <string name="widget_accent_moonstone">Moonstone</string>
     <string name="widget_accent_tangerine">Tangerine</string>
