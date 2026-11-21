@@ -569,6 +569,8 @@ async function scenario(c: any): Promise<void> {
     await waitFor(`document.querySelector('.cal')`, 'kalender');
     const item = (name: string) => `[...document.querySelectorAll('li.cal-item[data-real="true"]')].find((l) => l.querySelector('.cal-title-text').textContent === ${js(name)})`;
     await waitFor(`${item('Boodschappen doen')} && ${item('Fiets maken')}`, 'taken in de kalender', 15_000);
+    // vandaag midden in beeld: aan het eind van de week staan morgen en overmorgen in de volgende rij, die anders onder de rand kan vallen
+    await evaluate(`document.querySelector('.cal-today')?.scrollIntoView({ block: 'center' })`);
     await clickAt(mid(await rectOf(`${item('Boodschappen doen')}.querySelector('.cal-open')`)), 2);
     await clickAt(mid(await rectOf(`${item('Fiets maken')}.querySelector('.cal-open')`)), 2);
     assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('li.cal-item.is-selected .cal-title-text')].map((e) => e.textContent).sort()`), ['Boodschappen doen', 'Fiets maken'], 'kiezen werkt in de kalender');
