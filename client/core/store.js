@@ -218,7 +218,9 @@ export class Store {
       });
     }
     drop('comments', (c) => (c.task_id ? !base.tasks.has(c.task_id) : false));
-    drop('attachments', (a) => !base.tasks.has(a.task_id));
+    // een bijlage hoort bij een taak, of (bij een opmerking op een project) bij dat project en die opmerking
+    drop('attachments', (a) => (a.project_id ? !projectsLeft.has(a.project_id) || (Boolean(a.comment_id) && !base.comments.has(a.comment_id))
+      : !base.tasks.has(a.task_id)));
     drop('reminders', (r) => !base.tasks.has(r.task_id));
     // een locatieherinnering zonder plaats (de plaats is weg) doet niets meer
     drop('reminders', (r) => Boolean(r.place_id) && !base.places.has(r.place_id));

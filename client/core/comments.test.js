@@ -260,3 +260,22 @@ test('timeAgo (Engels): dezelfde stappen in het Engels', () => {
     setLanguage('nl');
   }
 });
+
+test('een bijlage bij een opmerking op een project blijft staan na een sync, en gaat weg met de opmerking of het project', async () => {
+  const store = new Store(new MemoryAdapter(), { onPersistError: () => {} });
+  await store.init();
+  const at = '2026-11-21T12:00:00.000Z';
+  const project = { id: 'p1', name: 'Thuis', is_deleted: false, created_at: at, updated_at: at };
+  const comment = { id: 'c1', project_id: 'p1', task_id: null, content: 'Plattegrond', is_deleted: false, created_at: at, updated_at: at };
+  const file = { id: 'a1', project_id: 'p1', task_id: null, comment_id: 'c1', name: 'plattegrond.png', size: 10, mime: 'image/png', is_deleted: false, created_at: at, updated_at: at };
+  await store.applyResponse({ sync_token: '1', projects: [project], comments: [comment], attachments: [file] });
+  assert.ok(store.view.attachments.has('a1'), 'na de sync die hem brengt');
+  await store.applyResponse({ sync_token: '2' });
+  assert.ok(store.view.attachments.has('a1'), 'ook na een volgende sync (de opruimstap ziet hem niet als wees)');
+  await store.applyResponse({ sync_token: '3', comments: [{ ...comment, is_deleted: true }] });
+  assert.equal(store.view.attachments.has('a1'), false, 'weg met de opmerking');
+  await store.applyResponse({ sync_token: '4', comments: [comment], attachments: [file] });
+  assert.ok(store.view.attachments.has('a1'));
+  await store.applyResponse({ sync_token: '5', projects: [{ ...project, is_deleted: true }] });
+  assert.equal(store.view.attachments.has('a1'), false, 'weg met het project');
+});
