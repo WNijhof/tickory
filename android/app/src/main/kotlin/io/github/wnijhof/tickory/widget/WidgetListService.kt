@@ -82,12 +82,20 @@ class WidgetListService : RemoteViewsService() {
             val views = RemoteViews(context.packageName, R.layout.widget_item_header)
             views.setTextViewText(R.id.header_label, if (row.overdue) context.getString(R.string.widget_overdue_header) else row.text)
             views.setTextColor(R.id.header_label, look.text)
-            views.setTextViewTextSize(R.id.header_label, TypedValue.COMPLEX_UNIT_SP, scaled(14f))
+            views.setTextViewTextSize(R.id.header_label, TypedValue.COMPLEX_UNIT_SP, scaled(if (options.compact) 13f else 14f))
+            if (options.compact) {
+                // compact: ook de koppen lager, met minder ruimte erboven
+                val res = context.resources
+                val min = res.getDimensionPixelSize(R.dimen.widget_header_compact)
+                views.setViewPadding(R.id.header_root, res.getDimensionPixelSize(R.dimen.widget_header_start), res.getDimensionPixelSize(R.dimen.widget_header_top_compact), res.getDimensionPixelSize(R.dimen.widget_header_end), 0)
+                views.setInt(R.id.header_label, "setMinHeight", min)
+                views.setInt(R.id.header_button, "setMinHeight", min)
+            }
             views.setViewVisibility(R.id.header_button, if (row.overdue) View.VISIBLE else View.GONE)
             if (row.overdue) {
                 views.setTextViewText(R.id.header_button, context.getString(R.string.widget_reschedule))
                 views.setTextColor(R.id.header_button, look.accent)
-                views.setTextViewTextSize(R.id.header_button, TypedValue.COMPLEX_UNIT_SP, scaled(13f))
+                views.setTextViewTextSize(R.id.header_button, TypedValue.COMPLEX_UNIT_SP, scaled(if (options.compact) 12f else 13f))
                 // Herplannen, zoals in Todoist: een klein venster met de datumkeuzes voor precies deze te late taken
                 views.setViewVisibility(R.id.header_button, if (row.taskIds.isEmpty()) View.GONE else View.VISIBLE)
                 views.setOnClickFillInIntent(R.id.header_button, WidgetIntents.fillInReschedule(row.taskIds))
@@ -118,7 +126,7 @@ class WidgetListService : RemoteViewsService() {
             // net afgevinkt: doorgestreept in de tweede tekstkleur, zoals in Todoist
             views.setTextColor(R.id.item_title, if (row.done) look.textSoft else look.text)
             views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG or (if (row.done) Paint.STRIKE_THRU_TEXT_FLAG else 0))
-            views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, scaled(14f))
+            views.setTextViewTextSize(R.id.item_title, TypedValue.COMPLEX_UNIT_SP, scaled(if (compact) 13f else 14f))
             val dueColor = look.dueColor(row.dueKind)
             val indent = row.depth * context.resources.getDimensionPixelSize(R.dimen.widget_indent)
             views.setViewPadding(R.id.item_root, indent + context.resources.getDimensionPixelSize(R.dimen.widget_item_start), 0, 0, 0)
@@ -129,7 +137,7 @@ class WidgetListService : RemoteViewsService() {
                 views.setTextViewText(R.id.item_due, row.due ?: "")
                 views.setViewVisibility(R.id.item_due, if (row.due != null) View.VISIBLE else View.GONE)
                 views.setTextColor(R.id.item_due, dueColor)
-                views.setTextViewTextSize(R.id.item_due, TypedValue.COMPLEX_UNIT_SP, scaled(12f))
+                views.setTextViewTextSize(R.id.item_due, TypedValue.COMPLEX_UNIT_SP, scaled(11f))
                 views.setViewVisibility(R.id.icon_recurring, if (row.due != null && row.recurring) View.VISIBLE else View.GONE)
                 views.setInt(R.id.icon_recurring, "setColorFilter", dueColor)
                 views.setViewVisibility(R.id.icon_priority, if (row.priority in 1..3) View.VISIBLE else View.GONE)

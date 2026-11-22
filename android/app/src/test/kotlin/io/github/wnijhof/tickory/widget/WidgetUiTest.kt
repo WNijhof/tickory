@@ -732,6 +732,34 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
+    fun `compact - regels en koppen zijn lager dan gewoon`() {
+        // Robolectric meet tekst niet zoals een telefoon, dus hier de ruimte die de opmaak zelf vraagt (minimumhoogte en ruimte erboven).
+        signIn(withData = data)
+        val id = place(TodayWidgetProvider::class.java)
+        val dp = app.resources.displayMetrics.density
+        fun px(v: Int) = (v * dp).toInt()
+        fun views(compact: Boolean): Pair<View, View> {
+            WidgetConfigStore.setOptions(app, id, WidgetOptions(compact = compact))
+            val f = WidgetListService.Factory(app, id)
+            f.onDataSetChanged()
+            fun at(position: Int) = f.getViewAt(position)!!.apply(app, android.widget.FrameLayout(app))
+            return at(2) to at(3) // de kop van vandaag en een taak
+        }
+        fun headerSpace(header: View) = header.paddingTop + header.findViewById<TextView>(R.id.header_label).minHeight
+
+        val (header, task) = views(compact = false)
+        assertEquals("gewoon: een kop vraagt 40dp", px(40), headerSpace(header))
+        assertEquals("gewoon: een taak minstens 48dp", px(48), task.minimumHeight)
+
+        val (compactHeader, compactTask) = views(compact = true)
+        assertEquals(R.id.item_root, compactTask.id)
+        assertEquals("compact: een taak 20dp, de helft van een gewone van 40dp", px(20), compactTask.minimumHeight)
+        assertEquals("compact: het tikvlak even hoog", px(20), compactTask.findViewById<View>(R.id.text_area).minimumHeight)
+        assertEquals("compact: een kop vraagt 24dp", px(24), headerSpace(compactHeader))
+        assertEquals(px(20), compactHeader.findViewById<TextView>(R.id.header_button).minHeight)
+    }
+
+    @Test
     fun `een widget die verdwijnt, vergeet ook zijn thema en weergave`() {
         signIn(withData = data)
         val id = place(TodayWidgetProvider::class.java)

@@ -34,6 +34,33 @@ class QuickAddTest {
     }
 
     @Test
+    fun `geplakte lijst - regels zonder lege regels en opsommingstekens, zoals in de web-app`() {
+        assertEquals(
+            listOf("Eieren kopen", "Brood p1", "Kaas", "Melk", "Thee", "Koffie", "Suiker", "2026 wordt een goed jaar"),
+            QuickAddQueue.splitPastedLines("- Eieren kopen\r\n* Brood p1\n\n  + Kaas  \n• Melk\n- [ ] Thee\n- [x] Koffie\n1. Suiker\r2026 wordt een goed jaar"),
+        )
+        assertEquals("één regel blijft één taak", listOf("Brood halen"), QuickAddQueue.splitPastedLines("Brood halen"))
+        assertEquals(emptyList<String>(), QuickAddQueue.splitPastedLines("\n  \n- \n"))
+        assertEquals("hooguit 100", 100, QuickAddQueue.splitPastedLines((1..150).joinToString("\n") { "Taak $it" }).size)
+        assertEquals("elke regel hooguit de lengte die de server aanneemt", QuickAddQueue.MAX_TEXT, QuickAddQueue.splitPastedLines("a\n" + "b".repeat(5000))[1].length)
+    }
+
+    @Test
+    fun `geplakte lijst - allemaal in de wachtrij, of geen als die te vol is`() {
+        fun uuid(i: Int) = "tickory-q-" + i.toString().padStart(24, '0')
+        val three = (1..3).map { item(uuid = uuid(it), text = "Taak $it") }
+        val (queued, ok) = QuickAddQueue.enqueueAll(emptyList(), three)
+        assertTrue(ok)
+        assertEquals(three, queued)
+        assertFalse("een uuid dat er al staat: niets erbij", QuickAddQueue.enqueueAll(queued, listOf(item(uuid = uuid(9)), item(uuid = uuid(1)))).second)
+        val almostFull = (100..(99 + QuickAddQueue.MAX_ITEMS - 2)).map { item(uuid = uuid(it)) }
+        val (same, full) = QuickAddQueue.enqueueAll(almostFull, three)
+        assertFalse("past niet helemaal: geen enkele erbij", full)
+        assertEquals(almostFull, same)
+        assertFalse(QuickAddQueue.enqueueAll(emptyList(), emptyList()).second)
+    }
+
+    @Test
     fun `de vingerafdruk van de aanmelding - vast per token, anders per token, en niet het token zelf`() {
         val a = QuickAddQueue.sessionTag("tky_geheim-1")
         assertTrue(Regex("^[0-9a-f]{16}$").matches(a))

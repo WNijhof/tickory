@@ -358,7 +358,7 @@ meer afhankelijkheden meebrengen voor niets dat we nodig hebben):
 Transparant donker, Transparant wit), een **thema** (Dynamische kleur, Zeegroen, Tomaat, Maansteen, Mandarijn, Kale, Bosbes, Lavendel, Framboos, Goud;
 `core/WidgetLook.kt`, de kleurwaarden zijn getest), een **weergave** (automatisch, licht, donker),
 een **lettergrootte** (klein, normaal, groot), een **ondoorzichtigheid** van 0 tot 100 in stappen van 1, en de **compacte weergave** (de datum
-op dezelfde regel als de titel). Elke lijstwidget kiest zijn overzicht zelf (Inbox, Vandaag, Aankomend, een project of een filter); een tik op de
+op dezelfde regel als de titel, regels van 20 dp in plaats van 48 dp, koppen van 24 dp, tekst 13sp; `widget_dimens.xml`). Elke lijstwidget kiest zijn overzicht zelf (Inbox, Vandaag, Aankomend, een project of een filter); een tik op de
 titel in de widget opent alleen die keuze (`WidgetConfigActivity.EXTRA_CHOOSE_ONLY`). De weergave "automatisch" volgt het toestel op het
 moment dat de widget wordt getekend (bij elke verversing), dus niet op het moment dat het toestel omschakelt.
 
@@ -469,6 +469,7 @@ scherm, boven wat er al staat, zoals de widget van Todoist (`quickadd/QuickAddAc
 | Zonder verbinding | Altijd eerst in een wachtrij op het toestel (`files/quickadd/queue.json`, atomair geschreven), dan versturen met de gewone verversing (`SyncWorker` → `sync/QuickAddSync`) | Eén weg, met en zonder verbinding; een herstart of een afgebroken verzoek laat niets vallen; het uuid blijft bij opnieuw proberen gelijk, dus de server maakt de taak één keer |
 | "Morgen" | Het moment van intypen (`typed_at`, met de UTC-afwijking) en de tijdzone van het toestel gaan mee | Wat vrijdagavond laat offline is ingetypt en zondag aankomt, staat op zaterdag |
 | Terug of ernaast tikken | Sluit zonder toe te voegen; staat er tekst, dan blijft die als **concept** tot de volgende keer, en het venster zegt dat ("Niet toegevoegd: je tekst staat er de volgende keer nog") | Niets kwijt zonder dat je het merkt, en geen extra vraag ("Weggooien?") in een venster dat juist snel moet zijn. Ook de thuisknop of een scherm dat uitgaat bewaart het concept |
+| Een lijst plakken | Komt er tekst met regeleinden in het veld (plakken, of het klembord van het toetsenbord), of druk je op Toevoegen met meer regels, dan vraagt het venster "3 taken toevoegen?". Ja: elke regel een eigen taak in de wachtrij (`QuickAddQueue.splitPastedLines`, dezelfde regels als `splitPastedLines` in de web-app; allemaal of geen met `enqueueAll`). "Als één taak": de regels achter elkaar | Zoals de web-app; nooit maar een deel van een lijst in de wachtrij |
 | Project | Uit de gegevens van de widgets: de Inbox en de projecten waar je niet alleen lezer bent, als boom. Eerst dat van de widget (de widget "Project of lijst"), anders het laatst gekozen, anders de Inbox | Zoals Todoist; een lezer kan er toch niets in zetten |
 
 ### Hoe het werkt

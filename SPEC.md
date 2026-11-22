@@ -1,6 +1,6 @@
 # Eigen taken-tool: protocolspecificatie (v0.3)
 
-Een persoonlijke, offline-first takenapp. Deze spec beschrijft het sync-protocol en het datamodel van de referentie-server in `server/`. Ze is gebaseerd op een eerder onderzoek naar de werking van Todoist (niet onderdeel van deze repo), maar is een **eigen ontwerp**: geen Todoist-code, -API of -regeldata is overgenomen.
+Een persoonlijke, offline-first takenapp. Deze spec beschrijft het sync-protocol en het datamodel van de referentie-server in `server/`. Het is een **eigen ontwerp**: er is geen code, API of regeldata van andere takenapps overgenomen.
 
 ## 1. Uitgangspunten
 
@@ -10,16 +10,16 @@ Een persoonlijke, offline-first takenapp. Deze spec beschrijft het sync-protocol
 - **De server is de bron van waarheid**; clients houden een cache en een wachtrij met nog niet bevestigde commando's.
 - **Zero dependencies** in server en client (Node 26: `node:sqlite`, `node:http`, `node:test`; in de browser alleen standaard web-API's). Het enige meegeleverde stuk van derden is een Nederlandse datumherkenner (die op `chrono-node` leunt, zie `THIRD_PARTY_NOTICES.md`), als één gebundeld bestand in `client/vendor/`.
 
-## 2. Verschillen met het onderzochte ontwerp, en waarom
+## 2. Ontwerpkeuzes, en waarom
 
-| Onderwerp | Todoist (waargenomen) | Hier | Reden |
+| Onderwerp | Gangbare aanpak | Hier | Reden |
 |---|---|---|---|
-| Id's bij aanmaken | tijdelijk id + `temp_id_mapping` terug | **client kiest het id** (8–40 tekens `[A-Za-z0-9_-]`) | Geen vertaalslag, geen `RealIdMapping`, minder foutgevoelig offline |
+| Id's bij aanmaken | tijdelijk id + `temp_id_mapping` terug | **client kiest het id** (8–40 tekens `[A-Za-z0-9_-]`) | Geen vertaalslag van tijdelijke naar echte id's, minder foutgevoelig offline |
 | Labels op taken | op **naam** | op **id** | Hernoemen raakt één rij, geen cascade over alle taken |
 | Volgorde | `child_order` (int) naast `order_key` | alleen `order_key` (fractional indexing) | Eén mechanisme; verplaatsen raakt één rij |
 | Realtime | websocket-signaal | **SSE-signaal** (`GET /api/v1/events`) | Zelfde idee (signaal, geen data), zonder dependency |
 | Sync-token | opaak | geheel getal (versienummer) als tekst | Eenvoudig en controleerbaar; clients behandelen het als opaak |
-| Datumtaal | Dateist op de client | zelfde keuze: **client-side** | De server rekent alleen met gestructureerde herhalingen |
+| Datumtaal | herkenning op de client | zelfde keuze: **client-side** | De server rekent alleen met gestructureerde herhalingen |
 | Commandonamen | `item_*` | `task_*` | Eigen, eenduidige naamgeving |
 
 ## 3. Datamodel
@@ -776,7 +776,7 @@ Elk sync-verzoek heeft een limiet van 30 seconden; daarna wordt het afgebroken, 
 | Het kleine venster Taak toevoegen (Android): getest op een echt toestel, en meer dan Vandaag/Morgen/prioriteit | Gebouwd en getest op een nagebootst Android (openen met de focus in het veld, project uit de widget, toevoegen met en zonder verbinding, de wachtrij per account en na een herstart, weigering als melding, de tegel en de widgets) en het eindpunt op de server (5h). Hoe het venster eruitziet, of het toetsenbord echt meteen omhoog komt (per toetsenbord-app en Android-versie), de animatie en het dimmen per launcher zijn alleen op een toestel te zien; `android/README.md` heeft een testlijst. Kiezen van een sectie, labels, een herinnering of een andere datum dan vandaag of morgen kan alleen door het te typen, of via "Openen in de app" |
 | Datums in gewone taal in een filter in een widget | De widget kent de vaste vormen ("vandaag", "7 dagen", "31-12", "vóór: 31 dec"); "donderdag" of "eind januari" leest alleen de web-app (met de meegebundelde herkenner). De widget zegt dan welk deel hij niet kan lezen |
 | Een teruggezette snapshot herkennen | Een back-up van Tickory (`server/backup.ts` of de download in de app) krijgt een nieuwe epoch, dus terugzetten dwingt overal een volledige sync af. Een kopie van de hele schijf of het volume houdt de oude epoch: dan merkt een apparaat het alleen zolang de server nog niet voorbij zijn versienummer is gegroeid |
-| Vandaag-volgorde en weergave-opties | Aparte entiteiten, vergelijkbaar met `day_orders` en `view_options` uit het onderzoek |
+| Vandaag-volgorde en weergave-opties | Aparte entiteiten in plaats van velden in de instellingen van de gebruiker |
 | Meldingen bij samenwerken: per e-mail, een samenvatting per dag, per project instellen, direct op Android | De meldingen staan in de app en komen als pushmelding in de browser; de Android-app haalt ze zonder Google-diensten bij het verversen op (tot een kwartier later). Iemand noemen kan alleen in opmerkingen. Op een echt toestel getest: nog niet (kanaal, tikken en het weghalen na lezen zijn op een nagebootst Android getest) |
 | Herinneringen per e-mail, en Engelse datumtaal voor herinneringen | Op tijd: in de app en als melding. Wat je intypt is voorlopig Nederlands (`!(morgen om 8 uur)`); `!30m` en een datum in de vorm `2026-12-31T14:30` werken in elke taal |
 | Herinneringen op een locatie: getest op een toestel | Gebouwd en getest zonder toestel (afstand, regels met ruis, aanvragen bij een nagebootst Android, meldingen). Nauwkeurigheid, stroomverbruik, de slaapstand, strenge batterijbesparing per merk en de toestemmingsschermen zijn alleen op een telefoon te controleren; zie de testlijst in `android/README.md`. Snel invoeren (`!`) en een kaartweergave bestaan niet |

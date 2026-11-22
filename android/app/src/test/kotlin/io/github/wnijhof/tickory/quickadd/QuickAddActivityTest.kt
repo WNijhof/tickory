@@ -248,6 +248,83 @@ class QuickAddActivityTest : WidgetTestBase() {
         assertEquals(2, QuickAddStore.queue(app).size)
     }
 
+    /** Plakken zoals het toetsenbord of het menu Plakken het doet: tekst met regeleinden op de plek van de cursor. */
+    private fun QuickAddActivity.paste(text: String) {
+        input.text.insert(input.selectionStart.coerceAtLeast(0), text)
+        idle()
+    }
+
+    @Test
+    fun `een lijst plakken - de vraag of het losse taken worden, en dan elke regel een taak met het project, de dag en de prioriteit`() {
+        online = false
+        signIn(FakeServer.closedPortOrigin(), data)
+        val activity = open("werk").get()
+        activity.today.performClick()
+        activity.setPriority(2)
+        activity.paste("- Eieren kopen\n- Brood\n\n- Kaas morgen")
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        assertNotNull("na plakken komt de vraag", dialog)
+        assertTrue(dialog.isShowing)
+        assertEquals("3 taken toevoegen?", shadowOf(dialog).title.toString())
+        assertEquals("Elke regel wordt een eigen taak: Eieren kopen · Brood · Kaas morgen", shadowOf(dialog).message.toString())
+        assertEquals("3 taken toevoegen", dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).text.toString())
+        assertEquals("geen voorvertoning van de hele lijst als één taak", View.GONE, activity.findViewById<View>(R.id.quick_preview_scroll).visibility)
+        dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        idle()
+        assertTrue(activity.isFinishing)
+        assertEquals("3 taken toegevoegd, worden verstuurd zodra er verbinding is", ShadowToast.getTextOfLatestToast())
+        val queue = QuickAddStore.queue(app)
+        assertEquals(listOf("Eieren kopen", "Brood", "Kaas morgen"), queue.map { it.text })
+        assertEquals(listOf("werk"), queue.map { it.projectId }.distinct())
+        assertEquals(listOf("today"), queue.map { it.due }.distinct())
+        assertEquals(listOf(2), queue.map { it.priority }.distinct())
+        assertEquals("elk een eigen uuid", 3, queue.map { it.uuid }.toSet().size)
+    }
+
+    @Test
+    fun `een lijst plakken - Als een taak zet de regels achter elkaar, en een gewone tekst plakken vraagt niets`() {
+        signIn(withData = data)
+        val activity = open().get()
+        activity.paste("Brood")
+        assertNull("één regel: geen vraag", ShadowAlertDialog.getLatestAlertDialog())
+        activity.input.setText("")
+        activity.paste("Bel de\ntandarts")
+        val dialog = ShadowAlertDialog.getLatestAlertDialog()
+        dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE).performClick()
+        idle()
+        assertEquals("Als één taak", dialog.getButton(android.content.DialogInterface.BUTTON_NEGATIVE).text.toString())
+        assertEquals("Bel de tandarts", activity.input.text.toString())
+        assertFalse(activity.isFinishing)
+        activity.add.performClick()
+        assertEquals(listOf("Bel de tandarts"), QuickAddStore.queue(app).map { it.text })
+    }
+
+    @Test
+    fun `een lijst plakken - wegtikken en dan Toevoegen vraagt het opnieuw, en is de wachtrij te vol dan komt er niets bij`() {
+        signIn(withData = data)
+        val activity = open().get()
+        activity.paste("Een\nTwee")
+        ShadowAlertDialog.getLatestAlertDialog().dismiss()
+        idle()
+        assertTrue("de tekst blijft staan", activity.input.text.contains("Twee"))
+        ShadowAlertDialog.reset()
+        activity.add.performClick()
+        val again = ShadowAlertDialog.getLatestAlertDialog()
+        assertNotNull("Toevoegen met meer regels vraagt het eerst", again)
+        assertTrue(QuickAddStore.queue(app).isEmpty())
+
+        val token = io.github.wnijhof.tickory.store.TokenVault.load(app)!!
+        val full = (1 until io.github.wnijhof.tickory.core.QuickAddQueue.MAX_ITEMS).map {
+            io.github.wnijhof.tickory.core.QueuedQuickAdd("tickory-q-" + it.toString().padStart(24, '0'), "Taak $it", null, null, null, "2026-11-13T09:00+01:00", "Europe/Amsterdam", "user-anna-0001", io.github.wnijhof.tickory.core.QuickAddQueue.sessionTag(token), 1L)
+        }
+        assertTrue(QuickAddStore.enqueueAll(app, full))
+        again.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+        idle()
+        assertFalse(activity.isFinishing)
+        assertEquals("Er wachten al te veel taken op verbinding. Open de app.", activity.status.text.toString())
+        assertEquals("er kwam niets bij, ook niet de eerste", full.size, QuickAddStore.queue(app).size)
+    }
+
     @Test
     fun `terug of ernaast tikken met tekst - niets toegevoegd, de tekst blijft als concept, en dat zegt het venster`() {
         signIn(withData = data)

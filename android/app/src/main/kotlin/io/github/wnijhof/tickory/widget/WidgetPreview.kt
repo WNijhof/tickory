@@ -68,11 +68,11 @@ object WidgetPreview {
         val compact = options.compact
         val view = LayoutInflater.from(context).inflate(if (compact) R.layout.widget_item_compact else R.layout.widget_item, parent, false)
         val scale = options.font.scale
-        view.findViewById<TextView>(R.id.item_title).apply { text = s.title; setTextColor(look.text); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f * scale) }
+        view.findViewById<TextView>(R.id.item_title).apply { text = s.title; setTextColor(look.text); setTextSize(TypedValue.COMPLEX_UNIT_SP, (if (compact) 13f else 14f) * scale) }
         val dueColor = look.dueColor(s.kind)
         val due = view.findViewById<TextView>(R.id.item_due)
         if (compact) {
-            due.apply { text = s.due; setTextColor(dueColor); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f * scale) }
+            due.apply { text = s.due; setTextColor(dueColor); setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f * scale) }
             view.findViewById<ImageView>(R.id.icon_recurring).apply { visibility = if (s.recurring) View.VISIBLE else View.GONE; setColorFilter(dueColor) }
             view.findViewById<ImageView>(R.id.icon_priority).apply { visibility = if (s.priority in 1..3) View.VISIBLE else View.GONE; setColorFilter(look.priority(s.priority)) }
             return view

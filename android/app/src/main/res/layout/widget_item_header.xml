@@ -5,11 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
-    android:minHeight="40dp"
     android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="6dp"
-    android:paddingEnd="8dp">
+    android:paddingStart="@dimen/widget_header_start"
+    android:paddingTop="@dimen/widget_header_top"
+    android:paddingEnd="@dimen/widget_header_end">
 
     <TextView
         android:id="@+id/header_label"
@@ -17,6 +16,8 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:ellipsize="end"
+        android:gravity="center_vertical"
+        android:minHeight="@dimen/widget_header_min"
         android:maxLines="1"
         android:textColor="@color/widget_text"
         android:textSize="14sp"

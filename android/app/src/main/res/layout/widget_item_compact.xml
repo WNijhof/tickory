@@ -34,7 +34,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:textColor="@color/widget_text"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
         <TextView
             android:id="@+id/item_due"
@@ -43,12 +43,12 @@
             android:layout_marginStart="8dp"
             android:maxLines="1"
             android:textColor="@color/widget_text_soft"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
 
         <ImageView
             android:id="@+id/icon_recurring"
-            android:layout_width="12dp"
-            android:layout_height="12dp"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
             android:layout_marginStart="3dp"
             android:importantForAccessibility="no"
             android:scaleType="fitCenter"
@@ -56,8 +56,8 @@
 
         <ImageView
             android:id="@+id/icon_priority"
-            android:layout_width="14dp"
-            android:layout_height="14dp"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
             android:layout_marginStart="8dp"
             android:importantForAccessibility="no"
             android:scaleType="fitCenter"

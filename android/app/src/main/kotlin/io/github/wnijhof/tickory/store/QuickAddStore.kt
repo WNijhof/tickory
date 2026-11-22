@@ -48,6 +48,12 @@ object QuickAddStore {
         added && write(File(dir(context), QUEUE), QuickAddQueue.encode(items))
     }
 
+    /** Meer taken tegelijk (een geplakte lijst): allemaal of geen. */
+    fun enqueueAll(context: Context, items: List<QueuedQuickAdd>): Boolean = synchronized(lock) {
+        val (all, added) = QuickAddQueue.enqueueAll(queue(context), items)
+        added && write(File(dir(context), QUEUE), QuickAddQueue.encode(all))
+    }
+
     /** Past de wachtrij aan met [change] en bewaart het resultaat. */
     fun updateQueue(context: Context, change: (List<QueuedQuickAdd>) -> List<QueuedQuickAdd>) = synchronized(lock) {
         val before = queue(context)

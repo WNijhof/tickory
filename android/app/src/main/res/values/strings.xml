@@ -248,6 +248,24 @@
     <string name="quick_returned">Not added: %1$s Change it or add it again.</string>
     <string name="quick_draft_restored">Your text from last time is still here</string>
     <string name="quick_queue_full">Too many tasks are already waiting for a connection. Open the app.</string>
+    <string name="quick_paste_text">Each line becomes a task of its own: %1$s</string>
+    <string name="quick_paste_one">As one task</string>
+    <plurals name="quick_paste_title">
+        <item quantity="one">Add %1$d task?</item>
+        <item quantity="other">Add %1$d tasks?</item>
+    </plurals>
+    <plurals name="quick_paste_ok">
+        <item quantity="one">Add %1$d task</item>
+        <item quantity="other">Add %1$d tasks</item>
+    </plurals>
+    <plurals name="quick_paste_done">
+        <item quantity="one">%1$d task added</item>
+        <item quantity="other">%1$d tasks added</item>
+    </plurals>
+    <plurals name="quick_paste_done_offline">
+        <item quantity="one">%1$d task added; it will be sent as soon as there is a connection</item>
+        <item quantity="other">%1$d tasks added; they will be sent as soon as there is a connection</item>
+    </plurals>
     <string name="quick_preview_description">Will be: %1$s</string>
     <string name="quick_preview_no_name">(no name)</string>
     <string name="quick_preview_new_label">@%1$s (new)</string>

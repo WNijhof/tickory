@@ -60,7 +60,8 @@ import java.util.concurrent.Executor
 /**
  * Het kleine venster "Taak toevoegen" over het startscherm, zoals bij de widget van Todoist: geopend door de "+" van een widget,
  * de knop-widget en de tegel in de snelle instellingen. Zonder WebView: een veld (met het toetsenbord meteen omhoog), het project,
- * Vandaag, Morgen en een prioriteit, en Toevoegen (of Enter).
+ * Vandaag, Morgen en een prioriteit, en Toevoegen (of Enter). Plak je een lijst (meer regels), dan vraagt het venster of elke regel
+ * een eigen taak wordt, net als de web-app; anders wordt het één taak met de regels achter elkaar.
  *
  * Toevoegen zet de taak in een wachtrij op het toestel (QuickAddStore) en laat de gewone verversing (SyncWorker) hem versturen:
  * met verbinding binnen een paar seconden, anders zodra er weer verbinding is. Wat de tekst wordt (datum, project, labels), beslist
@@ -93,6 +94,10 @@ class QuickAddActivity : ComponentActivity() {
     private var done = false
     private var keyboardShown = false
     private var previewSeq = 0
+
+    /** Er is net tekst met een regeleinde geplakt (of door het toetsenbord ingevoegd): na de wijziging volgt de vraag. */
+    private var pastedLines = false
+    private var splitDialog: AlertDialog? = null
     private val handler = Handler(Looper.getMainLooper())
     private val previewTask = Runnable { requestPreview() }
 
@@ -138,9 +143,15 @@ class QuickAddActivity : ComponentActivity() {
         input.maxLines = 5
         input.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (s != null && count > 1 && (start until start + count).any { s[it] == '\n' || s[it] == '\r' }) pastedLines = true
+            }
             override fun afterTextChanged(s: Editable?) {
                 updateAddButton()
+                if (pastedLines) {
+                    pastedLines = false
+                    handler.post { askSplit() }
+                }
                 if (status.isVisible && !s.isNullOrBlank()) status.isVisible = false
                 schedulePreview()
             }
@@ -222,6 +233,7 @@ class QuickAddActivity : ComponentActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(previewTask)
+        splitDialog?.dismiss()
         super.onDestroy()
     }
 
@@ -327,6 +339,11 @@ class QuickAddActivity : ComponentActivity() {
     // ---------- toevoegen, sluiten, naar de app ----------
 
     private fun add() {
+        // meer regels (geplakt): eerst de vraag of het losse taken worden
+        if (QuickAddQueue.splitPastedLines(input.text.toString()).size >= 2) {
+            askSplit()
+            return
+        }
         val text = input.text.toString().trim().take(QuickAddQueue.MAX_TEXT)
         if (text.isEmpty()) return
         val app = applicationContext
@@ -335,19 +352,7 @@ class QuickAddActivity : ComponentActivity() {
             openInApp() // de aanmelding is weg: de app laat opnieuw inloggen, met de tekst erbij
             return
         }
-        val now = AppClock.now()
-        val item = QueuedQuickAdd(
-            uuid = QuickAddQueue.newUuid(),
-            text = text,
-            projectId = projectId,
-            due = dueChoice(),
-            priority = priority,
-            typedAt = typedAt(now),
-            tz = ZoneId.systemDefault().id,
-            accountId = account,
-            session = QuickAddQueue.sessionTag(token),
-            queuedAtMs = now,
-        )
+        val item = queued(text, token, AppClock.now())
         if (!QuickAddStore.enqueue(app, item)) {
             showStatus(getString(R.string.quick_queue_full))
             return
@@ -355,6 +360,61 @@ class QuickAddActivity : ComponentActivity() {
         QuickAddStore.clearDraft(app)
         SyncScheduler.refreshNow(app) // met verbinding gaat hij er nu meteen heen; anders zodra die er is
         val message = getString(if (isOnline(app)) R.string.quick_added else R.string.quick_added_offline)
+        done = true
+        Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
+        finish()
+    }
+
+    private fun queued(text: String, token: String, now: Long) = QueuedQuickAdd(
+        uuid = QuickAddQueue.newUuid(),
+        text = text,
+        projectId = projectId,
+        due = dueChoice(),
+        priority = priority,
+        typedAt = typedAt(now),
+        tz = ZoneId.systemDefault().id,
+        accountId = account,
+        session = QuickAddQueue.sessionTag(token),
+        queuedAtMs = now,
+    )
+
+    /**
+     * Een geplakte lijst: "3 taken toevoegen?" met de eerste regels. Ja: elke regel een eigen taak (met het gekozen project, de dag en
+     * de prioriteit; de server herkent per regel datums, labels en dergelijke). "Als één taak": de regels achter elkaar in het veld.
+     */
+    private fun askSplit() {
+        if (isFinishing || splitDialog?.isShowing == true) return
+        val lines = QuickAddQueue.splitPastedLines(input.text.toString())
+        if (lines.size < 2) return
+        val n = lines.size
+        splitDialog = AlertDialog.Builder(this)
+            .setTitle(resources.getQuantityString(R.plurals.quick_paste_title, n, n))
+            .setMessage(getString(R.string.quick_paste_text, lines.take(3).joinToString(" · ")))
+            .setPositiveButton(resources.getQuantityString(R.plurals.quick_paste_ok, n, n)) { _, _ -> addAll(lines) }
+            .setNegativeButton(R.string.quick_paste_one) { _, _ ->
+                input.setText(lines.joinToString(" "))
+                input.setSelection(input.text.length)
+            }
+            .show()
+    }
+
+    /** Elke regel een eigen taak, allemaal tegelijk in de wachtrij (of geen, als die te vol is). */
+    private fun addAll(lines: List<String>) {
+        val app = applicationContext
+        val token = TokenVault.load(app)
+        if (token == null) {
+            openInApp()
+            return
+        }
+        val now = AppClock.now()
+        if (!QuickAddStore.enqueueAll(app, lines.map { queued(it, token, now) })) {
+            showStatus(getString(R.string.quick_queue_full))
+            return
+        }
+        QuickAddStore.clearDraft(app)
+        SyncScheduler.refreshNow(app)
+        val n = lines.size
+        val message = resources.getQuantityString(if (isOnline(app)) R.plurals.quick_paste_done else R.plurals.quick_paste_done_offline, n, n)
         done = true
         Toast.makeText(app, message, Toast.LENGTH_SHORT).show()
         finish()
@@ -400,7 +460,8 @@ class QuickAddActivity : ComponentActivity() {
     private fun schedulePreview() {
         handler.removeCallbacks(previewTask)
         previewSeq += 1
-        if (input.text.isBlank()) {
+        // leeg, of een lijst die nog losse taken kan worden: geen voorvertoning
+        if (input.text.isBlank() || QuickAddQueue.splitPastedLines(input.text.toString()).size >= 2) {
             showPreview(null)
             return
         }

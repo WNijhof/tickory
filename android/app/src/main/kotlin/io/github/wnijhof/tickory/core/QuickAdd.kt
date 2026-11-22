@@ -81,6 +81,33 @@ object QuickAddQueue {
         else -> (items + item) to true
     }
 
+    /** Meer taken tegelijk (een geplakte lijst): allemaal of geen, zodat er nooit maar een deel van de lijst aankomt. */
+    fun enqueueAll(items: List<QueuedQuickAdd>, added: List<QueuedQuickAdd>): Pair<List<QueuedQuickAdd>, Boolean> {
+        val known = items.mapTo(HashSet()) { it.uuid }
+        val fresh = added.filter { it.uuid !in known }.distinctBy { it.uuid }
+        return when {
+            fresh.isEmpty() || fresh.size != added.size -> items to false
+            items.size + fresh.size > MAX_ITEMS -> items to false
+            else -> (items + fresh) to true
+        }
+    }
+
+    /** Opsommingstekens aan het begin van een regel: "- ", "* ", "+ ", "• ", "- [ ] ", "1. ", "2) ". */
+    private val BULLET = Regex("""^\s*(?:[-*+•]\s+(?:\[[ xX]]\s+)?|\d{1,3}[.)]\s+)""")
+    private val LINE_BREAK = Regex("""\r\n|\n|\r""")
+
+    /** Zoveel regels worden hooguit losse taken (zoals in de web-app). */
+    const val MAX_PASTED_LINES = 100
+
+    /**
+     * De regels van geplakte tekst om er losse taken van te maken, net als `splitPastedLines` in de web-app: zonder lege regels,
+     * zonder opsommingstekens aan het begin, elk hooguit [MAX_TEXT] tekens, hooguit [MAX_PASTED_LINES].
+     */
+    fun splitPastedLines(text: String): List<String> = text.split(LINE_BREAK)
+        .map { it.replace(BULLET, "").trim().take(MAX_TEXT) }
+        .filter { it.isNotEmpty() }
+        .take(MAX_PASTED_LINES)
+
     fun settle(items: List<QueuedQuickAdd>, uuids: Set<String>): List<QueuedQuickAdd> = items.filter { it.uuid !in uuids }
 
     fun expired(items: List<QueuedQuickAdd>, nowMs: Long): List<QueuedQuickAdd> = items.filter { it.queuedAtMs < nowMs - RETENTION_MS }
