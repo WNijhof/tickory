@@ -261,7 +261,24 @@ function quickContext() {
   if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo, dates };
   // `string` en `lang` horen bij de datumtaal (wat de herkenner leest), niet bij de taal van de interface: die blijven Nederlands.
   if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo, dates };
+  // bij een label: de taak krijgt dat label (in de Inbox), zodat ze in deze lijst staat
+  if (ui.route.type === 'label' && store.view.labels.has(ui.route.id)) return { defaultProjectId: inboxId(), defaultLabels: [ui.route.id], canAddTo, dates };
   return { defaultProjectId: inboxId(), canAddTo, dates };
+}
+
+/**
+ * Na snel toevoegen in de balk: staat de nieuwe taak niet in de lijst die je ziet (een filter, een datum later dan vandaag, een ander
+ * #project, of een kalender zonder datum), dan zegt een melding waar ze is, met een knop om de taak te openen. Zo verdwijnt er nooit
+ * stilletjes een taak.
+ */
+function showWhereAdded(id) {
+  const check = () => {
+    const task = store.view.tasks.get(id);
+    if (!task || document.querySelector(`#content [data-id="${CSS.escape(id)}"]`)) return;
+    const where = store.view.projects.get(task.project_id)?.name ?? t('bottomNav.inbox');
+    toast(t('quick.addedTo', { where }), { action: { label: t('quick.showTask'), run: () => openTaskById(id) } });
+  };
+  requestAnimationFrame(() => requestAnimationFrame(check)); // na het tekenen (invalidate tekent in het volgende beeld)
 }
 
 function renderPreview() {
@@ -284,7 +301,8 @@ async function submitQuickAdd(e) {
   }
   input.value = '';
   renderPreview();
-  await actions.addTask(p);
+  const id = await actions.addTask(p);
+  if (id) showWhereAdded(id);
 }
 
 // ---------- handelingen ----------

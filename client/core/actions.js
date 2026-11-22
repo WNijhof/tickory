@@ -14,6 +14,7 @@ import { projectDescendantIds } from './selectors.js';
 import { cleanFileName } from '../../shared/attachments.js';
 import { projectMoveCommands, taskMoveCommands } from './dnd.js';
 import { inverseCommands } from './inverse.js';
+import { randomUuid } from './random.js';
 import { labelNamesOf, planTemplate, quotaProblem } from './templates.js';
 import { importQuotaProblem, planImport } from './importPlan.js';
 
@@ -33,7 +34,7 @@ const byOrder = (a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.orde
  * @param {import('./store.js').Store} store
  * @param {{ requestSync?: () => void, makeId?: () => string, makeUuid?: () => string, undo?: ReturnType<typeof import('./undo.js').createUndo> }} [options]
  */
-export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = () => crypto.randomUUID(), undo = null } = {}) {
+export function createActions(store, { requestSync = () => {}, makeId = newId, makeUuid = randomUuid, undo = null } = {}) {
   /** Zolang `track` loopt: de omgekeerde commando's van alles wat er in die tijd wordt verstuurd (zie hieronder). */
   let capture = null;
   const send = async (commands) => {

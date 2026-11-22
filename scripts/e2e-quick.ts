@@ -204,7 +204,88 @@ export async function quickScenario(c: any) {
   await waitFor(`!document.querySelector('dialog[open]')`, 'alles dicht');
   step(`taak dupliceren via ⋯: een kopie direct onder het origineel met de open subtaak (niet de afgevinkte), ongedaan te maken; link kopiëren (${shown ? 'als tekst om zelf te kopiëren' : 'naar het klembord'})`);
 
+  // ---- de balk: http op een ander adres dan localhost (geen crypto.randomUUID), Aankomend, een label en een filter ----
+  const toastText = () => evaluate<string>(`[...document.querySelectorAll('.toast .toast-text')].map((e) => e.textContent).join(' | ')`);
+  const closeToasts = () => evaluate(`document.querySelectorAll('.toast .toast-close').forEach((b) => b.click())`);
+  const barAdd = async (text: string) => {
+    await evaluate(`(() => { const i = document.getElementById('quick-input'); i.value = ${js(text)}; i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await evaluate(`document.getElementById('quick-add').requestSubmit()`);
+    await waitFor(`document.getElementById('quick-input').value === ''`, 'de balk weer leeg');
+  };
+  const onServer = (content: string) => (serverState().tasks as any[]).find((x) => x.content === content && !x.is_deleted);
+  const shownHere = (content: string) => evaluate<boolean>(`[...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === ${js(content)})`);
+
+  // zonder crypto.randomUUID, zoals in een onveilige context (http://100.x.y.z:3035): toevoegen en verwijderen werken toch
+  await evaluate(`(() => { window.__realRandomUUID = Object.getOwnPropertyDescriptor(Crypto.prototype, 'randomUUID'); Object.defineProperty(Crypto.prototype, 'randomUUID', { value: undefined, configurable: true, writable: true }); })()`);
+  assert.equal(await evaluate(`typeof crypto.randomUUID`), 'undefined');
+  await nav('Inbox');
+  await barAdd('Zonder randomUUID');
+  await waitFor(`[...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Zonder randomUUID')`, 'de taak in de Inbox');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  const noUuid = onServer('Zonder randomUUID');
+  assert.ok(noUuid, 'ook op de server');
+  const noUuidRow = `[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title').textContent === 'Zonder randomUUID')`;
+  await evaluate(`(() => { ${noUuidRow}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return true; })()`);
+  await evaluate(`${noUuidRow}.querySelector('[data-act="delete"]').click()`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taak verwijderen?'`, 'de bevestiging');
+  await evaluate(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent === 'Verwijderen').click()`);
+  await waitFor(`![...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Zonder randomUUID')`, 'de taak weg');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  assert.equal(onServer('Zonder randomUUID'), undefined, 'ook op de server verwijderd');
+  await evaluate(`(() => { Object.defineProperty(Crypto.prototype, 'randomUUID', window.__realRandomUUID); return true; })()`);
+  assert.equal(await evaluate(`typeof crypto.randomUUID`), 'function', 'weer terug voor de rest van de test');
+  await closeToasts();
+  step('zonder crypto.randomUUID (Tickory via http op een IP-adres): een taak toevoegen met de balk en verwijderen werkt, ook op de server');
+
+  // Aankomend (vanaf morgen): zonder datum komt de taak in de Inbox, en dat zegt een melding; met "morgen" staat ze er gewoon
+  await nav('Aankomend');
+  await waitFor(`document.getElementById('view-title').textContent === 'Aankomend'`, 'Aankomend');
+  await barAdd('Balk in Aankomend');
+  await waitFor(`document.querySelector('.toast .toast-text')?.textContent === 'Toegevoegd aan Inbox; de taak staat niet in deze lijst.'`, 'de melding in Aankomend');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  assert.equal(onServer('Balk in Aankomend')?.due ?? null, null, 'zonder datum');
+  await closeToasts();
+  await barAdd('Balktaak morgen');
+  await waitFor(`[...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Balktaak')`, 'de taak voor morgen in Aankomend');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(await toastText(), '', 'geen melding: de taak staat in de lijst');
+
+  // een label: de taak krijgt het label
+  await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
+  await waitFor(`document.querySelector('[data-fk="label-row:e2esnellabel0001"]')`, 'de pagina Labels');
+  await evaluate(`document.querySelector('[data-fk="label-row:e2esnellabel0001"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent.includes('snelproeflabel')`, 'het label');
+  await barAdd('Balk in een label');
+  await waitFor(`[...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Balk in een label')`, 'de taak bij het label');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  assert.deepEqual(onServer('Balk in een label')?.labels, ['e2esnellabel0001']);
+
+  // een filter waar de taak niet in valt: een melding waar ze is, en Bekijken opent haar
+  await as([['filter_add', { id: 'e2esnelfilter001', name: 'Snelproeffilter', query: 'p1' }]]);
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  await evaluate(`document.querySelector('[data-fk="find-head:filters"]').click()`);
+  await waitFor(`document.querySelector('[data-fk="filter-row:e2esnelfilter001"]')`, 'de pagina Filters');
+  await evaluate(`document.querySelector('[data-fk="filter-row:e2esnelfilter001"]').click()`);
+  await waitFor(`document.getElementById('view-title').textContent === 'Snelproeffilter'`, 'het filter');
+  await barAdd('Balk in een filter');
+  await waitFor(`document.querySelector('.toast .toast-text')?.textContent === 'Toegevoegd aan Inbox; de taak staat niet in deze lijst.'`, 'de melding waar de taak is');
+  assert.equal(await shownHere('Balk in een filter'), false);
+  await evaluate(`[...document.querySelectorAll('.toast button')].find((b) => b.textContent === 'Bekijken').click()`);
+  await waitFor(`document.querySelector('#task-dialog')`, 'het taakvenster van de nieuwe taak');
+  await evaluate(`document.querySelector('#task-dialog')?.close()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'dicht');
+  // een taak met p1 valt wel in het filter: geen melding
+  await closeToasts();
+  await barAdd('Balk in een filter p1');
+  await waitFor(`[...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Balk in een filter')`, 'de taak met p1 in het filter');
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(await toastText(), '', 'geen melding als de taak in de lijst staat');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  step('de balk: in Aankomend zonder datum een melding (met morgen gewoon in de lijst), in een label met dat label, en in een filter waar de taak niet in valt een melding "Toegevoegd aan Inbox" met Bekijken');
+
   // ---- opruimen ----
+  const barTasks = (serverState().tasks as any[]).filter((x) => !x.is_deleted && x.content.startsWith('Balk'));
+  await as([...barTasks.map((x) => ['task_delete', { id: x.id }] as [string, object]), ['filter_delete', { id: 'e2esnelfilter001' }]]);
   await as([['task_delete', { id: 'e2edupliceer0001' }]]);
   await as([...pasted.map((x) => ['task_delete', { id: x.id }] as [string, object]), ['project_delete', { id: 'e2esnelproject01' }], ['label_delete', { id: 'e2esnellabel0001' }]]);
   await nav(startView);

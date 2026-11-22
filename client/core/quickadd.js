@@ -82,9 +82,9 @@ export function findTimeRange(text) {
   return { start: `${String(h1).padStart(2, '0')}:${String(m1 ?? '00').padStart(2, '0')}`, minutes: b - a, index: m.index, length: m[0].length };
 }
 
-export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, canAddTo = () => true, dates = true, language = getLanguage() }) {
+export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, defaultLabels = [], canAddTo = () => true, dates = true, language = getLanguage() }) {
   let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
-  const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: [], newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
+  const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: defaultLabels.filter((id) => view.labels.has(id)), newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
   // prioriteit
   const prio = new RegExp(`${START}(?:p|!!)([1-4])${END}`, 'iu').exec(rest);

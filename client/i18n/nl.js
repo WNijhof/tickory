@@ -47,6 +47,8 @@ export default {
   'quick.suggestCount': { one: '{count} suggestie', other: '{count} suggesties' },
   'quick.pasteTitle': { one: '{count} taak toevoegen?', other: '{count} taken toevoegen?' },
   'quick.pasteOk': { one: '{count} taak toevoegen', other: '{count} taken toevoegen' },
+  'quick.addedTo': 'Toegevoegd aan {where}; de taak staat niet in deze lijst.',
+  'quick.showTask': 'Bekijken',
   'quick.pasteDone': { one: '{count} taak toegevoegd.', other: '{count} taken toegevoegd.' },
   'quick.label': 'Taak toevoegen',
   'quick.noName': '(nog geen naam)',

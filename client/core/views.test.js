@@ -94,6 +94,16 @@ test('quick-add: standaarddatum (overzicht Vandaag) geldt tenzij er zelf een dat
   assert.equal(parseQuickAdd('Afwas morgen', ctx(v, { defaultDue: d })).due.date, '2026-11-12');
 });
 
+test('quick-add: een standaardlabel (de balk in een label) komt op de taak, samen met wat je typt, en een onbekend label niet', () => {
+  const { v, put } = sampleView();
+  put('labels', { id: 'l-thuis', name: 'thuis', order_key: 'a' });
+  put('labels', { id: 'l-bellen', name: 'bellen', order_key: 'b' });
+  assert.deepEqual(parseQuickAdd('Lampen ophangen', ctx(v, { defaultLabels: ['l-thuis'] })).labels, ['l-thuis']);
+  assert.deepEqual(parseQuickAdd('Oma bellen @bellen @thuis', ctx(v, { defaultLabels: ['l-thuis'] })).labels, ['l-thuis', 'l-bellen']);
+  assert.deepEqual(parseQuickAdd('Lampen ophangen', ctx(v, { defaultLabels: ['l-weg'] })).labels, []);
+  assert.deepEqual(parseQuickAdd('Lampen ophangen', ctx(v)).labels, [], 'zonder standaard geen labels');
+});
+
 test('quick-add: Nederlandse namen met accenten, hoofdletters en de ontleedde schrijfwijze', () => {
   const { v, put } = sampleView();
   put('projects', { id: 'p-cafe', name: 'Café', order_key: 'n' });

@@ -53,6 +53,8 @@ export default {
   'quick.suggestCount': { one: '{count} suggestion', other: '{count} suggestions' },
   'quick.pasteTitle': { one: 'Add {count} task?', other: 'Add {count} tasks?' },
   'quick.pasteOk': { one: 'Add {count} task', other: 'Add {count} tasks' },
+  'quick.addedTo': 'Added to {where}; the task is not in this list.',
+  'quick.showTask': 'View',
   'quick.pasteDone': { one: '{count} task added.', other: '{count} tasks added.' },
   'quick.label': 'Add task',
   'quick.noName': '(no name yet)',

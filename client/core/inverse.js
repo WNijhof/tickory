@@ -8,6 +8,7 @@
 
 import { ENTITIES } from '../../shared/schema.js';
 import { applyCommand, cloneState, descendantIds } from './reducer.js';
+import { randomUuid } from './random.js';
 
 // de entiteit mag zelf een liggend streepje hebben (note_file_add): de kortste naam die past
 const GENERIC = /^([a-z][a-z_]*?)_(add|update|delete)$/;
@@ -32,7 +33,7 @@ function removedRows(before, after) {
  * @param {{ userId?: string | null, now?: string, makeId?: () => string, makeUuid?: () => string }} [options]
  * @returns {{ type: string, uuid?: string, args: Record<string, any>, local?: object }[] | null} de omgekeerde reeks, of null als iets niet terug kan
  */
-export function inverseCommands(view, commands, { userId = null, now = new Date().toISOString(), makeId = () => crypto.randomUUID().replace(/-/g, '').slice(0, 20), makeUuid } = {}) {
+export function inverseCommands(view, commands, { userId = null, now = new Date().toISOString(), makeId = () => randomUuid().replace(/-/g, '').slice(0, 20), makeUuid } = {}) {
   const state = cloneState(view);
   const parts = [];
   for (const cmd of commands) {
