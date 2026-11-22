@@ -753,10 +753,10 @@ class WidgetUiTest : WidgetTestBase() {
 
         val (compactHeader, compactTask) = views(compact = true)
         assertEquals(R.id.item_root, compactTask.id)
-        assertEquals("compact: een taak 20dp, de helft van een gewone van 40dp", px(20), compactTask.minimumHeight)
-        assertEquals("compact: het tikvlak even hoog", px(20), compactTask.findViewById<View>(R.id.text_area).minimumHeight)
-        assertEquals("compact: een kop vraagt 24dp", px(24), headerSpace(compactHeader))
-        assertEquals(px(20), compactHeader.findViewById<TextView>(R.id.header_button).minHeight)
+        assertEquals("compact: een taak 24dp", px(24), compactTask.minimumHeight)
+        assertEquals("compact: het tikvlak even hoog", px(24), compactTask.findViewById<View>(R.id.text_area).minimumHeight)
+        assertEquals("compact: een kop vraagt 28dp", px(28), headerSpace(compactHeader))
+        assertEquals(px(24), compactHeader.findViewById<TextView>(R.id.header_button).minHeight)
     }
 
     @Test

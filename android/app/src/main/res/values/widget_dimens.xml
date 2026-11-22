@@ -4,11 +4,11 @@
     <dimen name="widget_radius">16dp</dimen>
     <!-- Een regel is minstens 48dp hoog en de cirkel om af te vinken is 48dp breed: het kleinste tikvlak dat Android aanraadt. -->
     <dimen name="widget_row_min">48dp</dimen>
-    <!-- Compact: een regel per taak, zonder ruimte erboven en eronder (ongeveer de helft van een gewone regel); de hele regel is het tikvlak. -->
-    <dimen name="widget_row_compact">20dp</dimen>
+    <!-- Compact: een regel per taak, met weinig ruimte erboven en eronder (ongeveer de helft van een gewone regel); de hele regel is het tikvlak. -->
+    <dimen name="widget_row_compact">24dp</dimen>
     <!-- Een kop (dag, sectie, "Over tijd"): gewoon 40dp samen met de ruimte erboven, compact lager. -->
     <dimen name="widget_header_min">34dp</dimen>
-    <dimen name="widget_header_compact">20dp</dimen>
+    <dimen name="widget_header_compact">24dp</dimen>
     <dimen name="widget_header_top">6dp</dimen>
     <dimen name="widget_header_top_compact">4dp</dimen>
     <dimen name="widget_header_start">16dp</dimen>
