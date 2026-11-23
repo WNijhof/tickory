@@ -172,6 +172,8 @@ const PENDING_MS = 15 * 60_000;
 /** Een downloadbewijs voor een back-up: eenmalig en een minuut geldig. Hooguit 5 back-ups per beheerder per uur, één tegelijk. */
 const TICKET_MS = 60_000;
 const BACKUPS_PER_HOUR = 5;
+/** Een account zonder wachtwoord (SSO) bevestigt een gevoelige stap met een aanmelding van hooguit zo lang geleden. */
+const FRESH_LOGIN_MS = 15 * 60_000;
 /** Zoveel keer per tien minuten mag iemand een uitnodigingslink bekijken of aannemen. */
 const INVITE_TRIES = 30;
 
@@ -288,9 +290,10 @@ export function createApp(opts: AppOptions): App {
   // automatische back-ups: kort na het starten (een gemiste kopie inhalen) en daarna elke paar minuten kijken
   const autoBackup = opts.autoBackup ?? null;
   const autoMs = opts.autoBackupCheckMs ?? 5 * 60_000;
-  const autoTimer = autoBackup && autoMs > 0 ? setInterval(() => autoBackup.tick(), autoMs) : null;
+  const autoTick = () => { autoBackup?.tick().catch((err) => console.error('automatische back-up mislukt', err)); };
+  const autoTimer = autoBackup && autoMs > 0 ? setInterval(autoTick, autoMs) : null;
   autoTimer?.unref();
-  const autoFirst = autoBackup && autoMs > 0 ? setTimeout(() => autoBackup.tick(), Math.min(autoMs, 15_000)) : null;
+  const autoFirst = autoBackup && autoMs > 0 ? setTimeout(autoTick, Math.min(autoMs, 15_000)) : null;
   autoFirst?.unref();
   // een nieuwere release op GitHub: kort na het starten en daarna twee keer per dag kijken
   const updateCheck = opts.updateCheck ?? null;
@@ -487,6 +490,16 @@ export function createApp(opts: AppOptions): App {
     let correct = false;
     try {
       const current = getUserByName(db, caller.user.username);
+      // Een account zonder wachtwoord (gemaakt via SSO) kan geen wachtwoord geven: dan is een verse aanmelding bij de inlogdienst
+      // (in het afgelopen kwartier) het bewijs, zoals bij koppelen en de koppelcode. Anders kon zo iemand nooit zijn account
+      // verwijderen of een back-up maken.
+      if (current && !hasPassword(current.password_hash)) {
+        const session = db.prepare('SELECT created_at FROM sessions WHERE id = ?').get(caller.sessionId) as { created_at?: string } | undefined;
+        const fresh = Boolean(session?.created_at) && clock() - Date.parse(session!.created_at!) < FRESH_LOGIN_MS;
+        passwordLimiter.cancel(attempt);
+        if (!fresh) send(res, 403, { error_code: 'REAUTH_REQUIRED', error: 'je account heeft geen wachtwoord: log opnieuw in via SSO en probeer het binnen een kwartier nog eens' });
+        return fresh;
+      }
       correct = Boolean(current) && typeof given === 'string' && (await verifyPassword(given.slice(0, 1000), current!.password_hash));
     } catch (err) {
       passwordLimiter.cancel(attempt);
@@ -701,12 +714,14 @@ export function createApp(opts: AppOptions): App {
     if (req.method !== 'GET') return send(res, 405, { error_code: 'METHOD_NOT_ALLOWED', error: 'gebruik GET' });
     const key = hashToken((url.searchParams.get('ticket') ?? '').slice(0, 200));
     const t = tickets.get(key);
+    // loopt er al een back-up, dan blijft het bewijs geldig (tot het verloopt): zo opnieuw proberen kan zonder opnieuw het
+    // wachtwoord en de code te geven, en telt niet nog eens mee voor het maximum per uur
+    if (t && t.expires > clock() && backupRunning) return send(res, 503, { error_code: 'BUSY', error: 'er wordt al een back-up gemaakt; probeer het zo opnieuw' }, { 'Retry-After': '15' });
     tickets.delete(key); // eenmalig, ook als er hierna iets misgaat
     const user = t && t.expires > clock() ? getUserById(db, t.userId) : undefined;
     if (!backup || !t || !user || !user.is_admin || !sessionValid(db, t.userId, t.sessionId, clock(), policy)) {
       return send(res, 403, { error_code: 'FORBIDDEN', error: 'dit downloadbewijs is ongeldig of verlopen; vraag de back-up opnieuw aan' });
     }
-    if (backupRunning) return send(res, 503, { error_code: 'BUSY', error: 'er wordt al een back-up gemaakt; probeer het zo opnieuw' }, { 'Retry-After': '30' });
     backupRunning = true;
     const started = clock();
     let archive: ReturnType<typeof createBackupArchive>;
@@ -780,8 +795,11 @@ export function createApp(opts: AppOptions): App {
 
       // Een verzoek moet binnen 30 seconden binnen zijn. Alleen een upload van een bijlage mag langer duren, maar die heeft zijn eigen
       // bewaking (te langzaam of stilgevallen = afgebroken, zie attachments.ts); anders houdt een trage afzender een verbinding eindeloos vast.
-      if (!req.complete && !(path === '/api/v1/attachments' && req.method === 'POST')) {
-        const timer = setTimeout(() => req.destroy(), 30_000);
+      // Dit gaat over het *ontvangen*: een GET of HEAD heeft geen inhoud (de kop bewaakt Node zelf, headersTimeout), en is het
+      // antwoord eenmaal begonnen, dan is het verzoek binnen. Zo breekt de timer geen live-verbinding (/api/v1/events), back-up of
+      // grote bijlage meer af die langer dan 30 seconden loopt; Node meldt 'end' bij een GET pas als niemand de (lege) inhoud las.
+      if (!req.complete && req.method !== 'GET' && req.method !== 'HEAD' && !(path === '/api/v1/attachments' && req.method === 'POST')) {
+        const timer = setTimeout(() => { if (!res.headersSent) req.destroy(); }, 30_000);
         req.once('end', () => clearTimeout(timer));
         req.once('close', () => clearTimeout(timer));
       }
@@ -988,6 +1006,8 @@ export function createApp(opts: AppOptions): App {
           return send(res, 200, result);
         } catch (err) {
           if (err instanceof InviteError || err instanceof SyncError) return send(res, STATUS_FOR[err.code] ?? 400, { error_code: err.code, error: err.message });
+          // een kapotte %-codering in het adres (decodeURIComponent): een onbekend pad, geen interne fout
+          if (err instanceof URIError) return send(res, 404, { error_code: 'NOT_FOUND', error: 'onbekend pad' });
           throw err;
         }
       }

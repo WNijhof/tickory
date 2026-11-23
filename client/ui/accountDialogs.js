@@ -622,8 +622,13 @@ function deleteAccountSection({ api, onDeleted }) {
     replace(body, h('p', { class: 'hint' }, t('common.loading')));
     let check;
     let twoFactorOn = false;
+    let passwordless = false; // een account zonder wachtwoord (via SSO): de server wil dan een verse aanmelding in plaats van een wachtwoord
     try {
-      [check, twoFactorOn] = await Promise.all([api.deleteAccount.check(), api.twoFactor.status().then((s) => s.enabled).catch(() => false)]);
+      [check, twoFactorOn, passwordless] = await Promise.all([
+        api.deleteAccount.check(),
+        api.twoFactor.status().then((s) => s.enabled).catch(() => false),
+        api.sso.status().then((s) => Boolean(s?.enabled && s.has_password === false)).catch(() => false),
+      ]);
     } catch (err) {
       replace(body, h('p', { class: 'error' }, errorText(err)));
       return;
@@ -637,7 +642,7 @@ function deleteAccountSection({ api, onDeleted }) {
         h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: reset }, t('common.close'))));
       return;
     }
-    const pass = h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password'), dataset: { fk: 'account-delete-password' } });
+    const pass = !passwordless && h('input', { class: 'field', type: 'password', required: true, autocomplete: 'current-password', 'aria-label': t('account.password'), dataset: { fk: 'account-delete-password' } });
     const code = twoFactorOn && h('input', { class: 'field', type: 'text', required: true, autocomplete: 'one-time-code', autocapitalize: 'none', spellcheck: false, maxLength: 24, 'aria-label': t('twoFactor.codeOrRecovery') });
     const sure = h('input', { type: 'checkbox', required: true, dataset: { fk: 'account-delete-sure' } });
     const error = h('p', { class: 'error', role: 'alert' });
@@ -647,26 +652,26 @@ function deleteAccountSection({ api, onDeleted }) {
         e.preventDefault();
         error.textContent = '';
         try {
-          await api.deleteAccount.remove(pass.value, code ? code.value.trim() : '');
+          await api.deleteAccount.remove(pass ? pass.value : '', code ? code.value.trim() : '');
           onDeleted();
         } catch (err) {
           error.textContent = errorText(err);
-          pass.value = '';
+          if (pass) pass.value = '';
           if (code) code.value = '';
-          pass.focus();
+          (pass || sure).focus();
         }
       },
     },
     h('p', {}, t('accountDelete.gone')),
     h('p', { class: 'hint' }, t('accountDelete.stays')),
-    h('label', { class: 'field-label' }, t('account.password'), pass),
+    pass ? h('label', { class: 'field-label' }, t('account.password'), pass) : h('p', { class: 'hint' }, t('accountDelete.freshLogin')),
     code && h('label', { class: 'field-label' }, t('twoFactor.codeOrRecovery'), code),
     h('label', { class: 'check-row' }, sure, t('accountDelete.sure')),
     error,
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: reset }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-danger', dataset: { fk: 'account-delete-confirm' } }, t('accountDelete.confirm')))));
-    pass.focus();
+    (pass || sure).focus();
   }
 
   function reset() {

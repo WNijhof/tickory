@@ -43,27 +43,27 @@ test('instellingen: uit zonder BACKUP_DIR; standaard 03:00 en 14 dagen; onzin ge
   }
 });
 
-test('één kopie per dag, pas na het tijdstip; stond de server uit, dan alsnog bij de eerste ronde daarna', (t) => {
+test('één kopie per dag, pas na het tijdstip; stond de server uit, dan alsnog bij de eerste ronde daarna', async (t) => {
   const dir = withDir(t);
   const db = live(join(dir, 'todo.db'));
   t.after(() => db.close());
   let now = at('2026-11-17T02:59');
   const lines: string[] = [];
   const auto = createAutoBackup({ dir: join(dir, 'backups'), time: '03:00', keep: 14, timeZone: 'Europe/Amsterdam' }, { dbPath: join(dir, 'todo.db'), attachmentsDir: null, now: () => now, log: (l) => lines.push(l) });
-  assert.equal(auto.tick(), null, 'nog niet');
+  assert.equal((await auto.tick()), null, 'nog niet');
   assert.equal(existsSync(join(dir, 'backups')), false);
   now = at('2026-11-17T03:00');
-  assert.equal(auto.tick(), 'todo-2026-11-17.db');
-  assert.equal(auto.tick(), null, 'niet twee keer op een dag');
+  assert.equal((await auto.tick()), 'todo-2026-11-17.db');
+  assert.equal((await auto.tick()), null, 'niet twee keer op een dag');
   now = at('2026-11-17T23:59');
-  assert.equal(auto.tick(), null);
+  assert.equal((await auto.tick()), null);
   // de kopie is een echte, leesbare database met de taak erin
   const copy = new DatabaseSync(join(dir, 'backups', 'todo-2026-11-17.db'), { readOnly: true });
   assert.equal((copy.prepare("SELECT COUNT(*) AS n FROM tasks WHERE content = 'Belangrijk'").get() as { n: number }).n, 1);
   copy.close();
   // de server stond twee dagen uit en start om 14:12: de kopie van vandaag komt er meteen
   now = at('2026-11-20T14:12');
-  assert.equal(auto.tick(), 'todo-2026-11-20.db');
+  assert.equal((await auto.tick()), 'todo-2026-11-20.db');
   assert.deepEqual(readdirSync(join(dir, 'backups')).sort(), ['todo-2026-11-17.db', 'todo-2026-11-20.db']);
   assert.ok(lines.some((l) => l.includes('todo-2026-11-20.db gemaakt')));
   const s = auto.status();
@@ -72,7 +72,7 @@ test('één kopie per dag, pas na het tijdstip; stond de server uit, dan alsnog 
   assert.equal(s.error, null);
 });
 
-test('opruimen: alleen de eigen kopieën (met hun bijlagen), de nieuwste blijven; wat je er zelf neerzet blijft staan', (t) => {
+test('opruimen: alleen de eigen kopieën (met hun bijlagen), de nieuwste blijven; wat je er zelf neerzet blijft staan', async (t) => {
   const dir = withDir(t);
   const db = live(join(dir, 'todo.db'));
   t.after(() => db.close());
@@ -89,25 +89,25 @@ test('opruimen: alleen de eigen kopieën (met hun bijlagen), de nieuwste blijven
   mkdirSync(attachments);
   let now = at('2026-11-14T03:30');
   const auto = createAutoBackup({ dir: backups, time: '03:00', keep: 3, timeZone: 'Europe/Amsterdam' }, { dbPath: join(dir, 'todo.db'), attachmentsDir: attachments, now: () => now, log: () => {} });
-  assert.equal(auto.tick(), 'todo-2026-11-14.db');
+  assert.equal((await auto.tick()), 'todo-2026-11-14.db');
   assert.deepEqual(readdirSync(backups).sort(), [
     'mijn-eigen-kopie.db', 'todo-2026-11-09.db.bak',
     'todo-2026-11-12.attachments', 'todo-2026-11-12.db', 'todo-2026-11-13.attachments', 'todo-2026-11-13.db', 'todo-2026-11-14.attachments', 'todo-2026-11-14.db',
   ]);
 });
 
-test('een mislukte poging: geen halve kopie, de fout in de status, en de volgende ronde probeert het opnieuw', (t) => {
+test('een mislukte poging: geen halve kopie, de fout in de status, en de volgende ronde probeert het opnieuw', async (t) => {
   const dir = withDir(t);
   let now = at('2026-11-17T04:00');
   const backups = join(dir, 'backups');
   const auto = createAutoBackup({ dir: backups, time: '03:00', keep: 14, timeZone: 'Europe/Amsterdam' }, { dbPath: join(dir, 'bestaat-niet.db'), attachmentsDir: null, now: () => now, log: () => {} });
-  assert.equal(auto.tick(), null);
+  assert.equal((await auto.tick()), null);
   assert.ok(auto.status().error?.message, 'de fout staat in de status');
   assert.deepEqual(readdirSync(backups), [], 'geen halve kopie');
   // de database is er weer: de volgende ronde lukt het
   const db = live(join(dir, 'bestaat-niet.db'));
   t.after(() => db.close());
   now = at('2026-11-17T04:05');
-  assert.equal(auto.tick(), 'todo-2026-11-17.db');
+  assert.equal((await auto.tick()), 'todo-2026-11-17.db');
   assert.equal(auto.status().error, null);
 });

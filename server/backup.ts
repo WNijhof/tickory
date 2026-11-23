@@ -18,6 +18,7 @@ import { liveFileKeysSql } from './backupArchive.ts';
 import { renewEpoch } from './rows.ts';
 import { copyFileSync, existsSync, mkdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { copyFile, mkdir, stat } from 'node:fs/promises';
 
 export interface BackupReport { files: number; bytes: number; missing: number }
 
@@ -26,7 +27,8 @@ export function attachmentsDirFor(dbPath: string, env: Record<string, string | u
   return resolve(env.ATTACHMENTS_DIR || join(dirname(resolve(dbPath)), 'attachments'));
 }
 
-export function backupTo(sourcePath: string, destPath: string, attachmentsDir: string | null = null): BackupReport {
+/** De database kopiëren (VACUUM INTO, met een nieuwe epoch) en zeggen welke bestanden van bijlagen erbij horen. */
+function copyDatabase(sourcePath: string, destPath: string, attachmentsDir: string | null): { filesDest: string | null; keys: string[] } {
   const source = resolve(sourcePath);
   const dest = resolve(destPath);
   if (!existsSync(source)) throw new Error(`database niet gevonden: ${source}`);
@@ -45,8 +47,7 @@ export function backupTo(sourcePath: string, destPath: string, attachmentsDir: s
   // een nieuwe epoch in de kopie: zet iemand haar terug, dan beginnen alle apparaten opnieuw (zie epochOf in rows.ts)
   const fresh = new DatabaseSync(dest);
   try { renewEpoch(fresh); } finally { fresh.close(); }
-  const report: BackupReport = { files: 0, bytes: 0, missing: 0 };
-  if (!withFiles) return report;
+  if (!withFiles) return { filesDest: null, keys: [] };
   // Welke bestanden bij de kopie horen, volgens de kopie zelf (niet volgens de database die intussen is doorgelopen).
   const copy = new DatabaseSync(dest, { readOnly: true });
   let keys: string[] = [];
@@ -56,14 +57,46 @@ export function backupTo(sourcePath: string, destPath: string, attachmentsDir: s
     copy.close();
   }
   mkdirSync(filesDest, { recursive: true });
+  return { filesDest, keys: keys.filter((key) => /^[0-9a-f]{32}$/.test(key)) }; // alleen sleutels zoals de server ze maakt
+}
+
+export function backupTo(sourcePath: string, destPath: string, attachmentsDir: string | null = null): BackupReport {
+  const { filesDest, keys } = copyDatabase(sourcePath, destPath, attachmentsDir);
+  const report: BackupReport = { files: 0, bytes: 0, missing: 0 };
+  if (!filesDest) return report;
   for (const key of keys) {
-    if (!/^[0-9a-f]{32}$/.test(key)) continue; // alleen sleutels zoals de server ze maakt
     const from = join(attachmentsDir!, key.slice(0, 2), key);
     if (!existsSync(from)) { report.missing += 1; continue; }
     mkdirSync(join(filesDest, key.slice(0, 2)), { recursive: true });
     copyFileSync(from, join(filesDest, key.slice(0, 2), key));
     report.files += 1;
     report.bytes += statSync(from).size;
+  }
+  return report;
+}
+
+/**
+ * Hetzelfde als backupTo, maar de bestanden van de bijlagen gaan asynchroon over, één voor één: zo blijft een draaiende server
+ * verzoeken beantwoorden terwijl de automatische back-up gigabytes aan bijlagen kopieert (de kopie van de database zelf, VACUUM
+ * INTO, is één korte stap).
+ */
+export async function backupToAsync(sourcePath: string, destPath: string, attachmentsDir: string | null = null): Promise<BackupReport> {
+  const { filesDest, keys } = copyDatabase(sourcePath, destPath, attachmentsDir);
+  const report: BackupReport = { files: 0, bytes: 0, missing: 0 };
+  if (!filesDest) return report;
+  for (const key of keys) {
+    const from = join(attachmentsDir!, key.slice(0, 2), key);
+    let size: number;
+    try {
+      size = (await stat(from)).size;
+    } catch {
+      report.missing += 1;
+      continue;
+    }
+    await mkdir(join(filesDest, key.slice(0, 2)), { recursive: true });
+    await copyFile(from, join(filesDest, key.slice(0, 2), key));
+    report.files += 1;
+    report.bytes += size;
   }
   return report;
 }

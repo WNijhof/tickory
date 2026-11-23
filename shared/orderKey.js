@@ -64,6 +64,9 @@ export const keyBefore = (b) => keyBetween(null, b);
 export function isValidKey(k) {
   if (typeof k !== 'string' || k.length === 0 || k.length > 64) return false;
   for (const c of k) if (!DIGITS.includes(c)) return false;
+  // 64 keer het hoogste teken: daar kan niets meer achter binnen 64 tekens (keyAfter), en dan zou de server zelf een te lange
+  // sleutel maken voor wie achteraan toevoegt
+  if (k.length === 64 && [...k].every((c) => c === DIGITS[BASE - 1])) return false;
   return !k.endsWith('0');
 }
 

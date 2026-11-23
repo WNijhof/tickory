@@ -18,6 +18,7 @@ import {
 } from './users.ts';
 import type { LoginAttempt, SessionPolicy, UserRow } from './users.ts';
 import { displayNameFromClaims, groupsOf, inAnyGroup, OidcError, pkcePair, usernameFromClaims } from './oidc.ts';
+import { deleteAccount } from './accountDelete.ts';
 import type { OidcClient } from './oidc.ts';
 
 /** De "hash" van een account zonder wachtwoord (gemaakt via SSO): past bij geen enkel wachtwoord. */
@@ -259,7 +260,13 @@ export function createSso(deps: SsoDeps) {
     const username = usernameFromClaims(claims, (u) => getUserByName(db, u) !== undefined);
     const isAdmin = config!.adminGroups.length > 0 && inAnyGroup(groups, config!.adminGroups);
     const user = createUser(db, { username, name: displayNameFromClaims(claims, username), passwordHash: NO_PASSWORD, isAdmin });
-    linkIdentity(db, issuer, subject, user.id, new Date(clock()).toISOString());
+    try {
+      linkIdentity(db, issuer, subject, user.id, new Date(clock()).toISOString());
+    } catch (err) {
+      // zonder koppeling kan niemand met dit nieuwe account inloggen (het heeft geen wachtwoord): weer weg, geen los account
+      deleteAccount(db, user.id);
+      throw err;
+    }
     log(`[sso] nieuw account "${user.username}" aangemaakt bij de eerste keer inloggen via de identiteitsprovider${user.is_admin ? ' (beheerder)' : ''}`);
     return user;
   };
@@ -304,7 +311,11 @@ export function createSso(deps: SsoDeps) {
       if (owner && owner !== user.id) return fail('ALREADY_LINKED', `de identiteit van "${who}" is al aan een ander account gekoppeld`);
       if (!owner) {
         if (linkedTo(user.id)) return fail('ALREADY_LINKED', `"${user.username}" is intussen al gekoppeld`);
-        linkIdentity(db, issuer, subject, user.id, nowIso);
+        try {
+          linkIdentity(db, issuer, subject, user.id, nowIso);
+        } catch {
+          return fail('ALREADY_LINKED', `de identiteit van "${who}" is intussen al gekoppeld`); // een tweede terugkeer tegelijk
+        }
       }
       log(`[sso] "${user.username}" heeft het account gekoppeld aan de identiteitsprovider ("${who}")`);
       limiter.succeed(attempt);

@@ -733,7 +733,16 @@ test('migratie: een bestaande database zonder bijlagen krijgt de tabellen erbij 
     assert.deepEqual(full.attachments, []);
     assert.equal((full.tasks as Row[]).filter((t) => t.id === w.T).length, 1, 'de taak is er nog');
     const att = createAttachments(w.db, { dir: w.dir, maxUploadBytes: 1000, quotaBytes: 10_000 });
-    assert.equal(att.check().strayFiles, 1, 'het bestand van de verdwenen bijlage is nu een zwerver en wordt opgeruimd');
+    // Een database zonder enige bijlage naast een map met bestanden: dat is bijna altijd een verkeerd DB_PATH of een volume dat
+    // niet gekoppeld werd. Dan wordt niets weggegooid (dat kan niet terug), alleen gemeld.
+    const warned: string[] = [];
+    const warn = console.warn;
+    console.warn = (...a: unknown[]) => { warned.push(a.join(' ')); };
+    try {
+      assert.equal(att.check().strayFiles, 0, 'niets verwijderd');
+    } finally { console.warn = warn; }
+    assert.match(warned.join('\n'), /1 bestanden .* niets verwijderd\. Klopt DB_PATH\?/);
+    assert.equal(readdirSync(w.dir).some((d) => /^[0-9a-f]{2}$/.test(d) && readdirSync(join(w.dir, d)).length > 0), true, 'het bestand staat er nog');
     assert.equal(await (async () => (await w.upload('alice', 'migratie-00002', w.T, 'nieuw')).status)(), 200);
   } finally { await w.close(); }
 });

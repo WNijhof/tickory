@@ -28,7 +28,12 @@ export function deepNormalize(value, depth = 0) {
     if (depth >= MAX_DEPTH) throw new RangeError('te diep genest');
     if (Array.isArray(value)) return value.map((v) => deepNormalize(v, depth + 1));
     const out = {};
-    for (const [k, v] of Object.entries(value)) out[k] = deepNormalize(v, depth + 1);
+    for (const [k, v] of Object.entries(value)) {
+      // JSON.parse maakt van "__proto__" een gewone sleutel; `out.__proto__ = …` zou het prototype zetten, en dan lezen de controles
+      // een geërfde waarde (een datum) die JSON.stringify niet opslaat. Zo'n sleutel hoort nergens in de gegevens: weg ermee.
+      if (k === '__proto__') continue;
+      out[k] = deepNormalize(v, depth + 1);
+    }
     return out;
   }
   return value;

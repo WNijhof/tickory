@@ -149,6 +149,11 @@ export function forgetMember(ctx: Ctx, userId: string, projectId: string, taskId
  * een maand verwijderd is, gaat helemaal uit de database. Ook pushberichten die na een dag nog niet weg zijn, vervallen.
  * @returns het aantal meldingen dat nu als verwijderd is gemarkeerd
  */
+/** Tot welk versienummer de sporen van verwijderde meldingen zijn opgeruimd (0: nog nooit). Een oudere sync_token = volledige sync. */
+export function notificationsFloor(db: DatabaseSync): number {
+  return Number((db.prepare("SELECT value FROM meta WHERE key = 'notifications_floor'").get() as { value?: string } | undefined)?.value ?? 0);
+}
+
 export function pruneNotifications(db: DatabaseSync, nowMs: number = Date.now()): number {
   const cutoff = new Date(nowMs - NOTIFICATION_RETENTION_DAYS * 86_400_000).toISOString();
   const now = new Date(nowMs).toISOString();
@@ -157,7 +162,15 @@ export function pruneNotifications(db: DatabaseSync, nowMs: number = Date.now())
     const rev = bumpRev(db);
     marked = Number(db.prepare('UPDATE notifications SET is_deleted = 1, rev = ?, updated_at = ? WHERE is_deleted = 0 AND created_at < ?').run(rev, now, cutoff).changes);
   }
-  db.prepare('DELETE FROM notifications WHERE is_deleted = 1 AND updated_at < ?').run(new Date(nowMs - NOTIFICATION_TOMBSTONE_DAYS * 86_400_000).toISOString());
+  // Sporen van verwijderde meldingen gaan na een tijd echt weg. Een apparaat dat daarvóór voor het laatst synchroniseerde, hoort
+  // dan nooit dat ze verwijderd zijn: onthoud tot welk versienummer er is opgeruimd; zo'n apparaat krijgt een volledige sync (sync.ts).
+  const tombstoneCutoff = new Date(nowMs - NOTIFICATION_TOMBSTONE_DAYS * 86_400_000).toISOString();
+  const purged = (db.prepare('SELECT MAX(rev) AS r FROM notifications WHERE is_deleted = 1 AND updated_at < ?').get(tombstoneCutoff) as { r: number | null }).r;
+  if (purged !== null && purged !== undefined) {
+    const floor = Math.max(notificationsFloor(db), Number(purged));
+    db.prepare("INSERT INTO meta (key, value) VALUES ('notifications_floor', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(floor));
+  }
+  db.prepare('DELETE FROM notifications WHERE is_deleted = 1 AND updated_at < ?').run(tombstoneCutoff);
   db.prepare('DELETE FROM notification_outbox WHERE created_at < ?').run(new Date(nowMs - 86_400_000).toISOString());
   return marked;
 }

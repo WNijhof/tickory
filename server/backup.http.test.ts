@@ -258,7 +258,7 @@ test('de stand van de automatische back-ups (GET /api/v1/admin/backup): aan, met
     const before = await status();
     assert.equal(before.download, false, 'downloaden staat hier uit');
     assert.deepEqual([before.auto.enabled, before.auto.time, before.auto.keep, before.auto.last, before.auto.error], [true, '00:00', 3, null, null]);
-    const made = auto.tick();
+    const made = await auto.tick();
     assert.match(made ?? '', /^todo-\d{4}-\d{2}-\d{2}\.db$/);
     const after = await status();
     assert.equal(after.auto.last.name, made);

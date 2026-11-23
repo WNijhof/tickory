@@ -11,7 +11,7 @@
 
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { backupTo } from './backup.ts';
+import { backupToAsync } from './backup.ts';
 
 export interface AutoBackupConfig { dir: string; time: string; keep: number; timeZone: string | null }
 
@@ -86,7 +86,7 @@ export function createAutoBackup(config: AutoBackupConfig, opts: { dbPath: strin
    * Maakt de kopie van vandaag als het tijdstip voorbij is en ze er nog niet is, en ruimt daarna op.
    * @returns de naam van de nieuwe kopie, of null als er niets te doen was (of het mislukte; zie status().error)
    */
-  function tick(): string | null {
+  async function tick(): Promise<string | null> {
     if (running) return null;
     const { day, time } = localParts(now(), config.timeZone);
     if (time < config.time) return null;
@@ -97,7 +97,7 @@ export function createAutoBackup(config: AutoBackupConfig, opts: { dbPath: strin
       mkdirSync(config.dir, { recursive: true });
       // een map met bijlagen van een eerder mislukte poging vandaag (zonder database): weg, anders weigert backupTo
       rmSync(join(config.dir, `todo-${day}.attachments`), { recursive: true, force: true });
-      const report = backupTo(opts.dbPath, join(config.dir, name), opts.attachmentsDir);
+      const report = await backupToAsync(opts.dbPath, join(config.dir, name), opts.attachmentsDir); // de server blijft intussen antwoorden
       log(`automatische back-up: ${name} gemaakt${opts.attachmentsDir ? ` (${report.files} bijlagen${report.missing ? `, ${report.missing} ontbraken` : ''})` : ''}`);
       lastError = null;
       prune();

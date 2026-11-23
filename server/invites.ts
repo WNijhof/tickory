@@ -90,6 +90,9 @@ function usable(db: DatabaseSync, token: unknown, nowMs: number): Row {
   if (!r || r.revoked === 1 || (r.expires_at as string) <= new Date(nowMs).toISOString()) return gone();
   const project = liveProject(db, r.project_id as string);
   if (!project || roleOf(db, r.created_by as string, r.project_id as string) !== 'owner') return gone();
+  // een geblokkeerde (of verwijderde) eigenaar: aannemen zou namens hem gebeuren en mislukken, dus de link werkt dan niet
+  const creator = getUserById(db, r.created_by as string);
+  if (!creator || creator.is_disabled) return gone();
   return { ...r, project_name: project.name };
 }
 

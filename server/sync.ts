@@ -338,6 +338,9 @@ function verify(ctx: Ctx, e: Entity, id: string, v: Row, mode: 'add' | 'update',
       if (v.comment_id) {
         const c = requireLive(ctx, 'comment', v.comment_id, 'attachment.comment_id');
         if (onProject ? c.project_id !== v.project_id : c.task_id !== v.task_id) fail('CONFLICT', onProject ? 'de opmerking hoort bij een ander project' : 'de opmerking hoort bij een andere taak');
+        // alleen onder je eigen opmerking: anders staat jouw bestand onder de naam van een ander, en gaat het mee als die zijn
+        // opmerking verwijdert
+        if (c.author_id && c.author_id !== ctx.userId) fail('FORBIDDEN', 'een bijlage kan alleen bij je eigen opmerking');
       }
       // Het bestand moet eerst zijn geüpload, door deze gebruiker, bij deze taak (of dit project), en nog bij geen enkele bijlage
       // horen. Wat de client over grootte, type en inhoud opgeeft, moet kloppen met wat de server bij de upload zelf zag.
@@ -951,9 +954,12 @@ function notificationReadAll(ctx: Ctx, args: Args): void {
   exactArgs(args, ['up_to']);
   const upTo = args.up_to;
   if (upTo !== undefined && (typeof upTo !== 'string' || upTo.length > 40 || !Number.isFinite(Date.parse(upTo)))) fail('INVALID_ARG', 'up_to moet een tijdstip zijn');
+  // created_at staat er als ISO-tekst in UTC ("…Z", met milliseconden): vergelijk met hetzelfde formaat, anders telt een tijdstip
+  // met een andere schrijfwijze (+01:00, zonder milliseconden) als tekst verkeerd
+  const bound = upTo === undefined ? undefined : new Date(Date.parse(upTo as string)).toISOString();
   ctx.db
-    .prepare(`UPDATE notifications SET is_read = 1, rev = ?, updated_at = ? WHERE owner_id = ? AND is_deleted = 0 AND is_read = 0${upTo === undefined ? '' : ' AND created_at <= ?'}`)
-    .run(ctx.rev, ctx.now, ctx.userId, ...(upTo === undefined ? [] : [upTo as string]));
+    .prepare(`UPDATE notifications SET is_read = 1, rev = ?, updated_at = ? WHERE owner_id = ? AND is_deleted = 0 AND is_read = 0${bound === undefined ? '' : ' AND created_at <= ?'}`)
+    .run(ctx.rev, ctx.now, ctx.userId, ...(bound === undefined ? [] : [bound]));
 }
 
 function projectUnshare(ctx: Ctx, args: Args): void {
@@ -1177,9 +1183,13 @@ function visibility(name: EntityName, uid: string): { sql: string; params: strin
     case 'comment': return { sql: `(project_id IN (${MY_PROJECTS}) OR task_id IN (${tasksOfMine}))`, params: [uid, uid] };
     case 'attachment': return { sql: `(task_id IN (${tasksOfMine}) OR project_id IN (${MY_PROJECTS}))`, params: [uid, uid] };
     case 'label':
+      // Een verwijderd label staat op geen taak meer (label_delete haalt het in dezelfde stap overal weg), dus het spoor
+      // ({id, is_deleted}, zonder inhoud) gaat naar iedereen die een project deelt met de eigenaar: anders bleef het label bij
+      // de andere leden staan.
       return {
-        sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS})))`,
-        params: [uid, uid],
+        sql: `(owner_id = ? OR id IN (SELECT j.value FROM tasks t, json_each(t.labels) j WHERE t.is_deleted = 0 AND t.project_id IN (${MY_PROJECTS}))`
+          + ` OR (is_deleted = 1 AND owner_id IN (SELECT pm.user_id FROM project_members pm WHERE pm.is_deleted = 0 AND pm.project_id IN (${MY_PROJECTS}))))`,
+        params: [uid, uid, uid],
       };
     case 'filter': case 'settings': case 'place': case 'template': return { sql: 'owner_id = ?', params: [uid] };
     case 'note': return { sql: `(owner_id = ? OR id IN (${NOTES_SHARED_WITH}))`, params: [uid, uid] };
@@ -1371,7 +1381,8 @@ export function handleSync(db: DatabaseSync, req: unknown, userId: string, optio
     if (since > cur) { since = 0; full = true; } // de server is teruggezet: de client moet opnieuw beginnen
     // Een token van vóór het opgeruimde deel van het verhuis-logboek: de server weet niet meer welke taken er sindsdien
     // uit zijn projecten zijn verhuisd, dus de client moet opnieuw beginnen.
-    if (!full && since < taskMovesFloor(db)) { since = 0; full = true; }
+    // ouder dan wat er van verhuizingen of verwijderde meldingen nog bewaard is: alleen een volledige sync is dan nog juist
+    if (!full && since < Math.max(taskMovesFloor(db), notify.notificationsFloor(db))) { since = 0; full = true; }
     const response: SyncResponse = { sync_token: tokenFor(db, cur), full_sync: full, partial, sync_status: status, me: publicMe(me), users: peersOf(db, userId) };
     collectResources(db, userId, include, since, full, response);
     db.exec('COMMIT');

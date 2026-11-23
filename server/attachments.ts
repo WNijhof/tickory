@@ -478,12 +478,20 @@ export function createAttachments(db: DatabaseSync, options: AttachmentOptions) 
       rmSync(tmpDir, { recursive: true, force: true });
       mkdirSync(tmpDir, { recursive: true });
       const keys = new Set((db.prepare('SELECT key FROM attachment_files').all() as Row[]).map((r) => r.key as string));
-      let strayFiles = 0;
+      const stray: string[] = [];
       for (const sub of readdirSync(dir)) {
         if (sub === 'tmp' || !/^[0-9a-f]{2}$/.test(sub)) continue;
-        for (const file of readdirSync(join(dir, sub))) {
-          if (!keys.has(file)) { rmSync(join(dir, sub, file), { force: true }); strayFiles += 1; }
-        }
+        for (const file of readdirSync(join(dir, sub))) if (!keys.has(file)) stray.push(join(dir, sub, file));
+      }
+      // Een lege database (of meer losse bestanden dan bekende) naast een volle map is bijna altijd een vergissing: een verkeerd
+      // DB_PATH, een volume dat niet gekoppeld werd. Dan niets weggooien (dat kan niet terug), alleen melden; de map blijft zoals hij is.
+      let strayFiles = 0;
+      if (stray.length > 0 && (keys.size === 0 || stray.length > Math.max(20, keys.size))) {
+        console.warn(`bijlagen: ${stray.length} bestanden in ${dir} horen bij geen enkele bijlage in de database (${keys.size} bekend); `
+          + 'niets verwijderd. Klopt DB_PATH? Is het de juiste map? Verwijder ze zelf als ze echt weg mogen.');
+      } else {
+        for (const file of stray) rmSync(file, { force: true });
+        strayFiles = stray.length;
       }
       let rowsRemoved = 0;
       let missing = 0;

@@ -97,6 +97,8 @@ export function deleteAccount(db: DatabaseSync, userId: string, removeFiles: (id
     // de bestanden eerst (de rijen in attachment_files wijzen ernaar)
     const fileIds = [
       ...(tasks.length === 0 ? [] : (db.prepare(`SELECT id FROM attachments WHERE task_id IN (${inList(tasks)})`).all(...tasks) as Row[]).map((r) => r.id as string)),
+      // ook de bijlagen bij een opmerking op het project zelf (zonder taak)
+      ...(projects.length === 0 ? [] : (db.prepare(`SELECT id FROM attachments WHERE project_id IN (${inList(projects)})`).all(...projects) as Row[]).map((r) => r.id as string)),
       ...(notes.length === 0 ? [] : (db.prepare(`SELECT id FROM note_files WHERE note_id IN (${inList(notes)})`).all(...notes) as Row[]).map((r) => r.id as string)),
       ...(db.prepare('SELECT id FROM attachment_files WHERE user_id = ? AND linked = 0').all(userId) as Row[]).map((r) => r.id as string),
     ];
@@ -109,10 +111,14 @@ export function deleteAccount(db: DatabaseSync, userId: string, removeFiles: (id
       del(`DELETE FROM reminders WHERE task_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM comments WHERE task_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM notifications WHERE task_id IN (${inList(part)})`, ...part);
-      del(`DELETE FROM task_moves WHERE task_id IN (${inList(part)})`, ...part);
+      // alleen de verplaatsingen binnen je eigen projecten: is een taak uit het project van een ander hierheen verplaatst, dan
+      // moeten de apparaten van de leden daar nog horen dat hij uit hun project verdween (zie sync.ts, `moved`)
+      del(`DELETE FROM task_moves WHERE task_id IN (${inList(part)}) AND from_project_id IN (${inList(projects)})`, ...part, ...projects);
       del(`DELETE FROM attachment_files WHERE task_id IN (${inList(part)})`, ...part);
     });
     inChunks(projects, (part) => {
+      del(`DELETE FROM attachments WHERE project_id IN (${inList(part)})`, ...part);
+      del(`DELETE FROM attachment_files WHERE project_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM tasks WHERE project_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM sections WHERE project_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM comments WHERE project_id IN (${inList(part)})`, ...part);
@@ -130,8 +136,10 @@ export function deleteAccount(db: DatabaseSync, userId: string, removeFiles: (id
       if (tableExists(db, 'note_revisions')) del(`DELETE FROM note_revisions WHERE note_id IN (${inList(part)})`, ...part);
       del(`DELETE FROM notes WHERE id IN (${inList(part)})`, ...part);
     });
-    // wat alleen de eigenaar ziet (labels zijn in stap 1 al overal van de taken gehaald)
-    for (const table of ['labels', 'filters', 'places', 'templates', 'reminders', 'notifications', 'user_settings', 'note_files']) {
+    // wat alleen de eigenaar ziet (labels zijn in stap 1 al overal van de taken gehaald). Niet note_files op owner_id: dat is wie
+    // het bestand toevoegde, en een foto die je in de notitie van een ander zette blijft daar (zoals een opmerking in een project
+    // van een ander); de bestanden van je eigen notities gingen hierboven al weg.
+    for (const table of ['labels', 'filters', 'places', 'templates', 'reminders', 'notifications', 'user_settings']) {
       if (tableExists(db, table)) del(`DELETE FROM ${table} WHERE owner_id = ?`, userId);
     }
     // Blijven als spoor (alleen id's, geen inhoud): je lidmaatschappen van projecten van anderen en de delingen van je notities.
