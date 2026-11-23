@@ -162,3 +162,11 @@ test('parseDueEn: gewone woorden en namen blijven tekst; een tilde voorkomt een 
   assert.deepEqual(r.range, [9, 24]);
   assert.equal(r.due.lang, 'en');
 });
+
+test('every 2 weeks on monday: the weekdays belong to the recurrence', () => {
+  assert.deepEqual(rec('every 2 weeks on monday'), { freq: 'weekly', byweekday: [1], interval: 2 });
+  assert.deepEqual(rec('every other week on mon and thu'), { freq: 'weekly', byweekday: [1, 4], interval: 2 });
+  assert.deepEqual(rec('every week on friday'), { freq: 'weekly', byweekday: [5] });
+  assert.deepEqual(rec('every 3 weeks on tue & sat'), { freq: 'weekly', byweekday: [2, 6], interval: 3 });
+  assert.equal(date('every 2 weeks on monday'), '2026-11-16', 'saturday 14 november: the next monday');
+});

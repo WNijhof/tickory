@@ -267,3 +267,16 @@ test('parseDateText: alleen een datum (voor het datumveld)', () => {
   assert.equal(parseDateText('blabla', NU), null);
   assert.equal(parseDateText('', NU), null);
 });
+
+test('om de week en elke 2 weken met een weekdag erachter: "op dinsdag" hoort bij de herhaling, niet in de titel', () => {
+  const r = (text) => { const p = parseDue(text, NU); return [p?.content, p?.due?.recurrence ?? null, p?.due?.date]; };
+  // woensdag 11 november: de eerstvolgende dinsdag is 17 november
+  assert.deepEqual(r('Oud papier elke 2 weken op dinsdag'), ['Oud papier', { freq: 'weekly', interval: 2, byweekday: [2] }, '2026-11-17']);
+  assert.deepEqual(r('Oud papier om de week op dinsdag'), ['Oud papier', { freq: 'weekly', interval: 2, byweekday: [2] }, '2026-11-17']);
+  assert.deepEqual(r('Oud papier om de week dinsdag'), ['Oud papier', { freq: 'weekly', interval: 2, byweekday: [2] }, '2026-11-17']);
+  assert.deepEqual(r('Sporten elke twee weken op ma en do om 9 uur'), ['Sporten', { freq: 'weekly', interval: 2, byweekday: [1, 4] }, '2026-11-12T09:00']);
+  assert.deepEqual(r('Markt elke week op vrijdag'), ['Markt', { freq: 'weekly', byweekday: [5] }, '2026-11-13']);
+  // geen weekdag erachter: niets erbij genomen
+  assert.equal(r('Overleg elke 2 weken op het werk')[0], 'Overleg op het werk');
+  assert.equal(r('Overleg elke 2 weken op dinsdagavond')[0], 'Overleg op dinsdagavond');
+});

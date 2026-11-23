@@ -177,8 +177,10 @@ const PATTERNS = [
 
 // "elke maand op de 15e" · "elke maand op de laatste dag"
 const DAY_OF_MONTH_REST = /^\s+op\s+(?:de\s+)?(?:(\d{1,2})(?:e|de|ste)|(eerste|laatste)(?:\s+dag)?)(?![\p{L}\p{N}])/iu;
+// "elke 2 weken op dinsdag" · "om de week op ma en do" · "om de week dinsdag": de weekdagen bij een herhaling per week
+const WEEKDAYS_REST = new RegExp(`^\\s+(?:op\\s+)?((?:${WD})(?:${SEP}(?:${WD}))*)(?![\\p{L}\\p{N}])`, 'iu');
 // "elk jaar op 5 december" · "jaarlijks 5 december"
-const YEAR_DATE_REST = new RegExp(`^\\s+(?:op\\s+)?(?:de\\s+)?(\\d{1,2})\\s+(${MONTH_RE})\\.?(?![\\p{L}\\p{N}])`, 'iu');
+const YEAR_DATE_REST =new RegExp(`^\\s+(?:op\\s+)?(?:de\\s+)?(\\d{1,2})\\s+(${MONTH_RE})\\.?(?![\\p{L}\\p{N}])`, 'iu');
 
 /** Een tijdstip direct achter de herhaling ("… om 9 uur", "… om half 10"), gelezen door dezelfde herkenner als eenmalige datums. */
 function timeAfter(rest, now) {
@@ -269,6 +271,13 @@ function parseRecurring(original, now) {
     const day = d ? (d[2] ? (d[2].toLowerCase() === 'eerste' ? 1 : 31) : Number(d[1])) : 0;
     if (d && day >= 1 && day <= 31) {
       rule = { ...rule, bymonthday: day };
+      end += d[0].length;
+    }
+  } else if (rule.freq === 'weekly' && !rule.byweekday) {
+    // "elke 2 weken op dinsdag": zonder dit bleef "op dinsdag" in de titel staan, en kwam de taak op de dag van vandaag
+    const d = WEEKDAYS_REST.exec(rest);
+    if (d) {
+      rule = { ...rule, byweekday: [...new Set(d[1].toLowerCase().match(new RegExp(WD, 'g')).map((x) => WEEKDAYS[x]))].sort((a, b) => a - b) };
       end += d[0].length;
     }
   } else if (rule.freq === 'yearly') {

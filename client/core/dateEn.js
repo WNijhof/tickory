@@ -164,6 +164,14 @@ function recurrenceRule(body, today) {
     const days = [...new Set(m[2].split(/\s+/).filter((w) => Object.hasOwn(WEEKDAYS, w)).map((w) => WEEKDAYS[w]))].sort((a, b) => a - b);
     return { rule: withInterval({ freq: 'weekly', byweekday: days }, n) };
   }
+  // "every 2 weeks on monday" · "every other week on mon and thu" · "every week on friday"
+  m = new RegExp(`^(?:(${NUM})\\s+)?weeks?\\s+on\\s+(${WD}(?:\\s+(?:and\\s+|&\\s+)?${WD})*)$`).exec(body);
+  if (m) {
+    const n = readNumber(m[1]);
+    if (!n || n > 1000) return null;
+    const days = [...new Set(m[2].split(/\s+/).filter((w) => Object.hasOwn(WEEKDAYS, w)).map((w) => WEEKDAYS[w]))].sort((a, b) => a - b);
+    return { rule: withInterval({ freq: 'weekly', byweekday: days }, n) };
+  }
   m = new RegExp(`^(?:(${NUM})\\s+)?months?\\s+on\\s+(?:the\\s+)?(\\d{1,2})${TH}$`).exec(body)
     ?? new RegExp(`^()(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)(?:\\s+of\\s+(?:the|every)\\s+month)?$`).exec(body);
   if (m) {
