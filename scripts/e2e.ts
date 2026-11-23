@@ -39,6 +39,7 @@ import { accountScenario } from './e2e-account.ts';
 import { deleteScenario } from './e2e-delete.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
+import { helpScenario } from './e2e-help.ts';
 import { listsScenario } from './e2e-lists.ts';
 import { quickScenario } from './e2e-quick.ts';
 import { timelineScenario } from './e2e-timeline.ts';
@@ -491,6 +492,13 @@ try {
     await stopServer();
     process.exit(process.exitCode ?? 0);
   }
+  // de handleiding in de app (scripts/e2e-help.ts); met E2E_HELP_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_HELP_ONLY) {
+    try { await helpScenario(notifyCtx()); console.log('ALLEEN HANDLEIDING: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-handleiding'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
   // snel toevoegen (scripts/e2e-quick.ts); met E2E_QUICK_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_QUICK_ONLY) {
     try { await quickScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN SNEL TOEVOEGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-snel'); process.exitCode = 1; }
@@ -813,7 +821,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Weergave', 'Taal / Language', 'Plaatsen', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
+  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Weergave', 'Taal / Language', 'Plaatsen', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Nu bijwerken', 'Handleiding', 'Afmelden en lokale gegevens wissen']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -988,7 +996,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Appearance', 'Taal / Language', 'Places', 'Templates', 'Import from Todoist', 'Export data', 'Sync now', 'Sign out and clear local data']);
+  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Appearance', 'Taal / Language', 'Places', 'Templates', 'Import from Todoist', 'Export data', 'Sync now', 'Guide', 'Sign out and clear local data']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1654,6 +1662,9 @@ try {
 
   // ---- 8g1c. het productiviteitsoverzicht (scripts/e2e-productivity.ts) ----
   await productivityScenario({ ...notifyCtx(), startServer, stopServer });
+
+  // ---- 8g1c2. de handleiding in de app (scripts/e2e-help.ts) ----
+  await helpScenario(notifyCtx());
 
   // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
   await listsScenario({ ...notifyCtx(), startServer, stopServer });

@@ -45,6 +45,7 @@ export function settingsMenuDialog({ me, notices = [] }) {
         row('import', 'upload', t('settings.import'), { tone: 'gray' }),
         row('export', 'download', t('settings.export'), { tone: 'gray' }),
         row('sync', 'repeat', t('settings.syncNow'), { tone: 'gray' })),
+      group(row('help', 'help', t('settings.help'), { tone: 'teal' })),
       group(row('logout', 'logout', t('settings.signOut'), { danger: true, tone: 'danger' })));
   }, { className: 'dialog-settings' });
 }

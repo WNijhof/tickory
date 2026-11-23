@@ -37,9 +37,9 @@ export interface BuildOptions {
   quiet?: boolean;
 }
 
-type Lang = 'nl' | 'en';
+export type Lang = 'nl' | 'en';
 interface PageRef { nl: string; en: string }
-interface SiteConfig {
+export interface SiteConfig {
   repo: string;
   image: string;
   languages: Record<Lang, Record<string, string>>;
@@ -81,7 +81,7 @@ function writeOut(outDir: string, path: string, content: string | Buffer): void 
 }
 
 /** Vervangt {{naam}} door de waarde; een onbekende naam is een fout (zo blijft er nooit een leeg gat in een pagina). */
-function fill(template: string, values: Record<string, string>, where: string): string {
+export function fill(template: string, values: Record<string, string>, where: string): string {
   return template.replace(/\{\{([a-z_.]+)\}\}/g, (_, key: string) => {
     if (!Object.hasOwn(values, key)) throw new Error(`${where}: onbekende plaatshouder {{${key}}}`);
     return values[key];
@@ -116,7 +116,7 @@ const slug = (s: string): string =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/<[^>]+>/g, '').replace(/&[a-z]+;/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'deel';
 
 /** Geeft elke h2 en h3 een id (uit de tekst van de kop), zodat je ernaar kunt linken en de zoekfunctie erheen kan springen. */
-function addHeadingIds(html: string, where: string): string {
+export function addHeadingIds(html: string, where: string): string {
   const used = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
   if (used.size !== [...html.matchAll(/\sid="([^"]+)"/g)].length) throw new Error(`${where}: hetzelfde id komt twee keer voor`);
   return html.replace(/<(h[23])((?:\s[^>]*)?)>([\s\S]*?)<\/\1>/g, (all, tag: string, attrs: string, inner: string) => {
@@ -154,7 +154,7 @@ const pushText: Record<Lang, Record<string, string>> = (() => {
   return new Function(`return (${literal});`)();
 })();
 
-function expandElements(html: string, root: string, where: string, lang: Lang): string {
+export function expandElements(html: string, root: string, where: string, lang: Lang): string {
   const shotsDir = join(SRC, 'assets', 'shots');
   // De afmetingen (in beeldpunten) schrijft scripts/site-shots.ts erbij; zo hoeft de browser de pagina niet te verspringen.
   const sizes = existsSync(join(shotsDir, 'shots.json')) ? (JSON.parse(read(join(shotsDir, 'shots.json'))) as Record<string, { width: number; height: number }>) : {};
@@ -194,7 +194,7 @@ function expandElements(html: string, root: string, where: string, lang: Lang): 
 }
 
 /** Tekst van een stuk HTML, voor de zoekfunctie. */
-function plainText(html: string): string {
+export function plainText(html: string): string {
   return html
     .replace(/<(script|style)[\s\S]*?<\/\1>/g, ' ')
     .replace(/<[^>]+>/g, ' ')
@@ -217,7 +217,7 @@ function searchEntries(page: Page): { u: string; p: string; h: string; x: string
   return entries;
 }
 
-function loadPages(config: SiteConfig): Page[] {
+export function loadPages(config: SiteConfig): Page[] {
   const pages: Page[] = [];
   const add = (ref: PageRef, kind: Page['kind']) => {
     for (const lang of LANGS) {

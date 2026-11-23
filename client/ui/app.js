@@ -64,6 +64,7 @@ import { listOptionsDialog } from './listOptionsDialog.js';
 import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
 import { installProductivity, isProductivityRoute } from './productivity.js';
+import { helpRouteFromHash, installHelp, isHelpRoute } from './help.js';
 import { canEditProject } from '../core/access.js';
 
 const ROUTE_KEY = 'tickory.route';
@@ -77,7 +78,7 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r) || isNotesRoute(r))) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r) || isNotesRoute(r) || isHelpRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
@@ -615,6 +616,7 @@ const handlers = {
     else if (choice === 'account') await accountFlow();
     else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
     else if (choice === 'productivity') navigate({ type: 'productivity' });
+    else if (choice === 'help') navigate({ type: 'help' });
     else if (choice === 'places') await placesDialog({ store, actions, bridge });
     else if (choice === 'export') await exportDialog({ store, bridge, attachments });
     else if (choice === 'import') announceImport(await importDialog({ store, actions }), navigate);
@@ -901,6 +903,13 @@ function openTaskFromHash() {
     runInvite();
     return;
   }
+  // #help (of #help=herinneringen): de handleiding, ook van de knop Help in de desktop-app
+  const help = helpRouteFromHash(location.hash);
+  if (help) {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    navigate(help);
+    return;
+  }
   // #view=today …: een snelkoppeling onder het app-icoon (Android) of een bladwijzer; #note=new: een nieuwe notitie
   const view = viewFromHash(location.hash);
   if (view || location.hash === '#note=new') {
@@ -1119,6 +1128,7 @@ async function boot() {
   installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route, openNote: (id) => notesUi?.openNote(id) }); // meldingen bij samenwerken (ui/inbox.js)
   notesUi = installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo, api }); // notities (ui/notes.js), onder Meldingen
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
+  installHelp({ navigate, invalidate }); // de handleiding in de app (ui/help.js), via Instellingen › Handleiding of #help
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
     content: $('content'), sidebar: $('sidebar'), actions, selection,

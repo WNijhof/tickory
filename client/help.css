@@ -1,0 +1,81 @@
+/* De handleiding in de app (ui/help.js): de inhoudsopgave met zoeken, en een pagina zoals op de website (zonder schermafbeeldingen). */
+
+.help-index, .help-prose, .help-crumbs, .help-pager, .help-site { max-width: 46rem; }
+.help-intro { color: var(--text-soft); margin: 4px 0 14px; }
+
+.help-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 0 12px; background: var(--bg); }
+.help-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.help-search svg { flex: none; color: var(--text-soft); }
+.help-search-input.field { border: 0; box-shadow: none; padding: 10px 0; min-height: 44px; flex: 1; min-width: 0; background: transparent; }
+.help-search-input.field:focus { outline: none; box-shadow: none; }
+
+.help-group { margin-top: 22px; }
+.help-group-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-soft); margin: 0 0 6px; }
+.help-toc, .help-hit-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.help-toc li + li, .help-hit-list li + li { border-top: 1px solid var(--line); }
+.help-toc-link, .help-hit { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; padding: 10px 14px; color: var(--text); text-decoration: none; min-height: 44px; }
+.help-toc-link:hover, .help-toc-link:focus-visible, .help-hit:hover, .help-hit:focus-visible { background: var(--bg-hover); }
+.help-toc-title { font-weight: 600; }
+.help-toc-text, .help-snippet { grid-column: 1; color: var(--text-soft); font-size: 0.9rem; line-height: 1.4; }
+.help-toc-link svg { grid-column: 2; grid-row: 1 / span 2; color: var(--text-soft); }
+.help-hit { grid-template-columns: 1fr; }
+.help-results .hint { margin: 12px 0 8px; }
+.help-loading { margin-top: 12px; }
+
+.help-crumbs { margin-bottom: 4px; }
+.help-crumbs .link-button { display: inline-flex; align-items: center; gap: 4px; }
+
+/* de tekst van een pagina: de opmaak van de website (website/assets/site.css, .prose), in de kleuren van de app */
+.help-prose { line-height: 1.6; overflow-wrap: anywhere; }
+.help-prose h1 { display: none; } /* de titel staat al bovenaan het scherm */
+.help-prose h2 { font-size: 1.25rem; line-height: 1.25; margin: 36px 0 0; padding-top: 18px; border-top: 1px solid var(--line); }
+.help-prose h3 { font-size: 1.05rem; line-height: 1.3; margin: 24px 0 0; }
+.help-prose p, .help-prose ul, .help-prose ol, .help-prose pre, .help-prose .table-wrap, .help-prose .note, .help-prose dl { margin: 14px 0 0; }
+.help-prose .intro { font-size: 1.08rem; color: var(--text-soft); margin-top: 8px; }
+.help-prose ul, .help-prose ol { padding-left: 24px; }
+.help-prose li + li { margin-top: 6px; }
+.help-prose li > ul, .help-prose li > ol, .help-prose li > p { margin-top: 6px; }
+.help-prose dt { font-weight: 700; margin-top: 12px; }
+.help-prose dd { margin: 4px 0 0; color: var(--text-soft); }
+.help-prose a { color: var(--accent); }
+.help-prose code, .help-prose kbd { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.88em; background: var(--bg-sunk); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+.help-prose kbd { border: 1px solid var(--line-strong); border-bottom-width: 2px; }
+.help-prose pre { background: var(--bg-sunk); border-radius: var(--radius-sm); padding: 12px 14px; overflow-x: auto; }
+.help-prose pre code { background: none; padding: 0; overflow-wrap: normal; }
+.help-prose .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.help-prose table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+.help-prose th, .help-prose td { text-align: left; vertical-align: top; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.help-prose tr:last-child > td { border-bottom: 0; }
+.help-prose th { background: var(--bg-soft); font-weight: 700; }
+.help-prose .note { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; background: var(--bg-soft); }
+.help-prose .note > :first-child { margin-top: 0; }
+.help-prose .note > p + p, .help-prose .note > ul { margin-top: 8px; }
+.help-prose .note-label { display: block; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 4px; }
+.help-prose .note.warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 8%, var(--bg)); }
+.help-prose .note.warn .note-label { color: var(--warn); }
+.help-prose .ui { font-weight: 600; } /* een knop of menu uit de app zelf */
+.help-prose .small { font-size: 0.9rem; color: var(--text-soft); }
+.help-prose .cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.help-prose .cards li { margin: 0; }
+.help-prose .cards a { display: block; height: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; text-decoration: none; color: var(--text); }
+.help-prose .cards a:hover { border-color: var(--accent); background: var(--bg-soft); }
+.help-prose .cards strong { display: block; color: var(--accent); }
+.help-prose .cards span { display: block; color: var(--text-soft); font-size: 0.9rem; margin-top: 2px; }
+.help-prose .widget-demo { display: none; } /* een nagemaakte widget als plaatje: die staat op de website */
+
+.help-pager { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 40px; }
+.help-pager-link { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; text-decoration: none; color: var(--text); min-height: 44px; }
+.help-pager-link:hover, .help-pager-link:focus-visible { border-color: var(--accent); background: var(--bg-soft); }
+.help-pager-link .hint { display: block; font-size: 0.8rem; margin: 0; }
+.help-next { grid-column: 2; text-align: right; }
+.help-site { margin: 18px 0 40px; font-size: 0.9rem; }
+.help-site a { color: var(--text-soft); }
+
+@media (max-width: 760px) {
+  .help-pager { grid-template-columns: 1fr; }
+  .help-next { grid-column: 1; }
+  .help-prose td:first-child { white-space: normal; }
+}
+
+/* in de handleiding voeg je geen taak toe: de balk Taak toevoegen hoort bij de lijsten */
+body[data-route="help"] .quick-add { display: none; }

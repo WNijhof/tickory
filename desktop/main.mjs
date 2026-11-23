@@ -426,7 +426,8 @@ function runMenu(id) {
     case 'zoomIn': return zoom(1);
     case 'zoomOut': return zoom(-1);
     case 'devTools': return focused()?.webContents.toggleDevTools();
-    case 'guide': return shell.openExternal(GUIDE_URL);
+    // de handleiding in de app (Instellingen › Handleiding); zonder server nog de website
+    case 'guide': return settings.server ? showMain('#help') : shell.openExternal(GUIDE_URL);
     case 'changelog': return shell.openExternal(RELEASES_URL);
     case 'checkUpdates': return checkUpdates(true);
     case 'about': return dialog.showMessageBox({ title: t('about'), message: `Tickory ${app.getVersion()}`, detail: settings.server ?? '', icon: icon() });

@@ -44,7 +44,7 @@ ipcRenderer.on('desktop:appearance', (_event, a) => {
 
 // de desktop-app vraagt om een plek in de web-app: alleen een fragment (#view=…, #task=…), nooit een ander adres
 ipcRenderer.on('desktop:navigate', (_event, hash) => {
-  if (typeof hash === 'string' && /^#(?:view=[a-z-]+|task=[A-Za-z0-9_-]{8,40}|quickadd)$/.test(hash)) {
+  if (typeof hash === 'string' && /^#(?:view=[a-z-]+|task=[A-Za-z0-9_-]{8,40}|quickadd|help(?:=[a-z0-9-]{1,60})?)$/.test(hash)) {
     if (location.hash === hash) window.dispatchEvent(new HashChangeEvent('hashchange'));
     else location.hash = hash;
   }
