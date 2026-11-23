@@ -1140,7 +1140,7 @@ body[data-hide-nav~="notes"] [data-fk="nav-notes"], body[data-hide-nav~="notes"]
 
 /* ---------- het losse venster Taak toevoegen van de desktop-app (core/desktop.js) ---------- */
 /* Alleen het venster zelf: de rest van de app staat er wel (voor de gegevens), maar niet in beeld. */
-body.desktop-quickadd > :not(dialog) { display: none !important; }
+body.desktop-quickadd > :not(dialog):not(#toasts) { display: none !important; } /* meldingen (een fout bij toevoegen) blijven zichtbaar */
 /* het venster zelf is doorzichtig (zoals bij Todoist): alleen de kaart is te zien, met een schaduw */
 html:has(body.desktop-quickadd), body.desktop-quickadd { background: transparent !important; }
 body.desktop-quickadd dialog::backdrop { background: transparent; }

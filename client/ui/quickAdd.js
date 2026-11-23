@@ -142,7 +142,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     const dayTime = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(context.due ?? '') ? context.due : null;
     const day = dayTime ? dayTime.slice(0, 10) : null;
     const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : dayTime ? { date: dayTime } : null);
-    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition });
+    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), defaultLabels: Array.isArray(context.labelIds) ? context.labelIds : [], canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);

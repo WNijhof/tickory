@@ -274,7 +274,8 @@ function quickContext() {
 function showWhereAdded(id) {
   const check = () => {
     const task = store.view.tasks.get(id);
-    if (!task || document.querySelector(`#content [data-id="${CSS.escape(id)}"]`)) return;
+    // in een lijst heet het data-id, in de kalender en de tijdlijn data-task-id
+    if (!task || document.querySelector(`#content [data-id="${CSS.escape(id)}"], #content [data-task-id="${CSS.escape(id)}"]`)) return;
     const where = store.view.projects.get(task.project_id)?.name ?? t('bottomNav.inbox');
     toast(t('quick.addedTo', { where }), { action: { label: t('quick.showTask'), run: () => openTaskById(id) } });
   };
@@ -370,10 +371,16 @@ const handlers = {
     return openTaskDialog({ task, store, actions, today: todayString, toggle: handlers.toggle, onUndoable: undoToast, saveTemplate: (x) => templatesUi().saveTask(x) });
   },
 
-  /** Het venster "Taak toevoegen"; `target` zegt waar de taak standaard komt (project, sectie, of vandaag), anders het huidige scherm. */
-  quickAdd(target = null) {
-    const context = target ?? (ui.route.type === 'project' ? { projectId: ui.route.id } : ui.route.type === 'today' ? { due: 'today' } : {});
-    return openQuickAddDialog({ store, actions, context, onTemplate: (where) => handlers.tasksFromTemplate(where) });
+  /**
+   * Het venster "Taak toevoegen"; `target` zegt waar de taak standaard komt (project, sectie, of vandaag), anders het huidige scherm
+   * (bij een label krijgt de taak dat label, net als in de balk). Staat de nieuwe taak daarna niet in de lijst die je ziet, dan zegt
+   * een melding waar ze is. `template: false` laat de knop Sjabloon weg (het losse venster van de desktop-app).
+   */
+  async quickAdd(target = null, { template = true } = {}) {
+    const context = target ?? (ui.route.type === 'project' ? { projectId: ui.route.id } : ui.route.type === 'today' ? { due: 'today' } : ui.route.type === 'label' ? { labelIds: [ui.route.id] } : {});
+    const id = await openQuickAddDialog({ store, actions, context, onTemplate: template ? (where) => handlers.tasksFromTemplate(where) : null });
+    if (typeof id === 'string' && !desktopQuickAdd) showWhereAdded(id);
+    return id;
   },
 
   /** Sjablonen: een project uit een sjabloon, taken uit een sjabloon in een project, en een project of taak als sjabloon bewaren. */
@@ -645,10 +652,13 @@ function installDesktopQuickAdd() {
   let open = false;
   // het verzoek blijft in de brug staan tot de app klaar is (ingelogd, gegevens er): dan pas het venster openen
   const tryShow = async () => {
-    if (open || !store.me || document.querySelector('dialog[open]') || !desktop.takeQuickAddRequest()) return;
+    if (!store.me) return; // het verzoek blijft staan tot je bent ingelogd
+    // staat het venster al open, dan is het verzoek daarmee beantwoord (anders opent het later onverwacht een tweede venster)
+    if (open || document.querySelector('dialog[open]')) { desktop.takeQuickAddRequest(); return; }
+    if (!desktop.takeQuickAddRequest()) return;
     open = true;
     try {
-      await handlers.quickAdd({});
+      await handlers.quickAdd({}, { template: false }); // een sjabloon opent een venster in de web-app; dit kleine venster gaat na afloop dicht
     } finally {
       open = false;
       desktop.closeQuickAdd();
@@ -1085,6 +1095,7 @@ async function boot() {
     watchBadge({ store, bridge: desktop, today: todayString }); // en zet de stip op de taakbalk
   }
   if (desktopQuickAdd) installDesktopQuickAdd();
+  desktop.onSyncRequest(() => sync.requestSync(0)); // Voltooien of Uitstellen in een melding van Windows: meteen bijwerken
   window.addEventListener('online', () => {
     attachments.process();
     events.restart();

@@ -54,6 +54,18 @@ test('de badge: open taken van vandaag en te laat, alleen opnieuw als het aantal
   assert.equal(typeof watchBadge({ store, bridge: { available: false } }), 'function', 'zonder app: niets');
 });
 
+test('de badge: na middernacht telt een taak van morgen mee, ook als er in de store niets verandert', async () => {
+  const tasks = new Map([['a', { due: { date: '2026-11-21' } }]]);
+  const store = { ready: true, me: { id: 'u' }, view: { tasks }, subscribe: () => () => {} };
+  let day = '2026-11-20';
+  const sent = [];
+  const stop = watchBadge({ store, bridge: { available: true, setBadge: (n) => sent.push(n) }, today: () => day, every: 5 });
+  day = '2026-11-21';
+  await new Promise((r) => setTimeout(r, 40));
+  stop();
+  assert.deepEqual(sent, [0, 1]);
+});
+
 test('spraak: in de desktop-app geen microfoon (Electron heeft geen spraakdienst)', () => {
   assert.equal(voiceSupport({ webkitSpeechRecognition: function x() {} }), 'browser');
   assert.equal(voiceSupport({ webkitSpeechRecognition: function x() {}, TickoryDesktop: {} }), null);

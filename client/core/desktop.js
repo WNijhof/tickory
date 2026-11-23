@@ -25,6 +25,8 @@ export function desktopBridge(host = globalThis.window?.TickoryDesktop) {
     setAppearance: ({ theme, accent }, initial = false) => call('setAppearance', { theme, accent }, initial),
     /** Het thema is elders gekozen (de eigen Instellingen van de desktop-app of een ander venster). */
     onAppearance: (callback) => call('onAppearance', callback),
+    /** De desktop-app heeft zelf iets gewijzigd (Voltooien of Uitstellen in een melding van Windows): nu synchroniseren. */
+    onSyncRequest: (callback) => call('onSyncRequest', callback),
   };
 }
 
@@ -42,10 +44,11 @@ export function todayCount(view, today) {
 }
 
 /**
- * Houdt de badge bij: na elke wijziging in de store het aantal voor vandaag, alleen als het veranderde.
+ * Houdt de badge bij: na elke wijziging in de store het aantal voor vandaag, alleen als het veranderde. Ook elke minuut, want na
+ * middernacht wordt een taak van morgen een taak van vandaag zonder dat er iets in de store verandert.
  * @returns {() => void} stoppen
  */
-export function watchBadge({ store, bridge, today }) {
+export function watchBadge({ store, bridge, today, every = 60_000 }) {
   if (!bridge.available) return () => {};
   let last = -1;
   const update = () => {
@@ -54,5 +57,11 @@ export function watchBadge({ store, bridge, today }) {
     if (n !== last) { last = n; bridge.setBadge(n); }
   };
   update();
-  return store.subscribe(update);
+  const unsubscribe = store.subscribe(update);
+  const timer = every > 0 ? setInterval(update, every) : null;
+  timer?.unref?.(); // in node (de tests) houdt de klok het proces niet open
+  return () => {
+    unsubscribe?.();
+    if (timer) clearInterval(timer);
+  };
 }

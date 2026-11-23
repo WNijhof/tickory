@@ -35,6 +35,8 @@ test('een plek uit het adres: alleen de vaste namen', () => {
   assert.equal(viewFromHash('#view=today'), 'today');
   assert.equal(viewFromHash('#view=notes'), 'notes');
   assert.equal(viewFromHash('#view=productivity'), 'productivity');
+  assert.equal(viewFromHash('#view=completed'), 'completed'); // Voltooid in het systeemvak van de desktop-app
+  assert.deepEqual(startRoute('completed'), { type: 'completed' });
   for (const bad of ['', null, '#view=', '#view=last', '#view=today&x', '#task=abc', '#view=TODAY']) assert.equal(viewFromHash(bad), null, String(bad));
 });
 
