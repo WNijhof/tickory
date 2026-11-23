@@ -1,0 +1,4 @@
+- Settings arranged like Todoist: General, Personalization, Productivity, More. Reminders: choose the automatic reminder and snooze.
+- A guide inside the app: Settings › Guide.
+- Reminders in plain language: "tomorrow 14:00 remind me 10 minutes before".
+- Choose how long messages at the bottom stay.

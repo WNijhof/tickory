@@ -1,0 +1,4 @@
+- Instellingen ingedeeld zoals Todoist. Herinneringen: kies de automatische herinnering en uitstellen.
+- Een handleiding in de app: Instellingen › Handleiding.
+- Herinneringen in gewone taal: "morgen 14:00 met herinnering 10 minuten vooraf".
+- Kies hoe lang meldingen onderin blijven staan.
