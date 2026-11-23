@@ -69,4 +69,12 @@ object QuickAddSync {
         }
         return if (sent) Outcome.SENT else Outcome.NOTHING
     }
+
+    /** Staat er na deze ronde nog iets te versturen onder deze aanmelding (meer dan [QuickAddQueue.PER_RUN] tegelijk geplakt)? */
+    fun hasMore(context: Context, token: String): Boolean {
+        val app = context.applicationContext
+        if (WidgetStore.isUnverified(app)) return false
+        val account = WidgetStore.snapshot(app)?.accountId
+        return QuickAddQueue.sendable(QuickAddStore.queue(app), account, QuickAddQueue.sessionTag(token)).isNotEmpty()
+    }
 }

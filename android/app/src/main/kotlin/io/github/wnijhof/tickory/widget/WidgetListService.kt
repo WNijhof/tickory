@@ -83,14 +83,15 @@ class WidgetListService : RemoteViewsService() {
             views.setTextViewText(R.id.header_label, if (row.overdue) context.getString(R.string.widget_overdue_header) else row.text)
             views.setTextColor(R.id.header_label, look.text)
             views.setTextViewTextSize(R.id.header_label, TypedValue.COMPLEX_UNIT_SP, scaled(if (options.compact) 13f else 14f))
-            if (options.compact) {
-                // compact: ook de koppen lager, met minder ruimte erboven
-                val res = context.resources
-                val min = res.getDimensionPixelSize(R.dimen.widget_header_compact)
-                views.setViewPadding(R.id.header_root, res.getDimensionPixelSize(R.dimen.widget_header_start), res.getDimensionPixelSize(R.dimen.widget_header_top_compact), res.getDimensionPixelSize(R.dimen.widget_header_end), 0)
-                views.setInt(R.id.header_label, "setMinHeight", min)
-                views.setInt(R.id.header_button, "setMinHeight", min)
-            }
+            // compact: ook de koppen lager, met minder ruimte erboven. Beide kanten altijd zetten: de launcher hergebruikt een
+            // kop, en na terugschakelen naar Standaard bleef hij anders samengedrukt
+            val res = context.resources
+            val labelMin = res.getDimensionPixelSize(if (options.compact) R.dimen.widget_header_compact else R.dimen.widget_header_min)
+            val buttonMin = if (options.compact) labelMin else (40 * res.displayMetrics.density).toInt() // 40dp, zoals in de layout
+            val top = res.getDimensionPixelSize(if (options.compact) R.dimen.widget_header_top_compact else R.dimen.widget_header_top)
+            views.setViewPadding(R.id.header_root, res.getDimensionPixelSize(R.dimen.widget_header_start), top, res.getDimensionPixelSize(R.dimen.widget_header_end), 0)
+            views.setInt(R.id.header_label, "setMinHeight", labelMin)
+            views.setInt(R.id.header_button, "setMinHeight", buttonMin)
             views.setViewVisibility(R.id.header_button, if (row.overdue) View.VISIBLE else View.GONE)
             if (row.overdue) {
                 views.setTextViewText(R.id.header_button, context.getString(R.string.widget_reschedule))

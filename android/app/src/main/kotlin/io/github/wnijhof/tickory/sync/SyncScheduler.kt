@@ -23,6 +23,7 @@ object SyncScheduler {
     private const val PERIODIC = "tickory-sync-periodic"
     private const val NOW = "tickory-sync-now"
     private const val LATER = "tickory-sync-later"
+    private const val MORE = "tickory-sync-more"
 
     /** Kort na een wijziging nog een keer kijken, voor het geval de web-app zijn wijziging nog aan het versturen was. */
     private const val FOLLOW_UP_SECONDS = 30L
@@ -55,6 +56,17 @@ object SyncScheduler {
         }
     }
 
+    /**
+     * Nog een ronde over een halve minuut, omdat er meer in de wachtrij staat dan in één ronde past (een geplakte lijst van
+     * 100 taken). Zo komt de rest binnen enkele minuten, en blijft het onder de grens van de server (60 per minuut).
+     * Een verzoek dat al wacht, blijft staan.
+     */
+    fun more(context: Context) {
+        guarded {
+            WorkManager.getInstance(context).enqueueUniqueWork(MORE, ExistingWorkPolicy.KEEP, oneTime(FOLLOW_UP_SECONDS))
+        }
+    }
+
     /** Stopt al het verversen (afmelden, sessie verlopen, andere server). */
     fun stop(context: Context) {
         guarded {
@@ -62,6 +74,7 @@ object SyncScheduler {
             manager.cancelUniqueWork(PERIODIC)
             manager.cancelUniqueWork(NOW)
             manager.cancelUniqueWork(LATER)
+            manager.cancelUniqueWork(MORE)
         }
     }
 

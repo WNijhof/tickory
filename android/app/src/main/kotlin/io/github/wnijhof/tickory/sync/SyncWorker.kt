@@ -70,7 +70,10 @@ class SyncWorker(context: Context, params: WorkerParameters) : Worker(context, p
                 ReminderEngine.replan(app)
                 return Result.success()
             }
-            QuickAddSync.Outcome.SENT -> fetched = null // er is iets veranderd op de server: opnieuw ophalen
+            QuickAddSync.Outcome.SENT -> {
+                fetched = null // er is iets veranderd op de server: opnieuw ophalen
+                if (QuickAddSync.hasMore(app, token)) SyncScheduler.more(app) // de rest van een lange lijst over een halve minuut
+            }
             QuickAddSync.Outcome.NOTHING -> when {
                 completed == WidgetSync.Outcome.SENT -> fetched = null
                 fetched is FetchResult.Ok -> {
