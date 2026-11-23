@@ -1271,7 +1271,8 @@ if (wants('browser')) {
         await waitFor(`document.querySelectorAll('.task').length === ${before - 1}`, 'taak verdwenen na afvinken');
         await toastSeen('Taak voltooid');
         assert.equal((await titles()).length, before - 1);
-        await evaluate(`document.querySelector('.toast-action').click()`);
+        // de knop van deze melding: "Toegevoegd aan Huishouden · Taak tonen" van het toevoegen kan er nog boven staan
+        await evaluate(`[...document.querySelectorAll('.toast')].find((x) => x.textContent.includes('Taak voltooid')).querySelector('.toast-action').click()`);
         await waitFor(`document.querySelectorAll('.task').length === ${before}`, 'taak terug na ongedaan maken');
 
         const stofzuigen = await chips('Stofzuigen');
