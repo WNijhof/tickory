@@ -8,14 +8,15 @@ description: Je account in Tickory: je wachtwoord wijzigen, zien op welke appara
 <x-shot name="account" alt="Het venster Account van Anna, beheerder. Onder Aangemelde apparaten staan drie apparaten; het eerste heeft het label 'dit apparaat', de andere twee een knop Afmelden. Daaronder Wachtwoord wijzigen en de knoppen Afmelden, Gebruikersbeheer en Sluiten.">Het accountvenster. De knop Gebruikersbeheer staat er alleen bij beheerders.</x-shot>
 
 <h2>Instellingen</h2>
-<x-shot name="instellingen" alt="Het menu Instellingen met vijf keuzes: Account, wachtwoord en apparaten; Herinneringen en meldingen; Nu bijwerken; Taal / Language; en Afmelden en lokale gegevens wissen."></x-shot>
-<p>Achter je naam onderaan de zijbalk zitten vijf keuzes:</p>
+<x-shot name="instellingen" alt="Het menu Instellingen: bovenaan je naam, dan Algemeen en Account, en de groepen Personalisatie, Productiviteit en Meer."></x-shot>
+<p>Achter je naam onderaan de zijbalk zitten de instellingen, ingedeeld zoals bij Todoist. Op een computer staan de onderdelen links en het gekozen onderdeel rechts; op een telefoon is het een lijst.</p>
 <ul>
+  <li><x-ui k="settings.general"></x-ui>: startpagina, begin van de week, volgende week en weekend, de klok, datums herkennen, vegen, subtaken resetten en geluid; zie <a href="algemeen.html">Algemene instellingen</a>.</li>
   <li><x-ui k="settings.account"></x-ui>: het venster op deze pagina.</li>
-  <li><x-ui k="settings.notifications"></x-ui>: de automatische herinnering, de tijdzone en meldingen op dit apparaat; zie <a href="herinneringen.html">Herinneringen</a>.</li>
-  <li><x-ui k="settings.syncNow"></x-ui>: haalt meteen de laatste stand van de server en verstuurt wat nog wachtte.</li>
-  <li><x-ui k="settings.language"></x-ui>: de taal van de app, zie hieronder.</li>
-  <li><x-ui k="settings.signOut"></x-ui>: zie <a href="inloggen.html#afmelden">afmelden</a>.</li>
+  <li><x-ui k="settings.desktop"></x-ui> (alleen in de <a href="desktop-app.html">desktop-app</a>): sneltoetsen, opstarten met Windows, het systeemvak en de server.</li>
+  <li><strong><x-ui k="settings.groupPersonal"></x-ui>:</strong> <x-ui k="settings.appearance"></x-ui> (thema en accentkleur), <x-ui k="settings.sidebarMenu"></x-ui> (wat er in de zijbalk staat) en <x-ui k="settings.bottomBar"></x-ui> (de knoppen onderaan op een telefoon).</li>
+  <li><strong><x-ui k="settings.groupProductivity"></x-ui>:</strong> <x-ui k="settings.productivity"></x-ui>; <x-ui k="settings.reminders"></x-ui> (de automatische herinnering, uitstellen, de tijdzone en meldingen op dit apparaat, zie <a href="herinneringen.html">Herinneringen</a>); <x-ui k="settings.notify"></x-ui> (ochtendoverzicht, avondreview, doelen vieren en meldingen bij samenwerken, zie <a href="meldingen.html">Meldingen</a>); <x-ui k="settings.places"></x-ui>.</li>
+  <li><strong><x-ui k="settings.groupMore"></x-ui>:</strong> <x-ui k="settings.language"></x-ui> (zie hieronder), <x-ui k="settings.templates"></x-ui>, importeren en exporteren, <x-ui k="settings.help"></x-ui>, <x-ui k="settings.whatsNew"></x-ui>, <x-ui k="settings.syncNow"></x-ui> (haalt meteen de laatste stand van de server en verstuurt wat nog wachtte) en <x-ui k="settings.signOut"></x-ui> (zie <a href="inloggen.html#afmelden">afmelden</a>).</li>
 </ul>
 
 <h2>Aangemelde apparaten</h2>

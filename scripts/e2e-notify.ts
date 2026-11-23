@@ -113,7 +113,7 @@ export async function notifyScenario(c: any) {
   // ---- welke soorten als pushmelding ----
   await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
-  await clickText('Herinneringen en meldingen');
+  await clickText('Meldingen', `document.querySelector('dialog[open]')`); // Instellingen › Meldingen (zoals Todoist)
   await waitFor(`document.querySelector('dialog[open] [data-role="push-kinds"]')`, 'het stuk Meldingen bij samenwerken');
   const boxes = () => evaluate<[string, boolean][]>(`[...document.querySelectorAll('dialog[open] [data-role="push-kinds"] label')].map((l) => [l.textContent, l.querySelector('input').checked])`);
   assert.deepEqual(await boxes(), [['Een taak aan mij toegewezen', true], ['Opmerkingen bij mijn taken en projecten', true], ['Iemand noemt mij (@)', true], ['Mijn taak is afgevinkt', false], ['Toegevoegd aan een project', true]], 'standaard alles aan behalve afgevinkt');

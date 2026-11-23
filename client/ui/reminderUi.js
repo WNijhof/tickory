@@ -1,6 +1,7 @@
 // Schermen voor herinneringen: het stuk in het taakvenster, en het scherm "Herinneringen en meldingen" in de instellingen.
 
 import { hasTime } from '../../shared/reminders.js';
+import { SNOOZE_MINUTES, generalOf } from '../../shared/general.js';
 import { androidBridge } from '../core/android.js';
 import { formatDateTimeLocal } from '../core/format.js';
 import { t } from '../core/i18n.js';
@@ -10,6 +11,7 @@ import { mySettings, placeList, remindersOf } from '../core/selectors.js';
 import { h, openDialog, replace } from './dom.js';
 import { placesDialog } from './placesUi.js';
 import { pushKindsSection } from './inboxSettings.js';
+import { SNOOZE_LABEL } from './generalDialog.js';
 
 const CUSTOM = 'custom';
 const PLACE = 'place';
@@ -151,7 +153,16 @@ export function pushErrorText(err) {
  * @param {{ store: object, actions: object, bridge: ReturnType<typeof import('../core/android.js').androidBridge>,
  *           pushClient: ReturnType<typeof import('../core/push.js').createPushClient> }} options
  */
-export function notificationsDialog({ store, actions, bridge, pushClient }) {
+/**
+ * Zoals Todoist het indeelt: 'reminders' (Herinneringen: de automatische herinnering, uitstellen, de tijdzone en meldingen op dit
+ * apparaat), 'notifications' (Meldingen: ochtendoverzicht, avondreview, doelen vieren en meldingen bij samenwerken), of 'all'.
+ * Alles hier werkt meteen, zonder Bewaren.
+ * @typedef {'all' | 'reminders' | 'notifications'} NotifyPart
+ */
+export function notificationsDialog({ store, actions, bridge, pushClient, part = 'all' }) {
+  const show = (...parts) => part === 'all' || parts.includes(part);
+  const general = () => generalOf(mySettings(store.view, store.userId));
+  const saveGeneral = (changes) => actions.updateSettings({ general: { ...general(), ...changes } });
   let unsubscribe = () => {};
   let onAndroid = () => {};
   let kinds = null; // meldingen bij samenwerken: welke soorten als melding (ui/inboxSettings.js)
@@ -167,6 +178,26 @@ export function notificationsDialog({ store, actions, bridge, pushClient }) {
       h('option', { value: '-1' }, t('notify.autoNone')),
       presetOptions().map((o) => h('option', { value: String(o.minutes) }, o.label)));
     auto.addEventListener('change', () => actions.updateSettings({ auto_reminder: Number(auto.value) }));
+
+    // --- uitstellen (de knop in een melding) ---
+    const snooze = h('select', { class: 'field', 'aria-label': t('general.snooze'), dataset: { fk: 'notify-snooze' } },
+      SNOOZE_MINUTES.map((m) => h('option', { value: String(m) }, SNOOZE_LABEL[m]())));
+    snooze.addEventListener('change', () => saveGeneral({ snooze_minutes: Number(snooze.value) }));
+
+    // --- ochtendoverzicht en avondreview (een vinkje en een tijd) en doelen vieren ---
+    const overview = (key, fallback, label) => {
+      const on = h('input', { type: 'checkbox', dataset: { fk: `notify-${key}-on` } });
+      const time = h('input', { type: 'time', class: 'field', 'aria-label': label, dataset: { fk: `notify-${key}-time` } });
+      const save = () => saveGeneral({ [key]: on.checked && time.value ? time.value : null });
+      on.addEventListener('change', () => { if (on.checked && !time.value) time.value = fallback; save(); });
+      time.addEventListener('change', () => { if (on.checked) save(); });
+      const draw = (value) => { on.checked = value !== null; if (document.activeElement !== time) time.value = value ?? fallback; };
+      return { draw, row: h('div', { class: 'check-row general-overview' }, h('label', { class: 'check-row' }, on, label), time) };
+    };
+    const morning = overview('morning_overview', '08:00', t('general.morning'));
+    const evening = overview('evening_review', '18:00', t('general.evening'));
+    const celebrate = h('input', { type: 'checkbox', dataset: { fk: 'notify-celebrate' } });
+    celebrate.addEventListener('change', () => saveGeneral({ goal_celebrations: celebrate.checked }));
 
     // --- tijdzone ---
     const zoneText = h('p', { class: 'hint' });
@@ -272,6 +303,11 @@ export function notificationsDialog({ store, actions, bridge, pushClient }) {
     const draw = () => {
       const settings = mySettings(store.view, store.userId);
       auto.value = String(settings.auto_reminder);
+      const g = general();
+      snooze.value = String(g.snooze_minutes);
+      morning.draw(g.morning_overview);
+      evening.draw(g.evening_review);
+      celebrate.checked = g.goal_celebrations;
       const zone = settings.timezone;
       zoneText.textContent = zone ? t('notify.zoneNow', { zone }) : t('notify.zoneUnset');
       zoneButton.textContent = t('notify.zoneUse', { zone: deviceZone() });
@@ -282,14 +318,20 @@ export function notificationsDialog({ store, actions, bridge, pushClient }) {
     onAndroid = () => drawDevice();
     window.addEventListener('tickory-android-status', onAndroid);
     queueMicrotask(() => { drawDevice().then(loadDevices); });
-    kinds = pushKindsSection({ store, actions });
+    kinds = show('notifications') ? pushKindsSection({ store, actions }) : null;
+    const section = (title, ...body) => h('details', { class: 'section', open: true }, h('summary', {}, title), h('div', { class: 'section-form' }, body));
 
     return h('div', { class: 'dialog-form' },
-      h('h2', {}, t('notify.title')),
-      h('details', { class: 'section', open: true }, h('summary', {}, t('notify.autoTitle')), h('div', { class: 'section-form' }, h('p', { class: 'hint' }, t('notify.autoHint')), auto)),
-      h('details', { class: 'section', open: true }, h('summary', {}, t('notify.zoneTitle')), h('div', { class: 'section-form' }, zoneText, zoneButton)),
-      h('details', { class: 'section', open: true }, h('summary', {}, t('notify.deviceTitle')), device),
-      kinds.node,
+      h('h2', {}, part === 'reminders' ? t('settings.reminders') : part === 'notifications' ? t('settings.notify') : t('notify.title')),
+      show('reminders') && [
+        section(t('notify.autoTitle'), h('p', { class: 'hint' }, t('notify.autoHint')), auto),
+        part === 'reminders' && section(t('general.snooze'), h('p', { class: 'hint' }, t('general.snoozeHint')), snooze),
+        section(t('notify.zoneTitle'), zoneText, zoneButton),
+        h('details', { class: 'section notify-device', open: true }, h('summary', {}, t('notify.deviceTitle')), device)],
+      part === 'notifications' && [
+        section(t('general.overview'), morning.row, evening.row, h('p', { class: 'hint' }, t('general.overviewHint'))),
+        section(t('settings.celebrate'), h('label', { class: 'check-row' }, celebrate, t('productivity.celebrateOn')))],
+      kinds?.node,
       message,
       h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.close'))));
   }, { wide: true, onClose: () => { unsubscribe(); kinds?.dispose(); window.removeEventListener('tickory-android-status', onAndroid); } });

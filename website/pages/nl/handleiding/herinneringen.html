@@ -42,7 +42,7 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 <h2 id="de-automatische-herinnering">De automatische herinnering</h2>
 <p>Voeg je een taak met een tijd toe en geef je zelf geen herinnering op, dan krijgt ze er vanzelf één: standaard 30 minuten vooraf. Dat geldt ook als je een bestaande taak voor het eerst een tijd geeft en je er nog geen herinnering bij had.</p>
 <ol>
-  <li>Klik onderaan de zijbalk op je naam (<x-ui k="settings.title"></x-ui>) en kies <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Klik onderaan de zijbalk op je naam (<x-ui k="settings.title"></x-ui>) en kies <x-ui k="settings.reminders"></x-ui>.</li>
   <li>Kies bij <x-ui k="notify.autoTitle"></x-ui> een keuze uit de lijst: op het tijdstip van de taak, 10 minuten tot 3 dagen vooraf, of <x-ui k="notify.autoNone"></x-ui>.</li>
 </ol>
 <x-shot name="meldingen" alt="Het scherm Herinneringen en meldingen: de automatische herinnering (30 minuten vooraf, een keuzelijst) en de tijdzone (Europe/Amsterdam).">De instellingen voor herinneringen. Onder “Meldingen op dit apparaat” staat wat voor dit apparaat nog moet gebeuren; zie hieronder.</x-shot>
@@ -101,7 +101,7 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 <p>Een tijd bij een taak is een <em>kloktijd</em>: “9 uur” is 9 uur op de plek waar je bent. Meldingen die de server verstuurt, rekent hij om met de tijdzone uit je instellingen.</p>
 <ul>
   <li>De app legt de tijdzone van je apparaat zelf vast zodra je hem de eerste keer opent en er nog geen is ingesteld.</li>
-  <li>In <x-ui k="settings.notifications"></x-ui> staat bij <x-ui k="notify.zoneTitle"></x-ui> welke tijdzone geldt. Wijkt je apparaat daar vanaf (je bent verhuisd of op reis), dan staat er een knop om de tijdzone van dit apparaat te gebruiken.</li>
+  <li>In <x-ui k="settings.reminders"></x-ui> staat bij <x-ui k="notify.zoneTitle"></x-ui> welke tijdzone geldt. Wijkt je apparaat daar vanaf (je bent verhuisd of op reis), dan staat er een knop om de tijdzone van dit apparaat te gebruiken.</li>
   <li>Heeft een gebruiker nog geen tijdzone, dan gebruikt de server de standaardtijdzone (<code>DEFAULT_TIMEZONE</code>, zie <a href="#voor-beheerders">voor beheerders</a>).</li>
   <li>De Android-app plant herinneringen op de klok van het toestel zelf.</li>
 </ul>
@@ -127,7 +127,7 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
   <li>Een browser met pushmeldingen. Op een <strong>iPhone of iPad</strong> werkt het alleen als je Tickory eerst <a href="installeren-als-app.html">op het beginscherm zet</a> en de app van daaruit opent.</li>
 </ul>
 <ol>
-  <li>Open <x-ui k="settings.title"></x-ui> en kies <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Open <x-ui k="settings.title"></x-ui> en kies <x-ui k="settings.reminders"></x-ui>.</li>
   <li>Kies onder <x-ui k="notify.deviceTitle"></x-ui> voor <x-ui k="notify.enable"></x-ui>. Je browser vraagt om toestemming; sta die toe.</li>
   <li>Kies <x-ui k="notify.test"></x-ui>. Komt er een melding, dan werkt het. Zo niet, dan staat er in het scherm wat er mis ging.</li>
 </ol>
@@ -147,7 +147,7 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 </div>
 
 <h3 id="meldingen-in-de-android-app">In de Android-app</h3>
-<p>De <a href="android-app.html">Android-app</a> haalt je herinneringen bij je server op en zet ze als alarmen op de telefoon zelf. Daardoor gaan ze ook af als je telefoon geen internet heeft. De app heeft geen pushdienst nodig, dus ook geen HTTPS voor de meldingen. Wat er nog moet worden toegestaan, staat in <x-ui k="settings.notifications"></x-ui>, onder <x-ui k="notify.deviceTitle"></x-ui>.</p>
+<p>De <a href="android-app.html">Android-app</a> haalt je herinneringen bij je server op en zet ze als alarmen op de telefoon zelf. Daardoor gaan ze ook af als je telefoon geen internet heeft. De app heeft geen pushdienst nodig, dus ook geen HTTPS voor de meldingen. Wat er nog moet worden toegestaan, staat in <x-ui k="settings.reminders"></x-ui>, onder <x-ui k="notify.deviceTitle"></x-ui>.</p>
 
 <h3>Hoe laat is te laat</h3>
 <p>De server kijkt elke 20 seconden welke herinneringen aan de beurt zijn, dus een melding komt binnen ongeveer een halve minuut na het moment. Was de server even uit, of kon een melding niet worden bezorgd, dan wordt ze alsnog verstuurd zolang het hooguit <strong>een uur</strong> te laat is; wat ouder is, vervalt. Dezelfde herinnering op hetzelfde moment komt maar één keer. De Android-app toont wat hooguit een uur te laat is op dezelfde manier.</p>

@@ -8,14 +8,15 @@ description: Your account in Tickory: changing your password, seeing which devic
 <x-shot name="account" alt="The Account window of Anna, admin. Under Signed-in devices there are three devices; the first is marked 'this device', the other two have a Sign out button. Below that Change password and the buttons Sign out, User management and Close.">The account window. The button User management is only there for administrators.</x-shot>
 
 <h2>Settings</h2>
-<x-shot name="instellingen" alt="The Settings menu with five choices: Account, password and devices; Reminders and notifications; Sync now; Taal / Language; and Sign out and clear local data."></x-shot>
-<p>Behind your name at the bottom of the sidebar there are five choices:</p>
+<x-shot name="instellingen" alt="The Settings menu: your name at the top, then General and Account, and the groups Personalization, Productivity and More."></x-shot>
+<p>Behind your name at the bottom of the sidebar are the settings, arranged like Todoist's. On a computer the sections are on the left and the chosen section on the right; on a phone it is a list.</p>
 <ul>
+  <li><x-ui k="settings.general"></x-ui>: start page, start of the week, next week and weekend, the clock, date recognition, swipe actions, resetting subtasks and sound; see <a href="general-settings.html">General settings</a>.</li>
   <li><x-ui k="settings.account"></x-ui>: the window on this page.</li>
-  <li><x-ui k="settings.notifications"></x-ui>: the automatic reminder, the time zone and notifications on this device; see <a href="reminders.html">Reminders</a>.</li>
-  <li><x-ui k="settings.syncNow"></x-ui>: fetches the latest state from the server right away and sends what was still waiting.</li>
-  <li><x-ui k="settings.language"></x-ui>: the language of the app, see below.</li>
-  <li><x-ui k="settings.signOut"></x-ui>: see <a href="signing-in.html#signing-out">signing out</a>.</li>
+  <li><x-ui k="settings.desktop"></x-ui> (only in the <a href="desktop-app.html">desktop app</a>): shortcuts, starting with Windows, the tray and the server.</li>
+  <li><strong><x-ui k="settings.groupPersonal"></x-ui>:</strong> <x-ui k="settings.appearance"></x-ui> (theme and accent colour), <x-ui k="settings.sidebarMenu"></x-ui> (what is in the sidebar) and <x-ui k="settings.bottomBar"></x-ui> (the buttons at the bottom on a phone).</li>
+  <li><strong><x-ui k="settings.groupProductivity"></x-ui>:</strong> <x-ui k="settings.productivity"></x-ui>; <x-ui k="settings.reminders"></x-ui> (the automatic reminder, snoozing, the time zone and notifications on this device, see <a href="reminders.html">Reminders</a>); <x-ui k="settings.notify"></x-ui> (morning overview, evening review, goal celebrations and notifications about collaboration, see <a href="notifications.html">Notifications</a>); <x-ui k="settings.places"></x-ui>.</li>
+  <li><strong><x-ui k="settings.groupMore"></x-ui>:</strong> <x-ui k="settings.language"></x-ui> (see below), <x-ui k="settings.templates"></x-ui>, import and export, <x-ui k="settings.help"></x-ui>, <x-ui k="settings.whatsNew"></x-ui>, <x-ui k="settings.syncNow"></x-ui> (fetches the latest state from the server right away and sends what was still waiting) and <x-ui k="settings.signOut"></x-ui> (see <a href="signing-in.html#signing-out">signing out</a>).</li>
 </ul>
 
 <h2>Signed-in devices</h2>

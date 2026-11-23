@@ -40,6 +40,7 @@ import { deleteScenario } from './e2e-delete.ts';
 import { rolesScenario } from './e2e-roles.ts';
 import { productivityScenario } from './e2e-productivity.ts';
 import { helpScenario } from './e2e-help.ts';
+import { settingsScenario } from './e2e-settings.ts';
 import { listsScenario } from './e2e-lists.ts';
 import { quickScenario } from './e2e-quick.ts';
 import { timelineScenario } from './e2e-timeline.ts';
@@ -253,6 +254,8 @@ let diagnosis: unknown = null;
 try {
   await connect();
   await send('Page.enable');
+  // Instellingen als lijst met losse vensters (zoals op een telefoon); het scherm met twee kolommen test scripts/e2e-settings.ts
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: 'globalThis.__tickorySettingsList = true;' });
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Network.enable');
@@ -488,6 +491,13 @@ try {
   // herhalen met knoppen (scripts/e2e-repeat.ts); met E2E_REPEAT_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_REPEAT_ONLY) {
     try { await repeatScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN HERHALEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-herhalen'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // instellingen op een breed scherm (scripts/e2e-settings.ts); met E2E_SETTINGS_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_SETTINGS_ONLY) {
+    try { await settingsScenario(notifyCtx()); console.log('ALLEEN INSTELLINGEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-instellingen'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -821,7 +831,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Herinneringen en meldingen', 'Productiviteit', 'Weergave', 'Taal / Language', 'Plaatsen', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Nu bijwerken', 'Handleiding', 'Afmelden en lokale gegevens wissen']);
+  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Weergave', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen', 'Taal / Language', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Handleiding', 'Wat is er nieuw', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -996,7 +1006,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Reminders and notifications', 'Productivity', 'Appearance', 'Taal / Language', 'Places', 'Templates', 'Import from Todoist', 'Export data', 'Sync now', 'Guide', 'Sign out and clear local data']);
+  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Appearance', 'Navigation menu', 'Navigation bar', 'Productivity', 'Reminders', 'Notifications', 'Places', 'Taal / Language', 'Templates', 'Import from Todoist', 'Export data', 'Guide', "What's new", 'Sync now', 'Sign out and clear local data']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
@@ -1238,8 +1248,8 @@ try {
   assert.equal(mySettings().timezone, deviceZone, 'de tijdzone van dit apparaat is vanzelf vastgelegd');
   await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
-  await clickText('Herinneringen en meldingen');
-  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm herinneringen en meldingen');
+  await clickText('Herinneringen', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen'`, 'scherm herinneringen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]').value`), '30');
   assert.ok(await evaluate(`document.querySelector('dialog[open]').textContent.includes(${js(deviceZone)})`), 'de tijdzone staat in het scherm');
   await evaluate(`(() => { const s = document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]'); s.value = '10'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
@@ -1295,7 +1305,7 @@ try {
   assert.ok((await calls()).some((c) => c[0] === 'setSession' && String(c[1]).startsWith('tky_')), 'bij het starten krijgt de Android-app het sessietoken');
   await nav('Alice');
   await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
-  await clickText('Herinneringen en meldingen');
+  await clickText('Herinneringen', `document.querySelector('dialog[open]')`);
   await waitFor(`document.querySelector('dialog[open]').textContent.includes('Meldingen zijn uitgeschakeld voor Tickory')`, 'Android-uitleg over meldingen');
   const panel = await evaluate<string>(`document.querySelector('dialog[open]').textContent`);
   assert.ok(panel.includes('Exacte alarmen staan uit') && panel.includes('Batterijbesparing staat aan') && panel.includes('Versie van de app: 0.3.0-test'));
@@ -1665,6 +1675,9 @@ try {
 
   // ---- 8g1c2. de handleiding in de app (scripts/e2e-help.ts) ----
   await helpScenario(notifyCtx());
+
+  // ---- 8g1c3. instellingen op een breed scherm, zoals Todoist (scripts/e2e-settings.ts) ----
+  await settingsScenario(notifyCtx());
 
   // ---- 8g1d. lijst-UX: sorteren en groeperen per lijst (scripts/e2e-lists.ts) ----
   await listsScenario({ ...notifyCtx(), startServer, stopServer });

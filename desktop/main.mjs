@@ -410,7 +410,7 @@ function runMenu(id) {
   if (id.startsWith('nav:')) return showMain(`#view=${id.slice(4)}`);
   if (id.startsWith('task:')) return showMain(`#task=${id.slice(5)}`);
   switch (id) {
-    case 'settings': return openPages('prefs');
+    case 'settings': return openSettings();
     case 'changeServer': return openPages('setup');
     case 'stayInTray': saveSettings({ ...settings, stayInTray: !settings.stayInTray }); return refreshMenus();
     case 'floatOnTop':
@@ -496,6 +496,7 @@ function createTray() {
 
 /** @returns {string[]} de sneltoetsen die niet geregistreerd konden worden (al in gebruik door een andere app) */
 function registerShortcuts() {
+  if (DEV_SHOT) return []; // in de rooktest geen sneltoetsen van Windows bezetten (wie op de pc werkt, merkt er anders iets van)
   globalShortcut.unregisterAll();
   const failed = [];
   const add = (accelerator, fn) => {
@@ -727,7 +728,32 @@ ipcMain.handle('pages:set-server', async (_event, text) => {
   showMain();
   return { ok: true };
 });
-ipcMain.handle('pages:save', (_event, changes) => {
+ipcMain.handle('pages:save', (_event, changes) => savePrefs(changes));
+
+// ---------- Instellingen › Desktop-app in de web-app (zoals Todoist: alles in één instellingenscherm) ----------
+
+/** Heeft de web-app in het hoofdvenster een eigen instellingenscherm met Desktop-app? (Een oudere server niet: dan het eigen venster.) */
+let webSettingsReady = false;
+ipcMain.on('desktop:settings-ready', (event) => { if (event.sender === main?.webContents) webSettingsReady = true; });
+ipcMain.handle('desktop:get-settings', (event) => (fromServer(event) ? {
+  shortcuts: settings.shortcuts, openAtLogin: settings.openAtLogin, startMinimized: settings.startMinimized, stayInTray: settings.stayInTray,
+  server: settings.server, version: app.getVersion(),
+} : null));
+ipcMain.handle('desktop:save-settings', (event, changes) => (fromServer(event) ? savePrefs(changes ?? {}) : { ok: false, error: 'forbidden' }));
+ipcMain.on('desktop:change-server', (event) => { if (fromServer(event)) openPages('setup'); });
+
+/** Instellingen openen: in de web-app (alles bij elkaar, zoals Todoist), of het eigen venster als de server dat nog niet kent. */
+function openSettings() {
+  if (!settings.server || !main || !webSettingsReady) return openPages('prefs');
+  showMain();
+  const target = main;
+  if (target.webContents.isLoading()) target.webContents.once('did-finish-load', () => { if (!target.isDestroyed()) target.webContents.send('desktop:open-settings'); });
+  else target.webContents.send('desktop:open-settings');
+  return undefined;
+}
+
+/** Sneltoetsen, opstarten en het systeemvak bewaren (uit de web-app of het eigen venster). */
+function savePrefs(changes) {
   const sc = changes.shortcuts ?? {};
   // "ctrl+shift+a" mag: in de schrijfwijze van Electron ("Ctrl+Shift+A")
   const quickAddKey = normalizeShortcut(sc.quickAdd ?? '');
@@ -743,10 +769,11 @@ ipcMain.handle('pages:save', (_event, changes) => {
   applyLoginItem();
   refreshMenus();
   return { ok: true };
-});
+}
 ipcMain.on('pages:close', () => pages?.close());
 
 function applyLoginItem() {
+  if (DEV_SHOT) return; // in de rooktest niets aan het opstarten van Windows veranderen
   if (process.platform !== 'win32' && process.platform !== 'darwin') return;
   app.setLoginItemSettings({ openAtLogin: settings.openAtLogin, args: settings.startMinimized ? ['--hidden'] : [] });
 }
@@ -846,6 +873,22 @@ async function smokeShots(dir) {
     writeFileSync(join(dir, 'appearance.json'), JSON.stringify({ pagesOwnedByMain: Boolean(pages && main && pages.getParentWindow() === main), settings: settings.appearance, themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, main: await read(main), quickAdd: await read(quickAdd), pages: await pages?.webContents.executeJavaScript(`({ accent: document.documentElement.dataset.accent, theme: document.getElementById('theme')?.value, bg: getComputedStyle(document.body).backgroundColor })`) }, null, 1));
     if (main) writeFileSync(join(dir, 'main-themed.png'), (await main.webContents.capturePage()).toPNG());
     if (pages) writeFileSync(join(dir, 'prefs-themed.png'), (await pages.webContents.capturePage()).toPNG());
+  }
+  // Bestand › Instellingen: het volledige instellingenscherm van de web-app, met het onderdeel Desktop-app (TICKORY_DESKTOP_SETTINGS=1)
+  if (process.env.TICKORY_DESKTOP_SETTINGS && main) {
+    const js = (code) => main.webContents.executeJavaScript(code);
+    runMenu('settings');
+    await wait(2500);
+    const opened = await js(`({ wide: Boolean(document.querySelector('dialog[open] .settings-wide')), desktopItem: Boolean(document.querySelector('dialog[open] [data-fk="settings:desktop"]')) })`);
+    await js(`document.querySelector('dialog[open] [data-fk="settings:desktop"]')?.click(); true`);
+    await wait(1500);
+    const pane = await js(`({ title: document.querySelector('dialog[open] .settings-pane h2')?.textContent ?? null, quickAdd: document.querySelector('[data-fk="desktop-sc-quickadd"]')?.value ?? null, tray: document.querySelector('[data-fk="desktop-tray"]')?.checked ?? null })`);
+    // een sneltoets in kleine letters bewaren: de app maakt er de schrijfwijze van Electron van
+    await js(`(() => { const i = document.querySelector('[data-fk="desktop-sc-quickadd"]'); i.value = 'ctrl+alt+t'; document.querySelector('[data-fk="desktop-save"]').click(); return true; })()`);
+    await wait(1500);
+    const after = await js(`({ quickAdd: document.querySelector('[data-fk="desktop-sc-quickadd"]')?.value ?? null, saved: document.querySelector('.desktop-settings [role="status"]')?.textContent ?? null, error: document.querySelector('.desktop-settings .error')?.textContent ?? null })`);
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ webSettingsReady, pagesWindow: Boolean(pages), opened, pane, after, stored: settings.shortcuts }, null, 1));
+    writeFileSync(join(dir, 'settings.png'), (await main.webContents.capturePage()).toPNG());
   }
   // een knop uit een melding nabootsen (tickory://complete?… of tickory://snooze?…), na even wachten (zodat een herinnering kan afgaan)
   const action = process.env.TICKORY_DESKTOP_ACTION;

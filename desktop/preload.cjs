@@ -32,7 +32,24 @@ contextBridge.exposeInMainWorld('TickoryDesktop', {
   onAppearance: (callback) => { appearanceListener = typeof callback === 'function' ? callback : null; },
   /** De desktop-app heeft zelf iets gewijzigd (Voltooien of Uitstellen in een melding): de web-app synchroniseert dan meteen. */
   onSyncRequest: (callback) => { syncListener = typeof callback === 'function' ? callback : null; },
+  /** De instellingen van de desktop-app zelf (sneltoetsen, opstarten, systeemvak, server), voor Instellingen › Desktop-app. */
+  getSettings: () => ipcRenderer.invoke('desktop:get-settings'),
+  /** Bewaren; geeft { ok } of { ok: false, error }. */
+  saveSettings: (changes) => ipcRenderer.invoke('desktop:save-settings', {
+    shortcuts: { quickAdd: safeText(changes?.shortcuts?.quickAdd, 60), activate: safeText(changes?.shortcuts?.activate, 60) },
+    openAtLogin: changes?.openAtLogin === true, startMinimized: changes?.startMinimized === true, stayInTray: changes?.stayInTray !== false,
+  }),
+  /** Het venster om een andere server te kiezen. */
+  changeServer: () => ipcRenderer.send('desktop:change-server'),
+  /** Wat te doen als de desktop-app vraagt Instellingen te openen; daarmee weet de app ook dat deze web-app dat kan. */
+  onOpenSettings: (callback) => {
+    settingsListener = typeof callback === 'function' ? callback : null;
+    if (settingsListener) ipcRenderer.send('desktop:settings-ready');
+  },
 });
+
+let settingsListener = null;
+ipcRenderer.on('desktop:open-settings', () => settingsListener?.());
 
 let syncListener = null;
 ipcRenderer.on('desktop:sync', () => syncListener?.());

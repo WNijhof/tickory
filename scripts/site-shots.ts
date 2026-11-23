@@ -284,12 +284,12 @@ async function shootAll() {
   await nav('Anna');
   await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
   await capture('instellingen', TALL, await around('dialog[open]', 24));
-  await clickText(T('settings.notifications'));
-  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === ${js(T('notify.title'))} && document.querySelector('dialog[open] details.section:nth-of-type(3) .section-form')`, 'scherm herinneringen en meldingen');
+  await clickText(T('settings.reminders'), `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === ${js(T('settings.reminders'))} && document.querySelector('dialog[open] details.notify-device .section-form')`, 'scherm herinneringen');
   await evaluate(`document.activeElement?.blur()`);
   await sleep(300);
-  // alleen de automatische herinnering en de tijdzone: het derde deel (meldingen op dit apparaat) ziet er in de demo anders uit dan op een eigen server
-  await evaluate(`document.querySelector('dialog[open] details.section:nth-of-type(3)').hidden = true`);
+  // zonder het deel Meldingen op dit apparaat: dat ziet er in de demo anders uit dan op een eigen server
+  await evaluate(`document.querySelector('dialog[open] details.notify-device').hidden = true`);
   await capture('meldingen', TALL, await around('dialog[open]', 24));
   await closeDialogs();
   await waitFor(`!document.querySelector('dialog[open]')`, 'scherm gesloten');

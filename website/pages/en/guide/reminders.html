@@ -42,7 +42,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <h2 id="the-automatic-reminder">The automatic reminder</h2>
 <p>If you add a task with a time and do not give a reminder yourself, it gets one by itself: 30 minutes before by default. The same applies when you give an existing task a time for the first time and it had no reminder yet.</p>
 <ol>
-  <li>Click your name at the bottom of the sidebar (<x-ui k="settings.title"></x-ui>) and choose <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Click your name at the bottom of the sidebar (<x-ui k="settings.title"></x-ui>) and choose <x-ui k="settings.reminders"></x-ui>.</li>
   <li>Under <x-ui k="notify.autoTitle"></x-ui> pick an option from the list: at the time of the task, 10 minutes to 3 days before, or <x-ui k="notify.autoNone"></x-ui>.</li>
 </ol>
 <x-shot name="meldingen" alt="The Reminders and notifications window: the automatic reminder (30 minutes before, a drop-down list) and the time zone (Europe/Amsterdam).">The settings for reminders. Below these, “Notifications on this device” shows what still has to be done on this device; see below.</x-shot>
@@ -101,7 +101,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <p>A time on a task is a <em>clock time</em>: “9 o'clock” is 9 o'clock wherever you are. Notifications that the server sends are converted using the time zone in your settings.</p>
 <ul>
   <li>The app records your device's time zone by itself the first time you open it, if none has been set.</li>
-  <li>In <x-ui k="settings.notifications"></x-ui>, under <x-ui k="notify.zoneTitle"></x-ui>, you see which time zone applies. If your device differs (you moved or are travelling), there is a button to use this device's time zone.</li>
+  <li>In <x-ui k="settings.reminders"></x-ui>, under <x-ui k="notify.zoneTitle"></x-ui>, you see which time zone applies. If your device differs (you moved or are travelling), there is a button to use this device's time zone.</li>
   <li>If a user has no time zone yet, the server uses its default time zone (<code>DEFAULT_TIMEZONE</code>, see <a href="#for-administrators">for administrators</a>).</li>
   <li>The Android app schedules reminders by the clock of the phone itself.</li>
 </ul>
@@ -127,7 +127,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
   <li>A browser with push notifications. On an <strong>iPhone or iPad</strong> it only works if you first <a href="install-as-app.html">add Tickory to the home screen</a> and open the app from there.</li>
 </ul>
 <ol>
-  <li>Open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.notifications"></x-ui>.</li>
+  <li>Open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.reminders"></x-ui>.</li>
   <li>Under <x-ui k="notify.deviceTitle"></x-ui> choose <x-ui k="notify.enable"></x-ui>. Your browser asks for permission; allow it.</li>
   <li>Choose <x-ui k="notify.test"></x-ui>. If a notification arrives, it works. If not, the window says what went wrong.</li>
 </ol>
@@ -147,7 +147,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 </div>
 
 <h3 id="notifications-in-the-android-app">In the Android app</h3>
-<p>The <a href="android-app.html">Android app</a> fetches your reminders from your server and sets them as alarms on the phone itself. That is why they also go off when your phone has no internet. The app does not need a push service, so no HTTPS for the notifications either. What still has to be allowed is shown in <x-ui k="settings.notifications"></x-ui>, under <x-ui k="notify.deviceTitle"></x-ui>.</p>
+<p>The <a href="android-app.html">Android app</a> fetches your reminders from your server and sets them as alarms on the phone itself. That is why they also go off when your phone has no internet. The app does not need a push service, so no HTTPS for the notifications either. What still has to be allowed is shown in <x-ui k="settings.reminders"></x-ui>, under <x-ui k="notify.deviceTitle"></x-ui>.</p>
 
 <h3>How late is too late</h3>
 <p>The server checks every 20 seconds which reminders are due, so a notification arrives within about half a minute of the moment. If the server was down for a while, or a notification could not be delivered, it is still sent as long as it is at most <strong>an hour</strong> late; anything older lapses. The same reminder at the same moment arrives only once. The Android app shows what is at most an hour late in the same way.</p>

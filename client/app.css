@@ -411,6 +411,28 @@ button.chip-due-edit:hover { text-decoration: underline; }
 .settings-who { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
 .settings-who strong { overflow-wrap: anywhere; }
 .settings-mail { color: var(--text-soft); font-size: 0.85rem; overflow-wrap: anywhere; }
+/* groepskoppen zoals bij Todoist (Personalisatie, Productiviteit, Meer) */
+.settings-group-title { font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin: 4px 4px -6px; }
+/* breed scherm: links de onderdelen, rechts het gekozen onderdeel (zoals Todoist op de computer) */
+.dialog-settings-wide { width: min(980px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); background: var(--bg); }
+.settings-wide { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: 100%; min-height: 0; }
+.settings-nav { display: flex; flex-direction: column; gap: 12px; padding: 16px 12px; background: var(--bg-soft); border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+.settings-nav > * { flex: none; } /* niet in elkaar schuiven: de kolom scrolt als het niet past */
+.settings-nav-title { font-size: 1.15rem; padding: 4px 6px 0; }
+.settings-nav .settings-group { border: 0; background: none; gap: 2px; }
+.settings-nav .settings-row { min-height: 38px; padding: 5px 8px; border-radius: 8px; font-size: 0.95rem; }
+.settings-nav .settings-row + .settings-row { border-top: 0; }
+.settings-nav .settings-row.is-current { background: var(--accent-soft); font-weight: 600; }
+.settings-nav .settings-icon { width: 24px; height: 24px; border-radius: 7px; }
+.settings-nav .settings-icon .icon { width: 15px; height: 15px; }
+.settings-nav .settings-chevron { display: none; }
+.settings-nav .settings-account { min-height: 52px; padding: 6px 8px; }
+.settings-nav .settings-avatar { width: 32px; height: 32px; font-size: 0.95rem; }
+.settings-main { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.settings-close { position: absolute; top: 10px; right: 10px; z-index: 1; }
+.settings-pane { flex: 1; overflow-y: auto; min-height: 0; outline: none; }
+.settings-pane .dialog-form { padding: 20px 56px 24px 28px; }
+.settings-pane .dialog-form > h2 { font-size: 1.3rem; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 @media (max-width: 760px) {
   .dialog-settings { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
   .dialog-settings .dialog-form { padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); }

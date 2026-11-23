@@ -15,7 +15,7 @@ const SWIPE_LABEL = {
   none: () => t('swipe.action.none'), select: () => t('swipe.action.select'), complete: () => t('swipe.action.complete'),
   schedule: () => t('swipe.action.schedule'), reminders: () => t('swipe.action.reminders'), delete: () => t('swipe.action.delete'),
 };
-const SNOOZE_LABEL = {
+export const SNOOZE_LABEL = {
   5: () => t('general.snoozeFive'), 10: () => t('general.snoozeTen'), 15: () => t('general.snoozeQuarter'), 30: () => t('general.snoozeHalf'),
   60: () => t('general.snoozeHour'), 360: () => t('general.snoozeSixHours'), 720: () => t('general.snoozeHalfDay'), 1440: () => t('general.snoozeDay'),
 };
@@ -30,10 +30,19 @@ const ITEM_LABEL = {
 };
 
 /**
- * @param {{ store: import('../core/store.js').Store, actions: { updateSettings: (c: object) => Promise<unknown> } }} options
+ * Welk deel van de instellingen het venster toont, zoals Todoist ze indeelt: Algemeen, Navigatiemenu (de zijbalk) en Navigatiebalk
+ * (onderaan op een telefoon). 'all' is alles in één venster. Wat een deel niet toont, blijft bij bewaren zoals het was. Uitstellen
+ * staat bij Herinneringen en het ochtendoverzicht bij Meldingen (ui/reminderUi.js); in 'all' staan ze ook hier.
+ * @typedef {'all' | 'general' | 'sidebar' | 'bottombar'} GeneralPart
+ */
+const PART_TITLE = { all: () => t('settings.general'), general: () => t('settings.general'), sidebar: () => t('settings.sidebarMenu'), bottombar: () => t('settings.bottomBar') };
+
+/**
+ * @param {{ store: import('../core/store.js').Store, actions: { updateSettings: (c: object) => Promise<unknown> }, part?: GeneralPart }} options
  * @returns {Promise<boolean>} true als er iets is bewaard
  */
-export function openGeneralDialog({ store, actions }) {
+export function openGeneralDialog({ store, actions, part = 'all' }) {
+  const show = (...parts) => part === 'all' || parts.includes(part);
   const now = generalOf(mySettings(store.view, store.userId));
   return openDialog((finish) => {
     const start = h('select', { class: 'field', dataset: { fk: 'general-start' } },
@@ -100,7 +109,8 @@ export function openGeneralDialog({ store, actions }) {
         finish(true);
       },
     },
-    h('h2', {}, t('settings.general')),
+    h('h2', {}, PART_TITLE[part]()),
+    show('general') && [
     h('label', { class: 'field-label' }, t('general.start'), start),
     h('label', { class: 'field-label' }, t('general.weekStart'), weekStart),
     h('label', { class: 'field-label' }, t('general.nextWeek'), nextWeek),
@@ -116,18 +126,20 @@ export function openGeneralDialog({ store, actions }) {
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.recurring')),
       h('label', { class: 'check-row' }, resetSubtasks, t('general.resetSubtasks')),
       h('p', { class: 'hint' }, t('general.resetSubtasksHint'))),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sound')),
+      h('label', { class: 'check-row' }, sound, t('general.soundOn')))],
+    part === 'all' && [
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.overview')),
       morning.row, evening.row,
       h('p', { class: 'hint' }, t('general.overviewHint'))),
-    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sound')),
-      h('label', { class: 'check-row' }, sound, t('general.soundOn'))),
     h('label', { class: 'field-label' }, t('general.snooze'), snooze),
-    h('p', { class: 'hint' }, t('general.snoozeHint')),
+    h('p', { class: 'hint' }, t('general.snoozeHint'))],
+    show('sidebar') && [
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.productivity')),
       h('label', { class: 'check-row' }, productivity, t('general.productivityShow')),
       h('p', { class: 'hint' }, t('general.productivityHint'))),
-    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sidebar')), items),
-    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.bottomBar')),
+    h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sidebar')), items)],
+    show('bottombar') && h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.bottomBar')),
       h('p', { class: 'hint' }, t('general.bottomBarHint')),
       h('div', { class: 'general-tabs' }, tabSelects), tabError),
     h('div', { class: 'dialog-buttons' },

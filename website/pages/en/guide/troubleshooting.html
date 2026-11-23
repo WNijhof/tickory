@@ -63,10 +63,10 @@ docker compose logs --tail 100</code></pre>
 </dl>
 
 <h2 id="notifications-do-not-arrive">Notifications do not arrive</h2>
-<p>This is about notifications in the browser. The <a href="android-app.html">Android app</a> schedules its alarms itself; look under <x-ui k="settings.notifications"></x-ui> and at the problems screen there (see <a href="android-app.html">Android app</a>). The whole picture is in <a href="reminders.html#notifications">Reminders</a>.</p>
+<p>This is about notifications in the browser. The <a href="android-app.html">Android app</a> schedules its alarms itself; look under <x-ui k="settings.reminders"></x-ui> and at the problems screen there (see <a href="android-app.html">Android app</a>). The whole picture is in <a href="reminders.html#notifications">Reminders</a>.</p>
 <dl>
   <dt>There is no reminder, or it is at another time than you thought</dt>
-  <dd>First look in the task window to see whether the reminder is there, and whether the task has a time: a reminder before the task only exists for a task <em>with</em> a time. Also check your time zone under <x-ui k="settings.notifications"></x-ui>; the times in the app and in the notification follow that time zone.</dd>
+  <dd>First look in the task window to see whether the reminder is there, and whether the task has a time: a reminder before the task only exists for a task <em>with</em> a time. Also check your time zone under <x-ui k="settings.reminders"></x-ui>; the times in the app and in the notification follow that time zone.</dd>
   <dt>The <x-ui k="notify.enable"></x-ui> button is missing, or the app says the browser cannot receive notifications</dt>
   <dd>The address does not start with <code>https://</code> (and is not <code>localhost</code>), or the browser has no push notifications. On an iPhone or iPad it only works in the app that you have put <a href="install-as-app.html">on the home screen</a>. See <a href="https.html">HTTPS</a>.</dd>
   <dt>“<x-ui k="notify.denied"></x-ui>”</dt>

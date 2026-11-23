@@ -21,7 +21,7 @@ import { planDate } from '../core/bulk.js';
 import { dateDialog } from './bulkDialogs.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
-import { confirmDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
+import { confirmDialog, embedNextDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { createDragDrop } from './dragdrop.js';
 import { installSelection } from './selection.js';
@@ -30,7 +30,8 @@ import { openTaskDialog } from './taskDialog.js';
 import { openProjectDialog } from './projectDialog.js';
 import { addPastedTasks, openQuickAddDialog, previewChips, suggestSource } from './quickAdd.js';
 import { openGeneralDialog } from './generalDialog.js';
-import { settingsMenuDialog } from './settingsMenu.js';
+import { openSettingsPanel, settingsMenuDialog, settingsWide } from './settingsMenu.js';
+import { desktopSettingsDialog } from './desktopSettings.js';
 import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
 import { setQuickDayPrefs } from '../core/quickDates.js';
@@ -606,27 +607,78 @@ const handlers = {
     render();
   },
 
-  async settings() {
+  /**
+   * Instellingen, ingedeeld zoals bij Todoist (ui/settingsMenu.js). Op een breed scherm links de onderdelen en rechts het gekozen
+   * onderdeel; op een telefoon een lijst, en een keuze opent een eigen venster. `initial`: met welk onderdeel het opent (breed scherm).
+   */
+  async settings(initial = 'general') {
     if (!store.me) return askLogin();
     // een nieuwere versie van de server (beheerder) of de Android-app staat als regel bovenaan
-    const choice = await settingsMenuDialog({ me: store.me, notices: updates?.menuItems() ?? [] });
-    if (choice && await updates?.handle(choice)) return undefined;
-    if (choice === 'sync') sync.requestSync(0);
-    else if (choice === 'general') await openGeneralDialog({ store, actions });
-    else if (choice === 'account') await accountFlow();
-    else if (choice === 'notifications') await notificationsDialog({ store, actions, bridge, pushClient });
-    else if (choice === 'productivity') navigate({ type: 'productivity' });
-    else if (choice === 'help') navigate({ type: 'help' });
-    else if (choice === 'places') await placesDialog({ store, actions, bridge });
-    else if (choice === 'export') await exportDialog({ store, bridge, attachments });
-    else if (choice === 'import') announceImport(await importDialog({ store, actions }), navigate);
-    else if (choice === 'templates') await templatesUi().manage();
-    else if (choice === 'appearance') await appearanceDialog({ persist: !backend.demo, onChange: (a) => desktop.setAppearance(a) });
-    else if (choice === 'language') await chooseLanguage();
-    else if (choice === 'logout') logout();
+    const notices = updates?.menuItems() ?? [];
+    const onDesktop = desktop.available && desktop.canSettings();
+    if (settingsWide()) {
+      // een knop geeft zijn klik mee (een event): dan gewoon Algemeen
+      const start = typeof initial === 'string' ? initial : 'general';
+      await openSettingsPanel({ me: store.me, notices, desktop: onDesktop, initial: start, run: (value, pane) => runSetting(value, pane) });
+      return undefined;
+    }
+    const choice = await settingsMenuDialog({ me: store.me, notices, desktop: onDesktop });
+    if (choice) await runSetting(choice, null);
     return undefined;
   },
 };
+
+const RELEASES_URL = 'https://github.com/WNijhof/tickory/releases';
+
+/**
+ * Eén onderdeel van Instellingen. Met `pane` (het rechtervak op een breed scherm) komt het venster van dat onderdeel daarin
+ * (embedNextDialog); zonder is het een eigen venster. Geeft terug wat het instellingenscherm daarna doet: 'stay' (het onderdeel
+ * opnieuw tonen, bijvoorbeeld na Bewaren), 'close' (dicht: een handeling of een ander scherm), 'reload' (andere taal: alle
+ * teksten opnieuw) of 'idle' (er was niets te tonen: terug naar het vorige onderdeel).
+ * @returns {Promise<'stay' | 'close' | 'reload' | 'idle'>}
+ */
+async function runSetting(choice, pane) {
+  // alleen het venster dat `open` meteen opent komt in het vak; daarna weer gewoon (een bevestiging is een eigen venster)
+  const inPane = (open) => {
+    if (!pane) return open();
+    embedNextDialog(pane);
+    try {
+      return open();
+    } finally {
+      embedNextDialog(null);
+    }
+  };
+  if ((updates?.menuItems() ?? []).some((n) => n.value === choice)) {
+    await inPane(() => updates.handle(choice));
+    return pane ? 'stay' : 'close';
+  }
+  switch (choice) {
+    case 'general': await inPane(() => openGeneralDialog({ store, actions, part: 'general' })); return 'stay';
+    case 'sidebar': await inPane(() => openGeneralDialog({ store, actions, part: 'sidebar' })); return 'stay';
+    case 'bottombar': await inPane(() => openGeneralDialog({ store, actions, part: 'bottombar' })); return 'stay';
+    case 'account': await inPane(() => accountFlow()); return store.me ? 'stay' : 'close'; // afgemeld of verwijderd: dicht
+    case 'desktop': await inPane(() => desktopSettingsDialog({ bridge: desktop })); return 'stay';
+    case 'reminders': await inPane(() => notificationsDialog({ store, actions, bridge, pushClient, part: 'reminders' })); return 'stay';
+    case 'notifications': await inPane(() => notificationsDialog({ store, actions, bridge, pushClient, part: 'notifications' })); return 'stay';
+    case 'places': await inPane(() => placesDialog({ store, actions, bridge })); return 'stay';
+    case 'export': await inPane(() => exportDialog({ store, bridge, attachments })); return 'stay';
+    case 'templates': await inPane(() => templatesUi().manage()); return 'stay';
+    case 'appearance': await inPane(() => appearanceDialog({ persist: !backend.demo, onChange: (a) => desktop.setAppearance(a) })); return 'stay';
+    case 'language': return (await inPane(() => chooseLanguage())) ? 'reload' : 'stay';
+    case 'import': {
+      const result = await inPane(() => importDialog({ store, actions }));
+      if (!result) return 'stay';
+      announceImport(result, navigate);
+      return 'close';
+    }
+    case 'productivity': navigate({ type: 'productivity' }); return 'close';
+    case 'help': navigate({ type: 'help' }); return 'close';
+    case 'whatsnew': window.open(RELEASES_URL, '_blank', 'noopener'); return pane ? 'idle' : 'close';
+    case 'sync': sync.requestSync(0); return pane ? 'idle' : 'close';
+    case 'logout': logout(); return 'close';
+    default: return 'close';
+  }
+}
 
 /**
  * De taalkeuze. Wisselen werkt direct: het vaste deel van de pagina en het scherm worden opnieuw getekend, zonder de pagina
@@ -637,11 +689,12 @@ async function chooseLanguage() {
     title: t('settings.language'),
     items: LANGUAGES.map((l) => ({ value: l.code, label: l.code === getLanguage() ? `${l.name} ✓` : l.name })),
   });
-  if (!choice || choice === getLanguage()) return;
+  if (!choice || choice === getLanguage()) return false;
   setLanguage(choice);
   applyLanguage();
   render();
   if (usesPush()) pushClient.refresh().catch(() => {}); // de melding komt in de nieuwe taal
+  return true;
 }
 
 /**
@@ -1105,6 +1158,8 @@ async function boot() {
   }
   if (desktopQuickAdd) installDesktopQuickAdd();
   desktop.onSyncRequest(() => sync.requestSync(0)); // Voltooien of Uitstellen in een melding van Windows: meteen bijwerken
+  // Bestand › Instellingen of het systeemvak in de desktop-app: het volledige instellingenscherm, zoals bij Todoist
+  if (!desktopQuickAdd) desktop.onOpenSettings(() => { if (!document.querySelector('dialog[open]')) handlers.settings(); });
   window.addEventListener('online', () => {
     attachments.process();
     events.restart();

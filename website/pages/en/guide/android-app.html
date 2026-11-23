@@ -84,7 +84,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
 <p><strong>Collaboration notifications</strong> (someone assigns you a task, mentions you, comments) are fetched at the same refreshes and new ones are shown in the <strong>Collaboration</strong> channel, so up to fifteen minutes late. If the app is open, you see them in the app itself. See <a href="notifications.html">Notifications and mentions</a>.</p>
 
 <h2>When the notifications do not arrive</h2>
-<p>In the app open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.notifications"></x-ui>. Under <x-ui k="notify.deviceTitle"></x-ui> you see what is not right yet, with a button to the right Android setting:</p>
+<p>In the app open <x-ui k="settings.title"></x-ui> and choose <x-ui k="settings.reminders"></x-ui>. Under <x-ui k="notify.deviceTitle"></x-ui> you see what is not right yet, with a button to the right Android setting:</p>
 <ul>
   <li><strong>Notifications are off</strong> for Tickory (<x-ui k="notify.androidAllow"></x-ui>). Turn them on, including the channel <em>Reminders</em>, in Android's settings under Apps, Tickory, Notifications.</li>
   <li><strong>Exact alarms are off</strong> (Android 12 only): turn on <em>Alarms &amp; reminders</em> for Tickory.</li>
@@ -117,7 +117,7 @@ description: The Tickory Android app: your own server in an app, with reminders 
 <ul>
   <li>APKs from the releases page are signed with the maker's key and can succeed each other. That holds once the maker has set up that key in GitHub; without a key, GitHub builds a <em>debug APK</em>.</li>
   <li><strong>A debug APK cannot update an earlier version</strong> (every build has a different throwaway key): remove the old app first. The same goes for an APK you build yourself with <code>assembleDebug</code> on another computer.</li>
-  <li>In the app, look under <x-ui k="settings.notifications"></x-ui> to see which version you have.</li>
+  <li>In the app, look under <x-ui k="settings.reminders"></x-ui> to see which version you have.</li>
 </ul>
 
 <h2 id="building-it-yourself">Building it yourself</h2>

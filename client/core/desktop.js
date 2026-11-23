@@ -27,6 +27,16 @@ export function desktopBridge(host = globalThis.window?.TickoryDesktop) {
     onAppearance: (callback) => call('onAppearance', callback),
     /** De desktop-app heeft zelf iets gewijzigd (Voltooien of Uitstellen in een melding van Windows): nu synchroniseren. */
     onSyncRequest: (callback) => call('onSyncRequest', callback),
+    /** Kent deze desktop-app Instellingen › Desktop-app (sneltoetsen, opstarten, systeemvak)? Een oudere niet. */
+    canSettings: () => typeof host?.getSettings === 'function',
+    /** De instellingen van de desktop-app zelf: { shortcuts: { quickAdd, activate }, openAtLogin, startMinimized, stayInTray, server, version }. */
+    getSettings: async () => (await call('getSettings')) ?? null,
+    /** Bewaren; geeft { ok } of { ok: false, error } ('shortcutInvalid'). */
+    saveSettings: async (changes) => (await call('saveSettings', changes)) ?? { ok: false, error: 'unavailable' },
+    /** Het venster om een andere server te kiezen. */
+    changeServer: () => call('changeServer'),
+    /** De desktop-app vraagt Instellingen te openen (het menu Bestand › Instellingen of het systeemvak). */
+    onOpenSettings: (callback) => call('onOpenSettings', callback),
   };
 }
 

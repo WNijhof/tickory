@@ -107,12 +107,22 @@ export async function quickScenario(c: any) {
     d.querySelector('[data-fk="general-nextweek"]').value = '3'; // Volgende week = woensdag
     d.querySelector('[data-fk="general-swipe-right"]').value = 'select';
     d.querySelector('[data-fk="general-swipe-left"]').value = 'delete';
-    d.querySelector('[data-fk="general-snooze"]').value = '30';
     d.querySelector('[data-fk="general-reset-subtasks"]').click();
-    d.querySelector('[data-fk="general-morning-on"]').click();
     d.querySelector('[data-fk="general-sound"]').click();
     d.querySelector('[data-fk="general-clock:12h"]').click();
     d.querySelector('[data-fk="general-dates"]').click();
+    d.querySelector('[data-fk="general-save"]').click();
+  })()`);
+  await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
+  await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
+  // wat er in de zijbalk staat: Instellingen › Navigatiemenu (zoals Todoist), apart van Algemeen
+  await nav('Alice');
+  await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu');
+  await clickText('Navigatiemenu', `document.querySelector('dialog[open]')`);
+  await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Navigatiemenu'`, 'venster Navigatiemenu');
+  assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open] [data-fk="general-start"]'))`), false, 'alleen de zijbalk, niet Algemeen');
+  await evaluate(`(() => {
+    const d = document.querySelector('dialog[open]');
     d.querySelector('[data-fk="general-nav:notes"]').click();
     d.querySelector('[data-fk="general-nav:labels"]').click();
     d.querySelector('[data-fk="general-save"]').click();
@@ -121,8 +131,8 @@ export async function quickScenario(c: any) {
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
   const saved = db.prepare('SELECT general FROM user_settings WHERE id = ?').get(`settings-${alice.id}`) as any;
   assert.deepEqual(JSON.parse(saved.general), { start_page: 'upcoming', time_format: '12h', date_recognition: false, sidebar_hidden: ['notes', 'labels'], week_start: 1, bottom_tabs: ['inbox', 'today', 'upcoming', 'notes'], productivity: true,
-    next_week: 3, weekend: 5, swipe_right: 'select', swipe_left: 'delete', completion_sound: true, goal_celebrations: true, snooze_minutes: 30, vacations: [], reset_subtasks: true,
-    morning_overview: '08:00', evening_review: null });
+    next_week: 3, weekend: 5, swipe_right: 'select', swipe_left: 'delete', completion_sound: true, goal_celebrations: true, snooze_minutes: 10, vacations: [], reset_subtasks: true,
+    morning_overview: null, evening_review: null });
   await waitFor(`/2:30\\s?p\\.?\\s?m\\.?/i.test([...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title')?.textContent === 'Tijdproef')?.textContent ?? '')`, 'de tijd in 12 uur');
   assert.equal(await evaluate(`document.querySelector('[data-fk="nav-notes"]')?.offsetParent ?? null`), null, 'Notities staat niet meer in de zijbalk');
   assert.equal(await evaluate(`document.querySelector('[data-fk="find-toggle:labels"]')`), null, 'Labels ook niet');

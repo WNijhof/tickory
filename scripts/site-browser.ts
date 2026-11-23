@@ -161,6 +161,8 @@ export async function launchBrowser({ workDir, cdpPort, width = 1280, height = 8
   };
 
   await send('Page.enable');
+  // Instellingen als lijst met losse vensters (zoals op een telefoon): de controles doorlopen de onderdelen als vensters
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: 'globalThis.__tickorySettingsList = true;' });
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Network.enable');

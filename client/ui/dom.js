@@ -57,7 +57,46 @@ export function toast(message, { action = null, timeout = 6000, kind = 'info' } 
  * een browser laat dat alleen toe na een handeling van de gebruiker, en op een net geopende pagina is die er nog niet.
  * Sluit het venster toch, dan openen we het meteen opnieuw (met de ingevulde velden intact).
  */
+/** Waar het eerstvolgende venster komt in plaats van in een eigen <dialog> (zie embedNextDialog). */
+let embedTarget = null;
+
+/**
+ * Het eerstvolgende openDialog() komt in `host` te staan in plaats van in een eigen venster: zo toont het instellingenscherm op
+ * een breed scherm (twee kolommen, zoals Todoist) de bestaande onderdelen rechts in beeld. Alleen dat ene venster: wat het zelf
+ * weer opent (een bevestiging) is gewoon een venster. Een vorig onderdeel in hetzelfde vak wordt eerst netjes afgesloten.
+ * @param {HTMLElement | null} host null = weer gewoon een venster
+ */
+export function embedNextDialog(host) {
+  embedTarget = host;
+}
+
+/** Sluit het onderdeel dat nu in `host` staat (bij het sluiten van het instellingenscherm). */
+export function closeEmbedded(host) {
+  host?.__embeddedFinish?.(null);
+}
+
 export function openDialog(build, { wide = false, dismissable = true, onClose = () => {}, className = '' } = {}) {
+  if (embedTarget) {
+    const host = embedTarget;
+    embedTarget = null;
+    return new Promise((resolve) => {
+      let done = false;
+      const box = h('div', { class: `dialog-embedded${className ? ` ${className}` : ''}` });
+      const finish = (value) => {
+        if (done) return;
+        done = true;
+        if (host.__embeddedFinish === finish) host.__embeddedFinish = null;
+        onClose();
+        box.remove();
+        resolve(value);
+      };
+      box.close = () => finish(null); // wat een venster ook kan
+      host.__embeddedFinish?.(null);
+      host.__embeddedFinish = finish;
+      box.append(build(finish, box));
+      host.replaceChildren(box);
+    });
+  }
   return new Promise((resolve) => {
     let outcome = null;
     let finished = false;

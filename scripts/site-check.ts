@@ -1500,8 +1500,8 @@ if (wants('browser')) {
         const openSettings = async () => {
           await nav('Anna');
           await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingen');
-          await clickText('Herinneringen en meldingen');
-          await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen en meldingen'`, 'scherm Herinneringen en meldingen');
+          await clickText('Herinneringen', `document.querySelector('dialog[open]')`);
+          await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Herinneringen'`, 'scherm Herinneringen');
         };
         const closeAll = async () => {
           for (let i = 0; i < 3 && (await evaluate(`Boolean(document.querySelector('dialog[open]'))`)); i++) {
@@ -1516,8 +1516,8 @@ if (wants('browser')) {
         assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] select[aria-label="Automatische herinnering"] option')].map((o) => o.textContent)`), ['Geen automatische herinnering', 'Op het tijdstip van de taak', '10 minuten vooraf', '30 minuten vooraf', '45 minuten vooraf', '1 uur vooraf', '2 uur vooraf', '3 uur vooraf', '1 dag vooraf', '2 dagen vooraf', '3 dagen vooraf']);
         assert.match(await evaluate(`document.querySelector('dialog[open]').textContent`), /Herinneringen gaan af op de tijd van deze tijdzone: Europe\/Amsterdam\./);
         // de uitleg over meldingen komt uit de stijl van de demo; er is geen knop om meldingen aan te zetten
-        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.section:nth-of-type(3) > .section-form'), '::before').content`), /In de demo kun je geen meldingen aanzetten: die komen van je eigen server\./);
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] details.section:nth-of-type(3) button')].filter((x) => getComputedStyle(x).display !== 'none').map((x) => x.textContent)`), [], 'geen knop om meldingen aan te zetten');
+        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.notify-device > .section-form'), '::before').content`), /In de demo kun je geen meldingen aanzetten: die komen van je eigen server\./);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] details.notify-device button')].filter((x) => getComputedStyle(x).display !== 'none').map((x) => x.textContent)`), [], 'geen knop om meldingen aan te zetten');
         assert.equal(await evaluate(`typeof PushManager + ' ' + Notification.permission`), 'undefined default', 'de demo vraagt de browser nergens om toestemming');
         assertClean('herinneringen en meldingen (scherm)');
 
@@ -2172,10 +2172,10 @@ if (wants('browser')) {
         await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
         await nav('Anna');
         await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'settings');
-        await clickText('Reminders and notifications');
-        await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Reminders and notifications'`, 'scherm Reminders and notifications');
+        await clickText('Reminders', `document.querySelector('dialog[open]')`);
+        await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Reminders'`, 'scherm Reminders and notifications');
         assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatic reminder"]').selectedOptions[0].textContent`), '30 minutes before');
-        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.section:nth-of-type(3) > .section-form'), '::before').content`), /You can't turn on notifications in the demo: they come from your own server\./);
+        assert.match(await evaluate(`getComputedStyle(document.querySelector('dialog[open] details.notify-device > .section-form'), '::before').content`), /You can't turn on notifications in the demo: they come from your own server\./);
         assertClean('Engelse demo');
         await b.goto('about:blank');
         await b.goto(`${site.url}en/`);
