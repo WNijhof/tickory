@@ -10,6 +10,8 @@
 //   {vrijdag}  een deadline (los van de datum waarop je eraan wilt werken)
 //   !30m       een herinnering: !30m, !1u of !1h, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
 //              in gewone taal: !(een kwartier ervoor), !(morgen om 8 uur), !(30 minutes before), !(tomorrow at 8am). Meerdere mag.
+//              Ook zonder uitroepteken: "met herinnering 10 minuten vooraf", "herinner me om 14:30", "with a reminder 30 minutes
+//              before", "remind me at 9am" (alleen een tijd: op de dag van de taak).
 //   datum      gewone taal in de taal van de interface, ook herhalingen ("elke maandag", "every monday"); zie core/dateInput.js
 //
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
@@ -143,10 +145,25 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
       if (when && !when.recurrence && hasTime(when.date)) spec = { type: 'absolute', due: { date: when.date } };
     }
     if (!spec) return whole;
-    const same = (r) => r.type === spec.type && (spec.type === 'absolute' ? r.due.date === spec.due.date : r.minute_offset === spec.minute_offset);
-    if (!out.reminders.some(same)) out.reminders.push(spec);
+    addReminder(spec);
     return '';
   }).replace(/\s+/g, ' ').trim();
+
+  // herinneringen in gewone taal: "met herinnering 10 minuten vooraf", "herinner me een kwartier ervoor", "met een herinnering om
+  // 13:30", "with a reminder 30 minutes before", "remind me at 9am". Wat erna komt moet een herinnering zijn (een tijd vooraf of een
+  // moment); anders blijft alles in de titel staan ("Herinnering sturen naar de klant"). Vóór de datum van de taak, zodat
+  // "met herinnering morgen om 8 uur" niet de datum van de taak wordt. Alleen een tijd ("om 13:30") hoort bij de dag van de taak.
+  const atTaskDay = [];
+  if (dates) {
+    for (let m = SPOKEN_REMINDER.exec(rest); m; m = SPOKEN_REMINDER.exec(rest)) {
+      const found = spokenReminder(rest.slice(m.index + m[0].length), now, language);
+      if (!found) continue;
+      if (found.time) atTaskDay.push(found.time);
+      else addReminder(found.spec);
+      rest = cut(rest, m.index, m.index + m[0].length + found.length);
+      SPOKEN_REMINDER.lastIndex = 0;
+    }
+  }
 
   // deadline tussen accolades; blijft staan als de tekst geen datum is
   const dl = /\{([^{}]+)\}/u.exec(rest);
@@ -185,6 +202,54 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
     if (parsed.due) out.due = parsed.due;
   }
 
+  // "met herinnering om 13:30": op de dag van de taak (zonder datum: vandaag, of morgen als die tijd vandaag al voorbij is)
+  for (const time of atTaskDay) {
+    const today = localDay(now);
+    const passed = time <= `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const day = typeof out.due?.date === 'string' ? out.due.date.slice(0, 10) : passed ? localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)) : today;
+    addReminder({ type: 'absolute', due: { date: `${day}T${time}` } });
+  }
+
   out.content = rest;
   return out;
+
+  function addReminder(spec) {
+    const same = (r) => r.type === spec.type && (spec.type === 'absolute' ? r.due.date === spec.due.date : r.minute_offset === spec.minute_offset);
+    if (!out.reminders.some(same)) out.reminders.push(spec);
+  }
+}
+
+/** Het begin van een herinnering in gewone taal (Nederlands en Engels); wat erop volgt leest spokenReminder. */
+const SPOKEN_REMINDER = new RegExp(`${START}(?:(?:met|en) (?:een )?herinnering|herinner me|(?:with|and) (?:a )?reminder|remind me)${END}`, 'giu');
+/** Een tijd zonder datum ("om 13:30", "at 9am", "8 uur"): die hoort bij de dag van de taak. */
+const TIME_ONLY = /^(?:om |at |op )?\d{1,2}(?:[:.]\d{2})?(?: ?(?:uur|u|am|pm|h))?$/iu;
+/** Waar een herinnering in gewone taal ophoudt: bij het volgende #project, @label, /sectie, {deadline}, !herinnering of =duur. */
+const NEXT_MARKER = / [#@/{!=]/u;
+
+/**
+ * De herinnering na "met herinnering" enzovoort: de langste reeks woorden die een tijd vooraf ("10 minuten vooraf", "een kwartier
+ * ervoor", "op tijd") of een moment ("morgen om 8 uur", "om 13:30") is.
+ * @returns {{ spec?: object, time?: string, length: number } | null} length: hoeveel tekens (met de spatie ervoor) het besloeg
+ */
+function spokenReminder(after, now, language) {
+  const lead = /^ +/u.exec(after)?.[0].length ?? 0;
+  if (lead === 0) return null;
+  const stop = after.slice(lead).search(NEXT_MARKER);
+  const words = (stop < 0 ? after.slice(lead) : after.slice(lead, lead + stop)).split(' ').filter(Boolean);
+  for (let n = Math.min(words.length, 8); n >= 1; n--) {
+    const phrase = words.slice(0, n).join(' ');
+    const length = lead + phrase.length;
+    const offset = parseOffsetNl(phrase.replace(/^(?:van|of) /iu, ''));
+    if (offset !== null) return { spec: { type: 'relative', minute_offset: offset }, length };
+    const when = parseDateText(phrase, now, language);
+    if (!when || when.recurrence || !hasTime(when.date)) continue;
+    if (TIME_ONLY.test(phrase)) return { time: when.date.slice(11, 16), length };
+    return { spec: { type: 'absolute', due: { date: when.date } }, length };
+  }
+  return null;
+}
+
+/** De datum van vandaag (op dit apparaat) als JJJJ-MM-DD. */
+function localDay(now) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }

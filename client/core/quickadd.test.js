@@ -63,3 +63,32 @@ test('snel toevoegen in het Engels: datums, herhalingen, tijdsbereik, deadline e
   assert.deepEqual([nl.content, nl.due?.date, nl.due?.lang], ['Tandarts bellen', '2026-11-17T09:00', 'nl']);
   assert.equal(parseQuickAdd('Call the dentist tomorrow', { view, now, defaultProjectId: 'inbox', language: 'nl' }).due, null, 'in het Nederlands geen Engelse datums');
 });
+
+test('herinneringen in gewone taal: "met herinnering 10 minuten vooraf", een moment, alleen een tijd, en in het Engels', () => {
+  const view = { projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }]]), sections: new Map(), labels: new Map(), tasks: new Map(), members: new Map() };
+  const now = new Date(2026, 10, 23, 10, 0);
+  const nl = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'nl' });
+  const en = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'en' });
+  const rel = (n) => [{ type: 'relative', minute_offset: n }];
+  const abs = (date) => [{ type: 'absolute', due: { date } }];
+  let p = nl('Banaan morgen om 14:00 met herinnering 10 minuten vooraf');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Banaan', '2026-11-24T14:00', rel(10)]);
+  assert.deepEqual(nl('Banaan morgen om 14:00 met een herinnering van een kwartier').reminders, rel(15));
+  assert.deepEqual(nl('Tandarts vrijdag om 9 uur herinner me een half uur ervoor').reminders, rel(30));
+  assert.deepEqual(nl('Banaan morgen om 14:00 met herinnering op tijd').reminders, rel(0));
+  p = nl('Vergadering morgen om 15:00 met herinnering om 14:30');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Vergadering', '2026-11-24T15:00', abs('2026-11-24T14:30')], 'alleen een tijd: op de dag van de taak');
+  p = nl('Bellen met herinnering morgen om 8 uur');
+  assert.deepEqual([p.content, p.due, p.reminders], ['Bellen', null, abs('2026-11-24T08:00')], 'het moment wordt niet de datum van de taak');
+  p = nl('Banaan morgen om 14:00 met herinnering 10 minuten vooraf #Inbox p1');
+  assert.deepEqual([p.content, p.reminders, p.priority], ['Banaan', rel(10), 1], 'stopt bij het volgende #project of p1');
+  // geen herinnering erachter: alles blijft in de titel
+  for (const text of ['Herinnering sturen naar de klant', 'Mail met herinnering naar Jan', 'Herinner me niet']) assert.deepEqual([nl(text).content, nl(text).reminders], [text, []], text);
+  p = en('Dentist tomorrow at 2pm with a reminder 30 minutes before');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Dentist', '2026-11-24T14:00', rel(30)]);
+  assert.deepEqual(en('Call Bob remind me at 9am').reminders, abs('2026-11-24T09:00'), 'zonder datum en al voorbij: morgen');
+  assert.deepEqual(en('Call Bob remind me at 11am').reminders, abs('2026-11-23T11:00'), 'zonder datum, nog niet voorbij: vandaag');
+  // datums in gewone taal uit (Instellingen › Algemeen): dan ook dit niet, het !-snelschrift wel
+  const off = parseQuickAdd('Banaan met herinnering 10 minuten vooraf !5m', { view, now, defaultProjectId: 'inbox', language: 'nl', dates: false });
+  assert.deepEqual([off.content, off.reminders], ['Banaan met herinnering 10 minuten vooraf', rel(5)]);
+});
