@@ -188,6 +188,11 @@ function showMain(hash = null) {
   if (!main) createMain();
   if (main.isMinimized()) main.restore();
   present(main);
+  // Instellingen geopend terwijl Tickory in het systeemvak zat: nu pas bij het hoofdvenster, anders valt het erachter
+  if (pages && !pages.isDestroyed() && !pages.getParentWindow()) {
+    pages.setParentWindow(main);
+    present(pages);
+  }
   if (hash) main.webContents.send('desktop:navigate', hash);
 }
 
