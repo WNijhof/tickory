@@ -7,6 +7,7 @@ import { createActions, newId } from '../core/actions.js';
 import { createUndo } from '../core/undo.js';
 import { addContextFromHash, androidBridge, taskIdFromHash, watchReminders, watchWidgets } from '../core/android.js';
 import { desktopBridge, isDesktopQuickAdd, watchBadge } from '../core/desktop.js';
+import { watchAppUpdate } from '../core/appUpdate.js';
 import { fetchSharedFiles, shareFromHash } from '../core/share.js';
 import { ApiError, deviceName } from '../core/auth.js';
 import { parseSsoHash, ssoErrorText, startSso, takePending } from '../core/sso.js';
@@ -1286,6 +1287,8 @@ async function boot() {
 
   if ('serviceWorker' in navigator && !backend.demo) {
     navigator.serviceWorker.register('/sw.js').catch(() => { /* zonder service worker werkt de app alleen online */ });
+    // is de server bijgewerkt, dan de nieuwe versie gebruiken zonder dat je zelf hoeft te herladen (core/appUpdate.js)
+    watchAppUpdate({ sw: navigator.serviceWorker, win: window, doc: document });
     // Even na het starten laten controleren of de offline-kopie compleet is. Een netwerkfilter (AdGuard) kan die
     // kort na het aanleggen wissen; het filter is dan klaar en de kopie wordt opnieuw gevuld.
     setTimeout(() => {
