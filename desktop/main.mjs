@@ -217,9 +217,16 @@ function showQuickAdd() {
 }
 
 function openPages(mode) {
-  if (pages) { pages.focus(); return; }
+  if (pages) {
+    if (pages.isMinimized()) pages.restore();
+    present(pages);
+    return;
+  }
+  // Hoort bij het hoofdvenster (blijft er dan altijd boven) en doet mee met "altijd bovenop", anders valt het erachter.
+  const owner = main && !main.isDestroyed() && main.isVisible() ? main : undefined;
   pages = new BrowserWindow({
-    width: 520, height: mode === 'setup' ? 520 : Math.min(960, screen.getPrimaryDisplay().workAreaSize.height - 40), resizable: false, show: !DEV_SHOT, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
+    width: 520, height: mode === 'setup' ? 520 : Math.min(960, screen.getPrimaryDisplay().workAreaSize.height - 40), resizable: false, show: false, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
+    parent: owner, alwaysOnTop: !!settings.floatOnTop && !DEV_SHOT,
     autoHideMenuBar: true, backgroundColor: windowBg(),
     webPreferences: { ...webPreferences(join(here, 'pages', 'pages-preload.cjs')), spellcheck: false },
   });
@@ -227,7 +234,7 @@ function openPages(mode) {
   pages.removeMenu();
   pages.loadFile(join(here, 'pages', 'prefs.html'), { query: { mode } });
   pages.on('closed', () => { pages = null; });
-  if (DEV_SHOT) pages.once('ready-to-show', () => present(pages));
+  pages.once('ready-to-show', () => present(pages));
   pages.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 }
 
@@ -245,6 +252,7 @@ function runMenu(id) {
     case 'floatOnTop':
       saveSettings({ ...settings, floatOnTop: !settings.floatOnTop });
       main?.setAlwaysOnTop(settings.floatOnTop);
+      pages?.setAlwaysOnTop(settings.floatOnTop);
       return refreshMenus();
     case 'newWindow': return settings.server && openWindow(`${settings.server}/`);
     case 'reload': return focused()?.webContents.reload();
@@ -644,7 +652,7 @@ async function smokeShots(dir) {
     const read = (win) => win?.webContents.executeJavaScript(`({ theme: document.documentElement.dataset.theme ?? 'system', accent: document.documentElement.dataset.accent ?? 'teal', stored: localStorage.getItem('tickory.theme'), bg: getComputedStyle(document.body).backgroundColor })`);
     openPages('prefs');
     await wait(2500);
-    writeFileSync(join(dir, 'appearance.json'), JSON.stringify({ settings: settings.appearance, themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, main: await read(main), quickAdd: await read(quickAdd), pages: await pages?.webContents.executeJavaScript(`({ accent: document.documentElement.dataset.accent, theme: document.getElementById('theme')?.value, bg: getComputedStyle(document.body).backgroundColor })`) }, null, 1));
+    writeFileSync(join(dir, 'appearance.json'), JSON.stringify({ pagesOwnedByMain: Boolean(pages && main && pages.getParentWindow() === main), settings: settings.appearance, themeSource: nativeTheme.themeSource, dark: nativeTheme.shouldUseDarkColors, main: await read(main), quickAdd: await read(quickAdd), pages: await pages?.webContents.executeJavaScript(`({ accent: document.documentElement.dataset.accent, theme: document.getElementById('theme')?.value, bg: getComputedStyle(document.body).backgroundColor })`) }, null, 1));
     if (main) writeFileSync(join(dir, 'main-themed.png'), (await main.webContents.capturePage()).toPNG());
     if (pages) writeFileSync(join(dir, 'prefs-themed.png'), (await pages.webContents.capturePage()).toPNG());
   }
