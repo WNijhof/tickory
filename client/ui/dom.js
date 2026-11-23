@@ -1,6 +1,7 @@
 // Kleine hulpmiddelen voor de interface. Tekst van de gebruiker gaat altijd als tekst het document in
 // (nooit als HTML), zodat een taaknaam nooit code kan uitvoeren.
 
+import { toastMs } from '../core/toastTime.js';
 import { t } from '../core/i18n.js';
 import { icon } from './icons.js';
 
@@ -35,9 +36,19 @@ export function replace(el, ...children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));
 }
 
-/** Meldingen onderin beeld, optioneel met een knop (bijvoorbeeld "Ongedaan maken"). */
-export function toast(message, { action = null, timeout = 6000, kind = 'info' } = {}) {
+/** Hoe lang een melding blijft staan (Instellingen › Algemeen); 0 = tot je hem wegklikt. Zie core/toastTime.js. */
+let toastSeconds = 6;
+export function setToastSeconds(seconds) {
+  toastSeconds = seconds;
+}
+
+/**
+ * Meldingen onderin beeld, optioneel met een knop (bijvoorbeeld "Ongedaan maken"). `timeout`: alleen als de melding zelf iets
+ * anders nodig heeft dan de keuze van de gebruiker (een fout langer, een korte status korter, 0 = blijft altijd staan).
+ */
+export function toast(message, { action = null, timeout = null, kind = 'info' } = {}) {
   const host = document.getElementById('toasts');
+  const ms = toastMs(timeout, toastSeconds);
   const close = () => el.remove();
   const el = h('div', { class: `toast toast-${kind}`, role: 'status' },
     h('span', { class: 'toast-text' }, message),
@@ -45,7 +56,9 @@ export function toast(message, { action = null, timeout = 6000, kind = 'info' } 
     h('button', { class: 'toast-close', type: 'button', 'aria-label': t('common.close'), onclick: close }, '×'),
   );
   host.append(el);
-  if (timeout) setTimeout(close, timeout);
+  // blijven ze staan tot je ze wegklikt, dan hooguit vijf tegelijk: de oudste gaat weg
+  if (toastSeconds === 0) while (host.children.length > 5) host.firstElementChild.remove();
+  if (ms) setTimeout(close, ms);
   return close;
 }
 

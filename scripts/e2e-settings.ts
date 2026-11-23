@@ -44,6 +44,21 @@ export async function settingsScenario(c: any) {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(general().start_page, 'last');
 
+  // ---- Algemeen: meldingen onderin blijven staan tot je ze wegklikt ----
+  await choose('general-toast', '0');
+  await evaluate(`document.querySelector('dialog[open] [data-fk="general-save"]').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(general().toast_seconds, 0);
+  await evaluate(`import('/ui/dom.js').then((m) => { m.toast('Blijft staan'); return true; })`);
+  await new Promise((r) => setTimeout(r, 7000)); // langer dan de standaard van 6 seconden
+  assert.equal(await evaluate(`[...document.querySelectorAll('.toast-text')].some((e) => e.textContent === 'Blijft staan')`), true, 'de melding staat er na 7 seconden nog');
+  await evaluate(`[...document.querySelectorAll('.toast')].find((e) => e.textContent.includes('Blijft staan')).querySelector('.toast-close').click()`);
+  await waitFor(`document.querySelector('dialog[open] .settings-pane [data-fk="general-toast"]')`, 'Algemeen weer getoond');
+  await choose('general-toast', '6');
+  await evaluate(`document.querySelector('dialog[open] [data-fk="general-save"]').click()`);
+  await waitFor(SYNCED, 'gesynchroniseerd');
+  assert.equal(general().toast_seconds, 6);
+
   // ---- Herinneringen: de automatische herinnering en uitstellen werken meteen ----
   await pick('Herinneringen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] select[aria-label="Automatische herinnering"]').value`), String(row().auto_reminder));

@@ -21,7 +21,7 @@ import { planDate } from '../core/bulk.js';
 import { dateDialog } from './bulkDialogs.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
-import { confirmDialog, embedNextDialog, h, menuDialog, openDialog, promptDialog, replace, toast } from './dom.js';
+import { confirmDialog, embedNextDialog, h, menuDialog, openDialog, promptDialog, replace, setToastSeconds, toast } from './dom.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { createDragDrop } from './dragdrop.js';
 import { installSelection } from './selection.js';
@@ -1150,6 +1150,10 @@ async function boot() {
   store.subscribe(() => updates.check());
   setInterval(() => updates.check(), 3_600_000);
   store.subscribe(() => attachments.process()); // wachtende bestanden gaan door zodra hun taak bij de server is
+  // hoe lang een melding onderin blijft staan (Instellingen › Algemeen), ook als dat op een ander apparaat veranderde
+  const applyToastTime = () => setToastSeconds(generalOf(mySettings(store.view, store.userId)).toast_seconds);
+  applyToastTime();
+  store.subscribe(applyToastTime);
   watchReminders({ store, bridge }); // Android hoort het zodra er iets aan de meldingen verandert
   watchWidgets({ store, bridge }); // en zodra er iets verandert wat in de widgets staat
   if (desktop.available && !desktopQuickAdd) {

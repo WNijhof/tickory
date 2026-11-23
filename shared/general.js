@@ -14,6 +14,7 @@
 //   - morning_overview en evening_review: de tijd ("UU:MM") van het ochtendoverzicht en de avondreview in de Android-app, of null (uit);
 //   - reset_subtasks: bij het afvinken van een terugkerende taak gaan de afgevinkte subtaken weer open (standaard uit);
 //   - snooze_minutes: hoe lang een herinnering uitgesteld wordt als je op Uitstellen tikt (SNOOZE_MINUTES; standaard 10);
+//   - toast_seconds: hoe lang een melding onderin de app blijft staan (TOAST_SECONDS; standaard 6; 0 = tot je hem wegklikt);
 //   - vacations: vakantieperiodes ({ from, to }, to = null: loopt nog): een dag in een vakantie breekt je reeks niet.
 // Ze gelden op al je apparaten. Een ontbrekend veld (of `general` = null) is de standaard.
 
@@ -26,6 +27,8 @@ export const WEEKDAYS = Object.freeze([1, 2, 3, 4, 5, 6, 7]);
 export const SWIPE_ACTIONS = Object.freeze(['none', 'select', 'complete', 'schedule', 'reminders', 'delete']);
 /** De duur van uitstel van een herinnering, in minuten (de lijst van Todoist, met onze 10 minuten erbij). */
 export const SNOOZE_MINUTES = Object.freeze([5, 10, 15, 30, 60, 360, 720, 1440]);
+/** Hoe lang een melding onderin de app blijft staan, in seconden; 0 = tot je hem wegklikt. */
+export const TOAST_SECONDS = Object.freeze([4, 6, 10, 20, 0]);
 export const VACATIONS_MAX = 50;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,7 +41,7 @@ export const DEFAULT_GENERAL = Object.freeze({
   start_page: 'last', time_format: '24h', date_recognition: true, sidebar_hidden: Object.freeze([]), week_start: 1,
   bottom_tabs: Object.freeze(['inbox', 'today', 'upcoming', 'notes']), productivity: true,
   next_week: 1, weekend: 6, swipe_right: 'complete', swipe_left: 'schedule', completion_sound: false, goal_celebrations: true,
-  snooze_minutes: 10, vacations: Object.freeze([]), reset_subtasks: false,
+  snooze_minutes: 10, toast_seconds: 6, vacations: Object.freeze([]), reset_subtasks: false,
   morning_overview: null, evening_review: null,
 });
 
@@ -81,6 +84,7 @@ export function generalCheck(v) {
   for (const key of ['swipe_right', 'swipe_left']) if (v[key] !== undefined && !SWIPE_ACTIONS.includes(v[key])) return `${key} moet een van ${SWIPE_ACTIONS.join(', ')} zijn`;
   for (const key of ['completion_sound', 'goal_celebrations', 'reset_subtasks']) if (v[key] !== undefined && typeof v[key] !== 'boolean') return `${key} moet true of false zijn`;
   if (v.snooze_minutes !== undefined && !SNOOZE_MINUTES.includes(v.snooze_minutes)) return `snooze_minutes moet een van ${SNOOZE_MINUTES.join(', ')} zijn`;
+  if (v.toast_seconds !== undefined && !TOAST_SECONDS.includes(v.toast_seconds)) return `toast_seconds moet een van ${TOAST_SECONDS.join(', ')} zijn`;
   for (const key of ['morning_overview', 'evening_review']) if (v[key] !== undefined && v[key] !== null && !(typeof v[key] === 'string' && TIME_RE.test(v[key]))) return `${key} moet een tijd UU:MM of null zijn`;
   if (v.vacations !== undefined) { const bad = vacationsCheck(v.vacations); if (bad) return bad; }
   if (v.sidebar_hidden !== undefined) {
@@ -112,6 +116,7 @@ export function generalOf(settings) {
     completion_sound: v.completion_sound ?? DEFAULT_GENERAL.completion_sound,
     goal_celebrations: v.goal_celebrations ?? DEFAULT_GENERAL.goal_celebrations,
     snooze_minutes: v.snooze_minutes ?? DEFAULT_GENERAL.snooze_minutes,
+    toast_seconds: v.toast_seconds ?? DEFAULT_GENERAL.toast_seconds,
     reset_subtasks: v.reset_subtasks ?? DEFAULT_GENERAL.reset_subtasks,
     morning_overview: v.morning_overview ?? DEFAULT_GENERAL.morning_overview,
     evening_review: v.evening_review ?? DEFAULT_GENERAL.evening_review,

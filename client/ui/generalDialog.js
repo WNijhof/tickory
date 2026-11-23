@@ -1,7 +1,7 @@
 // Instellingen › Algemeen (SPEC 5m, shared/general.js): de startpagina, de tijdnotatie, of snel toevoegen datums in gewone taal
 // herkent, en welke onderdelen in de zijbalk staan. Bewaard in je instellingen op de server, dus op al je apparaten hetzelfde.
 
-import { BOTTOM_TAB_CHOICES, BOTTOM_TAB_COUNT, SIDEBAR_ITEMS, SNOOZE_MINUTES, START_PAGES, SWIPE_ACTIONS, TIME_FORMATS, WEEKDAYS, WEEK_STARTS, generalOf } from '../../shared/general.js';
+import { BOTTOM_TAB_CHOICES, BOTTOM_TAB_COUNT, SIDEBAR_ITEMS, SNOOZE_MINUTES, START_PAGES, SWIPE_ACTIONS, TIME_FORMATS, TOAST_SECONDS, WEEKDAYS, WEEK_STARTS, generalOf } from '../../shared/general.js';
 import { weekdayNames } from '../core/calendar.js';
 import { getLocale, t } from '../core/i18n.js';
 import { mySettings } from '../core/selectors.js';
@@ -71,6 +71,8 @@ export function openGeneralDialog({ store, actions, part = 'all' }) {
     const evening = overviewRow('general-evening', now.evening_review, '18:00', t('general.evening'));
     const resetSubtasks = h('input', { type: 'checkbox', checked: now.reset_subtasks, dataset: { fk: 'general-reset-subtasks' } });
     const sound = h('input', { type: 'checkbox', checked: now.completion_sound, dataset: { fk: 'general-sound' } });
+    const toastTime = h('select', { class: 'field', dataset: { fk: 'general-toast' } },
+      TOAST_SECONDS.map((s) => h('option', { value: String(s), selected: s === now.toast_seconds }, s === 0 ? t('general.toastSticky') : t('general.toastSeconds', { count: s }))));
     const snooze = h('select', { class: 'field', dataset: { fk: 'general-snooze' } },
       SNOOZE_MINUTES.map((m) => h('option', { value: String(m), selected: m === now.snooze_minutes }, SNOOZE_LABEL[m]())));
     const tabSelects = Array.from({ length: BOTTOM_TAB_COUNT }, (_, i) => h('select', {
@@ -104,6 +106,7 @@ export function openGeneralDialog({ store, actions, part = 'all' }) {
           morning_overview: morning.value,
           evening_review: evening.value,
           snooze_minutes: Number(snooze.value),
+          toast_seconds: Number(toastTime.value),
         };
         await actions.updateSettings({ general: next });
         finish(true);
@@ -127,7 +130,9 @@ export function openGeneralDialog({ store, actions, part = 'all' }) {
       h('label', { class: 'check-row' }, resetSubtasks, t('general.resetSubtasks')),
       h('p', { class: 'hint' }, t('general.resetSubtasksHint'))),
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.sound')),
-      h('label', { class: 'check-row' }, sound, t('general.soundOn')))],
+      h('label', { class: 'check-row' }, sound, t('general.soundOn'))),
+    h('label', { class: 'field-label' }, t('general.toast'), toastTime),
+    h('p', { class: 'hint' }, t('general.toastHint'))],
     part === 'all' && [
     h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.overview')),
       morning.row, evening.row,

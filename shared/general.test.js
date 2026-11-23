@@ -73,3 +73,11 @@ test('ochtendoverzicht en avondreview: een tijd UU:MM of null', () => {
   assert.equal(generalOf({ general: { evening_review: '18:30' } }).evening_review, '18:30');
   for (const bad of ['8:00', '24:00', '12:60', 'ochtend', 800, true]) assert.notEqual(generalCheck({ morning_overview: bad }), null, String(bad));
 });
+
+test('toast_seconds: 4, 6, 10, 20 of 0 (tot je hem wegklikt); standaard 6', async () => {
+  const { DEFAULT_GENERAL, TOAST_SECONDS, generalCheck, generalOf } = await import('./general.js');
+  assert.equal(DEFAULT_GENERAL.toast_seconds, 6);
+  assert.equal(generalOf(null).toast_seconds, 6);
+  for (const s of TOAST_SECONDS) assert.equal(generalCheck({ toast_seconds: s }), null, String(s));
+  for (const bad of [5, -1, '6', 3.5, null]) assert.match(generalCheck({ toast_seconds: bad }) ?? '', /toast_seconds/, String(bad));
+});
