@@ -1,7 +1,7 @@
 // Het serveradres kiezen (bij de eerste start) en de instellingen van de desktop-app. Praat alleen via window.TickoryPages.
 (async () => {
   const api = window.TickoryPages;
-  const { mode, texts, settings, lang, accents } = await api.load();
+  const { mode, texts, settings, lang, accents, oldServer } = await api.load();
   document.documentElement.lang = lang;
   const $ = (id) => document.getElementById(id);
   // het thema: licht/donker volgt Windows (de app zet dat om), de accentkleur staat als data-accent op de html (pages.css)
@@ -48,6 +48,7 @@
     showAccent(a.accent);
   };
   fill(settings.appearance);
+  $('appearance-old').hidden = !oldServer; // de web-app van de server kent de keuze van de desktop-app nog niet
   // werkt meteen (zoals Weergave in de web-app), los van Bewaren
   for (const id of ['theme', 'accent']) {
     $(id).addEventListener('change', async () => {

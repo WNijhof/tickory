@@ -2,8 +2,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isLocalHost, normalizeServer, sameOrigin } from '../lib/server.mjs';
-import { DEFAULT_SHORTCUTS, markShown, settingsOf, validShortcut } from '../lib/settings.mjs';
-import { HORIZON_MS, LATE_MS, planReminders, snoozeMs, todayItems } from '../lib/reminderPlan.mjs';
+import { DEFAULT_SHORTCUTS, addSnooze, markShown, normalizeShortcut, removeSnooze, settingsOf, validShortcut } from '../lib/settings.mjs';
+import { HORIZON_MS, LATE_MS, planReminders, planSnoozes, snoozeMs, todayItems } from '../lib/reminderPlan.mjs';
 import { NAV, appMenu, trayMenu } from '../lib/menuModel.mjs';
 import { KEYS, KEYS_EN, langOf, translator } from '../lib/i18n.mjs';
 import { actionUrl, parseActionUrl, reminderToastXml } from '../lib/toast.mjs';
@@ -149,4 +149,47 @@ test('meldingen van Windows: knoppen via tickory://, en het adres terug alleen m
   assert.deepEqual(parseActionUrl(url), { action: 'complete', taskId: 'taak-0001-aaaa', reminderId: 'herinnering-01', moment: '2026-11-20T13:30' });
   assert.deepEqual(parseActionUrl('tickory://quick-add'), { action: 'quick-add' });
   for (const bad of ['tickory://delete?task=taak-0001-aaaa', 'tickory://open?task=../../x', 'https://open?task=taak-0001-aaaa', 'tickory://open', 'rommel']) assert.equal(parseActionUrl(bad), null, bad);
+});
+
+test('serveradres: dezelfde regels als de Android-app (Tailscale, IPv6), en de reeksen alleen voor een letterlijk IP-adres', () => {
+  const ok = ['http://100.101.102.103:8787', 'http://[fd00::5]:8787', 'http://[fe80::1]', 'http://[::1]:3000', 'http://nas.fritz.box', 'http://nas.home',
+    'http://nas.localdomain', 'http://127.0.0.1:4777', 'http://nas', 'http://[::ffff:192.168.1.1]', 'http://172.20.0.2'];
+  for (const u of ok) assert.ok(normalizeServer(u).origin, u);
+  const http = ['http://10.taken.voorbeeld.nl', 'http://192.168.taken.nl', 'http://127.example.com', 'http://100.128.0.1', 'http://[2001:db8::1]',
+    'http://8.8.8.8', 'http://[::ffff:8.8.8.8]', 'http://172.32.0.1'];
+  for (const u of http) assert.deepEqual(normalizeServer(u), { error: 'http' }, u);
+  assert.equal(isLocalHost('999.1.1.1'), false, 'geen geldig IPv4-adres');
+  assert.equal(isLocalHost(''), false);
+});
+
+test('sneltoetsen: elke schrijfwijze die je intypt wordt die van Electron, en wat niet kan blijft geweigerd', () => {
+  assert.equal(normalizeShortcut('ctrl+shift+a'), 'Ctrl+Shift+A');
+  assert.equal(normalizeShortcut(' control + space '), 'Control+Space');
+  assert.equal(normalizeShortcut('alt+f4'), 'Alt+F4');
+  assert.equal(normalizeShortcut('CTRL+PAGEUP'), 'Ctrl+PageUp');
+  assert.equal(normalizeShortcut(''), '', 'leeg = uit');
+  for (const bad of ['a', 'ctrl+', 'ctrl+shift+alt+super+a', 'ctrl+é', null]) assert.equal(normalizeShortcut(bad), null, String(bad));
+});
+
+test('uitstellen: alleen op deze pc, één keer, en niet meer voor een taak die intussen af is', () => {
+  let st = settingsOf({});
+  assert.deepEqual(st.snoozes, []);
+  const now = Date.parse('2026-11-20T12:00:00Z');
+  st = addSnooze(st, { id: 'snooze-1', taskId: 'taak-0001-aaaa', reminderId: 'herinnering-01', at: now + 30 * 60_000 });
+  st = addSnooze(st, { id: 'snooze-2', taskId: 'taak-0001-aaaa', reminderId: 'herinnering-01', at: now + 60 * 60_000 });
+  assert.deepEqual(st.snoozes.map((x) => x.id), ['snooze-2'], 'opnieuw uitstellen vervangt het vorige uitstel');
+  st = addSnooze(st, { id: 'snooze-3', taskId: 'taak-0003-aaaa', reminderId: null, at: now + 10 * 60_000 });
+  assert.equal(addSnooze(st, { id: 'kapot id!', taskId: 'taak-0001-aaaa', at: now }), st, 'ongeldig: niets');
+  assert.deepEqual(settingsOf(JSON.parse(JSON.stringify(st))).snoozes, st.snoozes, 'blijft bewaard');
+  const plan = planSnoozes(sync(), st.snoozes, now);
+  assert.deepEqual(plan.map((p) => [p.key, p.taskId, p.title, p.moment]), [['snooze|snooze-2', 'taak-0001-aaaa', 'Tandarts bellen', '2026-11-20T14:00']], 'de afgevinkte taak niet');
+  assert.equal(plan[0].id, 'herinnering-01');
+  assert.equal(planSnoozes(sync(), st.snoozes, now + 2 * 60 * 60_000).length, 0, 'lang voorbij (de pc stond uit): vervalt');
+  assert.deepEqual(removeSnooze(st, 'snooze-2').snoozes.map((x) => x.id), ['snooze-3']);
+});
+
+test('het menu in het systeemvak: een & in een taaknaam blijft een &, en Voltooid opent een bestaande plek', () => {
+  const menu = trayMenu(translator('nl'), { items: [{ id: 'taak-0001-aaaa', title: 'Brood & boter', priority: 4, overdue: false }], count: 1 }, { stayInTray: true, quickAddShortcut: '' });
+  assert.equal(menu.find((m) => m.id === 'task:taak-0001-aaaa').label, 'Brood && boter');
+  assert.ok(menu.some((m) => m.id === 'nav:completed'));
 });

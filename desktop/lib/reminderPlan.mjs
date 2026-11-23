@@ -1,7 +1,7 @@
 // Welke herinneringen de desktop-app zelf laat afgaan. Electron kent geen web-push, dus de app haalt (zoals de Android-app) de taken en
 // herinneringen van de server en plant ze als gewone timers, met dezelfde regels als de server (shared/reminders.js): een absolute
 // herinnering op haar tijdstip, een relatieve zoveel minuten vóór de taak met een tijd; alleen je eigen, alleen open taken.
-import { floatingToEpoch, reminderMoment } from '../shared/reminders.js';
+import { epochToFloating, floatingToEpoch, reminderMoment } from '../shared/reminders.js';
 import { generalOf } from '../shared/general.js';
 
 /** Zo ver vooruit plannen we (een nieuwe verversing plant de rest). */
@@ -34,6 +34,23 @@ export function planReminders(sync, now, shown = []) {
     out.push({ id: r.id, taskId: task.id, title: String(task.content ?? '').slice(0, 300), moment, at, key });
   }
   return out.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+}
+
+/**
+ * De uitgestelde herinneringen (settings.snoozes) als meldingen, zoals planReminders: alleen voor taken die nog open zijn (afgevinkt
+ * of verwijderd intussen: niets meer), met de naam zoals die nu is. Een uitstel dat al lang voorbij is (een pc die uit stond) vervalt.
+ */
+export function planSnoozes(sync, snoozes, now) {
+  const tasks = new Map((sync?.tasks ?? []).filter((t) => t && !t.is_deleted && !t.checked).map((t) => [t.id, t]));
+  const me = sync?.me?.id ?? null;
+  const zone = (sync?.settings ?? []).find((s) => s && (!me || s.owner_id === me))?.timezone || null;
+  const out = [];
+  for (const s of snoozes ?? []) {
+    const task = tasks.get(s.taskId);
+    if (!task || s.at < now - LATE_MS || s.at > now + HORIZON_MS) continue;
+    out.push({ id: s.reminderId, snoozeId: s.id, taskId: task.id, title: String(task.content ?? '').slice(0, 300), moment: epochToFloating(s.at, zone), at: s.at, key: `snooze|${s.id}` });
+  }
+  return out.sort((a, b) => a.at - b.at);
 }
 
 /** De duur van "Uitstellen" (Instellingen › Algemeen, standaard 10 minuten), in ms. */

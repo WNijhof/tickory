@@ -18,7 +18,8 @@ export function trayMenu(t, today, state) {
   ];
   if (today) {
     if (today.items.length === 0) out.push({ label: t('nothingToday'), enabled: false });
-    for (const item of today.items) out.push({ id: `task:${item.id}`, label: item.title || '…', priority: item.priority, overdue: item.overdue });
+    // een & in een menu van Windows maakt van de volgende letter een sneltoets; && is een gewone &
+    for (const item of today.items) out.push({ id: `task:${item.id}`, label: (item.title || '…').replaceAll('&', '&&'), priority: item.priority, overdue: item.overdue });
     if (today.count > today.items.length) out.push({ id: 'nav:today', label: t('moreToday', { n: today.count - today.items.length }) });
     out.push({ type: 'separator' });
   }

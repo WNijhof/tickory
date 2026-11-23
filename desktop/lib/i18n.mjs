@@ -25,6 +25,9 @@ const NL = {
   accent_tomato: 'Tomaat', accent_teal: 'Zeegroen', accent_blue: 'Blauw', accent_indigo: 'Indigo', accent_violet: 'Paars', accent_rose: 'Roze',
   accent_orange: 'Oranje', accent_green: 'Groen', accent_graphite: 'Grafiet',
   appearanceHint: 'Werkt meteen, in alle vensters van Tickory en in de titelbalk. Dezelfde keuze als in Tickory onder Instellingen › Weergave.',
+  appearanceOldServer: 'Je server heeft een oudere versie van Tickory: het hoofdvenster volgt deze keuze pas als je de server bijwerkt (docker compose pull).',
+  offlineTitle: 'Geen verbinding met je server', offlineText: 'Tickory kan {server} niet bereiken. Het venster probeert het vanzelf opnieuw.', retry: 'Opnieuw proberen',
+  signInTitle: 'Inloggen bij Tickory',
 };
 const EN = {
   quickAdd: 'Add task', show: 'Show Tickory', settings: 'Settings', stayInTray: 'Keep running in the tray',
@@ -50,6 +53,9 @@ const EN = {
   accent_tomato: 'Tomato', accent_teal: 'Teal', accent_blue: 'Blue', accent_indigo: 'Indigo', accent_violet: 'Violet', accent_rose: 'Rose',
   accent_orange: 'Orange', accent_green: 'Green', accent_graphite: 'Graphite',
   appearanceHint: 'Takes effect at once, in all Tickory windows and in the title bar. The same choice as in Tickory under Settings › Appearance.',
+  appearanceOldServer: 'Your server has an older version of Tickory: the main window follows this choice once you update the server (docker compose pull).',
+  offlineTitle: 'No connection with your server', offlineText: 'Tickory cannot reach {server}. The window tries again by itself.', retry: 'Try again',
+  signInTitle: 'Sign in to Tickory',
 };
 
 /** De taal: wat je in de app koos, anders die van Windows (Nederlands bij nl-*, anders Engels). */

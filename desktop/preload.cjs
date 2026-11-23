@@ -30,7 +30,12 @@ contextBridge.exposeInMainWorld('TickoryDesktop', {
   setAppearance: (a, initial = false) => ipcRenderer.send('desktop:appearance', { theme: safeText(a?.theme, 10), accent: safeText(a?.accent, 20), initial: initial === true }),
   /** Wat te doen als het thema elders gekozen is (de eigen Instellingen van de app, of een ander venster). */
   onAppearance: (callback) => { appearanceListener = typeof callback === 'function' ? callback : null; },
+  /** De desktop-app heeft zelf iets gewijzigd (Voltooien of Uitstellen in een melding): de web-app synchroniseert dan meteen. */
+  onSyncRequest: (callback) => { syncListener = typeof callback === 'function' ? callback : null; },
 });
+
+let syncListener = null;
+ipcRenderer.on('desktop:sync', () => syncListener?.());
 
 let appearanceListener = null;
 ipcRenderer.on('desktop:appearance', (_event, a) => {

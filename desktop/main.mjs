@@ -7,15 +7,15 @@
 // Veiligheid: de pagina's van de server draaien zonder Node (contextIsolation, sandbox); ze zien alleen window.TickoryDesktop
 // (preload.cjs). Alleen de eigen server mag in het venster; andere adressen gaan naar de browser. Het sessietoken staat versleuteld
 // (safeStorage, gekoppeld aan je Windows-account) en gaat alleen naar je eigen server.
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, nativeTheme, powerMonitor, safeStorage, screen, shell } from 'electron';
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, nativeTheme, powerMonitor, safeStorage, screen, session, shell } from 'electron';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULTS, loadSettings, markShown, settingsOf, validShortcut } from './lib/settings.mjs';
+import { DEFAULTS, addSnooze, loadSettings, markShown, normalizeShortcut, removeSnooze, settingsOf } from './lib/settings.mjs';
 import { normalizeServer, sameOrigin } from './lib/server.mjs';
-import { planReminders, snoozeMs, todayItems } from './lib/reminderPlan.mjs';
+import { planReminders, planSnoozes, snoozeMs, todayItems } from './lib/reminderPlan.mjs';
 import { appMenu, trayMenu } from './lib/menuModel.mjs';
 import { langOf, translator } from './lib/i18n.mjs';
 import { parseActionUrl, reminderToastXml } from './lib/toast.mjs';
@@ -36,7 +36,10 @@ app.setAppUserModelId('io.github.wnijhof.tickory.desktop'); // nodig voor meldin
 const DEV_DATA = !app.isPackaged ? process.env.TICKORY_DESKTOP_DATA : undefined;
 const DEV_SHOT = !app.isPackaged ? process.env.TICKORY_DESKTOP_SHOT : undefined;
 if (DEV_DATA) app.setPath('userData', DEV_DATA);
-if (!app.requestSingleInstanceLock()) app.quit();
+// Draait Tickory al, dan gaat dit verzoek naar die (second-instance) en stopt deze tweede start meteen, zonder systeemvak,
+// sneltoetsen of instellingen voor het opstarten aan te raken (zie whenReady).
+const primary = app.requestSingleInstanceLock();
+if (!primary) app.quit();
 
 // ---------- instellingen en token ----------
 
@@ -134,21 +137,143 @@ function guard(win) {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (event, url) => {
-    if (settings.server && sameOrigin(url, settings.server)) return;
+    if (settings.server && sameOrigin(url, settings.server)) {
+      // inloggen via SSO: de inlogdienst staat op een ander adres en hoort niet in dit venster (met de brug naar de app)
+      if (isSsoStart(url)) {
+        event.preventDefault();
+        openSignIn(url, win);
+      }
+      return;
+    }
     event.preventDefault();
     if (/^https?:\/\//.test(url)) shell.openExternal(url);
   });
+}
+
+// ---------- laden, ook als de server (nog) niet bereikbaar is ----------
+
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+/** Wat te laden zodra de verbinding er weer is, per venster; na het ontwaken uit de slaapstand meteen. */
+const retries = new Map();
+
+/** De pagina zolang de server niet te bereiken is: een uitleg en een knop; het venster probeert het zelf elke tien seconden. */
+function offlinePage(target) {
+  const dark = nativeTheme.shouldUseDarkColors;
+  const html = `<!doctype html><html lang="${lang}"><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">`
+    + `<title>Tickory</title><style>body{font-family:"Segoe UI",system-ui,sans-serif;background:${dark ? BACKGROUND.dark : BACKGROUND.light};color:${dark ? '#f2f2f2' : '#202020'};`
+    + 'display:grid;place-items:center;min-height:90vh;margin:0;text-align:center}main{max-width:420px;padding:24px}h1{font-size:1.3rem}p{opacity:.8}'
+    + `a{display:inline-block;margin-top:12px;padding:8px 18px;border-radius:8px;background:${dark ? '#2dd4bf' : '#0f766e'};color:${dark ? '#06201d' : '#fff'};text-decoration:none}</style>`
+    + `<main><h1>${escapeHtml(t('offlineTitle'))}</h1><p>${escapeHtml(t('offlineText', { server: settings.server ?? '' }))}</p>`
+    + `<a href="${escapeHtml(target)}">${escapeHtml(t('retry'))}</a></main></html>`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+}
+
+/**
+ * Een pagina van de eigen server in een venster laden. Lukt dat niet (net uit de slaapstand, wifi nog niet verbonden bij het
+ * aanmelden, server uit), dan geen foutvenster maar een eigen pagina, en elke tien seconden (en na het ontwaken) opnieuw.
+ */
+function loadServer(win, url) {
+  let timer = null;
+  const retry = () => {
+    clearTimeout(timer);
+    timer = null;
+    if (!win.isDestroyed()) win.loadURL(url).catch(() => {});
+  };
+  win.webContents.on('did-fail-load', (_event, code, _text, failedUrl, isMainFrame) => {
+    // -3: afgebroken (een nieuwe navigatie, of de gebruiker zelf); alleen de pagina zelf telt, geen plaatje of script
+    if (!isMainFrame || code === -3 || !settings.server || !sameOrigin(failedUrl, settings.server)) return;
+    win.loadURL(offlinePage(url)).catch(() => {});
+    clearTimeout(timer);
+    timer = setTimeout(retry, 10_000);
+  });
+  win.webContents.on('did-finish-load', () => {
+    if (settings.server && sameOrigin(win.webContents.getURL(), settings.server)) { clearTimeout(timer); timer = null; }
+  });
+  retries.set(win, () => { if (timer) retry(); });
+  win.on('closed', () => { clearTimeout(timer); retries.delete(win); });
+  win.loadURL(url).catch(() => {}); // de fout zelf handelt did-fail-load af
+}
+
+// ---------- inloggen via SSO ----------
+
+/** Het begin van een SSO-poging op de eigen server (de web-app gaat erheen na /api/v1/auth/oidc/start). */
+const isSsoStart = (url) => {
+  try {
+    return new URL(url).pathname === '/api/v1/auth/oidc/authorize';
+  } catch {
+    return false;
+  }
+};
+let signIn = null;
+
+/**
+ * De inlogdienst in een eigen venster, zonder de brug naar de app (window.TickoryDesktop) en zonder de beperking tot de eigen
+ * server: hij heeft zijn eigen adres, formulieren en doorverwijzingen. Komt hij terug op de eigen server met de uitkomst
+ * (`/#oidc=…` of `/#oidc-error=…`), dan gaat het venster dicht en ronden het venster dat de poging begon dat af (het wisselt de
+ * code in met het geheim dat het in localStorage bewaarde; beide vensters delen die opslag).
+ */
+function openSignIn(url, from) {
+  signIn?.destroy();
+  // het kleine venster Taak toevoegen verdwijnt zodra het de focus kwijt is: dan rondt het hoofdvenster het inloggen af
+  const owner = from && !from.isDestroyed() && from !== quickAdd ? from : main;
+  const win = new BrowserWindow({
+    width: 560, height: 760, parent: owner ?? undefined, icon: icon(), title: t('signInTitle'), autoHideMenuBar: true, backgroundColor: windowBg(),
+    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+  });
+  signIn = win;
+  themed(win);
+  win.removeMenu();
+  const finish = (target) => {
+    let hash = '';
+    try {
+      const u = new URL(target);
+      if (!settings.server || u.origin !== settings.server || !/^#(oidc|oidc-error)=/.test(u.hash)) return false;
+      hash = u.hash;
+    } catch {
+      return false;
+    }
+    win.destroy();
+    const back = owner && !owner.isDestroyed() ? owner : null;
+    if (back) {
+      back.loadURL(`${settings.server}/${hash}`).catch(() => {});
+      present(back);
+    } else {
+      showMain(hash);
+    }
+    return true;
+  };
+  for (const name of ['will-redirect', 'will-navigate']) {
+    win.webContents.on(name, (event, target) => {
+      if (finish(target)) event.preventDefault();
+      else if (!/^https?:\/\//.test(target)) event.preventDefault();
+    });
+  }
+  win.webContents.on('did-navigate', (_event, target) => finish(target));
+  win.webContents.setWindowOpenHandler(({ url: link }) => {
+    if (/^https?:\/\//.test(link)) shell.openExternal(link);
+    return { action: 'deny' };
+  });
+  win.on('closed', () => { if (signIn === win) signIn = null; });
+  win.loadURL(url).catch(() => {});
 }
 
 function openWindow(url) {
   const win = new BrowserWindow({ width: 1100, height: 760, minWidth: 400, minHeight: 300, icon: icon(), backgroundColor: windowBg(), webPreferences: webPreferences(join(here, 'preload.cjs')) });
   themed(win);
   guard(win);
-  win.loadURL(url);
+  loadServer(win, url);
   return win;
 }
 
-function createMain({ hidden = false } = {}) {
+/** Wanneer het hoofdvenster voor het laatst de focus verloor: een klik op het systeemvak haalt de focus eerst weg. */
+let mainBlurAt = 0;
+/** Staat het hoofdvenster voor de gebruiker (zichtbaar en net nog actief)? Dan verbergt een klik op het systeemvak het. */
+const mainInFront = () => Boolean(main?.isVisible() && !main.isMinimized() && (main.isFocused() || Date.now() - mainBlurAt < 400));
+/** Heeft de web-app in het hoofdvenster ooit haar thema doorgegeven? Zo niet, dan is de server te oud voor de themakeuze. */
+let mainLoaded = false;
+let webAppearanceSeen = false;
+
+function createMain({ hidden = false, hash = '' } = {}) {
   const b = settings.bounds;
   const onScreen = b && screen.getAllDisplays().some((d) => b.x < d.bounds.x + d.bounds.width && b.x + b.width > d.bounds.x && b.y < d.bounds.y + d.bounds.height && b.y + b.height > d.bounds.y);
   main = new BrowserWindow({
@@ -159,8 +284,16 @@ function createMain({ hidden = false } = {}) {
   });
   themed(main);
   guard(main);
-  main.webContents.setZoomLevel(settings.zoom);
-  main.loadURL(`${settings.server}/`);
+  const win = main;
+  // de zoom hoort bij een geladen pagina (Chromium onthoudt hem per adres): na elke keer laden opnieuw zetten
+  win.webContents.on('did-finish-load', () => {
+    if (win.isDestroyed()) return;
+    win.webContents.setZoomLevel(settings.zoom);
+    if (settings.server && sameOrigin(win.webContents.getURL(), settings.server)) mainLoaded = true;
+  });
+  win.on('blur', () => { mainBlurAt = Date.now(); });
+  // met een plek (#task=…, #view=…) meteen in het adres: een bericht vóór het laden zou verloren gaan
+  loadServer(main, `${settings.server}/${hash}`);
   main.once('ready-to-show', () => {
     if (onScreen && b.maximized && !DEV_SHOT) main.maximize();
     if (!hidden) present(main);
@@ -174,18 +307,26 @@ function createMain({ hidden = false } = {}) {
   main.on('maximize', remember);
   main.on('unmaximize', remember);
   main.on('close', (event) => {
-    // zoals Todoist: sluiten laat Tickory in het systeemvak doorlopen (voor de herinneringen en de sneltoets), tenzij je dat uitzet
-    if (!quitting && settings.stayInTray) {
+    // zoals Todoist: sluiten laat Tickory in het systeemvak doorlopen (voor de herinneringen en de sneltoets), tenzij je dat uitzet;
+    // dan sluit het hoofdvenster Tickory helemaal af
+    if (quitting) return;
+    if (settings.stayInTray) {
       event.preventDefault();
       main.hide();
+    } else {
+      quitting = true;
+      setImmediate(() => app.quit());
     }
   });
-  main.on('closed', () => { main = null; });
+  main.on('closed', () => { if (main === win) main = null; });
 }
 
 function showMain(hash = null) {
   if (!settings.server) return openPages('setup');
-  if (!main) createMain();
+  if (!main) {
+    createMain({ hash: hash ?? '' });
+    hash = null; // zit al in het adres
+  }
   if (main.isMinimized()) main.restore();
   present(main);
   // Instellingen geopend terwijl Tickory in het systeemvak zat: nu pas bij het hoofdvenster, anders valt het erachter
@@ -193,7 +334,11 @@ function showMain(hash = null) {
     pages.setParentWindow(main);
     present(pages);
   }
-  if (hash) main.webContents.send('desktop:navigate', hash);
+  if (!hash) return;
+  // laadt het venster nog (of opnieuw, na geen verbinding), dan pas daarna: anders hoort de web-app het bericht niet
+  const target = main;
+  if (target.webContents.isLoading()) target.webContents.once('did-finish-load', () => { if (!target.isDestroyed()) target.webContents.send('desktop:navigate', hash); });
+  else target.webContents.send('desktop:navigate', hash);
 }
 
 /** Het losse venster Taak toevoegen (globale sneltoets of het systeemvak): klein, bovenop, zonder rand; weg zodra je klaar bent. */
@@ -206,7 +351,7 @@ function showQuickAdd() {
       webPreferences: webPreferences(join(here, 'preload.cjs')),
     });
     guard(quickAdd);
-    quickAdd.loadURL(`${settings.server}/?desktop=quickadd`);
+    loadServer(quickAdd, `${settings.server}/?desktop=quickadd`);
     quickAdd.on('blur', () => quickAdd?.hide());
     quickAdd.on('closed', () => { quickAdd = null; });
   }
@@ -221,16 +366,28 @@ function showQuickAdd() {
   else open();
 }
 
+let pagesMode = null;
+const pagesHeight = (mode) => (mode === 'setup' ? 520 : Math.min(960, screen.getPrimaryDisplay().workAreaSize.height - 40));
+
 function openPages(mode) {
   if (pages) {
+    // al open, maar voor iets anders (Instellingen open en dan Andere server…): hetzelfde venster met de andere inhoud
+    if (pagesMode !== mode) {
+      pagesMode = mode;
+      pages.setResizable(true);
+      pages.setSize(520, pagesHeight(mode));
+      pages.setResizable(false);
+      pages.loadFile(join(here, 'pages', 'prefs.html'), { query: { mode } });
+    }
     if (pages.isMinimized()) pages.restore();
     present(pages);
     return;
   }
+  pagesMode = mode;
   // Hoort bij het hoofdvenster (blijft er dan altijd boven) en doet mee met "altijd bovenop", anders valt het erachter.
   const owner = main && !main.isDestroyed() && main.isVisible() ? main : undefined;
   pages = new BrowserWindow({
-    width: 520, height: mode === 'setup' ? 520 : Math.min(960, screen.getPrimaryDisplay().workAreaSize.height - 40), resizable: false, show: false, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
+    width: 520, height: pagesHeight(mode), resizable: false, show: false, minimizable: false, maximizable: false, icon: icon(), title: 'Tickory',
     parent: owner, alwaysOnTop: !!settings.floatOnTop && !DEV_SHOT,
     autoHideMenuBar: true, backgroundColor: windowBg(),
     webPreferences: { ...webPreferences(join(here, 'pages', 'pages-preload.cjs')), spellcheck: false },
@@ -238,9 +395,11 @@ function openPages(mode) {
   themed(pages);
   pages.removeMenu();
   pages.loadFile(join(here, 'pages', 'prefs.html'), { query: { mode } });
-  pages.on('closed', () => { pages = null; });
+  pages.on('closed', () => { pages = null; pagesMode = null; });
   pages.once('ready-to-show', () => present(pages));
   pages.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // alleen de eigen pagina: een bestand dat je op het venster sleept, laadt er niet in (met de brug naar de instellingen)
+  pages.webContents.on('will-navigate', (event) => event.preventDefault());
 }
 
 // ---------- menu's ----------
@@ -328,7 +487,7 @@ function dot([r, g, b], size) {
 function createTray() {
   tray = new Tray(icon().resize({ width: 16, height: 16 }));
   tray.setToolTip(t('tooltip'));
-  tray.on('click', () => (main?.isVisible() && main.isFocused() ? main.hide() : showMain()));
+  tray.on('click', () => (mainInFront() ? main.hide() : showMain()));
   refreshMenus();
 }
 
@@ -347,7 +506,7 @@ function registerShortcuts() {
     }
   };
   add(settings.shortcuts.quickAdd, showQuickAdd);
-  add(settings.shortcuts.activate, () => (main?.isVisible() && main.isFocused() ? main.hide() : showMain()));
+  add(settings.shortcuts.activate, () => (main?.isVisible() && !main.isMinimized() && main.isFocused() ? main.hide() : showMain()));
   return failed;
 }
 
@@ -355,10 +514,12 @@ function registerShortcuts() {
 
 async function api(path, body) {
   if (!settings.server || !token) return null;
+  const used = token;
   const res = await fetch(`${settings.server}${path}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${used}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
   });
-  if (res.status === 401) { setSession(''); return null; }
+  // alleen afmelden als dit token nog geldt: intussen opnieuw ingelogd (een nieuw token) laat de nieuwe aanmelding staan
+  if (res.status === 401) { if (token === used) setSession(''); return null; }
   return res.ok ? res.json() : null;
 }
 
@@ -376,7 +537,7 @@ function schedule() {
   for (const timer of timers.values()) clearTimeout(timer);
   timers.clear();
   if (!syncData) return;
-  for (const r of planReminders(syncData, Date.now(), settings.shown)) {
+  for (const r of [...planReminders(syncData, Date.now(), settings.shown), ...planSnoozes(syncData, settings.snoozes, Date.now())]) {
     const wait = Math.max(0, r.at - Date.now());
     timers.set(r.key, setTimeout(() => fire(r), Math.min(wait, 2 ** 31 - 1)));
   }
@@ -393,8 +554,9 @@ function devNote(entry) {
 
 function fire(r) {
   timers.delete(r.key);
-  if (settings.shown.includes(r.key)) return;
-  saveSettings(markShown(settings, r.key));
+  if (r.snoozeId) saveSettings(removeSnooze(settings, r.snoozeId)); // een uitstel gaat één keer af
+  else if (settings.shown.includes(r.key)) return;
+  else saveSettings(markShown(settings, r.key));
   const time = r.moment.slice(11, 16);
   if (DEV_SHOT) return devNote({ kind: 'reminder', title: r.title, time, xml: reminderToastXml({ title: r.title, time, taskId: r.taskId, reminderId: r.id, moment: r.moment, t }) });
   const options = process.platform === 'win32'
@@ -415,17 +577,24 @@ async function handleAction(url) {
   if (!a) return;
   if (a.action === 'quick-add') return showQuickAdd();
   if (a.action === 'open') return showMain(`#task=${a.taskId}`);
+  // gestart door de knop in een melding (Tickory was afgesloten): eerst de gegevens, voor de naam, de uitstelduur en de tijdzone
+  if (!syncData && token) await refreshReminders();
   const title = syncData?.tasks?.find((x) => x.id === a.taskId)?.content ?? '';
+  if (a.action === 'snooze') {
+    // alleen op deze pc, zoals op Android: geen herinnering erbij op de server (die zou ook op de telefoon en in de browser afgaan)
+    const id = `s${randomUUID().replace(/-/g, '').slice(0, 24)}`;
+    saveSettings(addSnooze(settings, { id, taskId: a.taskId, reminderId: a.reminderId, at: Date.now() + snoozeMs(syncData) }));
+    schedule();
+    note(t('snoozedNote', { title }));
+    return;
+  }
   const uuid = `tickory-d-${randomUUID().replace(/-/g, '').slice(0, 24)}`;
-  const zone = syncData?.settings?.find((s) => s.owner_id === syncData?.me?.id)?.timezone || null;
-  const command = a.action === 'complete'
-    ? { type: 'task_complete', uuid, args: { id: a.taskId } }
-    : { type: 'reminder_add', uuid, args: { id: `sn${uuid.slice(10, 32)}`, task_id: a.taskId, type: 'absolute', due: { date: epochToFloating(Date.now() + snoozeMs(syncData), zone) } } };
   try {
-    const res = await api('/api/v1/sync', { sync_token: '*', resource_types: ['settings'], commands: [command] });
+    const res = await api('/api/v1/sync', { sync_token: '*', resource_types: ['settings'], commands: [{ type: 'task_complete', uuid, args: { id: a.taskId } }] });
     if (res?.sync_status?.[uuid] !== 'ok') throw new Error('geweigerd');
-    note(t(a.action === 'complete' ? 'completedNote' : 'snoozedNote', { title }));
-    main?.webContents.reload();
+    note(t('completedNote', { title }));
+    // de web-app synchroniseert zelf (geen herladen: wat je daar aan het typen was, blijft staan)
+    for (const w of webWindows()) w.webContents.send('desktop:sync');
     await refreshReminders();
   } catch {
     note(t('failedNote'));
@@ -471,7 +640,7 @@ async function checkUpdates(manual = false) {
 async function clearData() {
   const { response } = await dialog.showMessageBox({ type: 'warning', title: t('clearData'), message: t('clearData'), detail: t('clearDataText'), buttons: [t('clear'), t('cancel')], defaultId: 1, cancelId: 1 });
   if (response !== 0) return;
-  await main?.webContents.session.clearStorageData();
+  await session.defaultSession.clearStorageData(); // ook als het hoofdvenster dicht is: alle vensters delen deze sessie
   saveToken(null);
   saveSettings({ ...DEFAULTS, server: settings.server });
   app.relaunch();
@@ -481,11 +650,15 @@ async function clearData() {
 
 // ---------- berichten van de web-app en de eigen schermen ----------
 
-ipcMain.on('desktop:session', (event, value) => { if (event.sender === main?.webContents) setSession(value); });
-let changedTimer = null;
+/** Komt dit bericht van een pagina van de eigen server (het hoofdvenster, Taak toevoegen of een extra venster)? */
+const fromServer = (event) => Boolean(settings.server && sameOrigin(event.sender.getURL(), settings.server));
+// inloggen of afmelden kan in elk venster van de web-app (ze delen dezelfde opslag)
+ipcMain.on('desktop:session', (event, value) => { if (fromServer(event)) setSession(value); });
+let changedTimers = [];
 ipcMain.on('desktop:reminders-changed', () => {
-  clearTimeout(changedTimer);
-  changedTimer = setTimeout(refreshReminders, 2000);
+  // na 2 seconden, en voor de zekerheid nog eens na 15: is de sync van de web-app traag, dan mist de eerste ronde de wijziging
+  for (const timer of changedTimers) clearTimeout(timer);
+  changedTimers = [setTimeout(refreshReminders, 2000), setTimeout(refreshReminders, 15_000)];
 });
 ipcMain.on('desktop:badge', (event, count) => {
   if (event.sender !== main?.webContents || !main) return;
@@ -508,7 +681,8 @@ ipcMain.on('desktop:language', (_event, value) => {
 
 // het thema van de web-app (Instellingen › Weergave); `initial` bij het opstarten van een venster
 ipcMain.on('desktop:appearance', (event, value) => {
-  if (!settings.server || !sameOrigin(event.sender.getURL(), settings.server)) return;
+  if (!fromServer(event)) return;
+  webAppearanceSeen = true; // de web-app van de server kent de themakeuze van de desktop-app (vanaf 0.10.1)
   const { save, reply } = fromWeb(settings.appearance, value, value?.initial === true);
   if (save) setAppearance(save, event.sender);
   if (reply) event.sender.send('desktop:appearance', reply);
@@ -519,10 +693,12 @@ ipcMain.handle('pages:load', (event) => {
   const mode = new URL(event.sender.getURL()).searchParams.get('mode') === 'setup' ? 'setup' : 'prefs';
   const keys = ['setupTitle', 'setupText', 'serverLabel', 'connect', 'serverError_empty', 'serverError_invalid', 'serverError_http', 'serverError_unreachable', 'settings',
     'shortcuts', 'quickAdd', 'show', 'shortcutHint', 'startup', 'openAtLogin', 'startMinimized', 'stayInTray', 'save', 'close', 'shortcutInvalid',
-    'appearance', 'theme', 'theme_system', 'theme_light', 'theme_dark', 'accent', 'appearanceHint', ...ACCENTS.map((a) => `accent_${a.name}`)];
+    'appearance', 'theme', 'theme_system', 'theme_light', 'theme_dark', 'accent', 'appearanceHint', 'appearanceOldServer', ...ACCENTS.map((a) => `accent_${a.name}`)];
   return {
     mode, lang, texts: Object.fromEntries(keys.map((k) => [k, t(k)])),
     accents: ACCENTS.map((a) => a.name),
+    // het hoofdvenster liet de server zien, maar de web-app gaf nooit haar thema door: een server van vóór 0.10.1
+    oldServer: mainLoaded && !webAppearanceSeen,
     settings: { server: settings.server, shortcuts: settings.shortcuts, openAtLogin: settings.openAtLogin, startMinimized: settings.startMinimized, stayInTray: settings.stayInTray, appearance: appearanceOrDefault(settings.appearance) },
   };
 });
@@ -552,9 +728,12 @@ ipcMain.handle('pages:set-server', async (_event, text) => {
 });
 ipcMain.handle('pages:save', (_event, changes) => {
   const sc = changes.shortcuts ?? {};
-  if (!validShortcut(sc.quickAdd ?? '') || !validShortcut(sc.activate ?? '')) return { ok: false, error: 'shortcutInvalid' };
+  // "ctrl+shift+a" mag: in de schrijfwijze van Electron ("Ctrl+Shift+A")
+  const quickAddKey = normalizeShortcut(sc.quickAdd ?? '');
+  const activateKey = normalizeShortcut(sc.activate ?? '');
+  if (quickAddKey === null || activateKey === null) return { ok: false, error: 'shortcutInvalid' };
   const before = settings;
-  saveSettings({ ...settings, shortcuts: { quickAdd: sc.quickAdd ?? '', activate: sc.activate ?? '' }, openAtLogin: changes.openAtLogin === true, startMinimized: changes.startMinimized === true, stayInTray: changes.stayInTray !== false });
+  saveSettings({ ...settings, shortcuts: { quickAdd: quickAddKey, activate: activateKey }, openAtLogin: changes.openAtLogin === true, startMinimized: changes.startMinimized === true, stayInTray: changes.stayInTray !== false });
   if (registerShortcuts().length > 0) {
     saveSettings({ ...settings, shortcuts: before.shortcuts });
     registerShortcuts();
@@ -585,6 +764,7 @@ app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => { /* blijft draaien in het systeemvak */ });
 
 app.whenReady().then(async () => {
+  if (!primary) return; // een tweede start: die stopt (zie bovenaan)
   settings = loadSettings(() => (existsSync(settingsFile()) ? readFileSync(settingsFile(), 'utf8') : null));
   lang = langOf(settings.lang, app.getLocale());
   t = translator(lang);
@@ -600,15 +780,20 @@ app.whenReady().then(async () => {
     applyLoginItem();
   }
   token = await loadToken();
+  // tijdens het wachten op het token kan een tweede start of een melding het hoofdvenster al hebben geopend
   if (!settings.server) openPages('setup');
-  else createMain({ hidden: process.argv.includes('--hidden') });
-  if (token) refreshReminders();
+  else if (!main) createMain({ hidden: process.argv.includes('--hidden') });
+  const loaded = token ? refreshReminders() : Promise.resolve();
   setInterval(refreshReminders, SYNC_EVERY_MS);
-  powerMonitor.on('resume', () => refreshReminders());
+  powerMonitor.on('resume', () => {
+    refreshReminders();
+    for (const retry of retries.values()) retry(); // een venster zonder verbinding: meteen opnieuw proberen
+  });
   const startUrl = urlFromArgs(process.argv);
-  if (startUrl) handleAction(startUrl);
+  if (startUrl) loaded.then(() => handleAction(startUrl)); // eerst de gegevens (de uitstelduur, de naam van de taak)
   if (!DEV_SHOT) setTimeout(() => checkUpdates(false), 10_000);
-  if (DEV_SHOT) smokeShots(DEV_SHOT);
+  // de rooktest stopt altijd, ook als een schermafdruk mislukt (een venster zonder inhoud, zonder server)
+  if (DEV_SHOT) smokeShots(DEV_SHOT).catch((e) => console.error('rooktest:', e)).finally(() => { quitting = true; app.quit(); });
 });
 
 /** De rooktest (alleen bij het ontwikkelen): het hoofdvenster, het systeemvakmenu als tekst, en het venster Taak toevoegen. */

@@ -29,6 +29,8 @@ main { max-width: 460px; margin: 0 auto; padding: 28px 24px; }
 h1 { font-size: 1.35rem; margin: 8px 0 6px; }
 .logo { width: 56px; height: 56px; border-radius: 14px; }
 .hint { color: var(--soft); font-size: 0.9rem; margin: 4px 0 12px; }
+.hint.warning { color: var(--error); }
+[hidden] { display: none !important; }
 label { display: block; font-weight: 600; margin: 12px 0 4px; }
 label.check { font-weight: 400; display: flex; gap: 8px; align-items: center; margin: 8px 0; }
 input[type=checkbox] { accent-color: var(--accent); }

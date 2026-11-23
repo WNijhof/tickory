@@ -17,6 +17,7 @@ export const DEFAULTS = Object.freeze({
   lang: null,
   appearance: null,
   shown: Object.freeze([]),
+  snoozes: Object.freeze([]),
 });
 
 const MAX_SHOWN = 500;
@@ -24,6 +25,23 @@ const ACCELERATOR = /^(?:(?:Control|Ctrl|CommandOrControl|Alt|Shift|Super|Meta)\
 
 /** Is dit een sneltoets die Electron kent, met minstens één toets als Ctrl of Alt ervoor? Een lege tekst = uit. */
 export const validShortcut = (s) => s === '' || (typeof s === 'string' && ACCELERATOR.test(s));
+
+// de schrijfwijze die Electron kent, bij elke schrijfwijze die je intypt ("ctrl+shift+a", "control + space")
+const CANONICAL = new Map(['Control', 'Ctrl', 'CommandOrControl', 'Alt', 'Shift', 'Super', 'Meta', 'Space', 'Tab', 'Enter', 'Up', 'Down', 'Left', 'Right',
+  'Home', 'End', 'PageUp', 'PageDown', 'Insert', 'Delete', 'Plus', 'Minus'].map((k) => [k.toLowerCase(), k]));
+
+/**
+ * Een getypte sneltoets in de schrijfwijze van Electron (hoofdletters zoals Electron ze kent, spaties weg), of null als het geen
+ * geldige sneltoets is. Een lege tekst blijft leeg (= uit).
+ */
+export function normalizeShortcut(text) {
+  if (typeof text !== 'string') return null;
+  const s = text.trim();
+  if (s === '') return '';
+  const parts = s.split('+').map((p) => p.trim());
+  const out = parts.map((p) => CANONICAL.get(p.toLowerCase()) ?? (/^[a-z0-9]$/i.test(p) ? p.toUpperCase() : /^f\d{1,2}$/i.test(p) ? p.toUpperCase() : p)).join('+');
+  return validShortcut(out) ? out : null;
+}
 
 const bounds = (b) => (b && [b.x, b.y, b.width, b.height].every(Number.isFinite) && b.width >= 400 && b.height >= 300 ? { x: b.x, y: b.y, width: b.width, height: b.height, maximized: b.maximized === true } : null);
 
@@ -46,8 +64,27 @@ export function settingsOf(raw) {
     lang: v.lang === 'nl' || v.lang === 'en' ? v.lang : null,
     appearance: appearanceOf(v.appearance), // null: nog niets gekozen (dan volgt de app de web-app)
     shown: Array.isArray(v.shown) ? v.shown.filter((x) => typeof x === 'string' && x.length < 200).slice(-MAX_SHOWN) : [],
+    snoozes: Array.isArray(v.snoozes) ? v.snoozes.filter(validSnooze).slice(-MAX_SNOOZES) : [],
   };
 }
+
+const MAX_SNOOZES = 50;
+const SNOOZE_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const validSnooze = (s) => Boolean(s && typeof s === 'object' && SNOOZE_ID.test(s.id ?? '') && SNOOZE_ID.test(s.taskId ?? '')
+  && (s.reminderId === null || SNOOZE_ID.test(s.reminderId ?? '')) && Number.isFinite(s.at));
+
+/**
+ * Een uitgestelde herinnering (Uitstellen in een melding): alleen op deze pc, zoals op Android. Er komt geen herinnering op de server
+ * bij, dus hij gaat niet ook op de telefoon of in de browser af. Een eerdere uitstel van dezelfde herinnering vervalt.
+ */
+export function addSnooze(settings, { id, taskId, reminderId = null, at }) {
+  const entry = { id, taskId, reminderId, at };
+  if (!validSnooze(entry)) return settings;
+  const rest = settings.snoozes.filter((s) => !(s.taskId === taskId && s.reminderId === reminderId));
+  return { ...settings, snoozes: [...rest, entry].slice(-MAX_SNOOZES) };
+}
+
+export const removeSnooze = (settings, id) => ({ ...settings, snoozes: settings.snoozes.filter((s) => s.id !== id) });
 
 /** Onthoud dat deze melding (herinnering|moment) getoond is; de oudste vallen eraf. */
 export function markShown(settings, key) {
