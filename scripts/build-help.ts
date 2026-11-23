@@ -36,7 +36,8 @@ export function helpData(lang: Lang): HelpData {
     const where = `website/pages/${lang}/${page.path}`;
     const pageUrl = `${SITE_URL}${lang}/${page.path}`;
     const root = `${SITE_URL}`; // {{root}}: verwijzingen naar de website zelf worden volledige adressen
-    const withoutShots = page.html.replace(/<x-shot\b[\s\S]*?<\/x-shot>\s*/g, '');
+    // regeleinden gelijk op elke computer (een checkout op Windows kan CRLF hebben): anders verschilt het bestand per machine
+    const withoutShots = page.html.replace(/\r\n?/g, '\n').replace(/<x-shot\b[\s\S]*?<\/x-shot>\s*/g, '');
     let html = addHeadingIds(expandElements(fill(withoutShots, { root, version, repo: config.repo, image: config.image }, where), root, where, lang), where);
     html = html.replace(/<a\s+href="([^"]*)"/g, (_all, href: string) => `<a href="${appHref(href, page.path, known, pageUrl)}"${external(href) ? ' target="_blank" rel="noopener"' : ''}`);
     html = html.replace(/\n{3,}/g, '\n\n').trim();
