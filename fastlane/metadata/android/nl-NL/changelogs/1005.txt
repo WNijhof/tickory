@@ -1,0 +1,2 @@
+- Opgelost: wijzigingen deden niets als je Tickory opende via gewone http op een lokaal adres (bijvoorbeeld een Tailscale-adres).
+- Balk Taak toevoegen: in een label krijgt de nieuwe taak dat label; een melding zegt waar een nieuwe taak is als ze niet in de lijst staat die je ziet.

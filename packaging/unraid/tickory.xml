@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Tickory</Name>
+  <Repository>ghcr.io/wnijhof/tickory:latest</Repository>
+  <Registry>https://github.com/WNijhof/tickory/pkgs/container/tickory</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/WNijhof/tickory/issues</Support>
+  <Project>https://wnijhof.github.io/tickory/en/</Project>
+  <Overview>Tickory is a self-hosted to-do list and notes app for you, your family or a small team: a free Todoist alternative. Projects, sections, subtasks, labels, recurring tasks, quick add in plain language (English and Dutch), list, board and calendar views, shared projects, comments, attachments, reminders (Web Push and Android alarms), notes with checklists and pictures, two-step verification, SSO (OpenID Connect) and backups. Works offline as an installable web app, with an Android app (widgets), a Windows desktop app and a browser extension.&#xD;
+&#xD;
+Set an admin username and password for the first start; you create the other accounts in the app. Put HTTPS in front (for example Nginx Proxy Manager, SWAG or Tailscale) for offline use, installing as an app and notifications on phones.</Overview>
+  <Category>Productivity: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:8787]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/WNijhof/tickory/main/packaging/unraid/tickory.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/WNijhof/tickory/main/client/icon-512.png</Icon>
+  <ExtraParams>--init --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges:true</ExtraParams>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>Tickory runs as an unprivileged user (uid 1000), not as root. Before the first start, make the appdata folder writable for that user, for example in the Unraid terminal: mkdir -p /mnt/user/appdata/tickory &amp;&amp; chown 1000:1000 /mnt/user/appdata/tickory. After the first start you can remove the admin password from the template (the account already exists).</Requires>
+  <Config Name="Web UI port" Target="8787" Default="8787" Mode="tcp" Description="Port of the web app and the sync server." Type="Port" Display="always" Required="true" Mask="false">8787</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/tickory" Mode="rw" Description="Database, attachments, the key for two-step verification and (if enabled) automatic backups. Must be writable for uid 1000 (see Requires)." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/tickory</Config>
+  <Config Name="Admin username" Target="TODO_ADMIN_USER" Default="" Description="Only used at the very first start: creates the first account (an administrator)." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Admin password" Target="TODO_ADMIN_PASSWORD" Default="" Description="At least 10 characters. Only used at the very first start; remove it afterwards." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Admin display name" Target="TODO_ADMIN_NAME" Default="" Description="The name others see in shared projects (optional)." Type="Variable" Display="always" Required="false" Mask="false"/>
+  <Config Name="Default time zone" Target="DEFAULT_TIMEZONE" Default="Europe/Amsterdam" Description="For users who have not chosen a time zone themselves (IANA name, for example America/New_York)." Type="Variable" Display="always" Required="false" Mask="false">Europe/Amsterdam</Config>
+  <Config Name="Behind a reverse proxy" Target="TRUST_PROXY" Default="0" Description="1 when a reverse proxy is in front: then the visitor's address counts for limiting sign-in attempts." Type="Variable" Display="advanced" Required="false" Mask="false">0</Config>
+  <Config Name="Push contact" Target="VAPID_SUBJECT" Default="" Description="Contact for the push service of browser notifications: mailto:you@example.com or an https address." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Public URL" Target="PUBLIC_URL" Default="" Description="The https address of this server, needed for sign-in with SSO (OpenID Connect)." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Max upload (MB)" Target="MAX_UPLOAD_MB" Default="25" Description="Largest attachment, in megabytes." Type="Variable" Display="advanced" Required="false" Mask="false">25</Config>
+  <Config Name="Attachment quota (MB)" Target="ATTACHMENT_QUOTA_MB" Default="1024" Description="Storage for attachments per user, in megabytes." Type="Variable" Display="advanced" Required="false" Mask="false">1024</Config>
+  <Config Name="Automatic backups" Target="BACKUP_DIR" Default="" Description="A folder in the data volume for daily backups, for example /data/backups; empty = off." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Check for updates" Target="UPDATE_CHECK" Default="1" Description="1 = look twice a day whether a newer Tickory is on GitHub (sends nothing about this server); 0 = off." Type="Variable" Display="advanced" Required="false" Mask="false">1</Config>
+</Container>

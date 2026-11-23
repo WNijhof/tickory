@@ -1,0 +1,23 @@
+{
+  "$schema": "../app-info-schema.json",
+  "name": "Tickory",
+  "id": "tickory",
+  "available": true,
+  "short_desc": "Self-hosted to-do list and notes: a free Todoist alternative.",
+  "author": "WNijhof",
+  "port": 8787,
+  "categories": ["utilities"],
+  "description": "Tickory is a to-do list and notes app you host yourself, for you, your family or a small team. Projects, subtasks, labels, recurring tasks, quick add in plain language, list, board and calendar views, shared projects, reminders, notes, offline web app, Android app, Windows desktop app and browser extension.",
+  "tipi_version": 1,
+  "version": "0.10.5",
+  "source": "https://github.com/WNijhof/tickory",
+  "website": "https://wnijhof.github.io/tickory/en/",
+  "exposable": true,
+  "dynamic_config": true,
+  "supported_architectures": ["amd64", "arm64"],
+  "form_fields": [
+    { "type": "text", "label": "Admin username", "required": true, "env_variable": "TICKORY_ADMIN_USER" },
+    { "type": "password", "label": "Admin password", "hint": "At least 10 characters", "min": 10, "required": true, "env_variable": "TICKORY_ADMIN_PASSWORD" },
+    { "type": "text", "label": "Default time zone", "hint": "For example Europe/Amsterdam", "default": "Europe/Amsterdam", "required": false, "env_variable": "TICKORY_TIMEZONE" }
+  ]
+}

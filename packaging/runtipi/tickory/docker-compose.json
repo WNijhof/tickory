@@ -1,0 +1,27 @@
+{
+  "$schema": "../dynamic-compose-schema.json",
+  "services": [
+    {
+      "name": "tickory",
+      "image": "ghcr.io/wnijhof/tickory:0.10.5",
+      "isMain": true,
+      "internalPort": 8787,
+      "user": "1000:1000",
+      "environment": {
+        "TODO_ADMIN_USER": "${TICKORY_ADMIN_USER}",
+        "TODO_ADMIN_PASSWORD": "${TICKORY_ADMIN_PASSWORD}",
+        "DEFAULT_TIMEZONE": "${TICKORY_TIMEZONE}",
+        "TRUST_PROXY": "1"
+      },
+      "volumes": [
+        { "hostPath": "${APP_DATA_DIR}/data", "containerPath": "/data" }
+      ],
+      "healthCheck": {
+        "test": "node -e \"fetch('http://127.0.0.1:8787/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))\"",
+        "interval": "30s",
+        "timeout": "5s",
+        "retries": 3
+      }
+    }
+  ]
+}

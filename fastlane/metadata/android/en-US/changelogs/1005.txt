@@ -1,0 +1,2 @@
+- Fixed: changes did nothing when Tickory was opened over plain http on a local address (for example a Tailscale address).
+- Add task bar: in a label, the new task gets that label; a message says where a new task went when it is not in the list you see.

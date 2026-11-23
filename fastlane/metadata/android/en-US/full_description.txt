@@ -1,0 +1,43 @@
+Tickory is a to-do list and notes app for you, your family or a small team, with the data on <b>your own server</b>. The Android app works with a Tickory server you run yourself (a single Docker container); there is no account with us, no tracking and no paid tier.
+
+<b>Tasks</b>
+<ul>
+<li>Projects, sections, subtasks, labels, priorities, deadlines, durations, comments and attachments</li>
+<li>Quick add in plain language: <i>Call the dentist tomorrow at 9am #Home @calls p1 with a reminder 30 minutes before</i></li>
+<li>Recurring tasks like "every mon, wed and fri" or "every last friday"</li>
+<li>Today, Upcoming, list, board and calendar views, search, filters and templates</li>
+<li>Undo, selecting several tasks, a productivity overview with daily and weekly goals</li>
+</ul>
+
+<b>Together</b>
+<ul>
+<li>Shared projects (can edit or view only), assigning, @-mentions and notifications</li>
+<li>Changes from others arrive within seconds</li>
+</ul>
+
+<b>Notes</b>
+<ul>
+<li>Formatting, checklists, colours, labels, pictures and audio, version history and sharing</li>
+<li>Import from Google Keep and Markdown</li>
+</ul>
+
+<b>On your phone</b>
+<ul>
+<li>Works offline; everything syncs when you are back online</li>
+<li>Reminders as alarms, also at a place (optional, the location stays on your phone)</li>
+<li>Widgets for Today, a project or a filter, a productivity widget, and a small Add task window</li>
+<li>Share text, links and files from other apps to Tickory</li>
+</ul>
+
+<b>Your own server</b>
+<ul>
+<li>Multiple users, two-step verification, sign-in with SSO (OpenID Connect) and backups</li>
+<li>Import from Todoist (backup or CSV), export as CSV or JSON</li>
+<li>English and Dutch, including the dates you type</li>
+</ul>
+
+You need a Tickory server to use the app. Setting one up takes a few minutes with Docker; the guide explains how: https://wnijhof.github.io/tickory/en/guide/installing.html
+
+Permissions: location (only for reminders at a place, if you use them), microphone (only for typing by voice), notifications and exact alarms (for reminders).
+
+Tickory is free software under the AGPL-3.0. Source code: https://github.com/WNijhof/tickory

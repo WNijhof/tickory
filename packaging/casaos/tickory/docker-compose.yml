@@ -1,0 +1,87 @@
+name: tickory
+services:
+  tickory:
+    image: ghcr.io/wnijhof/tickory:0.10.5
+    container_name: tickory
+    user: "1000:1000"
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      TODO_ADMIN_USER: admin
+      TODO_ADMIN_PASSWORD: change-this-password
+      DEFAULT_TIMEZONE: Europe/Amsterdam
+    ports:
+      - target: 8787
+        published: "8787"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/tickory/data
+        target: /data
+    x-casaos:
+      envs:
+        - container: TODO_ADMIN_USER
+          description:
+            en_us: Username of the first account (an administrator), only used at the very first start
+            nl_nl: Gebruikersnaam van het eerste account (een beheerder), alleen bij de allereerste start
+        - container: TODO_ADMIN_PASSWORD
+          description:
+            en_us: Password of the first account, at least 10 characters; remove it after the first start
+            nl_nl: Wachtwoord van het eerste account, minstens 10 tekens; haal het na de eerste start weg
+        - container: DEFAULT_TIMEZONE
+          description:
+            en_us: Time zone for users who have not chosen one
+            nl_nl: Tijdzone voor gebruikers die er zelf geen kozen
+      ports:
+        - container: "8787"
+          description:
+            en_us: Web app and sync server
+            nl_nl: Web-app en sync-server
+      volumes:
+        - container: /data
+          description:
+            en_us: Database, attachments and backups (must be writable for uid 1000)
+            nl_nl: Database, bijlagen en back-ups (moet beschrijfbaar zijn voor uid 1000)
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: tickory
+  author: WNijhof
+  developer: WNijhof
+  category: Productivity
+  icon: https://raw.githubusercontent.com/WNijhof/tickory/main/client/icon-512.png
+  screenshot_link:
+    - https://raw.githubusercontent.com/WNijhof/tickory/main/website/assets/social-preview.png
+  thumbnail: https://raw.githubusercontent.com/WNijhof/tickory/main/website/assets/social-preview.png
+  tagline:
+    en_us: Your own to-do list and notes, a free Todoist alternative
+    nl_nl: Je eigen takenlijst en notities, een gratis Todoist-alternatief
+  description:
+    en_us: >-
+      Tickory is a to-do list and notes app you host yourself: projects, subtasks, labels, recurring tasks, quick add in
+      plain language, list, board and calendar views, shared projects, reminders and notes. Offline web app, Android app,
+      Windows desktop app and browser extension. Sign in with the admin account from the settings; you create the other
+      accounts in the app.
+    nl_nl: >-
+      Tickory is een takenlijst en notitie-app die je zelf host: projecten, subtaken, labels, terugkerende taken, snel
+      toevoegen in gewone taal, lijst, bord en kalender, gedeelde projecten, herinneringen en notities. Offline web-app,
+      Android-app, desktop-app voor Windows en browserextensie. Log in met het beheerdersaccount uit de instellingen; de
+      andere accounts maak je in de app.
+  title:
+    en_us: Tickory
+  index: /
+  port_map: "8787"
+  version: "0.10.5"
+  website: https://wnijhof.github.io/tickory/en/
+  repo: https://github.com/WNijhof/tickory
+  support: https://github.com/WNijhof/tickory/issues
+  tips:
+    before_install:
+      en_us: >-
+        Tickory runs as an unprivileged user (uid 1000). If the app does not start, make the data folder writable:
+        sudo mkdir -p /DATA/AppData/tickory/data && sudo chown 1000:1000 /DATA/AppData/tickory/data

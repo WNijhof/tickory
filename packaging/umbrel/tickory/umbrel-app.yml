@@ -1,0 +1,36 @@
+manifestVersion: 1
+id: tickory
+category: files
+name: Tickory
+version: "0.10.5"
+tagline: Your own to-do list and notes, a free Todoist alternative
+description: >-
+  Tickory is a to-do list and notes app you host yourself: for you, your family or a small team.
+
+
+  Projects, sections, subtasks, labels, priorities, deadlines and recurring tasks. Quick add in plain language
+  ("Call the dentist tomorrow at 9am #Home p1 with a reminder 30 minutes before"), Today, Upcoming, list, board and
+  calendar views, search and filters. Shared projects with assigning, comments, attachments and notifications.
+  Notes with checklists, pictures and audio. Works offline as an installable web app, with an Android app
+  (widgets), a Windows desktop app and a browser extension.
+
+
+  Sign in with the username "umbrel" and the password shown here; you create the other accounts in the app.
+releaseNotes: >-
+  Fixed: changes did nothing when Tickory was opened over plain http on a local address.
+  Add task bar: in a label, the new task gets that label.
+developer: WNijhof
+website: https://wnijhof.github.io/tickory/en/
+dependencies: []
+repo: https://github.com/WNijhof/tickory
+support: https://github.com/WNijhof/tickory/issues
+port: 8787
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+path: ""
+defaultUsername: umbrel
+deterministicPassword: true
+submitter: WNijhof
+submission: https://github.com/getumbrel/umbrel-apps/pull/TODO

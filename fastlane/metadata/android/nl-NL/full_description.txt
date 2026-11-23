@@ -1,0 +1,43 @@
+Tickory is een takenlijst en notitie-app voor jezelf, je gezin of een klein team, met de gegevens op <b>je eigen server</b>. De Android-app werkt met een Tickory-server die je zelf draait (één Docker-container); er is geen account bij ons, geen tracking en geen betaalde versie.
+
+<b>Taken</b>
+<ul>
+<li>Projecten, secties, subtaken, labels, prioriteiten, deadlines, duur, opmerkingen en bijlagen</li>
+<li>Snel toevoegen in gewone taal: <i>Tandarts bellen morgen om 9 uur #Thuis @bellen p1 met herinnering 30 minuten vooraf</i></li>
+<li>Terugkerende taken zoals "elke ma, wo en vr" of "elke laatste vrijdag"</li>
+<li>Vandaag, Aankomend, lijst, bord en kalender, zoeken, filters en sjablonen</li>
+<li>Ongedaan maken, meerdere taken tegelijk, een productiviteitsoverzicht met dag- en weekdoelen</li>
+</ul>
+
+<b>Samen</b>
+<ul>
+<li>Gedeelde projecten (bewerken of alleen lezen), toewijzen, @-vermeldingen en meldingen</li>
+<li>Wijzigingen van anderen komen binnen enkele seconden binnen</li>
+</ul>
+
+<b>Notities</b>
+<ul>
+<li>Opmaak, vinklijsten, kleuren, labels, foto's en geluid, versiegeschiedenis en delen</li>
+<li>Importeren uit Google Keep en Markdown</li>
+</ul>
+
+<b>Op je telefoon</b>
+<ul>
+<li>Werkt offline; alles wordt bijgewerkt zodra je weer verbinding hebt</li>
+<li>Herinneringen als wekker, ook op een plek (als je dat wilt; je locatie blijft op je telefoon)</li>
+<li>Widgets voor Vandaag, een project of een filter, een productiviteitswidget, en een klein venster Taak toevoegen</li>
+<li>Tekst, links en bestanden uit andere apps delen naar Tickory</li>
+</ul>
+
+<b>Je eigen server</b>
+<ul>
+<li>Meerdere gebruikers, tweestapsverificatie, inloggen met SSO (OpenID Connect) en back-ups</li>
+<li>Importeren uit Todoist (back-up of CSV), exporteren als CSV of JSON</li>
+<li>Nederlands en Engels, ook de datums die je intypt</li>
+</ul>
+
+Je hebt een Tickory-server nodig om de app te gebruiken. Met Docker staat die er in een paar minuten; de handleiding legt het uit: https://wnijhof.github.io/tickory/nl/handleiding/installeren.html
+
+Toestemmingen: locatie (alleen voor herinneringen op een plek, als je die gebruikt), microfoon (alleen om in te spreken), meldingen en exacte wekkers (voor herinneringen).
+
+Tickory is vrije software onder de AGPL-3.0. Broncode: https://github.com/WNijhof/tickory

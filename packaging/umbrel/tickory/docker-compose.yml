@@ -1,0 +1,24 @@
+services:
+  app_proxy:
+    environment:
+      APP_HOST: tickory_web_1
+      APP_PORT: 8787
+      # Tickory heeft een eigen inlogscherm, en de Android-app, de desktop-app en de browserextensie praten rechtstreeks met de
+      # API: de inlog van Umbrel ervoor zou die blokkeren.
+      PROXY_AUTH_ADD: "false"
+
+  web:
+    # bij het indienen: vastpinnen op de digest (ghcr.io/wnijhof/tickory:0.10.5@sha256:…)
+    image: ghcr.io/wnijhof/tickory:0.10.5
+    user: "1000:1000"
+    init: true
+    restart: on-failure
+    read_only: true
+    tmpfs:
+      - /tmp
+    environment:
+      TODO_ADMIN_USER: umbrel
+      TODO_ADMIN_PASSWORD: ${APP_PASSWORD}
+      TRUST_PROXY: "1"
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
