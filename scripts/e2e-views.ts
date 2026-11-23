@@ -208,10 +208,15 @@ export async function calendarDragScenario(c: any): Promise<void> {
     await waitFor(`document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"]')`, 'te late taak in beeld', 15_000);
     // de lijst met te late taken staat boven de kalender: weer bovenaan beginnen (ook als de kalender zelf scrolt)
     await evaluate(`(() => { window.scrollTo(0, 0); document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"]').scrollIntoView({ block: 'nearest' }); })()`);
+    // eind van de maand staat vandaag in de onderste rij, onder de rand van het scherm (de lijst Te laat staat erboven, en de
+    // kalender scrolt niet mee tijdens het slepen): dan voor deze stap een hoger venster, zodat beide in beeld zijn
+    const below = await evaluate(`${dayCell(today)}.getBoundingClientRect().bottom > window.innerHeight`);
+    if (below) await c.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 1600, deviceScaleFactor: 1, mobile: false });
     const from = await rectOf(`document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"] .cal-open')`);
     const to = await rectOf(dayCell(today));
     await drag(grab(from), center(to));
     await settle();
+    if (below) await c.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 860, deviceScaleFactor: 1, mobile: false });
     assert.equal(serverTask('Brief posten').due.date, today, 'een te late taak naar vandaag: niet meer te laat');
     await waitFor(`!document.querySelector('.cal-overdue-list li.cal-item[data-task-id="e2ekalendertelaat02"]')`, 'weg uit "Te laat"');
   }

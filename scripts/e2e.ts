@@ -21,7 +21,7 @@ import type { App } from '../server/main.ts';
 import { handleSync } from '../server/sync.ts';
 import { createSession, createUser, hashPassword, setPasswordCostForTests } from '../server/users.ts';
 import { addDays, formatDate, formatDateInput, formatDueLong, todayString } from '../client/core/format.js';
-import { addMonths, isoWeek, periodTitle } from '../client/core/calendar.js';
+import { addMonths, isoWeek, periodTitle as periodTitleIntl } from '../client/core/calendar.js';
 import { quickDates } from '../client/core/quickDates.js';
 import { setLanguage } from '../client/core/i18n.js';
 import { FILTER_EXAMPLES, FILTER_TERM_GROUPS } from '../client/core/filterText.js';
@@ -2043,7 +2043,10 @@ try {
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal(serverProject(thuisId).view_style, 'calendar');
   assert.equal(await evaluate(`document.querySelector('.cal').dataset.mode`), 'month');
-  const titleOf = () => evaluate<string>(`document.querySelector('.cal-title').textContent`);
+  // witruimte gelijkgetrokken: Node en de browser hebben elk hun eigen Intl, en de ene zet een smalle spatie (U+2009) rond het streepje
+  // van een week over twee maanden ("30 nov – 6 dec 2026"), de andere een gewone
+  const titleOf = () => evaluate<string>(`document.querySelector('.cal-title').textContent.replace(/\\s/g, ' ')`);
+  const periodTitle = (mode: string, anchor: string, locale: string) => periodTitleIntl(mode, anchor, locale).replace(/\s/g, ' ');
   assert.equal(await titleOf(), periodTitle('month', today, 'nl-NL'), 'de kop noemt de maand in het Nederlands');
   assert.deepEqual(await texts('.cal-table thead th:not(.cal-weekhead) abbr'), ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'], 'de week begint op maandag');
   const first = await evaluate<string>(`document.querySelector('.cal-day').dataset.date`);

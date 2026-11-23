@@ -2049,7 +2049,9 @@ if (wants('browser')) {
           assert.equal(await evaluate(`document.querySelectorAll('.chart')[1].querySelectorAll('.bar').length`), 12);
           const days = await evaluate<string[]>(`[...document.querySelectorAll('.chart')[0].querySelectorAll('tbody th')].map((e) => e.textContent)`);
           assert.match(days[6], nl ? /^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag) \d{1,2} [a-z]+$/ : /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) \d{1,2} [A-Z][a-z]+$/, `dagnamen uit Intl: ${days[6]}`);
-          assert.ok(await evaluate(`document.querySelectorAll('.share-row').length >= 1`), 'per project');
+          // maandag vroeg (vóór de eerste afgevinkte taak van de voorbeeldgegevens, rond 8 uur) is er deze week nog niets: dan de uitleg
+          const sharePart = await evaluate<{ rows: number; hint: string | null }>(`(() => { const s = document.getElementById('stats-projects-title').closest('section'); return { rows: s.querySelectorAll('.share-row').length, hint: s.querySelector('.hint')?.textContent ?? null }; })()`);
+          if (sharePart.rows === 0) assert.equal(sharePart.hint, nl ? 'Deze week heb je nog niets afgevinkt.' : 'You have not completed anything this week yet.', 'per project: geen rijen en geen uitleg');
           assert.equal(await evaluate(`document.getElementById('goal-daily').value`), '5');
           assert.equal(await evaluate(`document.getElementById('goal-weekly').value`), '25');
           assert.deepEqual(await evaluate(`[...document.querySelectorAll('.day-toggle input')].map((i) => i.checked)`), [false, false, false, false, false, true, true], 'standaard het weekend vrij');
