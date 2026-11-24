@@ -1,0 +1,1 @@
+- Settings: Appearance is now called Theme, like in Todoist; Reminders shows a preview of a notification.

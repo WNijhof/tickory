@@ -1,0 +1,1 @@
+- Instellingen: Weergave heet nu Thema, zoals bij Todoist; Herinneringen toont een voorbeeld van een melding.
