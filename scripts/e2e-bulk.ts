@@ -576,8 +576,12 @@ async function scenario(c: any): Promise<void> {
     assert.deepEqual(await evaluate<string[]>(`[...document.querySelectorAll('li.cal-item.is-selected .cal-title-text')].map((e) => e.textContent).sort()`), ['Boodschappen doen', 'Fiets maken'], 'kiezen werkt in de kalender');
     assert.equal(await evaluate(`document.querySelector('#task-dialog')`), null);
     assert.equal((await bar()).count, '2 taken geselecteerd');
-    // samen slepen naar een andere dag: beide krijgen die dag
-    const target = await rectOf(`document.querySelector('td.cal-day[data-date="${day(5)}"] .cal-day-head')`);
+    // samen slepen naar een andere dag: beide krijgen die dag. Een dag die zeker in de kalender staat: over vijf dagen valt
+    // aan het eind van de maand in de volgende maand, en die staat niet altijd in beeld (zo faalde deze test vroeger soms).
+    const goal = await evaluate<string>(`[${[5, 4, 3, -3, -4, -5].map((n) => JSON.stringify(day(n))).join(',')}].find((d) => document.querySelector('td.cal-day[data-date="' + d + '"] .cal-day-head'))`);
+    assert.ok(goal, 'een dag om naartoe te slepen staat in de kalender');
+    await evaluate(`document.querySelector('td.cal-day[data-date="${goal}"]').scrollIntoView({ block: 'center' })`);
+    const target = await rectOf(`document.querySelector('td.cal-day[data-date="${goal}"] .cal-day-head')`);
     const from = mid(await rectOf(`${item('Boodschappen doen')}.querySelector('.cal-open')`));
     await mouse('mouseMoved', from.x, from.y, 0);
     await mouse('mousePressed', from.x, from.y, 1);
@@ -586,8 +590,8 @@ async function scenario(c: any): Promise<void> {
     await mouse('mouseReleased', Math.round(target.x + target.w / 2), Math.round(target.y + target.h / 2), 0);
     await sleep(150);
     await settle();
-    assert.equal(serverTaskById(T('Boodschappen doen')).due.date, day(5));
-    assert.equal(serverTaskById(T('Fiets maken')).due.date, day(5), 'de andere gekozen taak ging mee naar die dag');
+    assert.equal(serverTaskById(T('Boodschappen doen')).due.date, goal);
+    assert.equal(serverTaskById(T('Fiets maken')).due.date, goal, 'de andere gekozen taak ging mee naar die dag');
     await undoToast();
     assert.equal(serverTaskById(T('Boodschappen doen')).due.date, day(1));
     assert.equal(serverTaskById(T('Fiets maken')).due.date, day(2));
