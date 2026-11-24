@@ -1099,8 +1099,14 @@ export function createApp(opts: AppOptions): App {
           let seen = 0;
           const stop = (ms: number): void => { const t = setTimeout(() => req.destroy(), ms); t.unref(); req.once('close', () => clearTimeout(t)); };
           req.on('data', (c: Buffer) => { seen += c.length; if (seen > DRAIN_LIMIT) req.destroy(); });
-          if (err.code === 'TIMEOUT' || err.cut) res.once('finish', () => stop(250));
-          else stop(10_000);
+          if (err.code === 'TIMEOUT' || err.cut) {
+            // kort na het antwoord dicht; en als het antwoord al weg is, of het signaal daarvan nooit komt (een drukke server,
+            // een afzender die niets meer leest), toch binnen een paar seconden: anders bleef zo'n verbinding open hangen
+            if (res.writableFinished) stop(250);
+            else { res.once('finish', () => stop(250)); stop(3000); }
+          } else {
+            stop(10_000);
+          }
         }
         return;
       }
