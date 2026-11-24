@@ -1034,6 +1034,23 @@ async function smokeShots(dir) {
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ webSettingsReady, pagesWindow: Boolean(pages), opened, pane, after, stored: settings.shortcuts }, null, 1));
     writeFileSync(join(dir, 'settings.png'), (await main.webContents.capturePage()).toPNG());
   }
+  // Schermafdrukken van onderdelen van Instellingen (TICKORY_DESKTOP_PANES=general,reminders,appearance,desktop), om naast die
+  // van Todoist te leggen; TICKORY_DESKTOP_SIZE=1920x861 zet het venster op die maat.
+  const panes = (process.env.TICKORY_DESKTOP_PANES ?? '').split(',').filter((p) => /^[a-z]{2,20}$/.test(p));
+  if (panes.length > 0 && main) {
+    const size = /^(\d{3,4})x(\d{3,4})$/.exec(process.env.TICKORY_DESKTOP_SIZE ?? '');
+    if (size) { main.setContentSize(Number(size[1]), Number(size[2])); await wait(800); }
+    const js = (code) => main.webContents.executeJavaScript(code);
+    if (!(await js(`Boolean(document.querySelector('dialog[open] .settings-wide'))`))) {
+      runMenu('settings');
+      await wait(2500);
+    }
+    for (const p of panes) {
+      await js(`document.querySelector('dialog[open] [data-fk="settings:${p}"]')?.click(); true`);
+      await wait(1800);
+      writeFileSync(join(dir, `pane-${p}.png`), (await main.webContents.capturePage()).toPNG());
+    }
+  }
   // Meldingen (TICKORY_DESKTOP_NOTIFY=1): Instellingen › Herinneringen toont de uitleg van de desktop-app met een testmelding, en
   // daarna (terwijl de test op de server iets doet, zoals een ander lid dat een taak toewijst) wat de app heeft opgehaald en
   // gepland. De meldingen zelf staan in notifications.json (devNote).

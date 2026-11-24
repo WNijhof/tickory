@@ -1,4 +1,4 @@
-// Instellingen op een breed scherm, zoals Todoist op de computer: links de onderdelen in groepen, rechts het gekozen onderdeel,
+// Instellingen op een breed scherm, zoals Todoist op de computer: links één lijst met een zoekveld (Account bovenaan), rechts het gekozen onderdeel,
 // in één venster. Algemeen bewaart en blijft staan; Herinneringen (automatische herinnering en uitstellen) en Meldingen
 // (ochtendoverzicht) werken meteen; Navigatiemenu, Navigatiebalk en Weergave staan rechts; Wat is er nieuw opent alleen een link.
 // De andere browsertests doorlopen de onderdelen als losse vensters (globalThis.__tickorySettingsList); hier staat dat uit.
@@ -23,12 +23,33 @@ export async function settingsScenario(c: any) {
   await waitFor(`document.querySelector('dialog[open] .settings-wide')`, 'instellingen met twee kolommen');
   await waitFor(`document.querySelector('dialog[open] .settings-pane h2')?.textContent === 'Algemeen'`, 'Algemeen staat rechts');
 
-  // ---- de indeling van Todoist ----
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .settings-group-title')].map((e) => e.textContent)`), ['Personalisatie', 'Productiviteit', 'Meer']);
+  // ---- de indeling van Todoist op de computer: één lijst met een zoekveld, Account bovenaan, geen groepskoppen of accountkaart ----
   const items = await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .settings-nav .settings-row')].map((b) => b.textContent.trim())`);
-  assert.deepEqual(items, ['Algemeen', 'Account, wachtwoord en apparaten', 'Weergave', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen',
+  assert.deepEqual(items, ['Algemeen', 'Account', 'Weergave', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen',
     'Taal / Language', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Handleiding', 'Wat is er nieuw', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
   assert.ok(!items.includes('Desktop-app'), 'Desktop-app alleen in de desktop-app');
+  const look = await evaluate<{ titles: boolean; card: boolean; first: string; navWidth: number; iconBg: string }>(`(() => {
+    const nav = document.querySelector('dialog[open] .settings-nav');
+    const rows = [...nav.querySelectorAll('.settings-row')].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    return {
+      titles: [...nav.querySelectorAll('.settings-group-title')].some((e) => e.offsetParent !== null),
+      card: Boolean(nav.querySelector('.settings-account')?.offsetParent),
+      first: rows[0].textContent.trim(),
+      navWidth: Math.round(nav.getBoundingClientRect().width),
+      iconBg: getComputedStyle(nav.querySelector('.settings-icon')).backgroundColor,
+    };
+  })()`);
+  assert.deepEqual(look, { titles: false, card: false, first: 'Account', navWidth: 220, iconBg: 'rgba(0, 0, 0, 0)' }, 'zoals Todoist: geen kopjes, geen kaart, Account bovenaan, een kolom van 220 px, pictogrammen zonder gekleurd blokje');
+  // het zoekveld filtert de lijst, en leeg maken zet alles terug
+  const search = (q: string) => evaluate(`(() => { const s = document.querySelector('dialog[open] [data-fk="settings-search"]'); s.value = ${js(q)}; s.dispatchEvent(new Event('input', { bubbles: true })); return [...document.querySelectorAll('dialog[open] .settings-nav .settings-row')].filter((b) => !b.hidden).map((b) => b.textContent.trim()); })()`);
+  assert.deepEqual(await search('herinn'), ['Herinneringen']);
+  assert.equal((await search('')).length, items.length);
+  // "Sluiten" onderaan een onderdeel is weg (het kruisje sluit), en een vinkje is een schakelaar
+  await pick('Meldingen');
+  assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open] .settings-pane .dialog-buttons button')].some((b) => b.offsetParent !== null && b.textContent.trim() === 'Sluiten')`), false, 'geen zichtbare knop Sluiten');
+  assert.equal(await evaluate(`getComputedStyle(document.querySelector('dialog[open] .settings-pane .check-row input[type=checkbox]')).appearance`), 'none', 'schakelaar');
+  assert.ok(await evaluate<number>(`document.querySelector('dialog[open] [data-fk="notify-morning_overview-time"]').getBoundingClientRect().width`) > 60, 'de tijd van het ochtendoverzicht is te zien');
+  await pick('Algemeen');
   assert.equal(await evaluate(`document.querySelector('dialog[open] .settings-nav .is-current')?.textContent.trim()`), 'Algemeen');
   assert.equal(await evaluate(`Boolean(document.querySelector('dialog[open] [data-fk="general-snooze"]'))`), false, 'uitstellen staat bij Herinneringen, niet bij Algemeen');
   await shot('instellingen-breed');

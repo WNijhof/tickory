@@ -3,9 +3,10 @@
 // Meer (Taal, Sjablonen, Importeren, Exporteren, Handleiding, Wat is er nieuw, Nu bijwerken, Afmelden).
 //
 // Op een telefoon is het een lijst met groepen (zoals de app van Todoist op Android): een keuze sluit het venster en geeft de
-// waarde terug (zie `handlers.settings` in ui/app.js). Op een breed scherm (zoals Todoist op de computer) staan de onderdelen
-// links en het gekozen onderdeel rechts, in hetzelfde venster: de bestaande vensters komen daar te staan via embedNextDialog
-// (ui/dom.js).
+// waarde terug (zie `handlers.settings` in ui/app.js). Op een breed scherm (zoals Todoist op de computer en in de desktop-app)
+// staan de onderdelen links en het gekozen onderdeel rechts, in hetzelfde venster: de bestaande vensters komen daar te staan via
+// embedNextDialog (ui/dom.js). De opmaak daarvan (één lijst met een zoekveld, eenkleurige pictogrammen, kopjes met lijnen,
+// schakelaars) staat in app.css bij .settings-wide.
 
 import { t } from '../core/i18n.js';
 import { closeEmbedded, h, openDialog, replace } from './dom.js';
@@ -30,7 +31,8 @@ export function settingsGroups({ notices = [], desktop = false } = {}) {
     notices.length > 0 && { title: null, items: notices.map((n) => item(n.value, 'bell', n.label, 'accent')) },
     { title: null, items: [
       item('general', 'sliders', t('settings.general'), 'blue'),
-      item('account', 'user', t('settings.account'), 'green'),
+      // in de kolom links op een breed scherm kort, zoals bij Todoist ("Account")
+      item('account', 'user', t('settings.account'), 'green', { short: t('settings.accountShort') }),
       desktop && item('desktop', 'keyboard', t('settings.desktop'), 'gray'),
     ].filter(Boolean) },
     { title: t('settings.groupPersonal'), items: [
@@ -57,13 +59,15 @@ export function settingsGroups({ notices = [], desktop = false } = {}) {
   ].filter(Boolean);
 }
 
-function rowButton(it, onPick, current = false) {
+function rowButton(it, onPick, current = false, wide = false) {
+  const short = wide && it.short ? it.short : null;
   return h('button', {
     type: 'button', class: `settings-row${it.danger ? ' settings-row-danger' : ''}${current ? ' is-current' : ''}`,
     dataset: { value: it.value, fk: `settings:${it.value}` }, 'aria-current': current ? 'page' : null, onclick: () => onPick(it.value),
+    title: short ? it.label : null,
   },
   h('span', { class: `settings-icon settings-tone-${it.tone}`, 'aria-hidden': 'true' }, icon(it.icon)),
-  h('span', { class: 'settings-label' }, it.label),
+  h('span', { class: 'settings-label' }, short ?? it.label),
   !it.danger && h('span', { class: 'settings-chevron', 'aria-hidden': 'true' }, icon('chevronRight')));
 }
 
@@ -102,15 +106,38 @@ export function openSettingsPanel({ me, notices = [], desktop = false, initial =
   let closed = false;
   let current = initial;
   let generation = 0;
+  let query = '';
   const nav = h('nav', { class: 'settings-nav', 'aria-label': t('settings.title') });
   const pane = h('div', { class: 'settings-pane', tabIndex: -1 });
+  // Zoals Todoist: een zoekveld boven de onderdelen; wat niet past, verdwijnt uit de lijst.
+  const filter = () => {
+    const q = query.trim().toLocaleLowerCase();
+    for (const row of nav.querySelectorAll('.settings-row')) row.hidden = q !== '' && !row.textContent.toLocaleLowerCase().includes(q);
+  };
+  // "Sluiten" onderaan een onderdeel doet hier niets (het kruisje sluit het venster): zo'n knop verdwijnt, zoals bij Todoist.
+  const hideCloseButtons = () => {
+    for (const b of pane.querySelectorAll('.dialog-buttons > button')) {
+      if (b.textContent.trim() === t('common.close')) b.classList.add('settings-close-dup');
+    }
+  };
+  const watcher = typeof MutationObserver === 'function' ? new MutationObserver(hideCloseButtons) : null;
+  watcher?.observe(pane, { childList: true, subtree: true });
   return openDialog((finish) => {
-    const drawNav = () => replace(nav,
-      h('h2', { class: 'settings-nav-title' }, t('settings.title')),
-      accountCard(me, select),
-      settingsGroups({ notices, desktop }).map((g) => [
-        g.title && h('h3', { class: 'settings-group-title' }, g.title),
-        h('div', { class: 'settings-group' }, g.items.map((it) => rowButton(it, select, it.value === current)))]));
+    const search = h('input', {
+      type: 'search', class: 'field settings-search', placeholder: t('settings.search'), 'aria-label': t('settings.search'), value: query,
+      dataset: { fk: 'settings-search' },
+      oninput: (e) => { query = e.target.value; filter(); },
+    });
+    const drawNav = () => {
+      replace(nav,
+        h('h2', { class: 'settings-nav-title' }, t('settings.title')),
+        search,
+        accountCard(me, select),
+        settingsGroups({ notices, desktop }).map((g) => [
+          g.title && h('h3', { class: 'settings-group-title' }, g.title),
+          h('div', { class: 'settings-group' }, g.items.map((it) => rowButton(it, select, it.value === current, true)))]));
+      filter();
+    };
     async function select(value) {
       const mine = ++generation;
       const previous = current;
@@ -137,5 +164,5 @@ export function openSettingsPanel({ me, notices = [], desktop = false, initial =
         h('button', { type: 'button', class: 'icon-button settings-close', title: t('common.close'), dataset: { fk: 'settings-close' }, onclick: () => finish(null) },
           icon('close'), h('span', { class: 'sr-only' }, t('common.close'))),
         pane));
-  }, { className: 'dialog-settings dialog-settings-wide', onClose: () => { closed = true; closeEmbedded(pane); } });
+  }, { className: 'dialog-settings dialog-settings-wide', onClose: () => { closed = true; watcher?.disconnect(); closeEmbedded(pane); } });
 }

@@ -413,26 +413,92 @@ button.chip-due-edit:hover { text-decoration: underline; }
 .settings-mail { color: var(--text-soft); font-size: 0.85rem; overflow-wrap: anywhere; }
 /* groepskoppen zoals bij Todoist (Personalisatie, Productiviteit, Meer) */
 .settings-group-title { font-size: 0.8rem; font-weight: 700; color: var(--text-soft); margin: 4px 4px -6px; }
-/* breed scherm: links de onderdelen, rechts het gekozen onderdeel (zoals Todoist op de computer) */
-.dialog-settings-wide { width: min(980px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 32px)); background: var(--bg); }
-.settings-wide { display: grid; grid-template-columns: 270px minmax(0, 1fr); height: 100%; min-height: 0; }
-.settings-nav { display: flex; flex-direction: column; gap: 12px; padding: 16px 12px; background: var(--bg-soft); border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+/* Breed scherm: links de onderdelen, rechts het gekozen onderdeel, zoals de instellingen van Todoist op de computer (gemeten op
+   app.todoist.com): een venster van hooguit 1060 px met ronde hoeken van 12 px; links een kolom van 220 px in een iets andere tint
+   met de titel, een zoekveld en één lijst regels van 32 px met een eenkleurig pictogram (de gekozen regel in de tint en de kleur van
+   het accent, geen groepskoppen en geen accountkaart: Account is gewoon de eerste regel); rechts een kop van 48 px met een lijn
+   eronder, tussenkopjes van 14 px vet met een lijn ertussen, velden van hooguit 400 px en schakelaars in plaats van vinkjes. */
+.dialog-settings-wide {
+  width: min(1060px, calc(100vw - 48px)); height: min(800px, calc(100dvh - 64px)); background: var(--bg); border-radius: 12px; font-size: 14px;
+}
+.settings-wide { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100%; min-height: 0; }
+.settings-nav { display: flex; flex-direction: column; gap: 1px; padding: 12px; background: var(--bg-soft); overflow-y: auto; min-height: 0; }
 .settings-nav > * { flex: none; } /* niet in elkaar schuiven: de kolom scrolt als het niet past */
-.settings-nav-title { font-size: 1.15rem; padding: 4px 6px 0; }
-.settings-nav .settings-group { border: 0; background: none; gap: 2px; }
-.settings-nav .settings-row { min-height: 38px; padding: 5px 8px; border-radius: 8px; font-size: 0.95rem; }
+.settings-nav-title { order: -3; font-size: 16px; font-weight: 600; line-height: 23px; padding: 1px 4px 0; margin-bottom: 11px; }
+.settings-search { order: -2; min-height: 33px; padding: 6px 8px 6px 32px; font-size: 14px; border-radius: 6px; margin-bottom: 12px;
+  background: var(--bg) no-repeat 9px 50% / 15px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E"); }
+.settings-nav .settings-account, .settings-nav .settings-group-title { display: none; }
+.settings-nav .settings-group { display: contents; }
+.settings-nav .settings-row[hidden] { display: none; }
+.settings-nav .settings-row[data-value="account"] { order: -1; }
+.settings-nav .settings-row {
+  min-height: 32px; padding: 0 8px; gap: 8px; border-radius: 6px; font-size: 13px; font-weight: 600; color: var(--text); opacity: 0.88;
+}
+.settings-nav .settings-row:hover { background: var(--bg-hover); opacity: 1; }
 .settings-nav .settings-row + .settings-row { border-top: 0; }
-.settings-nav .settings-row.is-current { background: var(--accent-soft); font-weight: 600; }
-.settings-nav .settings-icon { width: 24px; height: 24px; border-radius: 7px; }
-.settings-nav .settings-icon .icon { width: 15px; height: 15px; }
+.settings-nav .settings-row.is-current { background: var(--accent-soft); color: var(--accent); opacity: 1; }
+.settings-nav .settings-icon { width: 24px; height: 24px; border-radius: 0; background: none; color: inherit; }
+.settings-nav .settings-icon .icon { width: 18px; height: 18px; }
 .settings-nav .settings-chevron { display: none; }
-.settings-nav .settings-account { min-height: 52px; padding: 6px 8px; }
-.settings-nav .settings-avatar { width: 32px; height: 32px; font-size: 0.95rem; }
+/* Afmelden staat los onderaan, onder een lijn (waar Todoist "Team toevoegen" heeft) */
+.settings-nav .settings-row-danger { margin-top: auto; border-top: 1px solid var(--line); border-radius: 0; padding-top: 8px; min-height: 40px; color: var(--danger); }
+.settings-nav .settings-row-danger:hover { background: none; text-decoration: underline; }
 .settings-main { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.settings-close { position: absolute; top: 10px; right: 10px; z-index: 1; }
+.settings-close { position: absolute; top: 8px; right: 8px; z-index: 2; }
 .settings-pane { flex: 1; overflow-y: auto; min-height: 0; outline: none; }
-.settings-pane .dialog-form { padding: 20px 56px 24px 28px; }
-.settings-pane .dialog-form > h2 { font-size: 1.3rem; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.settings-pane .dialog-form { padding: 0 16px 24px; gap: 14px; }
+.settings-pane .dialog-form > h2 {
+  position: sticky; top: 0; z-index: 1; margin: 0 -16px 2px; padding: 12px 56px 12px 16px; font-size: 16px; font-weight: 600; line-height: 23px;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+}
+.settings-pane .hint { font-size: 12px; }
+.settings-pane .field { max-width: 400px; min-height: 34px; padding: 6px 8px; border-radius: 6px; font-size: 14px; }
+.settings-pane textarea.field { max-width: none; }
+.settings-pane .field-label { font-size: 14px; font-weight: 600; color: var(--text); gap: 6px; }
+.settings-pane .field-label .field { font-size: 14px; font-weight: 400; }
+.settings-pane .button { min-height: 32px; padding: 5px 12px; border-radius: 6px; font-size: 13px; }
+/* Groepen zoals bij Todoist: een vet tussenkopje en een lijn erboven, geen kaders en niets in te klappen */
+.settings-pane fieldset { border: 0; margin: 0; padding: 14px 0 0; min-width: 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.settings-pane fieldset { align-self: stretch; width: 100%; }
+.settings-pane .dialog-buttons { align-self: stretch; }
+.settings-pane :where(fieldset, .section-form) > * { max-width: 100%; }
+.settings-pane :where(fieldset, .section-form) > :where(.field, label, .hint, p) { align-self: stretch; }
+.settings-pane .dialog-form > h2 + fieldset, .settings-pane .dialog-form > h2 + * fieldset:first-child { border-top: 0; padding-top: 4px; }
+.settings-pane fieldset > legend { float: left; width: 100%; padding: 0 0 4px; margin: 0; font-size: 14px; font-weight: 700; color: var(--text); }
+.settings-pane fieldset > legend + * { clear: both; }
+.settings-pane .choice-group { flex-direction: row; }
+.settings-pane details.section { border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 0; }
+.settings-pane .dialog-form > h2 + details.section { border-top: 0; }
+.settings-pane details.section > summary {
+  list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+  padding: 14px 0 8px; font-size: 14px; font-weight: 700; border: 0; margin: 0;
+}
+.settings-pane details.section > summary::-webkit-details-marker { display: none; }
+/* een klein pijltje rechts: wat dicht staat (Wachtwoord wijzigen, Account verwijderen) gaat met een klik open */
+.settings-pane details.section > summary::after {
+  content: ""; flex: none; width: 7px; height: 7px; margin-right: 6px; border-right: 2px solid var(--text-soft); border-bottom: 2px solid var(--text-soft);
+  transform: rotate(-45deg); transition: transform 0.15s;
+}
+.settings-pane details.section[open] > summary::after { display: none; } /* open: gewoon een tussenkopje, zoals bij Todoist */
+.settings-pane details.section[open] > summary { border: 0; margin: 0; }
+.settings-pane .section-form { padding-bottom: 14px; align-items: flex-start; }
+.settings-pane .check-row input.field { max-width: 130px; min-height: 30px; padding: 3px 8px; }
+.settings-pane, .settings-nav { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+/* schakelaars in plaats van vinkjes (Todoist: Desktopnotificaties, Thema synchroniseren) */
+.settings-pane .check-row input[type="checkbox"] {
+  appearance: none; flex: none; position: relative; width: 30px; height: 18px; margin: 0; border-radius: 999px; background: var(--line-strong); cursor: pointer;
+  transition: background-color 0.15s;
+}
+.settings-pane .check-row input[type="checkbox"]::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  transition: transform 0.15s;
+}
+.settings-pane .check-row input[type="checkbox"]:checked { background: var(--accent-fill); }
+.settings-pane .check-row input[type="checkbox"]:checked::before { transform: translateX(12px); }
+.settings-pane .check-row input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
+/* "Sluiten" onderaan een onderdeel doet in dit venster niets (het kruisje sluit alles): weg, zoals bij Todoist */
+.settings-pane .dialog-buttons > .settings-close-dup { display: none; }
+.settings-pane .dialog-buttons:not(:has(> :not(.settings-close-dup))) { display: none; }
 @media (max-width: 760px) {
   .dialog-settings { width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; border-radius: 0; border: 0; }
   .dialog-settings .dialog-form { padding: 16px 14px calc(16px + env(safe-area-inset-bottom)); }
@@ -690,6 +756,8 @@ textarea.task-title-input:focus-visible, textarea.task-description:focus-visible
 .warning { padding: 8px 10px; border-left: 3px solid var(--danger); background: var(--bg-soft); }
 .check-row { display: flex; align-items: center; gap: 8px; min-height: 36px; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--accent); }
+/* een tijd naast een vinkje (ochtendoverzicht, avondreview): gewoon een veld, geen vierkantje van 18 px */
+.check-row input.field { width: auto; height: auto; flex: none; }
 .error:not(:empty) { color: var(--danger); }
 
 /* ---- herinneringen ---- */

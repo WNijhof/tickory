@@ -801,6 +801,8 @@ export default {
 
   // ---------- instellingen ----------
   'settings.title': 'Settings',
+  'settings.accountShort': 'Account',
+  'settings.search': 'Search',
   'settings.general': 'General',
   'general.start': 'Start page',
   'general.startLast': 'Where I was last',

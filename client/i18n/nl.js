@@ -796,6 +796,8 @@ export default {
 
   // ---------- instellingen ----------
   'settings.title': 'Instellingen',
+  'settings.accountShort': 'Account',
+  'settings.search': 'Zoeken',
   'settings.general': 'Algemeen',
   'general.start': 'Startpagina',
   'general.startLast': 'Waar ik het laatst was',
