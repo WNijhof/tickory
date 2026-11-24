@@ -1,0 +1,1 @@
+- Like in Todoist, every choice in Settings takes effect at once: no Save button any more.

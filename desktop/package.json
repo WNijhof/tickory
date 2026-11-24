@@ -1,7 +1,7 @@
 {
   "name": "tickory-desktop",
   "productName": "Tickory",
-  "version": "0.12.1",
+  "version": "0.12.2",
   "description": "Tickory voor Windows: de web-app van je eigen Tickory-server in een eigen venster, met systeemvak, sneltoetsen en meldingen",
   "author": "Tickory",
   "license": "AGPL-3.0-or-later",

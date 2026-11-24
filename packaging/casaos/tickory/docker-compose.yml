@@ -1,7 +1,7 @@
 name: tickory
 services:
   tickory:
-    image: ghcr.io/wnijhof/tickory:0.12.1
+    image: ghcr.io/wnijhof/tickory:0.12.2
     container_name: tickory
     user: "1000:1000"
     init: true
@@ -76,7 +76,7 @@ x-casaos:
     en_us: Tickory
   index: /
   port_map: "8787"
-  version: "0.12.1"
+  version: "0.12.2"
   website: https://wnijhof.github.io/tickory/en/
   repo: https://github.com/WNijhof/tickory
   support: https://github.com/WNijhof/tickory/issues
