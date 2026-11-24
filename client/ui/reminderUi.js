@@ -159,7 +159,7 @@ export function pushErrorText(err) {
  * Alles hier werkt meteen, zonder Bewaren.
  * @typedef {'all' | 'reminders' | 'notifications'} NotifyPart
  */
-export function notificationsDialog({ store, actions, bridge, pushClient, part = 'all' }) {
+export function notificationsDialog({ store, actions, bridge, desktop = { available: false }, pushClient, part = 'all' }) {
   const show = (...parts) => part === 'all' || parts.includes(part);
   const general = () => generalOf(mySettings(store.view, store.userId));
   const saveGeneral = (changes) => actions.updateSettings({ general: { ...general(), ...changes } });
@@ -241,6 +241,19 @@ export function notificationsDialog({ store, actions, bridge, pushClient, part =
           s?.appVersion && h('p', { class: 'hint' }, t('notify.androidVersion', { version: s.appVersion })));
         return;
       }
+      if (desktop.available) {
+        // De desktop-app voor Windows laat zelf meldingen van Windows zien (Electron kent geen web-push): geen knop om meldingen
+        // in de browser aan te zetten, wel uitleg, een testmelding en de instellingen van Windows.
+        const prefs = desktop.canSettings?.() ? await desktop.getSettings() : null;
+        const can = desktop.canNotify?.() === true;
+        replace(device,
+          h('p', { class: 'hint' }, can ? t('notify.desktopInfo') : t('notify.desktopInfoOld')),
+          prefs && prefs.stayInTray === false && h('p', { class: 'hint hint-bad', dataset: { fk: 'notify-desktop-tray' } }, t('notify.desktopNoTray')),
+          can && h('div', { class: 'dialog-buttons dialog-buttons-start' },
+            h('button', { type: 'button', class: 'button', dataset: { fk: 'notify-desktop-test' }, onclick: desktopTest }, t('notify.test')),
+            h('button', { type: 'button', class: 'button', dataset: { fk: 'notify-desktop-windows' }, onclick: () => desktop.openNotificationSettings() }, t('notify.desktopWindows'))));
+        return;
+      }
       if (!pushClient.supported) {
         replace(device, h('p', { class: 'hint' }, t('notify.unsupported')));
         return;
@@ -264,8 +277,14 @@ export function notificationsDialog({ store, actions, bridge, pushClient, part =
             : d.last_success_at ? t('notify.deviceDelivered', { when: when(d.last_success_at) }) : t('notify.deviceNever'))))));
     };
 
+    async function desktopTest() {
+      say('');
+      const r = await desktop.testNotification();
+      say(r?.ok ? t('notify.desktopTestSent') : t('notify.desktopTestFailed'), !r?.ok);
+    }
+
     const loadDevices = async () => {
-      if (bridge.available || !pushClient.supported) return;
+      if (bridge.available || desktop.available || !pushClient.supported) return;
       try {
         browserState.list = await pushClient.devices();
       } catch {

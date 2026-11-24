@@ -659,8 +659,8 @@ async function runSetting(choice, pane) {
     case 'bottombar': await inPane(() => openGeneralDialog({ store, actions, part: 'bottombar' })); return 'stay';
     case 'account': await inPane(() => accountFlow()); return store.me ? 'stay' : 'close'; // afgemeld of verwijderd: dicht
     case 'desktop': await inPane(() => desktopSettingsDialog({ bridge: desktop })); return 'stay';
-    case 'reminders': await inPane(() => notificationsDialog({ store, actions, bridge, pushClient, part: 'reminders' })); return 'stay';
-    case 'notifications': await inPane(() => notificationsDialog({ store, actions, bridge, pushClient, part: 'notifications' })); return 'stay';
+    case 'reminders': await inPane(() => notificationsDialog({ store, actions, bridge, desktop, pushClient, part: 'reminders' })); return 'stay';
+    case 'notifications': await inPane(() => notificationsDialog({ store, actions, bridge, desktop, pushClient, part: 'notifications' })); return 'stay';
     case 'places': await inPane(() => placesDialog({ store, actions, bridge })); return 'stay';
     case 'export': await inPane(() => exportDialog({ store, bridge, attachments })); return 'stay';
     case 'templates': await inPane(() => templatesUi().manage()); return 'stay';

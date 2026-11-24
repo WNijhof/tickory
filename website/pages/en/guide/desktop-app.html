@@ -1,9 +1,9 @@
 <!--
 title: Desktop app for Windows
-description: Tickory as a Windows program, like the Todoist desktop app: its own window, a tray icon, Ctrl+Space for a small Add task window, a dot on the taskbar when tasks are due today, and reminders as Windows notifications with Complete and Snooze.
+description: Tickory as a Windows program, like the Todoist desktop app: its own window, a tray icon, Ctrl+Space for a small Add task window, a dot on the taskbar when tasks are due today, and Windows notifications: reminders with Complete and Snooze, reminders on notes, collaboration and the daily overview.
 -->
 <h1>Desktop app for Windows</h1>
-<p class="intro">The desktop app shows the web app of your own server in its own window, just like the Todoist desktop app does with todoist.com. On top of that you get what a browser cannot do: a tray icon, shortcuts that work everywhere, a dot on the taskbar, and reminders as regular Windows notifications.</p>
+<p class="intro">The desktop app shows the web app of your own server in its own window, just like the Todoist desktop app does with todoist.com. On top of that you get what a browser cannot do: a tray icon, shortcuts that work everywhere, a dot on the taskbar, and regular Windows notifications for your reminders, for collaboration and for your daily overview.</p>
 
 <div class="note warn">
   <span class="note-label">New</span>
@@ -27,8 +27,15 @@ description: Tickory as a Windows program, like the Todoist desktop app: its own
 </ul>
 <p>Both can be changed or turned off under <em>Settings</em> (in the File menu or the tray). If a shortcut is already used by another program, Tickory says so.</p>
 
-<h2 id="reminders">Reminders</h2>
-<p>The desktop app fetches your reminders from the server (at start, every five minutes and right after you change something) and fires them itself as Windows notifications, with the buttons <strong>Complete</strong> and <strong>Snooze</strong> (as long as you chose under <a href="general-settings.html#snooze">Settings › General</a>). Clicking the notification opens the task. This works while Tickory is running, also in the tray. A reminder you just missed (the computer was asleep) still comes if it is not older than a quarter of an hour.</p>
+<h2 id="reminders">Notifications</h2>
+<p>The desktop app shows Windows notifications itself. Like the web app, it hears from your server right away when something changes; to be safe it also fetches the latest state every five minutes. This works while Tickory is running, also when the window is closed and Tickory sits in the tray.</p>
+<ul>
+  <li><strong>Reminders on tasks</strong>, with the buttons <strong>Complete</strong> and <strong>Snooze</strong> (as long as you chose under <a href="general-settings.html#snooze">Settings › Reminders</a>). Snoozing only applies on this computer, as on Android. Clicking the notification opens the task.</li>
+  <li><strong>Reminders on <a href="notes.html">notes</a></strong>, with the button <strong>Open</strong>.</li>
+  <li><strong>Collaboration notifications</strong>: someone assigned you a task, commented, mentioned you, added you to a project or shared a note with you. You choose which kinds you get under <a href="notifications.html#push">Settings › Notifications</a>, as for the browser and the Android app. Clicking opens the task, project or note and marks the notification as read. If you are busy in Tickory itself at that moment, no Windows notification is added: you already see it in the app. If you read it elsewhere, it also disappears from Windows.</li>
+  <li><strong>Morning overview and evening review</strong> at the times you choose under <a href="general-settings.html#overview">Settings › Notifications</a>, with numbers only. Clicking opens Today.</li>
+</ul>
+<p>A reminder you just missed (the computer was asleep) still comes if it is not older than a quarter of an hour. Nothing comes in? Under <em>Settings › Reminders</em>, at <em>Notifications on this device</em>, you send a test notification and open the Windows settings (are notifications for Tickory on, and is Do not disturb off?).</p>
 
 <h2 id="more">More</h2>
 <ul>
@@ -43,6 +50,6 @@ description: Tickory as a Windows program, like the Todoist desktop app: its own
 <h2>What does not work (yet)</h2>
 <ul>
   <li>Voice in the Add task window: Electron, which the app runs on, has no speech service.</li>
-  <li>Reminders while Tickory is fully closed (so not in the tray either).</li>
+  <li>Notifications while Tickory is fully closed (so not in the tray either).</li>
   <li>A version for macOS or Linux; the code is prepared for it.</li>
 </ul>

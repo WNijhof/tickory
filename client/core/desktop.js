@@ -35,6 +35,15 @@ export function desktopBridge(host = globalThis.window?.TickoryDesktop) {
     saveSettings: async (changes) => (await call('saveSettings', changes)) ?? { ok: false, error: 'unavailable' },
     /** Het venster om een andere server te kiezen. */
     changeServer: () => call('changeServer'),
+    /**
+     * Toont deze desktop-app zelf meldingen bij samenwerken, herinneringen op notities en het dagelijks overzicht, met een
+     * testmelding? (Vanaf 0.12; een oudere alleen de herinneringen bij taken.)
+     */
+    canNotify: () => typeof host?.testNotification === 'function',
+    /** Een testmelding van Windows; geeft { ok }. */
+    testNotification: async () => (await call('testNotification')) ?? { ok: false },
+    /** De instellingen van Windows voor meldingen openen (aan of uit voor Tickory, Niet storen). */
+    openNotificationSettings: () => call('openNotificationSettings'),
     /** De desktop-app vraagt Instellingen te openen (het menu Bestand › Instellingen of het systeemvak). */
     onOpenSettings: (callback) => call('onOpenSettings', callback),
   };

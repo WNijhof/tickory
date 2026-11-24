@@ -1,9 +1,9 @@
 <!--
 title: Desktop-app voor Windows
-description: Tickory als programma op Windows, zoals de desktop-app van Todoist: een eigen venster, een icoon in het systeemvak, Ctrl+Spatie voor een klein venster Taak toevoegen, een stip op de taakbalk als er taken voor vandaag zijn, en herinneringen als meldingen van Windows met Voltooien en Uitstellen.
+description: Tickory als programma op Windows, zoals de desktop-app van Todoist: een eigen venster, een icoon in het systeemvak, Ctrl+Spatie voor een klein venster Taak toevoegen, een stip op de taakbalk als er taken voor vandaag zijn, en meldingen van Windows: herinneringen met Voltooien en Uitstellen, herinneringen op notities, samenwerken en het dagelijks overzicht.
 -->
 <h1>Desktop-app voor Windows</h1>
-<p class="intro">De desktop-app toont de web-app van je eigen server in een eigen venster, net zoals de desktop-app van Todoist dat met todoist.com doet. Daarbovenop krijg je wat een browser niet kan: een icoon in het systeemvak, sneltoetsen die overal werken, een stip op de taakbalk, en herinneringen als gewone meldingen van Windows.</p>
+<p class="intro">De desktop-app toont de web-app van je eigen server in een eigen venster, net zoals de desktop-app van Todoist dat met todoist.com doet. Daarbovenop krijg je wat een browser niet kan: een icoon in het systeemvak, sneltoetsen die overal werken, een stip op de taakbalk, en gewone meldingen van Windows voor je herinneringen, voor samenwerken en voor je dagelijks overzicht.</p>
 
 <div class="note warn">
   <span class="note-label">Nieuw</span>
@@ -27,8 +27,15 @@ description: Tickory als programma op Windows, zoals de desktop-app van Todoist:
 </ul>
 <p>Beide zijn te wijzigen of uit te zetten onder <em>Instellingen</em> (in het menu Bestand of het systeemvak). Is een sneltoets al in gebruik door een ander programma, dan zegt Tickory dat.</p>
 
-<h2 id="herinneringen">Herinneringen</h2>
-<p>De desktop-app haalt je herinneringen van de server (bij het starten, elke vijf minuten en meteen als je iets wijzigt) en laat ze zelf afgaan als melding van Windows, met de knoppen <strong>Voltooien</strong> en <strong>Uitstellen</strong> (zo lang als je onder <a href="algemeen.html#uitstellen">Instellingen › Algemeen</a> koos). Een klik op de melding opent de taak. Dat werkt zolang Tickory draait, ook in het systeemvak. Een herinnering die je net miste (de pc sliep), komt nog als ze niet ouder is dan een kwartier.</p>
+<h2 id="herinneringen">Meldingen</h2>
+<p>De desktop-app laat zelf meldingen van Windows zien. Net als de web-app hoort hij van je server meteen als er iets verandert; voor de zekerheid haalt hij ook elke vijf minuten de laatste stand op. Dat werkt zolang Tickory draait, ook als het venster dicht is en Tickory in het systeemvak staat.</p>
+<ul>
+  <li><strong>Herinneringen bij taken</strong>, met de knoppen <strong>Voltooien</strong> en <strong>Uitstellen</strong> (zo lang als je onder <a href="algemeen.html#uitstellen">Instellingen › Herinneringen</a> koos). Uitstellen geldt alleen op deze pc, net als op Android. Een klik op de melding opent de taak.</li>
+  <li><strong>Herinneringen op <a href="notities.html">notities</a></strong>, met de knop <strong>Openen</strong>.</li>
+  <li><strong>Meldingen bij samenwerken</strong>: iemand wees je een taak toe, reageerde, noemde je, voegde je toe aan een project of deelde een notitie met je. Welke soorten je krijgt, kies je onder <a href="meldingen.html#pushmeldingen">Instellingen › Meldingen</a>, net als voor de browser en de Android-app. Een klik opent de taak, het project of de notitie en zet de melding op gelezen. Ben je op dat moment in Tickory zelf bezig, dan komt er geen melding van Windows bij: je ziet hem al in de app. Lees je hem ergens anders, dan verdwijnt hij ook uit Windows.</li>
+  <li><strong>Ochtendoverzicht en avondreview</strong> op de tijden die je onder <a href="algemeen.html#overzicht">Instellingen › Meldingen</a> kiest, met alleen aantallen. Een klik opent Vandaag.</li>
+</ul>
+<p>Een herinnering die je net miste (de pc sliep), komt nog als ze niet ouder is dan een kwartier. Komt er niets binnen? Onder <em>Instellingen › Herinneringen</em>, bij <em>Meldingen op dit apparaat</em>, stuur je een testmelding en open je de instellingen van Windows (staan meldingen voor Tickory aan, en staat Niet storen uit?).</p>
 
 <h2 id="meer">Verder</h2>
 <ul>
@@ -43,6 +50,6 @@ description: Tickory als programma op Windows, zoals de desktop-app van Todoist:
 <h2>Wat (nog) niet kan</h2>
 <ul>
   <li>Spraak in het venster Taak toevoegen: Electron, waar de app op draait, heeft geen spraakdienst.</li>
-  <li>Herinneringen terwijl Tickory helemaal is afgesloten (dus ook niet in het systeemvak).</li>
+  <li>Meldingen terwijl Tickory helemaal is afgesloten (dus ook niet in het systeemvak).</li>
   <li>Een versie voor macOS of Linux; de code is er wel op voorbereid.</li>
 </ul>

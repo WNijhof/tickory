@@ -149,6 +149,9 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 <h3 id="meldingen-in-de-android-app">In de Android-app</h3>
 <p>De <a href="android-app.html">Android-app</a> haalt je herinneringen bij je server op en zet ze als alarmen op de telefoon zelf. Daardoor gaan ze ook af als je telefoon geen internet heeft. De app heeft geen pushdienst nodig, dus ook geen HTTPS voor de meldingen. Wat er nog moet worden toegestaan, staat in <x-ui k="settings.reminders"></x-ui>, onder <x-ui k="notify.deviceTitle"></x-ui>.</p>
 
+<h3 id="meldingen-in-de-desktop-app">In de desktop-app voor Windows</h3>
+<p>De <a href="desktop-app.html">desktop-app</a> haalt je herinneringen ook zelf bij je server op en laat ze afgaan als melding van Windows, met <strong>Voltooien</strong> en <strong>Uitstellen</strong>. Dat werkt zolang Tickory draait, ook in het systeemvak. Een testmelding en de instellingen van Windows vind je in <x-ui k="settings.reminders"></x-ui>, onder <x-ui k="notify.deviceTitle"></x-ui>.</p>
+
 <h3>Hoe laat is te laat</h3>
 <p>De server kijkt elke 20 seconden welke herinneringen aan de beurt zijn, dus een melding komt binnen ongeveer een halve minuut na het moment. Was de server even uit, of kon een melding niet worden bezorgd, dan wordt ze alsnog verstuurd zolang het hooguit <strong>een uur</strong> te laat is; wat ouder is, vervalt. Dezelfde herinnering op hetzelfde moment komt maar één keer. De Android-app toont wat hooguit een uur te laat is op dezelfde manier.</p>
 

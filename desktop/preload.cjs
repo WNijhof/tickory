@@ -41,6 +41,10 @@ contextBridge.exposeInMainWorld('TickoryDesktop', {
   }),
   /** Het venster om een andere server te kiezen. */
   changeServer: () => ipcRenderer.send('desktop:change-server'),
+  /** Een testmelding van Windows (Instellingen › Meldingen); geeft { ok }. */
+  testNotification: () => ipcRenderer.invoke('desktop:test-notification'),
+  /** De instellingen van Windows voor meldingen (aan of uit per app, Niet storen). */
+  openNotificationSettings: () => ipcRenderer.send('desktop:notification-settings'),
   /** Wat te doen als de desktop-app vraagt Instellingen te openen; daarmee weet de app ook dat deze web-app dat kan. */
   onOpenSettings: (callback) => {
     settingsListener = typeof callback === 'function' ? callback : null;
@@ -61,7 +65,7 @@ ipcRenderer.on('desktop:appearance', (_event, a) => {
 
 // de desktop-app vraagt om een plek in de web-app: alleen een fragment (#view=…, #task=…), nooit een ander adres
 ipcRenderer.on('desktop:navigate', (_event, hash) => {
-  if (typeof hash === 'string' && /^#(?:view=[a-z-]+|task=[A-Za-z0-9_-]{8,40}|quickadd|help(?:=[a-z0-9-]{1,60})?)$/.test(hash)) {
+  if (typeof hash === 'string' && /^#(?:view=[a-z-]+|(?:task|note|notification)=[A-Za-z0-9_-]{8,40}|quickadd|help(?:=[a-z0-9-]{1,60})?)$/.test(hash)) {
     if (location.hash === hash) window.dispatchEvent(new HashChangeEvent('hashchange'));
     else location.hash = hash;
   }

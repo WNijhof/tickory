@@ -149,6 +149,9 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <h3 id="notifications-in-the-android-app">In the Android app</h3>
 <p>The <a href="android-app.html">Android app</a> fetches your reminders from your server and sets them as alarms on the phone itself. That is why they also go off when your phone has no internet. The app does not need a push service, so no HTTPS for the notifications either. What still has to be allowed is shown in <x-ui k="settings.reminders"></x-ui>, under <x-ui k="notify.deviceTitle"></x-ui>.</p>
 
+<h3 id="notifications-in-the-desktop-app">In the Windows desktop app</h3>
+<p>The <a href="desktop-app.html">desktop app</a> also fetches your reminders from your server itself and fires them as Windows notifications, with <strong>Complete</strong> and <strong>Snooze</strong>. This works while Tickory is running, also in the tray. A test notification and the Windows settings are in <x-ui k="settings.reminders"></x-ui>, under <x-ui k="notify.deviceTitle"></x-ui>.</p>
+
 <h3>How late is too late</h3>
 <p>The server checks every 20 seconds which reminders are due, so a notification arrives within about half a minute of the moment. If the server was down for a while, or a notification could not be delivered, it is still sent as long as it is at most <strong>an hour</strong> late; anything older lapses. The same reminder at the same moment arrives only once. The Android app shows what is at most an hour late in the same way.</p>
 

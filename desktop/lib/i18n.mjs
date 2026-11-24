@@ -28,6 +28,15 @@ const NL = {
   appearanceOldServer: 'Je server heeft een oudere versie van Tickory: het hoofdvenster volgt deze keuze pas als je de server bijwerkt (docker compose pull).',
   offlineTitle: 'Geen verbinding met je server', offlineText: 'Tickory kan {server} niet bereiken. Het venster probeert het vanzelf opnieuw.', retry: 'Opnieuw proberen',
   signInTitle: 'Inloggen bij Tickory',
+  open: 'Openen', someone: 'Iemand',
+  activity_assigned: '{actor} heeft je een taak toegewezen', activity_comment: '{actor} reageerde op een taak',
+  activity_commentProject: '{actor} schreef een opmerking bij het project', activity_mention: '{actor} noemde je in een opmerking',
+  activity_completed: '{actor} heeft je taak afgevinkt', activity_shared: '{actor} heeft je toegevoegd aan een project',
+  activity_sharedNote: '{actor} heeft een notitie met je gedeeld', activity_other: '{actor} deed iets in een gedeeld project',
+  morningTitle: 'Plan je dag', morningEmpty: 'Niets gepland voor vandaag', eveningTitle: 'Avondreview',
+  todayOne: '{n} taak vandaag', todayOther: '{n} taken vandaag', leftOne: 'Nog {n} taak voor vandaag', leftOther: 'Nog {n} taken voor vandaag',
+  withOverdue: '{today}, {n} over tijd',
+  testTitle: 'Meldingen werken', testBody: 'Zo komt een herinnering van Tickory binnen.',
 };
 const EN = {
   quickAdd: 'Add task', show: 'Show Tickory', settings: 'Settings', stayInTray: 'Keep running in the tray',
@@ -56,6 +65,15 @@ const EN = {
   appearanceOldServer: 'Your server has an older version of Tickory: the main window follows this choice once you update the server (docker compose pull).',
   offlineTitle: 'No connection with your server', offlineText: 'Tickory cannot reach {server}. The window tries again by itself.', retry: 'Try again',
   signInTitle: 'Sign in to Tickory',
+  open: 'Open', someone: 'Someone',
+  activity_assigned: '{actor} assigned you a task', activity_comment: '{actor} commented on a task',
+  activity_commentProject: '{actor} commented on the project', activity_mention: '{actor} mentioned you in a comment',
+  activity_completed: '{actor} completed your task', activity_shared: '{actor} added you to a project',
+  activity_sharedNote: '{actor} shared a note with you', activity_other: '{actor} did something in a shared project',
+  morningTitle: 'Plan your day', morningEmpty: 'Nothing planned for today', eveningTitle: 'Evening review',
+  todayOne: '{n} task today', todayOther: '{n} tasks today', leftOne: '{n} task left for today', leftOther: '{n} tasks left for today',
+  withOverdue: '{today}, {n} overdue',
+  testTitle: 'Notifications work', testBody: 'This is how a Tickory reminder arrives.',
 };
 
 /** De taal: wat je in de app koos, anders die van Windows (Nederlands bij nl-*, anders Engels). */

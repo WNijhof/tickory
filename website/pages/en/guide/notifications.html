@@ -59,11 +59,12 @@ description: Collaboration notifications in Tickory: when you get one, the Notif
 <ul>
   <li><strong>In the browser</strong> (computer, or the web app on a phone): first turn on notifications on that device, see <a href="reminders.html">Reminders</a>. The notification comes in the language of that device and has an <x-ui k="sw.open"></x-ui> button that opens the app at the task.</li>
   <li><strong>In the Android app</strong>: the app fetches new notifications itself when it refreshes (without Google services). That happens when you open the app and about every fifteen minutes with a connection, so a notification can be up to fifteen minutes late. If the app is open, you see it in the app itself and Android doesn't add a notification. If you read a notification in the app, it also disappears from the device at the next refresh. See <a href="android-app.html">The Android app</a>.</li>
+  <li><strong>In the Windows desktop app</strong>: the app hears from your server right away that there is something new and shows it as a Windows notification. Clicking opens the task, project or note. If you are busy in Tickory itself at that moment, no Windows notification is added. See <a href="desktop-app.html#reminders">The desktop app</a>.</li>
 </ul>
 <p>Which kinds show up as a notification is chosen in <x-ui k="settings.title"></x-ui> › <x-ui k="settings.notify"></x-ui>, under <x-ui k="inbox.pushTitle"></x-ui>. By default everything is on except <x-ui k="inbox.kind.completed"></x-ui>. The choice applies to all your devices. The <x-ui k="inbox.title"></x-ui> list always shows all notifications, including the kinds you turn off here.</p>
 
 <h2 id="privacy">What a notification contains</h2>
-<p>A notification only contains what you are allowed to see anyway: who did it (someone from the same project), the name of the task or project and the start of the comment. A notification to your browser is sent encrypted through your browser's push service; that service cannot read the message. A notification in the Android app does not go through a push service at all.</p>
+<p>A notification only contains what you are allowed to see anyway: who did it (someone from the same project), the name of the task or project and the start of the comment. A notification to your browser is sent encrypted through your browser's push service; that service cannot read the message. A notification in the Android app or the desktop app does not go through a push service at all.</p>
 
 <h2>Limitations</h2>
 <ul>

@@ -1,7 +1,8 @@
 // Tickory voor Windows: de web-app van je eigen Tickory-server in een eigen venster, gebouwd naar de desktop-app van Todoist (een
 // Electron-schil om de web-app): een icoon in het systeemvak met Taak toevoegen, de taken van vandaag en de vaste overzichten; een
 // globale sneltoets voor een los venster Taak toevoegen (Ctrl+Spatie) en een om Tickory te tonen (Win+Alt+S); een badge op de
-// taakbalk als er taken voor vandaag zijn; herinneringen als meldingen van Windows met Voltooien en Uitstellen; het hoofdmenu met
+// taakbalk als er taken voor vandaag zijn; herinneringen als meldingen van Windows met Voltooien en Uitstellen (en ook de
+// herinneringen op notities, de meldingen bij samenwerken en het ochtendoverzicht en de avondreview); het hoofdmenu met
 // zoomen, zwevend op voorgrond en terug/verder; en updates via de GitHub-releases. Notities zitten in de web-app zelf.
 //
 // Veiligheid: de pagina's van de server draaien zonder Node (contextIsolation, sandbox); ze zien alleen window.TickoryDesktop
@@ -15,16 +16,23 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULTS, addSnooze, loadSettings, markShown, normalizeShortcut, removeSnooze, settingsOf } from './lib/settings.mjs';
 import { normalizeServer, sameOrigin } from './lib/server.mjs';
-import { planReminders, planSnoozes, snoozeMs, todayItems } from './lib/reminderPlan.mjs';
+import { overviewText, planNoteReminders, planOverviews, planReminders, planSnoozes, snoozeMs, todayItems } from './lib/reminderPlan.mjs';
+import { activityText, decideInbox, inboxSnapshot } from './lib/inboxPlan.mjs';
+import { RESOURCES, mergeSync, needsFull } from './lib/syncCache.mjs';
 import { appMenu, trayMenu } from './lib/menuModel.mjs';
 import { langOf, translator } from './lib/i18n.mjs';
-import { parseActionUrl, reminderToastXml } from './lib/toast.mjs';
+import { infoToastXml, noteToastXml, openUrl, parseActionUrl, reminderToastXml } from './lib/toast.mjs';
 import { ACCENTS, BACKGROUND, appearanceOf, appearanceOrDefault, fromWeb, sameAppearance } from './lib/appearance.mjs';
 import { epochToFloating } from './shared/reminders.js';
+import { listenForChanges } from './shared/events.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const SYNC_EVERY_MS = 5 * 60 * 1000;
+/** Na een seintje van de server even wachten (er komen er vaak een paar achter elkaar), en niet vaker dan dit. */
+const LIVE_DELAY_MS = 1500;
+/** Zo stelt de app zich voor aan de server: een seintje over een eigen wijziging (Voltooien in een melding) slaat hij over. */
+const CLIENT_ID = `desktop-${randomUUID().replace(/-/g, '').slice(0, 16)}`;
 /** Het venster Taak toevoegen: breder dan de telefoonopmaak van de web-app (760 px), zodat het de kaart van een computer toont. */
 const QUICK_W = 820;
 const QUICK_H = 560;
@@ -81,6 +89,12 @@ let quitting = false;
 let syncData = null;
 let token = null;
 const timers = new Map();
+/** Wanneer de app voor het laatst alles ophaalde (daarna alleen wat er veranderde, zie lib/syncCache.mjs). */
+let lastFullAt = 0;
+/** De meldingen bij samenwerken die nu in beeld staan (id → melding), om ze weg te halen als je ze elders leest. */
+const activityShown = new Map();
+/** Het seintje van de server dat er iets veranderd is (Server-Sent Events, zoals de web-app). */
+let live = null;
 
 const icon = () => nativeImage.createFromPath(join(here, 'assets', 'icon.png'));
 
@@ -518,30 +532,115 @@ async function api(path, body) {
   if (!settings.server || !token) return null;
   const used = token;
   const res = await fetch(`${settings.server}${path}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${used}` }, body: JSON.stringify(body), signal: AbortSignal.timeout(15_000),
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${used}`, 'X-Client-Id': CLIENT_ID }, body: JSON.stringify(body), signal: AbortSignal.timeout(30_000),
   });
   // alleen afmelden als dit token nog geldt: intussen opnieuw ingelogd (een nieuw token) laat de nieuwe aanmelding staan
   if (res.status === 401) { if (token === used) setSession(''); return null; }
   return res.ok ? res.json() : null;
 }
 
-async function refreshReminders() {
+let refreshing = null;
+let refreshAgain = false;
+
+/**
+ * De gegevens bijwerken en alles opnieuw plannen. De eerste keer (en af en toe, of met `full`) alles, daarna alleen wat er
+ * veranderde. Loopt er al een ronde, dan volgt er direct na afloop nog één (een wijziging tijdens het ophalen blijft niet liggen).
+ */
+async function refreshReminders({ full = false } = {}) {
+  if (refreshing) {
+    refreshAgain = true;
+    return refreshing;
+  }
+  refreshing = (async () => {
+    try {
+      const used = token;
+      const whole = needsFull(syncData, lastFullAt, Date.now(), full);
+      const data = await api('/api/v1/sync', { sync_token: whole ? '*' : syncData.sync_token, resource_types: RESOURCES });
+      if (!data || token !== used) return; // intussen afgemeld of als iemand anders aangemeld: dit antwoord hoort er niet meer bij
+      const next = mergeSync(whole ? null : syncData, data);
+      if (!next) return;
+      if (data.full_sync) lastFullAt = Date.now();
+      syncData = next;
+      schedule();
+      refreshMenus();
+      showActivity();
+    } catch { /* geen verbinding: de oude planning blijft staan, de volgende ronde probeert het opnieuw */ }
+  })();
   try {
-    const data = await api('/api/v1/sync', { sync_token: '*', resource_types: ['tasks', 'reminders', 'settings'] });
-    if (!data) return;
-    syncData = data;
-    schedule();
-    refreshMenus();
-  } catch { /* geen verbinding: de oude planning blijft staan, de volgende ronde probeert het opnieuw */ }
+    await refreshing;
+  } finally {
+    refreshing = null;
+  }
+  if (refreshAgain) {
+    refreshAgain = false;
+    await refreshReminders();
+  }
+  return undefined;
+}
+
+/** Na een seintje van de server: even wachten (er komen er vaak een paar achter elkaar) en dan bijwerken. */
+let liveTimer = null;
+function refreshSoon() {
+  if (liveTimer) return;
+  liveTimer = setTimeout(() => {
+    liveTimer = null;
+    refreshReminders();
+  }, LIVE_DELAY_MS);
+}
+
+/** Luisteren naar de server (opnieuw, na aanmelden of een andere server); zonder token of server: niet. */
+function startLive() {
+  live?.stop();
+  live = null;
+  if (!settings.server || !token) return;
+  const base = settings.server;
+  live = listenForChanges({ getToken: () => (settings.server === base ? token : null), clientId: CLIENT_ID, onSyncNeeded: refreshSoon, onConnected: refreshSoon, baseUrl: base });
 }
 
 function schedule() {
   for (const timer of timers.values()) clearTimeout(timer);
   timers.clear();
   if (!syncData) return;
-  for (const r of [...planReminders(syncData, Date.now(), settings.shown), ...planSnoozes(syncData, settings.snoozes, Date.now())]) {
-    const wait = Math.max(0, r.at - Date.now());
+  const now = Date.now();
+  const plan = [
+    ...planReminders(syncData, now, settings.shown), ...planSnoozes(syncData, settings.snoozes, now),
+    ...planNoteReminders(syncData, now, settings.shown), ...planOverviews(syncData, now, settings.shown),
+  ];
+  for (const r of plan) {
+    const wait = Math.max(0, r.at - now);
     timers.set(r.key, setTimeout(() => fire(r), Math.min(wait, 2 ** 31 - 1)));
+  }
+}
+
+/** Een melding van Windows met eigen XML (knoppen, blijven staan), of elders een gewone melding. */
+function toast({ xml, title, body, onClick = null }) {
+  if (!Notification.isSupported()) return null;
+  const n = new Notification(process.platform === 'win32' ? { toastXml: xml } : { title, body });
+  if (onClick) n.on('click', onClick);
+  n.show();
+  return n;
+}
+
+/** De meldingen bij samenwerken die nieuw zijn sinds de vorige keer (zie lib/inboxPlan.mjs). */
+function showActivity() {
+  const snapshot = inboxSnapshot(syncData);
+  if (!snapshot) return;
+  const appVisible = Boolean(main?.isVisible() && !main.isMinimized() && main.isFocused());
+  const { show, cancel, next } = decideInbox(settings.inbox, snapshot, Date.now(), appVisible);
+  for (const id of cancel) {
+    activityShown.get(id)?.close();
+    activityShown.delete(id);
+  }
+  if (JSON.stringify(next) !== JSON.stringify(settings.inbox)) saveSettings({ ...settings, inbox: next });
+  for (const item of show) {
+    const { title, lines } = activityText(item, t);
+    const launch = openUrl({ notification: item.id });
+    if (DEV_SHOT) {
+      devNote({ kind: 'activity', id: item.id, title, lines, xml: infoToastXml({ title, lines, launch }) });
+      continue;
+    }
+    const n = toast({ xml: infoToastXml({ title, lines, launch }), title, body: lines.join('\n'), onClick: () => showMain(`#notification=${item.id}`) });
+    if (n) activityShown.set(item.id, n);
   }
 }
 
@@ -560,13 +659,25 @@ function fire(r) {
   else if (settings.shown.includes(r.key)) return;
   else saveSettings(markShown(settings, r.key));
   const time = r.moment.slice(11, 16);
-  if (DEV_SHOT) return devNote({ kind: 'reminder', title: r.title, time, xml: reminderToastXml({ title: r.title, time, taskId: r.taskId, reminderId: r.id, moment: r.moment, t }) });
-  const options = process.platform === 'win32'
-    ? { toastXml: reminderToastXml({ title: r.title, time, taskId: r.taskId, reminderId: r.id, moment: r.moment, t }) }
-    : { title: r.title, body: `${t('reminder')} · ${time}` };
-  const n = new Notification(options);
-  n.on('click', () => showMain(`#task=${r.taskId}`));
-  n.show();
+  if (r.kind === 'overview') {
+    // het ochtendoverzicht of de avondreview: geteld op het moment zelf, met wat er dan nog open staat
+    const text = syncData ? overviewText(r.overview, syncData, r.moment.slice(0, 10), t) : null;
+    if (!text) return undefined;
+    const xml = infoToastXml({ title: text.title, lines: [text.body], launch: openUrl({ view: 'today' }) });
+    if (DEV_SHOT) return devNote({ kind: 'overview', overview: r.overview, title: text.title, body: text.body, xml });
+    toast({ xml, title: text.title, body: text.body, onClick: () => showMain('#view=today') });
+    return undefined;
+  }
+  if (r.kind === 'note') {
+    const xml = noteToastXml({ title: r.title, time, noteId: r.noteId, t });
+    if (DEV_SHOT) return devNote({ kind: 'note-reminder', title: r.title, time, xml });
+    toast({ xml, title: r.title, body: `${t('reminder')} · ${time}`, onClick: () => showMain(`#note=${r.noteId}`) });
+    return undefined;
+  }
+  const xml = reminderToastXml({ title: r.title, time, taskId: r.taskId, reminderId: r.id, moment: r.moment, t });
+  if (DEV_SHOT) return devNote({ kind: 'reminder', title: r.title, time, xml });
+  toast({ xml, title: r.title, body: `${t('reminder')} · ${time}`, onClick: () => showMain(`#task=${r.taskId}`) });
+  return undefined;
 }
 
 function note(text) {
@@ -574,11 +685,29 @@ function note(text) {
   if (Notification.isSupported()) new Notification({ title: 'Tickory', body: text, silent: true }).show();
 }
 
+/** Instellingen › Meldingen in de web-app: een testmelding, zoals een herinnering binnenkomt. */
+function testNotification() {
+  const title = t('testTitle');
+  const body = t('testBody');
+  const xml = infoToastXml({ title, lines: [body], launch: openUrl({ view: 'today' }) });
+  if (DEV_SHOT) {
+    devNote({ kind: 'test', title, body, xml });
+    return true;
+  }
+  return toast({ xml, title, body, onClick: () => showMain() }) !== null;
+}
+
 async function handleAction(url) {
   const a = parseActionUrl(url);
   if (!a) return;
   if (a.action === 'quick-add') return showQuickAdd();
-  if (a.action === 'open') return showMain(`#task=${a.taskId}`);
+  if (a.action === 'open') {
+    // de web-app zet een melding bij samenwerken op gelezen en opent wat erbij hoort (client/ui/inbox.js)
+    if (a.notificationId) return showMain(`#notification=${a.notificationId}`);
+    if (a.noteId) return showMain(`#note=${a.noteId}`);
+    if (a.view) return showMain(`#view=${a.view}`);
+    return showMain(`#task=${a.taskId}`);
+  }
   // gestart door de knop in een melding (Tickory was afgesloten): eerst de gegevens, voor de naam, de uitstelduur en de tijdzone
   if (!syncData && token) await refreshReminders();
   const title = syncData?.tasks?.find((x) => x.id === a.taskId)?.content ?? '';
@@ -604,10 +733,18 @@ async function handleAction(url) {
 }
 
 function setSession(next) {
+  const changed = (next || null) !== token;
   token = next || null;
   saveToken(token);
-  if (!token) {
+  if (changed) {
+    // een andere aanmelding: alles opnieuw ophalen, en de meldingen bij samenwerken van de vorige weg
     syncData = null;
+    lastFullAt = 0;
+    for (const n of activityShown.values()) n.close();
+    activityShown.clear();
+    startLive();
+  }
+  if (!token) {
     schedule();
     refreshMenus();
     main?.setOverlayIcon(null, '');
@@ -741,6 +878,11 @@ ipcMain.handle('desktop:get-settings', (event) => (fromServer(event) ? {
 } : null));
 ipcMain.handle('desktop:save-settings', (event, changes) => (fromServer(event) ? savePrefs(changes ?? {}) : { ok: false, error: 'forbidden' }));
 ipcMain.on('desktop:change-server', (event) => { if (fromServer(event)) openPages('setup'); });
+// Instellingen › Meldingen in de web-app: een testmelding, en de meldingen van Windows zelf (aan/uit, Niet storen)
+ipcMain.handle('desktop:test-notification', (event) => (fromServer(event) ? { ok: testNotification() } : { ok: false }));
+ipcMain.on('desktop:notification-settings', (event) => {
+  if (fromServer(event) && process.platform === 'win32' && !DEV_SHOT) shell.openExternal('ms-settings:notifications');
+});
 
 /** Instellingen openen: in de web-app (alles bij elkaar, zoals Todoist), of het eigen venster als de server dat nog niet kent. */
 function openSettings() {
@@ -812,8 +954,10 @@ app.whenReady().then(async () => {
   if (!settings.server) openPages('setup');
   else if (!main) createMain({ hidden: process.argv.includes('--hidden') });
   const loaded = token ? refreshReminders() : Promise.resolve();
-  setInterval(refreshReminders, SYNC_EVERY_MS);
+  startLive(); // een seintje van de server bij elke wijziging; de ronde van vijf minuten is de vangrails
+  setInterval(() => refreshReminders(), SYNC_EVERY_MS);
   powerMonitor.on('resume', () => {
+    live?.restart(); // de verbinding van vóór de slaapstand is waarschijnlijk dood
     refreshReminders();
     for (const retry of retries.values()) retry(); // een venster zonder verbinding: meteen opnieuw proberen
   });
@@ -889,6 +1033,28 @@ async function smokeShots(dir) {
     const after = await js(`({ quickAdd: document.querySelector('[data-fk="desktop-sc-quickadd"]')?.value ?? null, saved: document.querySelector('.desktop-settings [role="status"]')?.textContent ?? null, error: document.querySelector('.desktop-settings .error')?.textContent ?? null })`);
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ webSettingsReady, pagesWindow: Boolean(pages), opened, pane, after, stored: settings.shortcuts }, null, 1));
     writeFileSync(join(dir, 'settings.png'), (await main.webContents.capturePage()).toPNG());
+  }
+  // Meldingen (TICKORY_DESKTOP_NOTIFY=1): Instellingen › Herinneringen toont de uitleg van de desktop-app met een testmelding, en
+  // daarna (terwijl de test op de server iets doet, zoals een ander lid dat een taak toewijst) wat de app heeft opgehaald en
+  // gepland. De meldingen zelf staan in notifications.json (devNote).
+  if (process.env.TICKORY_DESKTOP_NOTIFY && main) {
+    const js = (code) => main.webContents.executeJavaScript(code);
+    runMenu('settings');
+    await wait(2500);
+    await js(`document.querySelector('dialog[open] [data-fk="settings:reminders"]')?.click(); true`);
+    await wait(2000);
+    const pane = await js(`({ text: document.querySelector('dialog[open] .notify-device')?.textContent ?? null, test: Boolean(document.querySelector('[data-fk="notify-desktop-test"]')), windows: Boolean(document.querySelector('[data-fk="notify-desktop-windows"]')), buttons: [...document.querySelectorAll('dialog[open] .notify-device button')].map((b) => b.textContent) })`);
+    await js(`document.querySelector('[data-fk="notify-desktop-test"]')?.click(); true`);
+    await wait(1000);
+    const said = await js(`document.querySelector('dialog[open] p[role="status"]')?.textContent ?? null`);
+    writeFileSync(join(dir, 'notify-pane.png'), (await main.webContents.capturePage()).toPNG());
+    await wait(Number(process.env.TICKORY_DESKTOP_NOTIFY_WAIT ?? 20_000));
+    const now = Date.now();
+    writeFileSync(join(dir, 'notify.json'), JSON.stringify({
+      pane, said, synced: Boolean(syncData), live: Boolean(live), counts: syncData && Object.fromEntries(RESOURCES.map((k) => [k, syncData[k].length])),
+      inbox: settings.inbox, shown: settings.shown,
+      plan: syncData ? [...planNoteReminders(syncData, now, settings.shown), ...planOverviews(syncData, now, settings.shown)].map((r) => r.key) : null,
+    }, null, 1));
   }
   // een knop uit een melding nabootsen (tickory://complete?… of tickory://snooze?…), na even wachten (zodat een herinnering kan afgaan)
   const action = process.env.TICKORY_DESKTOP_ACTION;

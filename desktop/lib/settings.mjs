@@ -2,6 +2,7 @@
 // Zoals Todoist: sneltoetsen (Tickory tonen: Win+Alt+S, Taak toevoegen: Ctrl+Spatie), in het systeemvak blijven draaien, opstarten
 // met Windows (eventueel geminimaliseerd), zwevend op de voorgrond, waar het venster stond, en het thema (zie appearance.mjs).
 import { appearanceOf } from './appearance.mjs';
+import { inboxStateOf } from './inboxPlan.mjs';
 
 export const DEFAULT_SHORTCUTS = Object.freeze({ activate: 'Super+Alt+S', quickAdd: 'Control+Space' });
 
@@ -18,6 +19,8 @@ export const DEFAULTS = Object.freeze({
   appearance: null,
   shown: Object.freeze([]),
   snoozes: Object.freeze([]),
+  // welke meldingen bij samenwerken de app al kent en welke er in beeld staan (zie inboxPlan.mjs)
+  inbox: null,
 });
 
 const MAX_SHOWN = 500;
@@ -65,6 +68,7 @@ export function settingsOf(raw) {
     appearance: appearanceOf(v.appearance), // null: nog niets gekozen (dan volgt de app de web-app)
     shown: Array.isArray(v.shown) ? v.shown.filter((x) => typeof x === 'string' && x.length < 200).slice(-MAX_SHOWN) : [],
     snoozes: Array.isArray(v.snoozes) ? v.snoozes.filter(validSnooze).slice(-MAX_SNOOZES) : [],
+    inbox: inboxStateOf(v.inbox),
   };
 }
 

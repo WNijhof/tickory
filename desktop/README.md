@@ -14,9 +14,11 @@ Todoist was het voorbeeld voor wat de app kan; de code, beelden en teksten zijn 
 | `preload.cjs` | De brug `window.TickoryDesktop` voor de web-app (sessie, herinneringen gewijzigd, badge, taal, venster Taak toevoegen) |
 | `lib/server.mjs` | Het serveradres: https, of http alleen in je eigen netwerk; alleen die origin mag in het venster |
 | `lib/settings.mjs` | De instellingen van de app (`settings.json` in de gebruikersmap) |
-| `lib/reminderPlan.mjs` | Welke herinneringen afgaan (met `shared/reminders.js`, dezelfde regels als de server) en "vandaag" voor het systeemvak |
+| `lib/reminderPlan.mjs` | Welke herinneringen afgaan (met `shared/reminders.js`, dezelfde regels als de server), de herinneringen op notities (`shared/notes.js`), het ochtendoverzicht en de avondreview, en "vandaag" voor het systeemvak |
+| `lib/syncCache.mjs` | Wat de app van je account bijhoudt: eerst alles, daarna delta's met `sync_token` |
+| `lib/inboxPlan.mjs` | Meldingen bij samenwerken: welke nieuw zijn, welke in beeld komen en welke weg moeten (zoals `Inbox.kt` in de Android-app) |
 | `lib/menuModel.mjs` | Het systeemvak-menu en het hoofdmenu als gegevens |
-| `lib/toast.mjs` | De melding van Windows (ToastGeneric met knoppen) en de adressen `tickory://open|complete|snooze?task=…` |
+| `lib/toast.mjs` | De melding van Windows (ToastGeneric met knoppen) en de adressen `tickory://open?task=|note=|notification=|view=…` en `tickory://complete|snooze?task=…` |
 | `lib/i18n.mjs` | De teksten van de app zelf, Nederlands en Engels |
 | `lib/appearance.mjs` | Het thema (zoals het apparaat, licht, donker) en de accentkleur, met de lijst uit `client/core/theme.js` |
 | `pages/` | De eigen schermen: het serveradres kiezen en de instellingen |
@@ -24,11 +26,18 @@ Todoist was het voorbeeld voor wat de app kan; de code, beelden en teksten zijn 
 In de web-client: `client/core/desktop.js` (de brug) en `installDesktopQuickAdd` in `client/ui/app.js` (het losse venster Taak toevoegen,
 `?desktop=quickadd`: alleen het venster, op een doorzichtig venster zoals bij Todoist).
 
-**Herinneringen.** Electron kent geen web-push. De app krijgt het sessietoken van de web-app (bewaard met `safeStorage`, gekoppeld aan je
-Windows-account), haalt elke vijf minuten (en meteen na een wijziging of na de slaapstand) taken, herinneringen en instellingen op, en plant
-de herinneringen van de komende 26 uur als timers. Een getoonde herinnering wordt onthouden (niet dubbel). De knoppen van een melding gaan via
-het protocol `tickory://`, zodat ze ook werken als de melding uit het Actiecentrum komt; Voltooien stuurt `task_complete`, Uitstellen een
-`reminder_add` (zo lang als in Instellingen › Algemeen gekozen), elk met een eigen uuid.
+**Meldingen.** Electron kent geen web-push. De app krijgt het sessietoken van de web-app (bewaard met `safeStorage`, gekoppeld aan je
+Windows-account) en haalt taken, herinneringen, instellingen, meldingen bij samenwerken, notities, projecten en opmerkingen op: eerst alles,
+daarna alleen wat er veranderde (`lib/syncCache.mjs`). Hij luistert naar het seintje van de server (`/api/v1/events`, met
+`client/core/events.js`) en werkt bij elke wijziging bij; elke vijf minuten en na de slaapstand ook. Hij plant de herinneringen van de
+komende 26 uur als timers: bij taken, op notities, en het ochtendoverzicht en de avondreview. Een getoonde herinnering wordt onthouden
+(niet dubbel). Nieuwe meldingen bij samenwerken komen in beeld zoals in de Android-app (`lib/inboxPlan.mjs`). De knoppen van een melding
+gaan via het protocol `tickory://`, zodat ze ook werken als de melding uit het Actiecentrum komt; Voltooien stuurt `task_complete` met een
+eigen uuid, Uitstellen plant de herinnering opnieuw op deze pc (zo lang als in Instellingen › Herinneringen gekozen). In de web-app staat
+onder Instellingen › Herinneringen een testmelding (`desktop:test-notification`) en een knop naar de meldingen van Windows.
+
+Rooktest van de meldingen (buiten beeld, meldingen naar `notifications.json`): `TICKORY_DESKTOP_NOTIFY=1` opent Instellingen ›
+Herinneringen, stuurt de testmelding en legt in `notify.json` vast wat de app ophaalde en plande.
 
 **Thema.** Zoals in de Android-app is het thema te kiezen: in de web-app (Instellingen › Weergave) en in de eigen Instellingen van de
 app. De web-app geeft haar keuze over de brug door; de app zet dan `nativeTheme.themeSource` (titelbalk,
