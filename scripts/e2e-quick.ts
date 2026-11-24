@@ -111,7 +111,7 @@ export async function quickScenario(c: any) {
     d.querySelector('[data-fk="general-sound"]').click();
     d.querySelector('[data-fk="general-clock:12h"]').click();
     d.querySelector('[data-fk="general-dates"]').click();
-    d.querySelector('[data-fk="general-save"]').click();
+    d.querySelector('[data-fk="general-done"]').click(); // Sluiten bewaart wat er nog niet bewaard was
   })()`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');
@@ -125,7 +125,7 @@ export async function quickScenario(c: any) {
     const d = document.querySelector('dialog[open]');
     d.querySelector('[data-fk="general-nav:notes"]').click();
     d.querySelector('[data-fk="general-nav:labels"]').click();
-    d.querySelector('[data-fk="general-save"]').click();
+    d.querySelector('[data-fk="general-done"]').click(); // Sluiten bewaart wat er nog niet bewaard was
   })()`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
   await waitFor(`await ${SYNCED}`, 'gesynchroniseerd');

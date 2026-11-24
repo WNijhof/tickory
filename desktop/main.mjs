@@ -1028,7 +1028,7 @@ async function smokeShots(dir) {
     await wait(1500);
     const pane = await js(`({ title: document.querySelector('dialog[open] .settings-pane h2')?.textContent ?? null, quickAdd: document.querySelector('[data-fk="desktop-sc-quickadd"]')?.value ?? null, tray: document.querySelector('[data-fk="desktop-tray"]')?.checked ?? null })`);
     // een sneltoets in kleine letters bewaren: de app maakt er de schrijfwijze van Electron van
-    await js(`(() => { const i = document.querySelector('[data-fk="desktop-sc-quickadd"]'); i.value = 'ctrl+alt+t'; document.querySelector('[data-fk="desktop-save"]').click(); return true; })()`);
+    await js(`(() => { const i = document.querySelector('[data-fk="desktop-sc-quickadd"]'); i.value = 'ctrl+alt+t'; i.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
     await wait(1500);
     const after = await js(`({ quickAdd: document.querySelector('[data-fk="desktop-sc-quickadd"]')?.value ?? null, saved: document.querySelector('.desktop-settings [role="status"]')?.textContent ?? null, error: document.querySelector('.desktop-settings .error')?.textContent ?? null })`);
     writeFileSync(join(dir, 'settings.json'), JSON.stringify({ webSettingsReady, pagesWindow: Boolean(pages), opened, pane, after, stored: settings.shortcuts }, null, 1));

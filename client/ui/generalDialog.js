@@ -1,5 +1,6 @@
 // Instellingen › Algemeen (SPEC 5m, shared/general.js): de startpagina, de tijdnotatie, of snel toevoegen datums in gewone taal
 // herkent, en welke onderdelen in de zijbalk staan. Bewaard in je instellingen op de server, dus op al je apparaten hetzelfde.
+// Zoals bij Todoist werkt elke keuze meteen; er is geen knop Bewaren.
 
 import { BOTTOM_TAB_CHOICES, BOTTOM_TAB_COUNT, SIDEBAR_ITEMS, SNOOZE_MINUTES, START_PAGES, SWIPE_ACTIONS, TIME_FORMATS, TOAST_SECONDS, WEEKDAYS, WEEK_STARTS, generalOf } from '../../shared/general.js';
 import { weekdayNames } from '../core/calendar.js';
@@ -82,35 +83,50 @@ export function openGeneralDialog({ store, actions, part = 'all' }) {
     const tabError = h('p', { class: 'error', role: 'alert' });
     const items = SIDEBAR_ITEMS.map((key) => h('label', { class: 'check-row' },
       h('input', { type: 'checkbox', value: key, checked: !now.sidebar_hidden.includes(key), dataset: { fk: `general-nav:${key}` } }), ITEM_LABEL[key]()));
-    return h('form', {
-      class: 'dialog-form',
-      onsubmit: async (e) => {
-        e.preventDefault();
-        const bottomTabs = tabSelects.map((s) => s.value);
-        if (new Set(bottomTabs).size !== bottomTabs.length) { tabError.textContent = t('general.tabsTwice'); tabSelects[0].focus(); return; }
-        const next = {
-          ...now, // wat dit venster niet toont (de vakanties) blijft zoals het was
+
+    // Zoals Todoist: elke keuze werkt meteen, zonder Bewaren. Alleen de velden van dit deel gaan mee; de rest komt uit wat er nu
+    // op de server staat (ook een keuze die intussen in een ander onderdeel is gemaakt, zoals uitstellen bij Herinneringen).
+    let pending = Promise.resolve();
+    let changed = false;
+    const save = () => {
+      const bottomTabs = tabSelects.map((s) => s.value);
+      if (show('bottombar') && new Set(bottomTabs).size !== bottomTabs.length) { tabError.textContent = t('general.tabsTwice'); return pending; }
+      tabError.textContent = '';
+      const fresh = generalOf(mySettings(store.view, store.userId));
+      const mine = {};
+      if (show('general')) {
+        Object.assign(mine, {
           start_page: start.value,
           time_format: clocks.map((l) => l.querySelector('input')).find((i) => i.checked)?.value ?? '24h',
           date_recognition: dates.checked,
-          sidebar_hidden: items.map((l) => l.querySelector('input')).filter((i) => !i.checked).map((i) => i.value),
           week_start: Number(weekStart.value),
-          bottom_tabs: bottomTabs,
-          productivity: productivity.checked,
           next_week: Number(nextWeek.value),
           weekend: Number(weekend.value),
           swipe_right: swipeRight.value,
           swipe_left: swipeLeft.value,
           completion_sound: sound.checked,
           reset_subtasks: resetSubtasks.checked,
-          morning_overview: morning.value,
-          evening_review: evening.value,
-          snooze_minutes: Number(snooze.value),
           toast_seconds: Number(toastTime.value),
-        };
-        await actions.updateSettings({ general: next });
-        finish(true);
-      },
+        });
+      }
+      if (part === 'all') Object.assign(mine, { morning_overview: morning.value, evening_review: evening.value, snooze_minutes: Number(snooze.value) });
+      if (show('sidebar')) {
+        Object.assign(mine, {
+          productivity: productivity.checked,
+          sidebar_hidden: items.map((l) => l.querySelector('input')).filter((i) => !i.checked).map((i) => i.value),
+        });
+      }
+      if (show('bottombar')) mine.bottom_tabs = bottomTabs;
+      const next = { ...fresh, ...mine };
+      if (JSON.stringify(next) === JSON.stringify(fresh)) return pending;
+      changed = true;
+      pending = pending.then(() => actions.updateSettings({ general: next }));
+      return pending;
+    };
+    return h('form', {
+      class: 'dialog-form',
+      onchange: () => { save(); },
+      onsubmit: (e) => { e.preventDefault(); save(); },
     },
     h('h2', {}, PART_TITLE[part]()),
     show('general') && [
@@ -147,8 +163,11 @@ export function openGeneralDialog({ store, actions, part = 'all' }) {
     show('bottombar') && h('fieldset', { class: 'general-group' }, h('legend', {}, t('general.bottomBar')),
       h('p', { class: 'hint' }, t('general.bottomBarHint')),
       h('div', { class: 'general-tabs' }, tabSelects), tabError),
+    // alleen dicht (wat er nog niet bewaard was, zoals een veld dat nog de focus had, eerst wel)
     h('div', { class: 'dialog-buttons' },
-      h('button', { type: 'button', class: 'button', onclick: () => finish(false) }, t('common.cancel')),
-      h('button', { type: 'submit', class: 'button button-primary', dataset: { fk: 'general-save' } }, t('common.save'))));
+      h('button', {
+        type: 'button', class: 'button', dataset: { fk: 'general-done' },
+        onclick: async () => { await save(); finish(changed); },
+      }, t('common.close'))));
   });
 }
