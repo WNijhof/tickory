@@ -818,7 +818,7 @@ ipcMain.on('desktop:language', (_event, value) => {
   refreshMenus();
 });
 
-// het thema van de web-app (Instellingen › Weergave); `initial` bij het opstarten van een venster
+// het thema van de web-app (Instellingen › Thema); `initial` bij het opstarten van een venster
 ipcMain.on('desktop:appearance', (event, value) => {
   if (!fromServer(event)) return;
   webAppearanceSeen = true; // de web-app van de server kent de themakeuze van de desktop-app (vanaf 0.10.1)
@@ -1000,7 +1000,7 @@ async function smokeShots(dir) {
   const look = process.env.TICKORY_DESKTOP_APPEARANCE?.split(':');
   if (look) {
     if (look[0] === 'web') {
-      // via het echte scherm: Instellingen › Weergave, dan het thema en de accentkleur aanklikken
+      // via het echte scherm: Instellingen › Thema, dan het thema en de accentkleur aanklikken
       const js = (code) => main?.webContents.executeJavaScript(code);
       await js(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Instellingen') || b.textContent.includes('Settings'))?.click(); true`);
       await wait(800);

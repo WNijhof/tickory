@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('TickoryDesktop', {
   },
   /** De taal van de web-app (nl of en), voor de menu's van de desktop-app. */
   setLanguage: (lang) => ipcRenderer.send('desktop:language', lang === 'nl' ? 'nl' : 'en'),
-  /** Het thema uit Instellingen › Weergave (zoals het apparaat, licht of donker, en de accentkleur), voor de titelbalk en de andere vensters. */
+  /** Het thema uit Instellingen › Thema (zoals het apparaat, licht of donker, en de accentkleur), voor de titelbalk en de andere vensters. */
   setAppearance: (a, initial = false) => ipcRenderer.send('desktop:appearance', { theme: safeText(a?.theme, 10), accent: safeText(a?.accent, 20), initial: initial === true }),
   /** Wat te doen als het thema elders gekozen is (de eigen Instellingen van de app, of een ander venster). */
   onAppearance: (callback) => { appearanceListener = typeof callback === 'function' ? callback : null; },

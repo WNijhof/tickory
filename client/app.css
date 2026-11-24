@@ -496,6 +496,17 @@ button.chip-due-edit:hover { text-decoration: underline; }
 .settings-pane .check-row input[type="checkbox"]:checked { background: var(--accent-fill); }
 .settings-pane .check-row input[type="checkbox"]:checked::before { transform: translateX(12px); }
 .settings-pane .check-row input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
+/* het voorbeeld van een herinnering (Instellingen › Herinneringen), zoals bij Todoist */
+.notify-preview { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; }
+.notify-preview-label { font-size: 12px; font-weight: 600; color: var(--text-soft); }
+.notify-preview-card { display: flex; align-items: center; gap: 10px; max-width: 320px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft); }
+.notify-preview-icon {
+  width: 28px; height: 28px; border-radius: 6px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent-fill); color: var(--accent-on-fill);
+}
+.notify-preview-icon .icon { width: 18px; height: 18px; }
+.notify-preview-text { display: flex; flex-direction: column; flex: 1; min-width: 0; font-size: 13px; line-height: 1.35; }
+.notify-preview-now { align-self: flex-start; font-size: 12px; color: var(--text-soft); }
 /* "Sluiten" onderaan een onderdeel doet in dit venster niets (het kruisje sluit alles): weg, zoals bij Todoist */
 .settings-pane .dialog-buttons > .settings-close-dup { display: none; }
 .settings-pane .dialog-buttons:not(:has(> :not(.settings-close-dup))) { display: none; }

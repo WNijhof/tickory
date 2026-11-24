@@ -9,6 +9,7 @@ import { needsTimeNote, presetOptions, reminderLine } from '../core/reminderText
 import { locationAdvice } from '../core/places.js';
 import { mySettings, placeList, remindersOf } from '../core/selectors.js';
 import { h, openDialog, replace } from './dom.js';
+import { icon } from './icons.js';
 import { placesDialog } from './placesUi.js';
 import { pushKindsSection } from './inboxSettings.js';
 import { SNOOZE_LABEL } from './generalDialog.js';
@@ -338,6 +339,14 @@ export function notificationsDialog({ store, actions, bridge, desktop = { availa
     window.addEventListener('tickory-android-status', onAndroid);
     queueMicrotask(() => { drawDevice().then(loadDevices); });
     kinds = show('notifications') ? pushKindsSection({ store, actions }) : null;
+    // zoals Todoist naast de testknoppen: zo ziet een herinnering eruit (alleen ter illustratie)
+    const preview = h('div', { class: 'notify-preview', 'aria-hidden': 'true' },
+      h('span', { class: 'notify-preview-label' }, t('notify.preview')),
+      h('div', { class: 'notify-preview-card' },
+        // geen plaatje van de server: de demo op de website staat onder een eigen pad (/tickory/)
+        h('span', { class: 'notify-preview-icon' }, icon('check')),
+        h('span', { class: 'notify-preview-text' }, h('strong', {}, t('notify.previewTask')), h('span', {}, t('notify.previewWhen'))),
+        h('span', { class: 'notify-preview-now' }, t('notify.previewNow'))));
     const section = (title, ...body) => h('details', { class: 'section', open: true }, h('summary', {}, title), h('div', { class: 'section-form' }, body));
 
     return h('div', { class: 'dialog-form' },
@@ -346,7 +355,7 @@ export function notificationsDialog({ store, actions, bridge, desktop = { availa
         section(t('notify.autoTitle'), h('p', { class: 'hint' }, t('notify.autoHint')), auto),
         part === 'reminders' && section(t('general.snooze'), h('p', { class: 'hint' }, t('general.snoozeHint')), snooze),
         section(t('notify.zoneTitle'), zoneText, zoneButton),
-        h('details', { class: 'section notify-device', open: true }, h('summary', {}, t('notify.deviceTitle')), device)],
+        h('details', { class: 'section notify-device', open: true }, h('summary', {}, t('notify.deviceTitle')), device, preview)],
       part === 'notifications' && [
         section(t('general.overview'), morning.row, evening.row, h('p', { class: 'hint' }, t('general.overviewHint'))),
         section(t('settings.celebrate'), h('label', { class: 'check-row' }, celebrate, t('productivity.celebrateOn')))],

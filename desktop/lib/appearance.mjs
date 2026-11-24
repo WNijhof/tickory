@@ -1,4 +1,4 @@
-// Het thema van de desktop-app, zoals in de Android-app: dezelfde keuze als in de web-app (Instellingen › Weergave: zoals het
+// Het thema van de desktop-app, zoals in de Android-app: dezelfde keuze als in de web-app (Instellingen › Thema: zoals het
 // apparaat, licht of donker, en een accentkleur). De web-app geeft haar keuze door aan de desktop-app; die zet
 // dan Windows zelf om (titelbalk, menu's, de achtergrond van de vensters) en geeft de keuze door aan de andere vensters (het venster
 // Taak toevoegen). In de eigen Instellingen van de app is het thema ook te kiezen; dan gaat het andersom.

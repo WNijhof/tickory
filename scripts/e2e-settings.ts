@@ -25,7 +25,7 @@ export async function settingsScenario(c: any) {
 
   // ---- de indeling van Todoist op de computer: één lijst met een zoekveld, Account bovenaan, geen groepskoppen of accountkaart ----
   const items = await evaluate<string[]>(`[...document.querySelectorAll('dialog[open] .settings-nav .settings-row')].map((b) => b.textContent.trim())`);
-  assert.deepEqual(items, ['Algemeen', 'Account', 'Weergave', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen',
+  assert.deepEqual(items, ['Algemeen', 'Account', 'Thema', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen',
     'Taal / Language', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Handleiding', 'Wat is er nieuw', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
   assert.ok(!items.includes('Desktop-app'), 'Desktop-app alleen in de desktop-app');
   const look = await evaluate<{ titles: boolean; card: boolean; first: string; navWidth: number; iconBg: string }>(`(() => {

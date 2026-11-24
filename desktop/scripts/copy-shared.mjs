@@ -9,7 +9,7 @@ const from = join(here, '..', '..', 'shared');
 const to = join(here, '..', 'shared');
 mkdirSync(to, { recursive: true });
 for (const file of ['reminders.js', 'general.js', 'notes.js', 'notifications.js']) copyFileSync(join(from, file), join(to, file));
-// de thema's en accentkleuren van de web-app (Instellingen › Weergave): dezelfde lijst voor de titelbalk en de eigen schermen
+// de thema's en accentkleuren van de web-app (Instellingen › Thema): dezelfde lijst voor de titelbalk en de eigen schermen
 copyFileSync(join(here, '..', '..', 'client', 'core', 'theme.js'), join(to, 'theme.js'));
 // het signaal van de server dat er iets veranderd is (Server-Sent Events via fetch), zoals de web-app het gebruikt
 copyFileSync(join(here, '..', '..', 'client', 'core', 'events.js'), join(to, 'events.js'));

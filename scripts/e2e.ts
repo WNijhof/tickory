@@ -795,8 +795,8 @@ try {
   const DARK_BG = 'rgb(32, 32, 32)';
   const openAppearance = async () => {
     await openMenu('Alice');
-    await clickText('Weergave');
-    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Weergave'`, 'scherm Weergave');
+    await clickText('Thema');
+    await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Thema'`, 'scherm Thema');
   };
   await emulateScheme('light');
   assert.equal(await bgNow(), LIGHT_BG, 'het apparaat staat licht');
@@ -831,7 +831,7 @@ try {
 
   // wisselen via Instellingen
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Weergave', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen', 'Taal / Language', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Handleiding', 'Wat is er nieuw', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
+  assert.deepEqual(await buttons(), ['Sluiten', 'AAlice@alice', 'Algemeen', 'Account, wachtwoord en apparaten', 'Thema', 'Navigatiemenu', 'Navigatiebalk', 'Productiviteit', 'Herinneringen', 'Meldingen', 'Plaatsen', 'Taal / Language', 'Sjablonen', 'Importeren uit Todoist', 'Gegevens exporteren', 'Handleiding', 'Wat is er nieuw', 'Nu bijwerken', 'Afmelden en lokale gegevens wissen']);
   await clickText('Taal / Language');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taal / Language'`, 'taalkeuze');
   assert.deepEqual(await buttons(), ['Nederlands ✓', 'English', 'Sluiten']);
@@ -1006,7 +1006,7 @@ try {
 
   // account en gebruikersbeheer; de controles vóór het versturen geven een Engelse melding
   await openMenu('Alice');
-  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Appearance', 'Navigation menu', 'Navigation bar', 'Productivity', 'Reminders', 'Notifications', 'Places', 'Taal / Language', 'Templates', 'Import from Todoist', 'Export data', 'Guide', "What's new", 'Sync now', 'Sign out and clear local data']);
+  assert.deepEqual(await buttons(), ['Close', 'AAlice@alice', 'General', 'Account, password and devices', 'Theme', 'Navigation menu', 'Navigation bar', 'Productivity', 'Reminders', 'Notifications', 'Places', 'Taal / Language', 'Templates', 'Import from Todoist', 'Export data', 'Guide', "What's new", 'Sync now', 'Sign out and clear local data']);
   await clickText('Account, password and devices');
   await waitFor(`document.querySelector('dialog[open] .device .badge')?.textContent === 'this device'`, 'apparatenlijst (Engels)');
   assert.equal(await evaluate(`document.querySelector('dialog[open] p').textContent`), 'Alice @alice · admin');
