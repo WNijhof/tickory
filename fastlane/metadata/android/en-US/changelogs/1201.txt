@@ -1,0 +1,3 @@
+- Settings on a computer look like Todoist's: a search field, one list, switches.
+- The time of the morning overview and evening review is visible again.
+- Credits for Anchor, the notes app the notes are modelled on.

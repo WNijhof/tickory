@@ -3,7 +3,7 @@
   "services": [
     {
       "name": "tickory",
-      "image": "ghcr.io/wnijhof/tickory:0.12.0",
+      "image": "ghcr.io/wnijhof/tickory:0.12.1",
       "isMain": true,
       "internalPort": 8787,
       "user": "1000:1000",

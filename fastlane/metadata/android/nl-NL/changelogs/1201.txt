@@ -1,0 +1,3 @@
+- Instellingen op de computer zoals Todoist: een zoekveld, één lijst, schakelaars.
+- De tijd van het ochtendoverzicht en de avondreview is weer te zien.
+- Met dank aan Anchor, de notitie-app waar de notities op gebaseerd zijn.
