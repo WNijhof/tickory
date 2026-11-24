@@ -2,7 +2,7 @@ manifestVersion: 1
 id: tickory
 category: files
 name: Tickory
-version: "0.11.0"
+version: "0.12.0"
 tagline: Your own to-do list and notes, a free Todoist alternative
 description: >-
   Tickory is a to-do list and notes app you host yourself: for you, your family or a small team.
@@ -17,8 +17,8 @@ description: >-
 
   Sign in with the username "umbrel" and the password shown here; you create the other accounts in the app.
 releaseNotes: >-
-  Settings arranged like Todoist, with two columns on a wide screen. A guide inside the app.
-  Reminders in plain language ("remind me 10 minutes before"). Choose how long messages stay.
+  The Windows desktop app now also shows collaboration notifications, reminders on notes and the morning overview and
+  evening review, and hears about changes right away. An open window picks up a new server version by itself.
 developer: WNijhof
 website: https://wnijhof.github.io/tickory/en/
 dependencies: []

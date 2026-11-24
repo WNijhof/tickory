@@ -1,0 +1,2 @@
+- An open app picks up a new version of your server by itself.
+- Windows desktop app: collaboration notifications, reminders on notes, and the morning overview and evening review.

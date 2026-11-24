@@ -1,0 +1,2 @@
+- Een open app pakt een nieuwe versie van je server zelf op.
+- Desktop-app voor Windows: meldingen bij samenwerken, herinneringen op notities, en het ochtendoverzicht en de avondreview.
