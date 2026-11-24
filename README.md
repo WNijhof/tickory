@@ -24,7 +24,7 @@ If you are looking for a free Todoist alternative that you run yourself: Tickory
 - **Tasks:** projects, sections, subtasks, labels, priorities, deadlines, durations, comments, attachments, Markdown.
 - **Quick add** in plain English: `Call the dentist tomorrow at 9am #Home @calls p1 !30m`, recurrences like "every mon, wed and fri" or "every last friday".
 - **Views:** list, board and calendar; Today, Upcoming, sorting and grouping, Completed, productivity.
-- **Notes**, like Google Keep and Anchor: formatting, checklists, colours, labels, pictures and audio, reminders, version history, sharing, import from Keep and Markdown.
+- **Notes**, modelled on [Anchor](https://github.com/ZhFahim/anchor) (see [Credits](#credits)): formatting, checklists, colours, labels, pictures and audio, reminders, version history, sharing, import from Keep and Markdown.
 - **Together:** shared projects (can edit or view only), assigning, @-mentions, notifications, activity log.
 - **Reminders:** in the browser (Web Push) and as alarms in the Android app, also at a place.
 - **Search, filters, templates, undo, selecting several tasks, keyboard shortcuts.**
@@ -60,7 +60,7 @@ The [guide](https://wnijhof.github.io/tickory/en/guide/) covers everything in En
 
 ## Status
 
-Version 0.10. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The Windows desktop app (installer on the releases page) has passed a smoke test against a real server, but has not been tried on many PCs yet. The browser extension is not in the stores yet.
+Version 0.12. The server and web app are well tested. The Android app (APK on the [releases page](https://github.com/WNijhof/tickory/releases)) and reminders at a place have been tested on a computer and a simulated Android, not yet on a real phone. The Windows desktop app (installer on the releases page) has passed a smoke test against a real server, but has not been tried on many PCs yet. The browser extension is not in the stores yet.
 
 ## Development
 
@@ -74,6 +74,13 @@ npm run site:check        # the website and the demo
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules (zero dependencies, English and Dutch both work fully, tests that can really fail) and [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## Credits
+
+- **[Anchor](https://github.com/ZhFahim/anchor)** by ZhFahim, an offline-first, self-hosted notes app (AGPL-3.0). The notes in Tickory are modelled on it: the editor with formatting on screen and the / menu, backgrounds and patterns, pinning, the archive and the bin, pictures and audio, reminders once or repeating, sharing as viewer or editor, version history and the import from Google Keep. Thank you!
+- **[Todoist](https://todoist.com)** by Doist. The task side follows Todoist's design and behaviour, from quick add to the settings and the widgets. Tickory is not affiliated with or endorsed by Doist.
+- **[chrono-node](https://github.com/wanasit/chrono)** by Wanasit Tanakitrungruang (MIT), the base of the date recognition. Other libraries in the Android and desktop apps are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- **[Claude Code](https://claude.com/claude-code)** by Anthropic. Most of the code was written with this AI coding assistant; the maintainer decides what Tickory should do and tests it, and every change runs through the automated tests.
 
 ## License
 

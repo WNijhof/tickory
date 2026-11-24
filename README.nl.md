@@ -22,7 +22,7 @@ Tickory is een zelf te hosten, offline-first app voor taken en notities: een syn
 - **Taken:** projecten, secties, subtaken, labels, prioriteiten, deadlines, duur, opmerkingen, bijlagen, Markdown.
 - **Snel toevoegen** in gewoon Nederlands: `Tandarts bellen morgen om 9 uur #Thuis @bellen p1 !30m`, herhalingen als "elke tweede dinsdag", feestdagen. In de Engelse app in het Engels: `tomorrow at 9am`, `every monday`.
 - **Weergaven:** lijst, bord en kalender; Vandaag, Aankomend, sorteren en groeperen, Voltooid, productiviteit.
-- **Notities**, zoals Google Keep en Anchor: opmaak, checklists, kleuren, labels, foto's en geluid, herinneringen, versiegeschiedenis, delen, importeren uit Keep en Markdown.
+- **Notities**, naar het voorbeeld van [Anchor](https://github.com/ZhFahim/anchor) (zie [Met dank aan](#met-dank-aan)): opmaak, checklists, kleuren, labels, foto's en geluid, herinneringen, versiegeschiedenis, delen, importeren uit Keep en Markdown.
 - **Samen:** gedeelde projecten (bewerken of alleen lezen), toewijzen, @-vermeldingen, meldingen, activiteitenlogboek.
 - **Herinneringen:** in de browser (Web Push) en als alarm in de Android-app, ook op een plek.
 - **Zoeken, filters, sjablonen, ongedaan maken, meerdere taken tegelijk, sneltoetsen.**
@@ -58,7 +58,7 @@ De [handleiding](https://wnijhof.github.io/tickory/nl/handleiding/) beschrijft a
 
 ## Stand van zaken
 
-Versie 0.10. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De desktop-app voor Windows (installer op de releasepagina) is getest met een rooktest tegen een echte server, maar nog niet op veel pc's. De browserextensie staat nog niet in de winkels.
+Versie 0.12. De server en de web-app zijn goed getest. De Android-app (APK op de [releasepagina](https://github.com/WNijhof/tickory/releases)) en herinneringen op een plek zijn getest op een computer en een nagebootste Android, nog niet op een echte telefoon. De desktop-app voor Windows (installer op de releasepagina) is getest met een rooktest tegen een echte server, maar nog niet op veel pc's. De browserextensie staat nog niet in de winkels.
 
 ## Ontwikkelen
 
@@ -72,6 +72,13 @@ npm run site:check        # de website en de demo
 ```
 
 Zie [CONTRIBUTING.md](CONTRIBUTING.md) voor de spelregels (geen afhankelijkheden, Nederlands eerst, tests die echt kunnen falen) en [SECURITY.md](SECURITY.md) om een kwetsbaarheid te melden.
+
+## Met dank aan
+
+- **[Anchor](https://github.com/ZhFahim/anchor)** van ZhFahim, een offline notitie-app die je zelf host (AGPL-3.0). De notities in Tickory zijn naar het voorbeeld daarvan gemaakt: de editor met opmaak in beeld en het /-menu, achtergronden en patronen, vastpinnen, het archief en de prullenbak, foto's en geluid, herinneringen (eenmalig of herhaald), delen als lezer of bewerker, de versiegeschiedenis en importeren uit Google Keep. Dank je wel!
+- **[Todoist](https://todoist.com)** van Doist. De taken volgen het ontwerp en het gedrag van Todoist, van snel toevoegen tot de instellingen en de widgets. Tickory heeft geen band met Doist en wordt niet door Doist ondersteund.
+- **[chrono-node](https://github.com/wanasit/chrono)** van Wanasit Tanakitrungruang (MIT), de basis van de datumherkenning. De andere bibliotheken in de Android-app en de desktop-app staan in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- **[Claude Code](https://claude.com/claude-code)** van Anthropic. Het grootste deel van de code is met deze AI-programmeerassistent geschreven; de maker bepaalt wat Tickory moet doen en test het, en elke wijziging gaat door de automatische tests.
 
 ## Licentie
 

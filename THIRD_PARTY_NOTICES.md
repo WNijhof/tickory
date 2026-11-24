@@ -39,3 +39,15 @@ De desktop-app (map `desktop/`) is gebouwd op **Electron** (MIT, Copyright (c) E
 Voor updates zit **electron-updater** in de app (MIT, Copyright (c) Loopline Systems en electron-builder-bijdragers), met de pakketten die het zelf nodig heeft: builder-util-runtime, debug, fs-extra, jsonfile, universalify, js-yaml, lazy-val, lodash.escaperegexp, lodash.isequal, ms en tiny-typed-emitter (MIT), semver (ISC), graceful-fs en sax (Blue Oak Model License 1.0.0) en argparse (Python Software Foundation License 2.0). De licentietekst van elk pakket staat in zijn eigen map in `node_modules` en gaat zo mee in de installer.
 
 Alleen voor het bouwen, niet in de app: **electron-builder** (MIT).
+
+## Voorbeelden en inspiratie
+
+Geen software van derden, wel een eerlijke vermelding van waar Tickory zijn opzet vandaan heeft:
+
+- **Anchor** van ZhFahim (https://github.com/ZhFahim/anchor, AGPL-3.0): de notities zijn naar het voorbeeld van deze
+  offline notitie-app gemaakt (de editor met het /-menu, achtergronden en patronen, delen als lezer of bewerker,
+  versiegeschiedenis, foto's en geluid, herinneringen en importeren uit Google Keep). De patronen en pictogrammen van
+  Tickory zijn eigen tekeningen.
+- **Todoist** van Doist: de taken, de instellingen, de widgets en de desktop-app volgen het ontwerp en gedrag van Todoist.
+  Tickory gebruikt geen logo's, illustraties of code van Todoist en heeft geen band met Doist. Todoist is een handelsmerk
+  van Doist.
