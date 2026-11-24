@@ -39,12 +39,25 @@ onder Instellingen › Herinneringen een testmelding (`desktop:test-notification
 Rooktest van de meldingen (buiten beeld, meldingen naar `notifications.json`): `TICKORY_DESKTOP_NOTIFY=1` opent Instellingen ›
 Herinneringen, stuurt de testmelding en legt in `notify.json` vast wat de app ophaalde en plande.
 
-**Thema.** Zoals in de Android-app is het thema te kiezen: in de web-app (Instellingen › Weergave) en in de eigen Instellingen van de
+**Thema.** Zoals in de Android-app is het thema te kiezen: in de web-app (Instellingen › Thema) en in de eigen Instellingen van de
 app. De web-app geeft haar keuze over de brug door; de app zet dan `nativeTheme.themeSource` (titelbalk,
 menu's, `prefers-color-scheme` in alle vensters), de achtergrond en `setAccentColor` van de vensters, en geeft de keuze aan de andere
 vensters (Taak toevoegen). De keuze staat ook in `settings.json`; bij het opstarten wint die (gekozen terwijl de web-app dicht was),
 tenzij er nog niets stond (dan neemt de app de keuze van de web-app over). Rooktest: `TICKORY_DESKTOP_APPEARANCE=dark:teal` (eigen
 Instellingen), `web:light:blue` (via het scherm Weergave) of `check`, met `appearance.json` als uitkomst.
+
+**Ondertekenen.** Zonder handtekening waarschuwt Windows SmartScreen bij de eerste installatie. De workflow `desktop.yml`
+ondertekent vanzelf zodra de geheimen in de repo staan (Settings › Secrets and variables › Actions); zonder blijft alles zoals het
+was. Twee routes:
+- **Azure Trusted Signing** (Microsoft, een abonnement per maand): na de identiteitscontrole een account en een certificaatprofiel,
+  en een app-registratie met de rol *Trusted Signing Certificate Profile Signer*. Geheimen: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`,
+  `AZURE_CLIENT_SECRET`, `AZURE_SIGN_ENDPOINT` (bijvoorbeeld `https://weu.codesigning.azure.net`), `AZURE_SIGN_ACCOUNT`,
+  `AZURE_SIGN_PROFILE` en `AZURE_SIGN_PUBLISHER` (precies de naam op het certificaat).
+- **Een eigen certificaat als .pfx:** `WIN_CSC_LINK` (het bestand in base64) en `WIN_CSC_KEY_PASSWORD`. Nieuwe certificaten staan
+  sinds 2023 meestal op hardware of in de cloud en zijn dan niet als .pfx te krijgen; dan is Azure de route.
+
+Een installatie zonder handtekening werkt zichzelf gewoon bij naar een ondertekende versie. De ondertekening is nog niet met een
+echt certificaat getest.
 
 **Veiligheid.** De pagina's van de server draaien met `contextIsolation` en `sandbox`, zonder Node. Andere adressen dan je server openen in
 de browser. De brug neemt alleen het token, een getal en vaste waarden aan; de app stuurt de web-app alleen een fragment (`#view=…`, `#task=…`).

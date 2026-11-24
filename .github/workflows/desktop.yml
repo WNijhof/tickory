@@ -57,9 +57,41 @@ jobs:
           npm version "$VERSION" --no-git-tag-version --allow-same-version
           npm test
 
+      # Ondertekenen (zodat Windows SmartScreen niet waarschuwt) gebeurt alleen als er geheimen zijn ingesteld; anders zoals altijd
+      # zonder handtekening. Twee manieren, zie desktop/README.md › Ondertekenen:
+      # - Azure Trusted Signing: AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_SIGN_ENDPOINT, AZURE_SIGN_ACCOUNT,
+      #   AZURE_SIGN_PROFILE, AZURE_SIGN_PUBLISHER (precies de naam op het certificaat);
+      # - een eigen certificaat als .pfx: WIN_CSC_LINK (het bestand in base64) en WIN_CSC_KEY_PASSWORD.
       - name: Installer bouwen
         working-directory: desktop
-        run: npm run dist
+        shell: bash
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_SIGN_ENDPOINT: ${{ secrets.AZURE_SIGN_ENDPOINT }}
+          AZURE_SIGN_ACCOUNT: ${{ secrets.AZURE_SIGN_ACCOUNT }}
+          AZURE_SIGN_PROFILE: ${{ secrets.AZURE_SIGN_PROFILE }}
+          AZURE_SIGN_PUBLISHER: ${{ secrets.AZURE_SIGN_PUBLISHER }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+        run: |
+          extra=()
+          if [ -n "$AZURE_CLIENT_SECRET" ] && [ -n "$AZURE_SIGN_ENDPOINT" ]; then
+            echo "Ondertekenen met Azure Trusted Signing"
+            extra=(--config.win.azureSignOptions.endpoint="$AZURE_SIGN_ENDPOINT"
+                   --config.win.azureSignOptions.codeSigningAccountName="$AZURE_SIGN_ACCOUNT"
+                   --config.win.azureSignOptions.certificateProfileName="$AZURE_SIGN_PROFILE"
+                   --config.win.azureSignOptions.publisherName="$AZURE_SIGN_PUBLISHER")
+          elif [ -n "$WIN_CSC_LINK" ]; then
+            echo "Ondertekenen met het certificaat uit WIN_CSC_LINK"
+            export CSC_LINK="$WIN_CSC_LINK" CSC_KEY_PASSWORD="$WIN_CSC_KEY_PASSWORD"
+          else
+            echo "Geen certificaat ingesteld: de installer is niet ondertekend"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+          fi
+          node scripts/copy-shared.mjs
+          npx electron-builder --win --publish never "${extra[@]}"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
