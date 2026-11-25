@@ -9,8 +9,6 @@ import android.view.View
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import io.github.wnijhof.tickory.R
-import io.github.wnijhof.tickory.core.ContentKind
-import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.WidgetColors
 import io.github.wnijhof.tickory.core.WidgetContent
 import io.github.wnijhof.tickory.core.WidgetContentBuilder
@@ -37,7 +35,7 @@ class WidgetListService : RemoteViewsService() {
         private var size = WidgetSize.MEDIUM
         private var options = WidgetOptions()
         private var look: WidgetColors = WidgetPalette.resolve(context, options)
-        private var kind = ContentKind.TODAY
+        private var source: WidgetSource = WidgetSource.Today
 
         override fun onCreate() {}
 
@@ -50,9 +48,9 @@ class WidgetListService : RemoteViewsService() {
             size = ListWidgets.sizeOf(manager, appWidgetId)
             options = WidgetConfigStore.options(context, appWidgetId)
             look = WidgetPalette.resolve(context, options)
-            val state = WidgetModel.state(context, ListWidgets.storedSource(context, appWidgetId))
+            source = ListWidgets.storedSource(context, appWidgetId)
+            val state = WidgetModel.state(context, source)
             val content = (state as? WidgetModel.State.Ready)?.content
-            kind = content?.kind ?: ContentKind.TODAY
             rows = withMore(content)
         }
 
@@ -110,12 +108,8 @@ class WidgetListService : RemoteViewsService() {
             views.setTextColor(R.id.more_text, look.textSoft)
             views.setTextViewTextSize(R.id.more_text, TypedValue.COMPLEX_UNIT_SP, scaled(13f))
             views.setInt(R.id.more_icon, "setColorFilter", look.textSoft)
-            val view = when (kind) {
-                ContentKind.TODAY -> DeepLink.VIEW_TODAY
-                ContentKind.UPCOMING -> DeepLink.VIEW_UPCOMING
-                else -> null
-            }
-            views.setOnClickFillInIntent(R.id.more_root, WidgetIntents.fillInView(view))
+            // de app op het overzicht van deze widget: het project, label of filter, Vandaag of Aankomend
+            views.setOnClickFillInIntent(R.id.more_root, WidgetIntents.fillInSource(source))
             return views
         }
 

@@ -1,7 +1,7 @@
 // Algemene voorkeuren (shared/general.js): de controle, de standaard en de startpagina.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_GENERAL, SNOOZE_MINUTES, SWIPE_ACTIONS, generalCheck, generalOf, inVacation, startRoute, vacationsCheck, viewFromHash } from './general.js';
+import { DEFAULT_GENERAL, SNOOZE_MINUTES, SWIPE_ACTIONS, generalCheck, generalOf, inVacation, placeFromHash, startRoute, vacationsCheck, viewFromHash } from './general.js';
 
 test('controle: alleen bekende velden met geldige waarden', () => {
   assert.equal(generalCheck(null), null);
@@ -38,6 +38,15 @@ test('een plek uit het adres: alleen de vaste namen', () => {
   assert.equal(viewFromHash('#view=completed'), 'completed'); // Voltooid in het systeemvak van de desktop-app
   assert.deepEqual(startRoute('completed'), { type: 'completed' });
   for (const bad of ['', null, '#view=', '#view=last', '#view=today&x', '#task=abc', '#view=TODAY']) assert.equal(viewFromHash(bad), null, String(bad));
+});
+
+test('een project, label of filter uit het adres (een lijstwidget van de Android-app)', () => {
+  assert.deepEqual(placeFromHash('#project=p_boodschappen-1'), { type: 'project', id: 'p_boodschappen-1' });
+  assert.deepEqual(placeFromHash('#label=l1'), { type: 'label', id: 'l1' });
+  assert.deepEqual(placeFromHash('#filter=f1'), { type: 'filter', id: 'f1' });
+  for (const bad of ['', null, '#project=', '#project=a/b', '#project=a&x', '#section=s1', '#view=today', `#project=${'a'.repeat(65)}`, '#PROJECT=p1']) {
+    assert.equal(placeFromHash(bad), null, String(bad));
+  }
 });
 
 test('volgende week, weekend, veegacties, geluid, vieren en uitstel: controle en standaard', () => {

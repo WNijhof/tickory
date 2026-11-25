@@ -133,6 +133,15 @@ export function viewFromHash(hash) {
   return m ? m[1] : null;
 }
 
+/**
+ * `#project=<id>`, `#label=<id>` of `#filter=<id>`: de route naar dat overzicht (het beeldmerk of "meer taken" van een lijstwidget
+ * van de Android-app), of null. Alleen veilige tekens, zoals de id's van de app (Ids.isSafeId).
+ */
+export function placeFromHash(hash) {
+  const m = /^#(project|label|filter)=([A-Za-z0-9_-]{1,64})$/.exec(hash ?? '');
+  return m ? { type: m[1], id: m[2] } : null;
+}
+
 /** De route bij een startpagina, of null voor 'last' (dan waar je was). De Inbox is een project: `inboxId` is dat van jou. */
 export function startRoute(page, inboxId = null) {
   switch (page) {

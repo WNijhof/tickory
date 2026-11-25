@@ -2,7 +2,7 @@ package io.github.wnijhof.tickory.core
 
 /**
  * Waar de app de web-app naartoe stuurt als je op een melding of een widget tikt: het deel van het adres achter de #.
- * `task=<id>` opent een taak, `notification=<id>` een melding bij samenwerken, `share=<base64url>` een gedeelde tekst (zie ShareLink), `add` het venster Taak toevoegen (`add=today` met vandaag als datum, `add=<project-id>` in
+ * `task=<id>` opent een taak, `project=<id>` (of `label=`, `filter=`) het overzicht van een lijstwidget, `notification=<id>` een melding bij samenwerken, `share=<base64url>` een gedeelde tekst (zie ShareLink), `add` het venster Taak toevoegen (`add=today` met vandaag als datum, `add=<project-id>` in
  * dat project). Alleen veilige tekens komen erin: het fragment gaat in een stukje JavaScript en een webadres.
  */
 object DeepLink {
@@ -16,6 +16,9 @@ object DeepLink {
     const val VIEW_NOTES = "notes"
     const val VIEW_PRODUCTIVITY = "productivity"
     const val VIEW_NEW_NOTE = "new-note"
+
+    /** Het overzicht van een lijstwidget (de sleutel van een [WidgetSource], zoals `project:<id>`): zie [source]. */
+    const val EXTRA_SOURCE = "io.github.wnijhof.tickory.extra.SOURCE"
 
     /**
      * Een taak die in het kleine venster "Taak toevoegen" is ingetypt en in de app verder moet ("Openen in de app", of een tik
@@ -51,6 +54,21 @@ object DeepLink {
         VIEW_TODAY, VIEW_UPCOMING, VIEW_INBOX, VIEW_NOTES, VIEW_PRODUCTIVITY -> "view=$target"
         VIEW_NEW_NOTE -> "note=new"
         else -> null
+    }
+
+    /**
+     * Het beeldmerk of "meer taken" van een lijstwidget: de app op het overzicht van die widget, zoals in Todoist. Een project, label of
+     * filter als `project=<id>` (`label=`, `filter=`), Vandaag, Aankomend en de Inbox als [view]; een vast filter (Prioriteit 1, Aan mij
+     * toegewezen, ...) heeft geen eigen plek in de web-app en geeft null (dan gewoon de app).
+     */
+    fun source(source: WidgetSource?): String? = when (source) {
+        null, is WidgetSource.Preset -> null
+        WidgetSource.Today -> view(VIEW_TODAY)
+        WidgetSource.Upcoming -> view(VIEW_UPCOMING)
+        WidgetSource.Inbox -> view(VIEW_INBOX)
+        is WidgetSource.Project -> source.id.takeIf(Ids::isSafeId)?.let { "project=$it" }
+        is WidgetSource.Label -> source.id.takeIf(Ids::isSafeId)?.let { "label=$it" }
+        is WidgetSource.Filter -> source.id.takeIf(Ids::isSafeId)?.let { "filter=$it" }
     }
 
     /** Het fragment bij de gegevens van een intentie: een taak gaat voor, anders Taak toevoegen als daar om gevraagd is. */

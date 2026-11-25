@@ -120,10 +120,10 @@ object ListWidgets {
         }
 
         // "+" opent Taak toevoegen, in het project van deze lijst; zonder aanmelding opent het gewoon de app. De titel met het pijltje
-        // opent de keuze van het overzicht, het beeldmerk de app.
+        // opent de keuze van het overzicht, het beeldmerk de app op dit overzicht (de widget van een project opent dat project).
         views.setOnClickPendingIntent(R.id.add, WidgetIntents.addTask(context, WidgetModel.addTarget(source, snapshot)))
         views.setOnClickPendingIntent(R.id.empty_state, WidgetIntents.addTask(context, WidgetModel.addTarget(source, snapshot)))
-        views.setOnClickPendingIntent(R.id.logo, WidgetIntents.openApp(context))
+        views.setOnClickPendingIntent(R.id.logo, WidgetIntents.openSource(context, appWidgetId, source))
         views.setOnClickPendingIntent(R.id.message, WidgetIntents.openApp(context))
         views.setOnClickPendingIntent(R.id.header_text, chooseOverview(context, appWidgetId))
         views.setOnClickPendingIntent(R.id.settings, settings(context, appWidgetId))

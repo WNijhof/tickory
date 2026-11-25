@@ -56,6 +56,7 @@ import io.github.wnijhof.tickory.core.WebPermissions
 import io.github.wnijhof.tickory.core.ShareLink
 import io.github.wnijhof.tickory.core.SignInLink
 import io.github.wnijhof.tickory.core.VoiceScript
+import io.github.wnijhof.tickory.core.WidgetSource
 import io.github.wnijhof.tickory.geo.GeoEngine
 import io.github.wnijhof.tickory.geo.GeoPermissionFlow
 import io.github.wnijhof.tickory.geo.GeoPermissions
@@ -388,6 +389,8 @@ class MainActivity : ComponentActivity() {
         DeepLink.notification(intent.getStringExtra(InboxNotifier.EXTRA_NOTIFICATION_ID))?.let { return it }
         // een snelkoppeling onder het app-icoon (AppShortcuts): alleen een vaste keuze
         DeepLink.view(intent.getStringExtra(DeepLink.EXTRA_VIEW))?.let { return it }
+        // het beeldmerk of "meer taken" van een lijstwidget: het overzicht van die widget (alleen een geldige sleutel met een veilig id)
+        DeepLink.source(WidgetSource.parse(intent.getStringExtra(DeepLink.EXTRA_SOURCE)))?.let { return it }
         // uit het kleine venster Taak toevoegen ("Openen in de app") of de melding "Niet toegevoegd": de getypte tekst, gekeurd door ShareLink
         if (intent.hasExtra(DeepLink.EXTRA_DRAFT_TEXT)) {
             ShareLink.draftFragment(intent.getStringExtra(DeepLink.EXTRA_DRAFT_TEXT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_PROJECT), intent.getStringExtra(DeepLink.EXTRA_DRAFT_DUE))

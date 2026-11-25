@@ -8,6 +8,7 @@ import android.os.Build
 import io.github.wnijhof.tickory.AppShortcuts
 import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.DeepLink
+import io.github.wnijhof.tickory.core.WidgetSource
 import io.github.wnijhof.tickory.quickadd.QuickAddActivity
 import io.github.wnijhof.tickory.quicknote.QuickNoteActivity
 import io.github.wnijhof.tickory.reminders.Notifications
@@ -25,7 +26,9 @@ object WidgetIntents {
     const val KIND_VIEW = "view"
     const val KIND_UNDO = "undo"
     const val KIND_RESCHEDULE = "reschedule"
+    /** Uit een oudere versie (alleen Vandaag of Aankomend); nu [EXTRA_TARGET_SOURCE]. Een widget die nog niet opnieuw getekend is, kan hem nog sturen. */
     const val EXTRA_TARGET_VIEW = "io.github.wnijhof.tickory.extra.WIDGET_VIEW"
+    const val EXTRA_TARGET_SOURCE = "io.github.wnijhof.tickory.extra.WIDGET_SOURCE"
 
     private val IMMUTABLE = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
@@ -37,6 +40,25 @@ object WidgetIntents {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         return PendingIntent.getActivity(context, REQUEST_OPEN_APP, intent, IMMUTABLE)
     }
+
+    /**
+     * Het beeldmerk in de balk van een lijstwidget: de app op het overzicht van deze widget (het project, label of filter, Vandaag, ...),
+     * zoals in Todoist. Een vast filter heeft geen eigen plek in de app: dan gewoon de app ([openApp]).
+     */
+    fun openSource(context: Context, appWidgetId: Int, source: WidgetSource): PendingIntent {
+        if (DeepLink.source(source) == null) return openApp(context)
+        // een eigen adres per widget: Android vergelijkt bij een PendingIntent de extra's niet
+        val intent = sourceIntent(context, source)
+            .setData(Uri.Builder().scheme("tickory").authority("widget").appendPath("open").appendPath(appWidgetId.toString()).build())
+        return PendingIntent.getActivity(context, REQUEST_OPEN_SOURCE, intent, IMMUTABLE)
+    }
+
+    /** De app op het overzicht van [source] (DeepLink.source); MainActivity keurt de sleutel opnieuw. */
+    fun sourceIntent(context: Context, source: WidgetSource): Intent =
+        Intent(context, MainActivity::class.java)
+            .setAction(AppShortcuts.ACTION)
+            .putExtra(DeepLink.EXTRA_SOURCE, source.key)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
     /**
      * De knop "+": het kleine venster Taak toevoegen over het startscherm ([target]: "today" met de knop Vandaag aan, een
@@ -81,8 +103,8 @@ object WidgetIntents {
     fun fillInReschedule(taskIds: List<String>): Intent =
         Intent().putExtra(EXTRA_KIND, KIND_RESCHEDULE).putExtra(RescheduleActivity.EXTRA_TASK_IDS, taskIds.toTypedArray())
 
-    /** Een tik op een kop of op "meer taken": de app op een vast overzicht ([view] = DeepLink.VIEW_*; null = gewoon de app). */
-    fun fillInView(view: String?): Intent = Intent().putExtra(EXTRA_KIND, KIND_VIEW).putExtra(EXTRA_TARGET_VIEW, view ?: "")
+    /** Een tik op "meer taken": de app op het overzicht van de widget ([source]; zie [openSource]). */
+    fun fillInSource(source: WidgetSource): Intent = Intent().putExtra(EXTRA_KIND, KIND_VIEW).putExtra(EXTRA_TARGET_SOURCE, source.key)
 
     /** Het kleine venster van een taak over het startscherm (TaskPopupActivity); daar kan hij worden afgevinkt of in de app geopend. */
     fun taskPopup(context: Context, taskId: String): Intent =
@@ -101,5 +123,6 @@ object WidgetIntents {
     private const val REQUEST_OPEN_APP = 1
     private const val REQUEST_ADD = 2
     private const val REQUEST_ADD_NOTE = 3
+    private const val REQUEST_OPEN_SOURCE = 4
     private const val REQUEST_VIEW_BASE = 100
 }

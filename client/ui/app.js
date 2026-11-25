@@ -37,7 +37,7 @@ import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
 import { setQuickDayPrefs } from '../core/quickDates.js';
 import { playDone } from '../core/sound.js';
-import { generalOf, startRoute, viewFromHash } from '../../shared/general.js';
+import { generalOf, placeFromHash, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
 import { splitPastedLines } from '../core/quickSuggest.js';
 import { archiveDialog, projectCommentsDialog, shortcutsDialog } from './miscDialogs.js';
@@ -928,9 +928,22 @@ function openTaskById(id) {
 }
 
 let pendingPlace = null;
-/** Een plek uit het adres openen zodra het kan: de Inbox en een nieuwe notitie wachten op je gegevens (de eerste sync). */
+/**
+ * Een plek uit het adres openen zodra het kan: de Inbox, een nieuwe notitie en een project, label of filter (placeFromHash) wachten
+ * op je gegevens (de eerste sync). Een project, label of filter dat er na een halve minuut nog niet is, opent niets.
+ */
 function openPendingPlace() {
   if (!pendingPlace) return;
+  if (typeof pendingPlace === 'object') {
+    if (Date.now() - pendingPlace.since > 30_000) pendingPlace = null; // een project dat niet komt (verwijderd, geen lid meer): opgeven
+    if (!pendingPlace || !store.ready) return;
+    const { type, id } = pendingPlace;
+    const known = { project: store.view.projects, label: store.view.labels, filter: store.view.filters }[type];
+    if (!known?.has(id)) return; // nog niet binnen (een project van een ander apparaat): wachten op de sync
+    pendingPlace = null;
+    navigate({ type, id });
+    return;
+  }
   if (pendingPlace === 'new-note') {
     if (!store.ready || !store.me || !notesUi) return;
     pendingPlace = null;
@@ -969,6 +982,14 @@ function openTaskFromHash() {
   if (view || location.hash === '#note=new') {
     history.replaceState(null, '', `${location.pathname}${location.search}`);
     pendingPlace = view ?? 'new-note';
+    openPendingPlace();
+    return;
+  }
+  // #project=<id> (of label, filter): het beeldmerk of "meer taken" van een lijstwidget van de Android-app
+  const place = placeFromHash(location.hash);
+  if (place) {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    pendingPlace = { ...place, since: Date.now() };
     openPendingPlace();
     return;
   }

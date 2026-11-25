@@ -167,7 +167,15 @@ export async function quickScenario(c: any) {
   await waitFor(`location.hash === '#view=onzin'`, 'een onbekende plek doet niets');
   assert.equal(await evaluate(`document.getElementById('view-title').textContent`), 'Notities');
   await evaluate(`history.replaceState(null, '', location.pathname)`);
-  step('adres: #view=today opent Vandaag en #note=new een nieuwe notitie (zoals de snelkoppelingen onder het app-icoon op Android); iets onbekends doet niets');
+  // het beeldmerk of "meer taken" van een lijstwidget op Android: #project=<id> (of label, filter) opent dat overzicht
+  await evaluate(`location.hash = '#project=e2esnelproject01'`);
+  await waitFor(`document.getElementById('view-title').textContent.includes('Snelproef') && location.hash === ''`, 'het project van de widget geopend, het adres weer schoon');
+  await evaluate(`location.hash = '#label=e2esnellabel0001'`);
+  await waitFor(`document.getElementById('view-title').textContent.includes('snelproeflabel') && location.hash === ''`, 'het label van de widget geopend');
+  await evaluate(`location.hash = '#project=e2ebestaatniet01'`);
+  await waitFor(`location.hash === ''`, 'een onbekend project: het adres weer schoon');
+  assert.ok((await evaluate<string>(`document.getElementById('view-title').textContent`)).includes('snelproeflabel'), 'een onbekend project opent niets');
+  step('adres: #view=today opent Vandaag, #note=new een nieuwe notitie (de snelkoppelingen onder het app-icoon op Android) en #project= of #label= dat overzicht (een lijstwidget); iets onbekends doet niets');
 
   // ---- een taak dupliceren (met zijn open subtaken), ongedaan maken, en een link naar de taak ----
   const inbox = (serverState().me as any).inbox_project_id;

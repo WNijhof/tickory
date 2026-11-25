@@ -9,6 +9,7 @@ import io.github.wnijhof.tickory.AppShortcuts
 import io.github.wnijhof.tickory.MainActivity
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.Ids
+import io.github.wnijhof.tickory.core.WidgetSource
 import io.github.wnijhof.tickory.reminders.Notifications
 
 /**
@@ -28,13 +29,17 @@ class WidgetActionActivity : Activity() {
         }
     }
 
-    /** Alleen de vaste overzichten die de app kent (de waarde komt uit ons eigen sjabloon, maar wordt toch gecontroleerd). */
-    private fun openView(view: String?) {
+    /**
+     * "Meer taken": de app op het overzicht van de widget ([source], een sleutel van WidgetSource), of een vast overzicht ([view], uit een
+     * oudere versie). De waarden komen uit ons eigen sjabloon, maar worden toch gecontroleerd; iets onbekends opent gewoon de app.
+     */
+    private fun openView(source: String?, view: String?) {
+        val place = WidgetSource.parse(source)?.takeIf { DeepLink.source(it) != null }
         val known = setOf(DeepLink.VIEW_TODAY, DeepLink.VIEW_UPCOMING, DeepLink.VIEW_INBOX)
-        val intent = if (view != null && view in known) {
-            Intent(this, MainActivity::class.java).setAction(AppShortcuts.ACTION).putExtra(DeepLink.EXTRA_VIEW, view)
-        } else {
-            Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val intent = when {
+            place != null -> WidgetIntents.sourceIntent(this, place)
+            view != null && view in known -> Intent(this, MainActivity::class.java).setAction(AppShortcuts.ACTION).putExtra(DeepLink.EXTRA_VIEW, view)
+            else -> Intent(this, MainActivity::class.java).setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         }
         try {
             startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
@@ -55,7 +60,7 @@ class WidgetActionActivity : Activity() {
             return
         }
         if (intent?.getStringExtra(WidgetIntents.EXTRA_KIND) == WidgetIntents.KIND_VIEW) {
-            openView(intent?.getStringExtra(WidgetIntents.EXTRA_TARGET_VIEW))
+            openView(intent?.getStringExtra(WidgetIntents.EXTRA_TARGET_SOURCE), intent?.getStringExtra(WidgetIntents.EXTRA_TARGET_VIEW))
             return
         }
         val taskId = intent?.getStringExtra(Notifications.EXTRA_TASK_ID)?.takeIf(Ids::isSafeId) ?: return

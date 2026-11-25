@@ -371,16 +371,28 @@ class WidgetUiTest : WidgetTestBase() {
     }
 
     @Test
-    fun `het beeldmerk opent de app en de titel de keuze van het overzicht`() {
+    fun `het beeldmerk opent de app op het overzicht van de widget en de titel de keuze van het overzicht`() {
         signIn(withData = data)
         val id = place(TodayWidgetProvider::class.java)
+        val project = place(ProjectWidgetProvider::class.java)
+        WidgetConfigStore.set(app, project, "project:werk")
+        val preset = place(ProjectWidgetProvider::class.java)
+        WidgetConfigStore.set(app, preset, "preset:p1")
         WidgetUpdater.updateAll(app)
         view(id).findViewById<View>(R.id.header_text).performClick()
         val choose = shadowOf(app).nextStartedActivity
         assertEquals(WidgetConfigActivity::class.java.name, choose.component!!.className)
         assertTrue(choose.getBooleanExtra(WidgetConfigActivity.EXTRA_CHOOSE_ONLY, false))
-        view(id).findViewById<View>(R.id.logo).performClick()
-        assertEquals(MainActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
+        /** Wat de web-app opent na een tik op het beeldmerk van deze widget (null: gewoon de app). */
+        fun logo(widget: Int): String? {
+            view(widget).findViewById<View>(R.id.logo).performClick()
+            val started = shadowOf(app).nextStartedActivity
+            assertEquals(MainActivity::class.java.name, started.component!!.className)
+            return DeepLink.source(WidgetSource.parse(started.getStringExtra(DeepLink.EXTRA_SOURCE)))
+        }
+        assertEquals("view=today", logo(id))
+        assertEquals("de widget van een project opent dat project", "project=werk", logo(project))
+        assertNull("een vast filter heeft geen eigen plek in de app", logo(preset))
         // en de melding "Log in in de app" ook
         Session.signOut(app)
         view(id).findViewById<View>(R.id.message).performClick()
@@ -474,6 +486,39 @@ class WidgetUiTest : WidgetTestBase() {
         val popup = Robolectric.buildActivity(TaskPopupActivity::class.java, WidgetIntents.taskPopup(app, "bestaat-niet")).create().get()
         assertTrue(popup.isFinishing)
         assertEquals(MainActivity::class.java.name, shadowOf(app).nextStartedActivity.component!!.className)
+    }
+
+    @Test
+    fun `meer taken - de app op het overzicht van de widget, ook uit een oudere versie, en onzin opent gewoon de app`() {
+        signIn(withData = data)
+        fun more(extras: Intent): Intent {
+            val intent = Intent(app, WidgetActionActivity::class.java).putExtras(extras)
+            assertTrue(Robolectric.buildActivity(WidgetActionActivity::class.java, intent).create().get().isFinishing)
+            return shadowOf(app).nextStartedActivity.also { assertEquals(MainActivity::class.java.name, it.component!!.className) }
+        }
+        assertEquals("project:werk", more(WidgetIntents.fillInSource(WidgetSource.Project("werk"))).getStringExtra(DeepLink.EXTRA_SOURCE))
+        assertEquals("label:l1", more(WidgetIntents.fillInSource(WidgetSource.Label("l1"))).getStringExtra(DeepLink.EXTRA_SOURCE))
+        assertEquals("upcoming", more(WidgetIntents.fillInSource(WidgetSource.Upcoming)).getStringExtra(DeepLink.EXTRA_SOURCE))
+        val old = more(Intent().putExtra(WidgetIntents.EXTRA_KIND, WidgetIntents.KIND_VIEW).putExtra(WidgetIntents.EXTRA_TARGET_VIEW, DeepLink.VIEW_UPCOMING))
+        assertEquals(DeepLink.VIEW_UPCOMING, old.getStringExtra(DeepLink.EXTRA_VIEW))
+        for (bad in listOf("project:a b", "preset:p1", "iets", "")) {
+            val plain = more(Intent().putExtra(WidgetIntents.EXTRA_KIND, WidgetIntents.KIND_VIEW).putExtra(WidgetIntents.EXTRA_TARGET_SOURCE, bad))
+            assertFalse(bad, plain.hasExtra(DeepLink.EXTRA_SOURCE))
+            assertEquals(Intent.ACTION_MAIN, plain.action)
+        }
+    }
+
+    @Test
+    fun `het overzicht van een widget als adres voor de web-app - alleen veilige id's`() {
+        assertEquals("project=werk", DeepLink.source(WidgetSource.Project("werk")))
+        assertEquals("label=l1", DeepLink.source(WidgetSource.Label("l1")))
+        assertEquals("filter=f1", DeepLink.source(WidgetSource.Filter("f1")))
+        assertEquals("view=inbox", DeepLink.source(WidgetSource.Inbox))
+        assertEquals("view=upcoming", DeepLink.source(WidgetSource.Upcoming))
+        assertNull(DeepLink.source(WidgetSource.Preset("p1")))
+        assertNull(DeepLink.source(null))
+        for (bad in listOf("a b", "x';alert(1);'", "", "a".repeat(65))) assertNull(bad, DeepLink.source(WidgetSource.Project(bad)))
+        assertNull("een sleutel van buiten wordt eerst gelezen", DeepLink.source(WidgetSource.parse("project:a/b")))
     }
 
     @Test
