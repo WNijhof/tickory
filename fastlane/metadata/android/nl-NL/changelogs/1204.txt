@@ -1,0 +1,1 @@
+- Widgets: een tik op het beeldmerk of op "meer taken" opent wat de widget toont; de widget van een project opent dat project (ook bij een label of filter).

@@ -1,0 +1,1 @@
+- Widgets: tapping the logo or "more tasks" opens what the widget shows; the widget of a project opens that project (also for a label or filter).
