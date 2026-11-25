@@ -1,0 +1,1 @@
+- Quick add: many more ways to type a reminder, such as "reminder 10 minutes before", "notify me an hour ahead of time" and numbers in words.

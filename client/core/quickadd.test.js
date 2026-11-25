@@ -92,3 +92,49 @@ test('herinneringen in gewone taal: "met herinnering 10 minuten vooraf", een mom
   const off = parseQuickAdd('Banaan met herinnering 10 minuten vooraf !5m', { view, now, defaultProjectId: 'inbox', language: 'nl', dates: false });
   assert.deepEqual([off.content, off.reminders], ['Banaan met herinnering 10 minuten vooraf', rel(5)]);
 });
+
+test('herinneringen in gewone taal: meer beginwoorden ("herinnering", "melding", "seintje", "notify me") en meer manieren om "vooraf" te zeggen', () => {
+  const view = { projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }]]), sections: new Map(), labels: new Map(), tasks: new Map(), members: new Map() };
+  const now = new Date(2026, 10, 23, 10, 0);
+  const nl = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'nl' });
+  const en = (text) => parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'en' });
+  const rel = (n) => [{ type: 'relative', minute_offset: n }];
+  const abs = (date) => [{ type: 'absolute', due: { date } }];
+  let p = nl('Tandarts morgen om 9 uur herinnering 10 minuten vooraf');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Tandarts', '2026-11-24T09:00', rel(10)]);
+  const cases = {
+    'Tandarts morgen om 9 uur herinnering: 10 minuten voortijd': 10,
+    'Tandarts morgen om 9 uur herinnering 10 minuten voor tijd': 10,
+    'Bellen morgen om 9 uur melding een kwartier van te voren': 15,
+    'Bellen morgen om 9 uur met een melding van twintig minuten': 20,
+    'Bellen morgen om 9 uur seintje drie kwartier eerder': 45,
+    'Bellen morgen om 9 uur geef me een seintje een uurtje eerder': 60,
+    'Bellen morgen om 9 uur stuur me een herinnering anderhalf uur van tevoren': 90,
+    'Bellen morgen om 9 uur herinner mij 2 dagen op voorhand': 2880,
+    'Bellen morgen om 9 uur waarschuw me 5 minuten voor aanvang': 5,
+    'Bellen morgen om 9 uur met notificatie bij aanvang': 0,
+  };
+  for (const [text, minutes] of Object.entries(cases)) assert.deepEqual([nl(text).content, nl(text).reminders], [text.split(' ')[0], rel(minutes)], text);
+  p = nl('Training morgen 19:30 herinnering 1 uur voor #Inbox');
+  assert.deepEqual([p.content, p.reminders], ['Training', rel(60)], 'stopt bij het volgende #project');
+  // na "met melding", "waarschuw me" enzovoort mag ook een moment
+  assert.deepEqual(nl('Werk morgen om 9 uur waarschuw me om 8:30').reminders, abs('2026-11-24T08:30'));
+  assert.deepEqual(nl('Vergadering morgen 15:00 met een melding om 14:30').reminders, abs('2026-11-24T14:30'));
+  // het woord zelf: niet als eerste woord van de taak, en alleen met een tijd vooraf; anders blijft het in de titel
+  for (const text of ['Herinnering 2 dagen voor de deadline sturen', 'Melding 10 minuten', 'Herinnering sturen naar de klant']) {
+    assert.deepEqual([nl(text).content, nl(text).reminders], [text, []], text);
+  }
+  p = nl('Klant herinnering om 9 uur sturen');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Klant herinnering sturen', '2026-11-24T09:00', []], 'een moment na het woord zelf is de tijd van de taak');
+  p = nl('Politie melding morgen om 9 uur');
+  assert.deepEqual([p.content, p.due?.date, p.reminders], ['Politie melding', '2026-11-24T09:00', []]);
+  // Engels
+  assert.deepEqual([en('Dentist tomorrow at 2pm reminder 30 minutes before').content, en('Dentist tomorrow at 2pm reminder 30 minutes before').reminders], ['Dentist', rel(30)]);
+  assert.deepEqual(en('Dentist tomorrow at 2pm notify me 1 hour ahead of time').reminders, rel(60));
+  assert.deepEqual(en('Flight friday 8am send me an alert two hours early').reminders, rel(120));
+  assert.deepEqual(en('Flight friday 8am with a notification twenty-five minutes before').reminders, rel(25));
+  assert.deepEqual(en('Call Bob alert me at 9am').reminders, abs('2026-11-24T09:00'));
+  assert.deepEqual([en('Reminder emails to customers').content, en('Reminder emails to customers').reminders], ['Reminder emails to customers', []]);
+  // ook tussen haakjes
+  assert.deepEqual(nl('Bellen morgen om 9 uur !(10 minuten voor tijd)').reminders, rel(10));
+});

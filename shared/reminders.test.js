@@ -125,8 +125,24 @@ test('Nederlands: een relatieve herinnering in gewone taal of als korte code', (
   assert.equal(parseOffsetNl('één dag ervoor'.normalize('NFD')), 1440, 'ook met een los getypt accent');
 });
 
+test('Nederlands: meer manieren om "vooraf" te zeggen, getallen in woorden, verkleinwoorden en "op tijd"', () => {
+  const cases = {
+    '10 minuten voor tijd': 10, '10 minuten voortijd': 10, '10 minuten voor de tijd': 10, '10 minuten voor': 10, '10 minuten vóór': 10,
+    '10 minuten van te voren': 10, '10 minuten te voren': 10, '1 uur daarvoor': 60, '1 uur voordien': 60, '2 dagen op voorhand': 2880,
+    '30 minuten voor aanvang': 30, '30 minuten voor het begin': 30, '30 minuten voor de start': 30, '5 min voor het tijdstip van de taak': 5,
+    'twintig minuten': 20, 'vijftien minuten vooraf': 15, 'vijftig minuten': 50, 'vijfenveertig minuten': 45, 'eenentwintig min': 21,
+    'tweeëntwintig minuten': 22, 'drieentwintig minuten': 23, 'twaalf uur ervoor': 720, 'elf dagen': 15840,
+    'een uurtje van tevoren': 60, 'twee uurtjes eerder': 120, 'een kwartiertje eerder': 15, 'een half uurtje': 30, 'een halfuur': 30,
+    'een dagje vooraf': 1440, 'een minuutje': 1,
+    'drie kwartier vooraf': 45, 'anderhalf uur van tevoren': 90, 'anderhalve dag': 2160,
+    'precies op tijd': 0, 'op het tijdstip zelf': 0, 'bij aanvang': 0, 'bij het begin': 0, 'bij de start': 0, '0 minuten voor tijd': 0,
+  };
+  for (const [text, minutes] of Object.entries(cases)) assert.equal(parseOffsetNl(text), minutes, text);
+});
+
 test('Nederlands: wat geen relatieve herinnering is, wordt niet geraden', () => {
-  for (const no of ['', 'morgen', 'morgen om 9 uur', 'om 9 uur', '9:00', '30', 'm', 'ervoor', '30 appels', 'half', '3 jaar', '1.5 uur', '-5 min', 'vijftig minuten', '12345 min', null, undefined, 30]) {
+  for (const no of ['', 'morgen', 'morgen om 9 uur', 'om 9 uur', '9:00', '30', 'm', 'ervoor', '30 appels', 'half', '3 jaar', '1.5 uur', '-5 min', 'honderd minuten', '12345 min', null, undefined, 30,
+    'half dag', 'kwartier uur', 'voor', '10 minuten na', 'twintigminuten', 'een paar minuten', 'tien appels vooraf']) {
     assert.equal(parseOffsetNl(no), null, String(no));
   }
   // Los gelezen is "9 uur" negen uur vooraf; of het een tijdstip is ("om 9 uur") bepaalt de plek waar het staat.
@@ -160,7 +176,13 @@ test('een relatieve herinnering in gewoon Engels', () => {
     'quarter hour': 15, 'half an hour before': 30, '2 days in advance': 2880, 'one week before': 10080, 'on time': 0, '15 mins earlier': 15,
   };
   for (const [text, minutes] of Object.entries(cases)) assert.equal(parseOffsetNl(text), minutes, text);
-  for (const text of ['soon', 'a while before', 'two fortnights']) assert.equal(parseOffsetNl(text), null, text);
+  const more = {
+    'twenty minutes before': 20, 'twenty-five minutes before': 25, 'forty five minutes ahead of time': 45, 'fifteen mins early': 15,
+    'an hour and a half before': 90, 'one and a half hours before': 90, 'a day and a half in advance': 2160, 'three quarters of an hour before': 45,
+    '1 hour before the start': 60, '10 minutes before it starts': 10, '2 days prior': 2880, 'right on time': 0, 'at the start': 0, 'when it starts': 0,
+  };
+  for (const [text, minutes] of Object.entries(more)) assert.equal(parseOffsetNl(text), minutes, text);
+  for (const text of ['soon', 'a while before', 'two fortnights', 'half day', 'twenty a minutes', 'a hundred minutes']) assert.equal(parseOffsetNl(text), null, text);
   // het Nederlands blijft werken
   assert.equal(parseOffsetNl('een kwartier ervoor'), 15);
   assert.equal(parseOffsetNl('2 uur van tevoren'), 120);

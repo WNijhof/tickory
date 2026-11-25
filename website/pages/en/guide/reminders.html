@@ -85,6 +85,14 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
         <td class="wrap-ok">It also works in plain words, without an exclamation mark: <em>with a reminder</em> or <em>remind me</em>, followed by how long before.</td>
       </tr>
       <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Flight" data-date="2026-11-18T08:00" data-reminders="120">Flight tomorrow at 8am reminder two hours ahead of time</code></td>
+        <td class="wrap-ok">Just the word <em>reminder</em> or <em>notification</em> works too, and so do <em>notify me</em>, <em>alert me</em> and <em>with an alert</em>. Instead of “before” you can say <em>in advance</em>, <em>early</em>, <em>ahead of time</em> or <em>before it starts</em>.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Practice" data-date="2026-11-18T19:30" data-reminders="45">Practice tomorrow at 7:30pm notify me forty-five minutes before</code></td>
+        <td class="wrap-ok">Numbers can be words (<em>twenty</em>, <em>forty-five</em>), and <em>a quarter of an hour</em>, <em>half an hour</em>, <em>three quarters of an hour</em> and <em>an hour and a half</em> work too. <em>At the start</em> is at the time itself.</td>
+      </tr>
+      <tr>
         <td class="wrap-ok"><code class="ex-quick" data-lang="en" data-title="Meeting" data-date="2026-11-18T15:00" data-reminders="2026-11-18T14:30">Meeting tomorrow at 3pm remind me at 2:30pm</code></td>
         <td class="wrap-ok">Only a time is on the day of the task. With a date (<em>remind me tomorrow at 8am</em>) it is that moment; it does not become the date of the task.</td>
       </tr>
@@ -94,6 +102,7 @@ description: Reminders and notifications in Tickory: setting a reminder on a tas
 <ul>
   <li>If you give reminders yourself, the automatic one is <strong>not</strong> added.</li>
   <li>Whatever cannot be understood stays in the title. A date without a time between parentheses is not a reminder.</li>
+  <li>Just the word <em>reminder</em> or <em>notification</em> only counts with how long before after it, and not as the first word of the task. <em>Reminder emails to customers</em> stays a task.</li>
   <li>Mind the difference: <code>!!1</code> to <code>!!4</code> (two exclamation marks) is the priority, <code>!30m</code> is a reminder.</li>
 </ul>
 

@@ -10,8 +10,9 @@
 //   {vrijdag}  een deadline (los van de datum waarop je eraan wilt werken)
 //   !30m       een herinnering: !30m, !1u of !1h, !2d (minuten, uren, dagen vooraf), !0 (op het tijdstip zelf), of tussen haakjes
 //              in gewone taal: !(een kwartier ervoor), !(morgen om 8 uur), !(30 minutes before), !(tomorrow at 8am). Meerdere mag.
-//              Ook zonder uitroepteken: "met herinnering 10 minuten vooraf", "herinner me om 14:30", "with a reminder 30 minutes
-//              before", "remind me at 9am" (alleen een tijd: op de dag van de taak).
+//              Ook zonder uitroepteken: "met herinnering 10 minuten vooraf", "herinnering 10 minuten voor tijd", "melding een
+//              kwartier van tevoren", "herinner me om 14:30", "with a reminder 30 minutes before", "remind me at 9am" (alleen een
+//              tijd: op de dag van de taak). Zie SPOKEN_REMINDER.
 //   datum      gewone taal in de taal van de interface, ook herhalingen ("elke maandag", "every monday"); zie core/dateInput.js
 //
 // Elk teken telt alleen aan het begin van een woord, zodat een e-mailadres of "en/of" met rust wordt gelaten.
@@ -156,7 +157,9 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   const atTaskDay = [];
   if (dates) {
     for (let m = SPOKEN_REMINDER.exec(rest); m; m = SPOKEN_REMINDER.exec(rest)) {
-      const found = spokenReminder(rest.slice(m.index + m[0].length), now, language);
+      const bare = BARE_REMINDER.test(m[0]);
+      if (bare && m.index === 0) continue;
+      const found = spokenReminder(rest.slice(m.index + m[0].length), now, language, bare);
       if (!found) continue;
       if (found.time) atTaskDay.push(found.time);
       else addReminder(found.spec);
@@ -219,8 +222,22 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }
 }
 
-/** Het begin van een herinnering in gewone taal (Nederlands en Engels); wat erop volgt leest spokenReminder. */
-const SPOKEN_REMINDER = new RegExp(`${START}(?:(?:met|en) (?:een )?herinnering|herinner me|(?:with|and) (?:a )?reminder|remind me)${END}`, 'giu');
+/**
+ * Het begin van een herinnering in gewone taal (Nederlands en Engels); wat erop volgt leest spokenReminder. Een dubbele punt erachter
+ * mag ("herinnering: 10 minuten vooraf").
+ */
+const SPOKEN_REMINDER = new RegExp(`${START}(?:${[
+  '(?:(?:met|en|plus) (?:een )?|(?:stuur|geef) (?:me|mij) een )?(?:herinnering|melding|notificatie|seintje)',
+  'herinner (?:me|mij)', 'waarschuw (?:me|mij)',
+  'remind me', 'notify me', 'alert me',
+  '(?:(?:with|and|plus) (?:an? )?|(?:send|give) me an? )(?:reminder|notification|alert)', 'reminder', 'notification',
+].join('|')}):?${END}`, 'giu');
+/**
+ * Alleen het woord zelf, zonder "met", "herinner me" enzovoort ("Tandarts om 9 uur herinnering 10 minuten vooraf"). Dat is minder
+ * duidelijk: het telt niet als eerste woord van de taak ("Herinnering 2 dagen voor de deadline sturen"), en alleen met een tijd vooraf
+ * erachter, niet met een moment ("Politie melding om 9 uur" blijft een taak om 9 uur).
+ */
+const BARE_REMINDER = /^(?:herinnering|melding|notificatie|seintje|reminder|notification):?$/iu;
 /** Een tijd zonder datum ("om 13:30", "at 9am", "8 uur"): die hoort bij de dag van de taak. */
 const TIME_ONLY = /^(?:om |at |op )?\d{1,2}(?:[:.]\d{2})?(?: ?(?:uur|u|am|pm|h))?$/iu;
 /** Waar een herinnering in gewone taal ophoudt: bij het volgende #project, @label, /sectie, {deadline}, !herinnering of =duur. */
@@ -229,9 +246,10 @@ const NEXT_MARKER = / [#@/{!=]/u;
 /**
  * De herinnering na "met herinnering" enzovoort: de langste reeks woorden die een tijd vooraf ("10 minuten vooraf", "een kwartier
  * ervoor", "op tijd") of een moment ("morgen om 8 uur", "om 13:30") is.
+ * `offsetOnly`: alleen een tijd vooraf telt (na het woord "herinnering" zelf, zie BARE_REMINDER).
  * @returns {{ spec?: object, time?: string, length: number } | null} length: hoeveel tekens (met de spatie ervoor) het besloeg
  */
-function spokenReminder(after, now, language) {
+function spokenReminder(after, now, language, offsetOnly = false) {
   const lead = /^ +/u.exec(after)?.[0].length ?? 0;
   if (lead === 0) return null;
   const stop = after.slice(lead).search(NEXT_MARKER);
@@ -241,6 +259,7 @@ function spokenReminder(after, now, language) {
     const length = lead + phrase.length;
     const offset = parseOffsetNl(phrase.replace(/^(?:van|of) /iu, ''));
     if (offset !== null) return { spec: { type: 'relative', minute_offset: offset }, length };
+    if (offsetOnly) continue;
     const when = parseDateText(phrase, now, language);
     if (!when || when.recurrence || !hasTime(when.date)) continue;
     if (TIME_ONLY.test(phrase)) return { time: when.date.slice(11, 16), length };

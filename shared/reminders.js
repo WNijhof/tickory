@@ -119,33 +119,70 @@ export function offsetParts(minutes) {
   return { unit: 'minutes', n: minutes };
 }
 
-const WORDS = {
-  een: 1, één: 1, twee: 2, drie: 3, vier: 4, vijf: 5, zes: 6, zeven: 7, acht: 8, negen: 9, tien: 10, kwartier: 15, half: 30,
-  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+// Getallen in woorden, tot en met 99: "tien", "twintig", "vijfenveertig", "tweeëntwintig"; "twenty", "forty-five", "twenty five".
+const ONES_NL = ['een|één', 'twee', 'drie', 'vier', 'vijf', 'zes', 'zeven', 'acht', 'negen'];
+const TEENS_NL = ['tien', 'elf', 'twaalf', 'dertien', 'veertien', 'vijftien', 'zestien', 'zeventien', 'achttien', 'negentien'];
+const TENS_NL = ['twintig', 'dertig', 'veertig', 'vijftig', 'zestig', 'zeventig', 'tachtig', 'negentig'];
+const ONES_EN = ['a|an|one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+const TEENS_EN = ['ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS_EN = ['twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+const valueOf = (list, word, base, step) => {
+  const i = list.findIndex((w) => w.split('|').includes(word));
+  return i < 0 ? undefined : base + i * step;
 };
+const COMPOUND_NL = new RegExp(`^(${ONES_NL.join('|')})(?:ën|en)(${TENS_NL.join('|')})$`, 'u'); // eenentwintig, tweeëntwintig, vijfenveertig
+const COMPOUND_EN = new RegExp(`^(${TENS_EN.join('|')})[- ](${ONES_EN.slice(1).join('|')}|one)$`, 'u'); // twenty-one, forty-five, twenty five
+
+/** Een aantal als cijfers of in woorden (Nederlands of Engels), of undefined. */
+function amount(word) {
+  if (/^\d{1,4}$/.test(word)) return Number(word);
+  const nl = COMPOUND_NL.exec(word);
+  if (nl) return valueOf(TENS_NL, nl[2], 20, 10) + valueOf(ONES_NL, nl[1], 1, 1);
+  const en = COMPOUND_EN.exec(word);
+  if (en) return valueOf(TENS_EN, en[1], 20, 10) + valueOf(ONES_EN, en[2], 1, 1);
+  return valueOf(ONES_NL, word, 1, 1) ?? valueOf(TEENS_NL, word, 10, 1) ?? valueOf(TENS_NL, word, 20, 10)
+    ?? valueOf(ONES_EN, word, 1, 1) ?? valueOf(TEENS_EN, word, 10, 1) ?? valueOf(TENS_EN, word, 20, 10);
+}
+
 const UNIT = [
-  [/^(m|min|mins|minuut|minuten|mv|minute|minutes)$/, 1],
-  [/^(u|uur|uren|h|uv|hr|hrs|hour|hours)$/, 60],
-  [/^(d|dag|dagen|dv|day|days)$/, 1440],
-  [/^(w|week|weken|weeks)$/, 10080],
+  [/^(m|min|mins|minuut|minuten|minuutje|minuutjes|mv|minute|minutes)$/, 1],
+  [/^(u|uur|uren|uurtje|uurtjes|h|uv|hr|hrs|hour|hours)$/, 60],
+  [/^(d|dag|dagen|dagje|dagjes|dv|day|days)$/, 1440],
+  [/^(w|week|weken|weekje|weekjes|weeks)$/, 10080],
 ];
+
+/** Wat er achter een tijd vooraf mag staan ("10 minuten vooraf", "voor tijd", "30 minutes ahead of time"); het telt niet mee. */
+const BEFORE = new RegExp(`(?: voor| ?(?:${[
+  'ervoor', 'vooraf', 'van tevoren', 'vantevoren', 'van te voren', 'tevoren', 'te voren', 'eerder', 'daarvoor', 'voordien', 'op voorhand',
+  'voor de taak', 'voor het tijdstip(?: van de taak)?', 'voor tijd', 'voortijd', 'voor de tijd', 'voor aanvang', 'voor het begin', 'voor de start',
+  'before(?: the task| the start| start| it starts| the time)?', 'beforehand', 'in advance', 'ahead(?: of time)?', 'earlier', 'early', 'prior',
+].join('|')}))$`, 'u');
+/** Op het tijdstip van de taak zelf. */
+const AT_TIME = new RegExp(`^(?:${[
+  '0', 'op tijd', 'precies op tijd', 'op het tijdstip', 'op tijdstip', 'op het tijdstip zelf', 'op het tijdstip van de taak', 'op tijdstip van taak',
+  'op het moment zelf', 'bij aanvang', 'bij het begin', 'bij de start',
+  'on time', 'right on time', 'exactly on time', 'at the time', 'at time', 'at the time of the task', 'when due', 'at the start', 'at start', 'when it starts',
+].join('|')})$`, 'u');
 
 /**
  * Leest een relatieve herinnering in gewoon Nederlands, in gewoon Engels of als korte code. Geeft het aantal minuten vooraf, of null.
- *   "30mv", "30m", "30 min", "30 minuten ervoor", "1uv", "2 uur van tevoren", "een kwartier vooraf", "1dv", "2 dagen",
- *   "0mv", "0", "op tijd", "op het tijdstip van de taak",
- *   "30 minutes before", "1h", "an hour before", "2 days in advance", "a quarter of an hour before", "half an hour before", "on time"
+ *   "30mv", "30m", "30 min", "30 minuten ervoor", "1uv", "2 uur van tevoren", "10 minuten voor tijd", "een kwartier vooraf", "drie kwartier",
+ *   "anderhalf uur", "een uurtje eerder", "vijfenveertig minuten", "1dv", "2 dagen op voorhand", "0mv", "0", "op tijd", "bij aanvang",
+ *   "30 minutes before", "1h", "an hour before", "twenty-five minutes ahead of time", "2 days in advance", "a quarter of an hour before",
+ *   "half an hour before", "an hour and a half before", "on time"
  */
 export function parseOffsetNl(text) {
   if (typeof text !== 'string') return null;
-  const s = text.normalize('NFC').toLowerCase().trim().replace(/\s+/g, ' ')
-    .replace(/ ?(ervoor|vooraf|van tevoren|vantevoren|tevoren|eerder|voor de taak|voor het tijdstip|before|beforehand|in advance|ahead|earlier|early|prior)$/, '').trim();
-  if (/^(0|op tijd|op het tijdstip|op tijdstip|op het tijdstip van de taak|op tijdstip van taak|op het moment zelf|on time|at the time|at time|at the time of the task|when due)$/.test(s)) return 0;
-  if (/^(een )?kwartier$/.test(s) || /^(a )?quarter( of an hour| hour)?$/.test(s)) return 15;
-  if (/^(een )?half uur$/.test(s) || s === 'halfuur' || /^half an hour$|^half hour$|^a half hour$/.test(s)) return 30;
-  const m = /^(\d{1,4}|[a-zé]+) ?([a-z]+)$/.exec(s);
+  const s = text.normalize('NFC').toLowerCase().trim().replace(/\s+/g, ' ').replace(/vóór/gu, 'voor').replace(BEFORE, '').trim();
+  if (AT_TIME.test(s)) return 0;
+  if (/^(?:een )?kwartier(?:tje)?$/u.test(s) || /^(?:a )?quarter(?: of an hour| hour)?$/u.test(s)) return 15;
+  if (/^(?:een )?half ?uur(?:tje)?$/u.test(s) || /^(?:half an hour|half hour|a half hour)$/u.test(s)) return 30;
+  if (/^drie kwartier$/u.test(s) || /^three quarters(?: of an hour)?$/u.test(s)) return 45;
+  if (/^anderhalf uur$/u.test(s) || /^(?:an hour and a half|one and a half hours?|1 and a half hours?)$/u.test(s)) return 90;
+  if (/^anderhalve dag$/u.test(s) || /^(?:a day and a half|one and a half days?)$/u.test(s)) return 2160;
+  const m = /^(.+?) ?([a-z]+)$/u.exec(s);
   if (!m) return null;
-  const n = /^\d+$/.test(m[1]) ? Number(m[1]) : WORDS[m[1]];
+  const n = amount(m[1]);
   const unit = UNIT.find(([re]) => re.test(m[2]));
   if (n === undefined || !unit) return null;
   const minutes = n * unit[1];

@@ -85,6 +85,14 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
         <td class="wrap-ok">Het mag ook helemaal in gewone taal, zonder uitroepteken: <em>met herinnering</em>, <em>met een herinnering</em> of <em>herinner me</em>, met daarachter hoe lang vooraf.</td>
       </tr>
       <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Tandarts" data-date="2026-11-18T09:00" data-reminders="10">Tandarts morgen om 9 uur herinnering 10 minuten voor tijd</code></td>
+        <td class="wrap-ok">Alleen het woord <em>herinnering</em>, <em>melding</em> of <em>seintje</em> mag ook, net als <em>met een melding</em>, <em>herinner mij</em>, <em>waarschuw me</em> en <em>geef me een seintje</em>. Voor “vooraf” mag ook <em>van tevoren</em>, <em>eerder</em>, <em>voor tijd</em>, <em>voor aanvang</em> of <em>op voorhand</em>.</td>
+      </tr>
+      <tr>
+        <td class="wrap-ok"><code class="ex-quick" data-title="Training" data-date="2026-11-18T19:30" data-reminders="45">Training morgen om 19:30 melding drie kwartier van tevoren</code></td>
+        <td class="wrap-ok">Getallen mogen in woorden (<em>twintig minuten</em>, <em>vijfenveertig minuten</em>), en ook <em>een kwartier</em>, <em>een half uur</em>, <em>drie kwartier</em>, <em>anderhalf uur</em> en <em>een uurtje</em>. <em>Bij aanvang</em> is op het tijdstip zelf.</td>
+      </tr>
+      <tr>
         <td class="wrap-ok"><code class="ex-quick" data-title="Vergadering" data-date="2026-11-18T15:00" data-reminders="2026-11-18T14:30">Vergadering morgen om 15:00 met herinnering om 14:30</code></td>
         <td class="wrap-ok">Alleen een tijd is op de dag van de taak. Met een datum erbij (<em>met herinnering morgen om 8 uur</em>) is het dat moment; dat wordt niet de datum van de taak.</td>
       </tr>
@@ -94,6 +102,7 @@ description: Herinneringen en meldingen in Tickory: een herinnering bij een taak
 <ul>
   <li>Geef je zelf herinneringen op, dan komt de automatische <strong>niet</strong> erbij.</li>
   <li>Wat niet te begrijpen is, blijft in de titel staan. Een datum zonder tijd tussen haakjes is geen herinnering.</li>
+  <li>Staat er alleen het woord <em>herinnering</em>, <em>melding</em> of <em>seintje</em>, dan telt het alleen met een tijd vooraf erachter, en niet als eerste woord van de taak. <em>Herinnering sturen naar de klant</em> en <em>Politie melding om 9 uur</em> blijven gewoon een taak.</li>
   <li>Let op het verschil: <code>!!1</code> tot <code>!!4</code> (twee uitroeptekens) is de prioriteit, <code>!30m</code> is een herinnering.</li>
 </ul>
 
