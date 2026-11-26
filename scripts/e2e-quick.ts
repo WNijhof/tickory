@@ -244,7 +244,8 @@ export async function quickScenario(c: any) {
   assert.ok(noUuid, 'ook op de server');
   const noUuidRow = `[...document.querySelectorAll('li.task')].find((l) => l.querySelector('.task-title').textContent === 'Zonder randomUUID')`;
   await evaluate(`(() => { ${noUuidRow}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true })); return true; })()`);
-  await evaluate(`${noUuidRow}.querySelector('[data-act="delete"]').click()`);
+  await evaluate(`${noUuidRow}.querySelector('[data-act="more"]').click()`);
+  await evaluate(`document.querySelector('.pop-menu [data-fk="taskmenu:delete"]').click()`);
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taak verwijderen?'`, 'de bevestiging');
   await evaluate(`[...document.querySelectorAll('dialog[open] button')].find((b) => b.textContent === 'Verwijderen').click()`);
   await waitFor(`![...document.querySelectorAll('#content li.task .task-title')].some((e) => e.textContent === 'Zonder randomUUID')`, 'de taak weg');

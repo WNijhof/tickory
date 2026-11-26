@@ -58,7 +58,7 @@ export async function notifyScenario(c: any) {
   assert.equal(await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-excerpt').textContent`), '@Alice, welke kleur wordt het?');
   assert.equal(await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-excerpt .mention').textContent`), '@Alice', 'de vermelding is gemarkeerd');
   assert.equal(await evaluate(`document.querySelector('.inbox-count').textContent`), '3 ongelezen meldingen');
-  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#view-actions button')].map((b) => b.textContent)`), ['Alles gelezen']);
+  assert.deepEqual(await evaluate(`[...document.querySelectorAll('#view-actions button:not(.pane-button)')].map((b) => b.textContent)`), ['Alles gelezen']);
   await shot('meldingen-lijst');
 
   // ---- een melding openen: gelezen, en het taakvenster met de opmerking (vermelding gemarkeerd) ----
@@ -96,7 +96,7 @@ export async function notifyScenario(c: any) {
   assert.ok((serverState(bob.id).notifications as any[]).some((n) => n.kind === 'mention' && n.comment_id === posted.id && n.actor_id === alice.id), 'Bob krijgt een melding');
   assert.ok(!(serverState(zoe.id).notifications as any[]).some((n) => n.comment_id === posted.id), 'Zoë niet: zij is niet genoemd en had er niets mee te maken');
   await shot('meldingen-vermelding');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster dicht');
 
   // ---- gelezen en ongelezen per melding, en alles gelezen ----
@@ -167,7 +167,7 @@ export async function notifyScenario(c: any) {
   assert.equal(await evaluate(`location.hash`), '', 'het adres is weer schoon');
   await waitFor(SYNCED, 'gesynchroniseerd');
   assert.equal((serverState().notifications as any[]).find((n) => n.id === last.id).is_read, true, 'en zet hem op gelezen');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster dicht');
   await nav(startView);
   await waitFor(`document.getElementById('view-title').textContent === ${JSON.stringify(startView)}`, 'terug waar de test begon');

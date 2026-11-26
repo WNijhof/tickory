@@ -537,3 +537,20 @@ test('de algemene voorkeuren worden gecontroleerd: een onbekende startpagina wor
   const res = handleSync(db, { commands: [cmd('settings_update', { id: `settings-${anna.id}`, general: { start_page: 'ergens' } })] }, anna.id);
   assert.notEqual(Object.values(res.sync_status)[0], 'ok');
 });
+
+test('"met herinnering" zonder tijd: de standaardherinnering bij een taak met een tijd, niet in de titel (ook voor het widget-venster)', async () => {
+  const { db, anna } = world();
+  const at = { tz: 'Europe/Amsterdam', typed_at: '2026-11-13T09:30:00+01:00', dry_run: true };
+  const a = (await quickAdd(db, anna.id, { ...at, text: 'Verwarming Sint vrijdag 13 uur met herinnering' }, NOW)).preview!;
+  assert.equal(a.content, 'Verwarming Sint');
+  assert.deepEqual(a.reminders, [{ type: 'relative', minute_offset: 30 }]);
+  assert.equal(a.auto_reminder, false, 'je vroeg er zelf om');
+  assert.deepEqual(a.spans.map((s) => s.kind), ['date', 'reminder']);
+  // zonder tijd: geen herinnering (er is geen moment om vanaf te rekenen), wel weg uit de titel
+  const b = (await quickAdd(db, anna.id, { ...at, text: 'Verwarming Sint vrijdag met herinnering' }, NOW)).preview!;
+  assert.deepEqual([b.content, b.reminders], ['Verwarming Sint', []]);
+  // automatische herinnering uit (-1): dan 30 minuten, want je vroeg er zelf om
+  db.prepare('UPDATE user_settings SET auto_reminder = -1 WHERE id = ?').run(`settings-${anna.id}`);
+  const c = (await quickAdd(db, anna.id, { ...at, text: 'Verwarming Sint vrijdag 13 uur met herinnering' }, NOW)).preview!;
+  assert.deepEqual(c.reminders, [{ type: 'relative', minute_offset: 30 }]);
+});

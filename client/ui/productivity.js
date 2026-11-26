@@ -10,7 +10,7 @@
 // Geen punten, niveaus of beloningen: alleen wat je deed, je eigen doelen en of je ze haalde.
 
 import { DAYS_OFF_MAX, GOALS, STATS_MAX_DAYS, goalsOf } from '../../shared/stats.js';
-import { completionMark, createStatsFeed, summarize } from '../core/productivity.js';
+import { completionMark, createStatsFeed, pendingDone, summarize, withPending } from '../core/productivity.js';
 import { dayLabel, isoWeekday, weekdayNames } from '../core/calendar.js';
 import { addDays, todayString } from '../core/format.js';
 import { colorClass } from '../core/colors.js';
@@ -97,17 +97,24 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   let seen = null;
   const checkGoals = () => {
     if (!celebrating()) { seen = null; return; }
-    const s = summarize(feed.state.data, { settings: settingsOf(), today: todayString() });
+    const s = withPending(summarize(feed.state.data, { settings: settingsOf(), today: todayString() }), pending());
     if (!s || s.stale) return;
     const now = { day: s.today.date, week: s.week.start, dailyMet: s.today.met, weeklyMet: s.week.met };
     if (seen && seen.day === now.day && !seen.dailyMet && now.dailyMet) toast(t('celebrate.daily', { count: s.today.count }), { kind: 'success' });
     else if (seen && seen.week === now.week && !seen.weeklyMet && now.weeklyMet) toast(t('celebrate.weekly', { count: s.week.count }), { kind: 'success' });
     seen = now;
   };
+  // bij welke stand van afvinken de getoonde cijfers horen (requested: bij het vragen; data: bij het antwoord dat nu getoond wordt)
+  let requestedMark = null;
+  let dataMark = null;
+  let seenData = null;
+  const noteData = () => {
+    if (feed.state.data && feed.state.data !== seenData && !feed.state.loading) { seenData = feed.state.data; dataMark = requestedMark; }
+  };
   const feed = createStatsFeed({
     fetchStats: ({ tz }) => api.stats({ tz }),
     storage,
-    onChange: () => queueMicrotask(() => { checkGoals(); if (visible()) handlers.refresh(); }),
+    onChange: () => queueMicrotask(() => { noteData(); checkGoals(); if (visible()) handlers.refresh(); }),
   });
   let weeks = 12;
   try {
@@ -121,9 +128,12 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   let lastMark = null;
   let timer = null;
   const mark = () => `${completionMark(store.view)}|${store.queueLength}`;
+  /** Net afgevinkt op dit apparaat, nog niet in de cijfers van de server: telt alvast mee (core/productivity.js, withPending). */
+  const pending = () => (dataMark === null ? 0 : pendingDone(dataMark, completionMark(store.view)));
   const fetchNow = () => {
     lastFetch = Date.now();
     lastMark = mark();
+    requestedMark = completionMark(store.view);
     feed.refresh({ tz: deviceZone() });
   };
   /** Opnieuw vragen na `delay`, en niet binnen MIN_GAP_MS na de vorige keer (wat te vroeg komt, wacht tot het mag). */
@@ -180,7 +190,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
   /** De korte kop boven Voltooid (alle projecten): vandaag, deze week en de reeks, met een knop naar het hele overzicht. */
   function completedHeader({ view, today }) {
     if (!enabled()) return null;
-    const s = summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 });
+    const s = withPending(summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 }), pending());
     ensureFresh(s?.stale);
     const item = (label, value, extra = null) => h('span', { class: 'stats-strip-item' }, h('span', { class: 'stats-strip-label' }, label), ' ', h('strong', { class: 'stats-strip-value' }, value), extra);
     const open = h('button', {
@@ -200,7 +210,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
    */
   function todaySummary({ view, today }) {
     if (!enabled()) return null;
-    const s = summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 });
+    const s = withPending(summarize(feed.state.data, { settings: settingsRow(view), today, weeks: 1 }), pending());
     ensureFresh(s?.stale);
     if (!s || !(s.today.goal > 0)) return null;
     const fill = h('span', { class: `stats-strip-fill${s.today.met ? ' is-met' : ''}` });
@@ -385,7 +395,7 @@ export function installProductivity({ store, api, actions, handlers, navigate, g
     }
     const settings = settingsRow(view);
     const goals = goalsOf(settings);
-    const s = summarize(feed.state.data, { settings, today, weeks, nameOf: nameOf(view) });
+    const s = withPending(summarize(feed.state.data, { settings, today, weeks, nameOf: nameOf(view) }), pending());
     ensureFresh(s?.stale);
     const st = feed.state;
     return {

@@ -22,6 +22,7 @@ export function shortcutsDialog() {
       row(SHORTCUT_KEYS.help, t('shortcuts.help')),
       row(['/'], t('shortcuts.search'), false),
       row(['Ctrl', 'K'], t('shortcuts.search'), false),
+      row(['Ctrl', '\\'], t('shortcuts.split'), false),
       row(['Esc'], t('shortcuts.escape')),
       row(['X'], t('shortcuts.select'), false),
       row(['Ctrl', 'A'], t('shortcuts.selectAll'), false),

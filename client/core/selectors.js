@@ -159,6 +159,29 @@ export function upcomingView(view, today, days = 14) {
   return [...perDay.keys()].sort().map((date) => ({ date, tasks: perDay.get(date).sort(byDue) }));
 }
 
+/**
+ * Aankomend zoals Todoist: de te late taken, en dan élke dag vanaf vandaag (ook dagen zonder taken, om er iets op te zetten), `days`
+ * dagen lang.
+ * @returns {{ overdue: object[], days: { date: string, tasks: object[] }[] }}
+ */
+export function upcomingDays(view, today, days = 28) {
+  const last = addDays(today, Math.max(1, days) - 1);
+  const overdue = [];
+  const perDay = new Map();
+  for (const t of view.tasks.values()) {
+    if (t.checked || !t.due) continue;
+    const day = dueDay(t);
+    if (day < today) overdue.push(t);
+    else if (day <= last) {
+      if (!perDay.has(day)) perDay.set(day, []);
+      perDay.get(day).push(t);
+    }
+  }
+  const out = [];
+  for (let d = today; d <= last; d = addDays(d, 1)) out.push({ date: d, tasks: (perDay.get(d) ?? []).sort(byDue) });
+  return { overdue: overdue.sort(byDue), days: out };
+}
+
 /** Aantallen openstaande taken voor de zijbalk. */
 export function counts(view, today) {
   const perProject = new Map();

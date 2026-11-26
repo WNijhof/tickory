@@ -166,3 +166,16 @@ test('welke tekst is herkend (om te markeren zoals Todoist): posities in de teks
   const text = 'Tandarts morgen om 9 uur #Thuis @nieuw p1 !30m';
   assert.deepEqual(parseQuickAddWithSpans(text, { view, now, defaultProjectId: 'inbox', language: 'nl' }).parsed, parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'nl' }));
 });
+
+test('"met herinnering" zonder tijd aan het eind: de standaardherinnering, en de woorden verdwijnen uit de titel', () => {
+  const view = { projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }]]), sections: new Map(), labels: new Map(), tasks: new Map(), members: new Map() };
+  const now = new Date(2026, 10, 26, 10, 0);
+  const parse = (text) => parseQuickAddWithSpans(text, { view, now, defaultProjectId: 'inbox', language: 'nl' });
+  const a = parse('Verwarming Sint vrijdag 13 uur met herinnering');
+  assert.deepEqual([a.parsed.content, a.parsed.due?.date, a.parsed.reminders], ['Verwarming Sint', '2026-11-27T13:00', [{ type: 'auto' }]]);
+  assert.deepEqual(a.spans.map((s) => s.kind), ['date', 'reminder']);
+  assert.deepEqual(parse('Bellen herinner me').parsed.reminders, [{ type: 'auto' }]);
+  // alleen het woord zelf blijft tekst, en met een tijd erachter werkt het zoals altijd
+  assert.deepEqual([parse('Brand melding').parsed.content, parse('Brand melding').parsed.reminders], ['Brand melding', []]);
+  assert.deepEqual(parse('Tandarts morgen 9 uur met herinnering 10 minuten vooraf').parsed.reminders, [{ type: 'relative', minute_offset: 10 }]);
+});

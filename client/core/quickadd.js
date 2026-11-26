@@ -255,7 +255,17 @@ export function parseQuickAddWithSpans(text, { view, now = new Date(), defaultPr
       const bare = BARE_REMINDER.test(m[0]);
       if (bare && m.index === 0) continue;
       const found = spokenReminder(t.s.slice(m.index + m[0].length), now, language, bare);
-      if (!found) continue;
+      if (!found) {
+        // "met herinnering", "herinner me" … aan het eind, zonder tijd erachter: de standaardherinnering ({ type: 'auto' }: de automatische
+        // herinnering uit de instellingen, zie core/actions.js). De woorden horen dan niet in de titel. Alleen het woord zelf
+        // ("Brand melding") blijft gewoon tekst.
+        if (!bare && !t.s.slice(m.index + m[0].length).trim()) {
+          addReminder({ type: 'auto' });
+          cutAt(m.index, m.index + m[0].length, 'reminder');
+          SPOKEN_REMINDER.lastIndex = 0;
+        }
+        continue;
+      }
       if (found.time) atTaskDay.push(found.time);
       else addReminder(found.spec);
       cutAt(m.index, m.index + m[0].length + found.length, 'reminder');

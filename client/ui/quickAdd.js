@@ -6,15 +6,16 @@ import { clockText, formatDate, formatDateInput, formatDayHeading, formatDue, to
 import { getLanguage, t } from '../core/i18n.js';
 import { needsTimeNote, offsetText, presetOptions } from '../core/reminderText.js';
 import { hasTime } from '../../shared/reminders.js';
-import { parseDateText, parseDue } from '../core/dateInput.js';
+import { parseDateText } from '../core/dateInput.js';
 import { reschedule } from '../core/quickDates.js';
 import { choiceFromDue, repeatSummary } from '../core/repeat.js';
-import { parseQuickAdd } from '../core/quickadd.js';
+import { parseQuickAdd, parseQuickAddWithSpans } from '../core/quickadd.js';
 import { canEditProject, editableProjectList } from '../core/access.js';
 import { startVoice, voiceSupport } from '../core/voice.js';
 import { confirmDialog, h, openDialog, replace, toast } from './dom.js';
 import { icon } from './icons.js';
 import { attachQuickSuggest } from './quickSuggest.js';
+import { highlightInput } from './quickHighlight.js';
 import { applyPicked, pickDateTime } from './datePopup.js';
 import { dueCounts } from '../core/dueCounts.js';
 import { repeatPicker } from './repeatPicker.js';
@@ -33,6 +34,7 @@ export function previewChips(text, { view, context }) {
   if (!text.trim() || !context.defaultProjectId) return [];
   const p = parseQuickAdd(text, { view, now: new Date(), ...context });
   const today = todayString();
+  const autoMinutes = context.autoReminder ?? 30; // de automatische herinnering in minuten vooraf; -1 = uit
   const chip = (kind, label) => h('span', { class: `chip chip-${kind}` }, label);
   // Typt iemand in het Engels iets dat op een datum lijkt maar niet is herkend ("tonight"), dan staan er voorbeelden die wel
   // werken. In het Nederlands is die uitleg leeg en verandert er niets.
@@ -46,7 +48,12 @@ export function previewChips(text, { view, context }) {
     p.labels.map((id) => chip('label', `@${view.labels.get(id)?.name ?? ''}`)),
     p.newLabels.map((name) => chip('label', t('quick.newLabel', { name }))),
     p.priority < 4 && chip(`prio prio-${p.priority}`, `P${p.priority}`),
-    p.reminders.map((r) => chip('bell', `🔔 ${r.type === 'absolute' ? formatDue({ date: r.due.date }, today) : offsetText(r.minute_offset)}`)),
+    // de herinneringen die er komen: wat je typte ("met herinnering" zonder tijd is de standaardherinnering), en anders de automatische
+    // bij een taak met een tijd (Instellingen › Herinneringen; core/actions.js), zodat je ziet wat er gebeurt
+    p.reminders.map((r) => (r.type === 'auto'
+      ? chip('bell', hasTime(p.due?.date) ? `🔔 ${offsetText(autoMinutes >= 0 ? autoMinutes : 30)}` : `🔔 ${t('quick.reminderNeedsTime')}`)
+      : chip('bell', `🔔 ${r.type === 'absolute' ? formatDue({ date: r.due.date }, today) : offsetText(r.minute_offset)}`))),
+    p.reminders.length === 0 && hasTime(p.due?.date) && autoMinutes >= 0 && chip('bell chip-auto', `🔔 ${offsetText(autoMinutes)} · ${t('quick.autoReminder')}`),
     dateNote && h('p', { class: 'hint preview-note' }, dateNote),
   ].flat().filter(Boolean);
 }
@@ -114,24 +121,11 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     description.value = context.description ?? ''; // bijvoorbeeld de link bij tekst die uit een andere app is gedeeld
     const project = h('select', { class: 'field', 'aria-label': t('task.project') },
       editableProjectList(view, store.userId).map(({ project: p, depth }) => h('option', { value: p.id, selected: p.id === startProject }, `${INDENT.repeat(depth)}${p.name}`)));
-    const narrow = Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches);
-    // Op een telefoon: de herkende datum staat gemarkeerd in de tekst (zoals in Todoist), met een spiegel achter het veld die dezelfde tekst toont.
-    const mirror = narrow ? h('div', { class: 'quick-mirror', 'aria-hidden': 'true' }) : null;
-    let mirrorStyled = false;
-    const paintMirror = () => {
-      if (!mirror) return;
-      const text = input.value;
-      const found = generalOf(mySettings(view, store.userId)).date_recognition === false ? null : parseDue(text, new Date())?.range ?? null;
-      const [from, to] = found ?? [0, 0];
-      mirror.replaceChildren(...(to > from && to <= text.length ? [text.slice(0, from), h('mark', {}, text.slice(from, to)), text.slice(to)] : [text]));
-      if (!mirrorStyled && input.isConnected) {
-        const cs = getComputedStyle(input);
-        for (const key of ['font', 'letterSpacing', 'padding', 'borderWidth', 'lineHeight', 'textIndent']) mirror.style[key] = cs[key];
-        mirrorStyled = true;
-      }
-      mirror.scrollLeft = input.scrollLeft;
-    };
-    const inputBox = mirror ? h('div', { class: 'quick-input-wrap' }, mirror, input) : input;
+    const narrow = Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches); // op een telefoon staat het project bij de knoppen
+    // Wat herkend wordt (de datum, #project, /sectie, @label, p1, {deadline}, !herinnering) staat gemarkeerd in de tekst, zoals in Todoist
+    // (ui/quickHighlight.js); de stukken komen van dezelfde herkenner die de taak maakt.
+    const highlight = highlightInput(input, (text) => parseQuickAddWithSpans(text, { view, now: new Date(), ...parseContext() }).spans);
+    const inputBox = highlight.wrap;
     const projectField = h('label', { class: 'field-label quick-project' }, h('span', { class: 'quick-project-text' }, t('task.project')), project);
     const preview = h('div', { class: 'chips preview', 'aria-live': 'polite' });
     // bestanden die uit een andere app zijn gedeeld: ze worden bijlagen van de taak zodra je Toevoegen kiest
@@ -142,7 +136,7 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
     const dayTime = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/.test(context.due ?? '') ? context.due : null;
     const day = dayTime ? dayTime.slice(0, 10) : null;
     const dueFor = () => (context.due === 'today' ? { date: todayString(), string: 'vandaag', lang: 'nl' } : dayTime ? { date: dayTime } : null);
-    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), defaultLabels: Array.isArray(context.labelIds) ? context.labelIds : [], canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition });
+    const parseContext = () => ({ defaultProjectId: project.value, defaultSectionId: sectionFor(), defaultDue: dueFor(), defaultLabels: Array.isArray(context.labelIds) ? context.labelIds : [], canAddTo, dates: generalOf(mySettings(view, store.userId)).date_recognition, autoReminder: mySettings(view, store.userId)?.auto_reminder ?? 30 });
     const draw = () => replace(preview, previewChips(input.value, { view, context: parseContext() }));
     input.addEventListener('input', draw);
     project.addEventListener('change', draw);
@@ -185,8 +179,8 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
       paintChoices();
       input.focus();
     });
-    input.addEventListener('input', () => { paintChoices(); paintMirror(); }); // de prioriteit (en datum) uit de tekst staat meteen op de knoppen
-    input.addEventListener('scroll', paintMirror);
+    input.addEventListener('input', () => paintChoices()); // de prioriteit (en datum) uit de tekst staat meteen op de knoppen
+    project.addEventListener('change', () => highlight.paint()); // een ander project: een #naam of /sectie kan nu wel of niet passen
     dueButton.addEventListener('click', async () => {
       const current = effectiveDue();
       const picked = await pickDateTime({ today: todayString(), due: current ?? null, allowNone: Boolean(current), counts: dueCounts(view) });
@@ -276,7 +270,6 @@ export function openQuickAddDialog({ store, actions, context = {}, onTemplate = 
         if (!voice) reset();
       });
     }
-    queueMicrotask(paintMirror); // na het openen: de stijl van het veld overnemen
     if (input.value) {
       draw(); // een begintekst (bijvoorbeeld het label waar je bij staat): meteen de voorvertoning, de cursor erachter
       queueMicrotask(() => input.setSelectionRange(input.value.length, input.value.length));

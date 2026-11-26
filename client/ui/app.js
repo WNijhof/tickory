@@ -15,14 +15,20 @@ import { createBackend } from '../core/backend.js';
 import { createPushClient } from '../core/push.js';
 import { isArchivedProject, mySettings, roleIn, todayView } from '../core/selectors.js';
 import { VIEW_STYLES, moveTargets, viewStyleOf } from '../core/projectViews.js';
-import { parseQuickAdd } from '../core/quickadd.js';
+import { parseQuickAdd, parseQuickAddWithSpans } from '../core/quickadd.js';
 import { describeCommandError, quietCommandError } from '../core/messages.js';
 import { formatDate, formatDue, nowString, setClockFormat, todayString } from '../core/format.js';
 import { planDate } from '../core/bulk.js';
 import { dateDialog } from './bulkDialogs.js';
 import { createShortcuts, isTyping } from '../core/shortcuts.js';
 import { LANGUAGES, getLanguage, setLanguage, t } from '../core/i18n.js';
-import { confirmDialog, embedNextDialog, h, menuDialog, openDialog, promptDialog, replace, setToastSeconds, toast } from './dom.js';
+import { closeEmbedded, confirmDialog, embedNextDialog, h, menuDialog, openDialog, promptDialog, replace, setToastSeconds, toast } from './dom.js';
+import { openNoteEditor } from './noteEditor.js';
+import { icon } from './icons.js';
+import { highlightInput } from './quickHighlight.js';
+import { openTaskMenu } from './taskMenu.js';
+import { taskLink } from '../core/duplicate.js';
+import { SPLIT_MIN_WIDTH, activate, backFromNote, closePane, navigateIn, noteRoute, openBeside, parseSide, settle, swapPanes } from '../core/split.js';
 import { bindList, mainView, sidebar, sidebarHooks } from './render.js';
 import { createDragDrop } from './dragdrop.js';
 import { installSelection } from './selection.js';
@@ -35,7 +41,7 @@ import { openSettingsPanel, settingsMenuDialog, settingsWide } from './settingsM
 import { desktopSettingsDialog } from './desktopSettings.js';
 import { installSwipe } from './swipe.js';
 import { setWeekStart } from '../core/calendar.js';
-import { setQuickDayPrefs } from '../core/quickDates.js';
+import { reschedule as rescheduleDue, setQuickDayPrefs } from '../core/quickDates.js';
 import { playDone } from '../core/sound.js';
 import { generalOf, placeFromHash, startRoute, viewFromHash } from '../../shared/general.js';
 import { attachQuickSuggest } from './quickSuggest.js';
@@ -67,9 +73,11 @@ import { installInbox } from './inbox.js';
 import { installActivity } from './activity.js';
 import { installProductivity, isProductivityRoute } from './productivity.js';
 import { helpRouteFromHash, installHelp, isHelpRoute } from './help.js';
-import { canEditProject } from '../core/access.js';
+import { canEditProject, editableProjectList } from '../core/access.js';
 
 const ROUTE_KEY = 'tickory.route';
+/** De rechter kolom als er twee lijsten naast elkaar staan (core/split.js). */
+const SIDE_KEY = 'tickory.side';
 
 const $ = (id) => document.getElementById(id);
 const clientId = newId();
@@ -80,12 +88,24 @@ const getToken = () => backend.getToken();
 function loadRoute() {
   try {
     const r = JSON.parse(localStorage.getItem(ROUTE_KEY) ?? 'null');
-    if (r && (['today', 'upcoming', 'project'].includes(r.type) || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r) || isNotesRoute(r) || isHelpRoute(r))) return r;
+    if (r && (['today', 'upcoming', 'project'].includes(r.type) || (r.type === 'note' && typeof r.id === 'string') || isFindRoute(r) || isCompletedRoute(r) || isProductivityRoute(r) || isNotesRoute(r) || isHelpRoute(r))) return r;
   } catch { /* ongeldige waarde: begin bij Vandaag */ }
   return { type: 'today' };
 }
 
-const ui = { route: loadRoute(), showCompleted: new Set(), syncState: 'idle', askingLogin: false, scheduled: false };
+function loadSide() {
+  try {
+    return parseSide(localStorage.getItem(SIDE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `route` is de linker kolom (het gewone scherm), `side` de rechter als er twee lijsten naast elkaar staan (anders null), `active`
+ * de kolom waar de zijbalk op werkt ('main' of 'side'; zie core/split.js).
+ */
+const ui = { route: loadRoute(), side: loadSide(), active: 'main', showCompleted: new Set(), syncState: 'idle', askingLogin: false, scheduled: false };
 const api = backend.api;
 /** De Inbox van de ingelogde gebruiker; null zolang de server nog niet heeft gezegd wie je bent. */
 const inboxId = () => store?.me?.inbox_project_id ?? null;
@@ -166,31 +186,181 @@ function invalidate() {
 
 function render() {
   const today = todayString();
-  if (ui.route.type === 'project' && store.ready && store.view.projects.size > 0 && !store.view.projects.has(ui.route.id)) {
-    ui.route = { type: 'today' }; // het project is verwijderd (bijvoorbeeld op een ander apparaat)
+  if (store.ready && store.view.projects.size > 0) {
+    // een project of notitie is verwijderd (bijvoorbeeld op een ander apparaat): links Vandaag, rechts dicht, een notitie wordt de lijst
+    const exists = (r) => (r.type === 'project' ? store.view.projects.has(r.id) : r.type === 'note' ? store.view.notes.has(r.id) : true);
+    const fixed = settle(panes(), exists);
+    if (fixed.main !== ui.route || fixed.side !== ui.side) setPanes(fixed);
   }
-  // Het scherm wordt helemaal opnieuw opgebouwd; waar de toetsenbordfocus stond, zetten we hem daarna terug (via data-fk).
+  // Het scherm wordt helemaal opnieuw opgebouwd; waar de toetsenbordfocus stond, zetten we hem daarna terug (via data-fk), in dezelfde kolom.
   const focused = document.activeElement?.dataset?.fk ?? null;
-  replace($('sidebar'), sidebar({ view: store.view, today, route: ui.route, handlers, me: store.me }));
-  for (const hook of sidebarHooks) hook({ search: $('sidebar-search'), extra: $('sidebar-extra') });
+  const focusedSide = Boolean(document.activeElement && $('side-pane').contains(document.activeElement));
+  const split = isSplit();
+  document.body.classList.toggle('split', split);
+  renderChrome();
   bottomNav?.render();
-  const main = mainView({
-    view: store.view, route: ui.route, today, now: nowString(),
-    showCompleted: ui.route.type === 'project' && ui.showCompleted.has(ui.route.id), handlers,
-    me: store.me, userName: (id) => store.userName(id),
-  });
+  const main = paneView('main', ui.route, today);
   document.body.dataset.route = ui.route.type; // zo kan de stijl per soort scherm iets weglaten (bijvoorbeeld Taak toevoegen bij Notities)
   $('view-title').textContent = main.title;
   $('view-count').textContent = main.count === null ? '' : t('view.count', { count: main.count });
   replace($('view-lead'), main.lead);
-  replace($('view-actions'), main.actions);
-  document.title = `${main.title} · Tickory`;
-  replace($('content'), main.nodes);
-  if (focused && document.activeElement === document.body) document.querySelector(`[data-fk="${CSS.escape(focused)}"]`)?.focus();
+  replace($('view-actions'), main.actions, paneButtons('main'));
+  document.title = `${main.tabTitle ?? main.title} · Tickory`;
+  $('main-pane').classList.toggle('pane-note', ui.route.type === 'note');
+  if (ui.route.type === 'note') showNote('main', $('content'), ui.route);
+  else {
+    unmountNote('main'); // een open notitie eerst netjes sluiten (bewaren), dan pas de lijst
+    replace($('content'), main.nodes);
+  }
+  renderSide(today, split);
+  if (focused && document.activeElement === document.body) {
+    const scope = focusedSide ? [...$('side-pane').querySelectorAll(`[data-fk="${CSS.escape(focused)}"]`)]
+      : [...document.querySelectorAll(`[data-fk="${CSS.escape(focused)}"]`)].filter((el) => !$('side-pane').contains(el));
+    scope[0]?.focus();
+  }
   renderStatus();
   renderPreview();
   selection?.afterRender({ routeKey: `${ui.route.type}:${ui.route.id ?? ''}` });
 }
+
+// ---------- twee lijsten of notities naast elkaar (core/split.js) ----------
+
+/** Breed genoeg voor twee kolommen? (Niet in het losse venster Taak toevoegen van de desktop-app.) */
+const splitWide = () => !desktopQuickAdd && (globalThis.matchMedia?.(`(min-width: ${SPLIT_MIN_WIDTH}px)`).matches ?? false);
+/** Staan er nu twee kolommen in beeld? Op een smal scherm blijft de rechter kolom bewaard, maar is er alleen de linker. */
+const isSplit = () => Boolean(ui.side) && splitWide();
+const panes = () => ({ main: ui.route, side: ui.side, active: ui.side ? ui.active : 'main' });
+/**
+ * Het scherm van de actieve kolom, zoals de zijbalk het als "hier ben je" toont (een open notitie telt als Notities). Voor de onderdelen
+ * met een eigen plek in de zijbalk (zoeken, filters, labels, Voltooid, Meldingen, Notities).
+ */
+const shownRoute = () => {
+  const r = isSplit() && ui.active === 'side' ? ui.side : ui.route;
+  return r.type === 'note' ? backFromNote(r) : r;
+};
+
+function setPanes(next) {
+  ui.route = next.main;
+  ui.side = next.side;
+  ui.active = next.side ? next.active : 'main';
+  if (backend.demo) return;
+  try {
+    localStorage.setItem(ROUTE_KEY, JSON.stringify(ui.route));
+    if (ui.side) localStorage.setItem(SIDE_KEY, JSON.stringify(ui.side));
+    else localStorage.removeItem(SIDE_KEY);
+  } catch { /* geen opslag: dan alleen voor nu */ }
+}
+
+/** De zijbalk (met als "hier ben je" de actieve kolom) en welke kolom actief is. */
+function renderChrome() {
+  const split = isSplit();
+  replace($('sidebar'), sidebar({ view: store.view, today: todayString(), route: shownRoute(), handlers, me: store.me }));
+  for (const hook of sidebarHooks) hook({ search: $('sidebar-search'), extra: $('sidebar-extra') });
+  $('main-pane').classList.toggle('pane-active', split && ui.active === 'main');
+  $('side-pane').classList.toggle('pane-active', split && ui.active === 'side');
+}
+
+/** Wat er in een kolom staat (titel, aantal, knoppen, de lijst); een open notitie tekent haar eigen editor (showNote). */
+function paneView(pane, route, today) {
+  if (route.type === 'note') {
+    // de editor toont de titel zelf groot; de kop van de kolom zegt alleen waar je bent (in het tabblad wel de titel)
+    const n = store.view.notes.get(route.id);
+    return { title: t('note.title'), tabTitle: n?.title?.trim() || t('note.untitled'), count: null, lead: icon('note'), actions: [], nodes: [] };
+  }
+  return mainView({
+    view: store.view, route, today, now: nowString(), pane,
+    showCompleted: route.type === 'project' && ui.showCompleted.has(route.id), handlers,
+    me: store.me, userName: (id) => store.userName(id),
+  });
+}
+
+/** De knoppen voor naast elkaar in de kop van een kolom: openen (links, als er nog één kolom is), wisselen en sluiten. */
+function paneButtons(pane) {
+  const button = (fk, name, label, onclick) => h('button', { type: 'button', class: 'icon-button pane-button', title: label, 'aria-label': label, dataset: { fk }, onclick }, icon(name));
+  if (!splitWide() || !store.ready) return null;
+  if (!isSplit()) return pane === 'main' ? button('split-open', 'split', `${t('split.open')} (Ctrl+\\)`, () => handlers.openBeside()) : null;
+  return [
+    pane === 'side' && button('split-swap', 'swap', t('split.swap'), () => handlers.swapPanes()),
+    button(`split-close:${pane}`, 'close', t('split.close'), () => handlers.closePane(pane)),
+  ];
+}
+
+function renderSide(today, split) {
+  const pane = $('side-pane');
+  pane.hidden = !split;
+  pane.setAttribute('aria-label', t('split.sideLabel'));
+  if (!split) {
+    unmountNote('side');
+    if ($('side-content').firstChild) replace($('side-content'));
+    return;
+  }
+  const route = ui.side;
+  const view = paneView('side', route, today);
+  $('side-title').textContent = view.title;
+  $('side-count').textContent = view.count === null ? '' : t('view.count', { count: view.count });
+  replace($('side-lead'), view.lead);
+  replace($('side-actions'), view.actions, paneButtons('side'));
+  pane.classList.toggle('pane-note', route.type === 'note');
+  if (route.type === 'note') showNote('side', $('side-content'), route);
+  else {
+    unmountNote('side');
+    replace($('side-content'), view.nodes);
+  }
+}
+
+/** Een open notitie in een kolom: de editor van ui/noteEditor.js, in de kolom in plaats van in een venster. */
+const noteMounts = { main: null, side: null };
+/** Notities die net zijn gemaakt: blijven ze leeg, dan haalt de editor ze bij sluiten weer weg. */
+const createdNotes = new Set();
+
+function showNote(pane, host, route) {
+  const current = noteMounts[pane];
+  if (current && current.id === route.id && current.host === host && host.firstElementChild) return; // staat er al: niet opnieuw (de editor houdt zich zelf bij)
+  unmountNote(pane);
+  host.replaceChildren();
+  if (!store.view.notes.has(route.id)) return;
+  const mount = { id: route.id, host, closing: false };
+  noteMounts[pane] = mount;
+  embedNextDialog(host);
+  let done;
+  try {
+    done = openNoteEditor({ store, actions, api, noteId: route.id, created: createdNotes.delete(route.id) });
+  } finally {
+    embedNextDialog(null);
+  }
+  done.then(() => {
+    if (noteMounts[pane] === mount) noteMounts[pane] = null;
+    if (mount.closing) return;
+    // terug (of de notitie is weg): in dezelfde kolom naar de lijst waar je vandaan kwam
+    const now = panes();
+    const r = now[pane];
+    if (r?.type === 'note' && r.id === mount.id) {
+      setPanes({ ...now, [pane]: backFromNote(r) });
+      render();
+    }
+  });
+}
+
+/** De editor van een kolom netjes sluiten (bewaren en opruimen), omdat er iets anders in de kolom komt. */
+function unmountNote(pane) {
+  const current = noteMounts[pane];
+  if (!current) return;
+  current.closing = true;
+  noteMounts[pane] = null;
+  closeEmbedded(current.host);
+}
+
+/** Een klik of de focus in een kolom maakt die kolom actief: daar werkt de zijbalk dan op. */
+function setActivePane(pane) {
+  if (!isSplit()) return;
+  const next = activate(panes(), pane);
+  if (next.active === ui.active) return;
+  ui.active = next.active;
+  renderChrome();
+}
+
+/** De markering van herkende tekst in de balk Taak toevoegen (ui/quickHighlight.js). */
+let barHighlight = null;
 
 /** Zo lang bezig of wachtend mag duren voordat de indicator verschijnt: korte opslagmomenten blijven onzichtbaar (geen geknipper). */
 const STATUS_QUIET_MS = 4000;
@@ -261,12 +431,13 @@ function quickContext() {
   // in een project dat je alleen leest (core/access.js) kan geen taak: dan gaat ze naar de Inbox, en #project noemt alleen projecten waar het wel kan
   const canAddTo = (id) => canEditProject(store.view, id, store.userId);
   const dates = generalOf(mySettings(store.view, store.userId)).date_recognition; // Instellingen › Algemeen
-  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo, dates };
+  const autoReminder = mySettings(store.view, store.userId)?.auto_reminder ?? 30; // voor de voorvertoning (ui/quickAdd.js, previewChips)
+  if (ui.route.type === 'project' && store.view.projects.has(ui.route.id) && canAddTo(ui.route.id)) return { defaultProjectId: ui.route.id, canAddTo, dates, autoReminder };
   // `string` en `lang` horen bij de datumtaal (wat de herkenner leest), niet bij de taal van de interface: die blijven Nederlands.
-  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo, dates };
+  if (ui.route.type === 'today') return { defaultProjectId: inboxId(), defaultDue: { date: todayString(), string: 'vandaag', lang: 'nl' }, canAddTo, dates, autoReminder };
   // bij een label: de taak krijgt dat label (in de Inbox), zodat ze in deze lijst staat
-  if (ui.route.type === 'label' && store.view.labels.has(ui.route.id)) return { defaultProjectId: inboxId(), defaultLabels: [ui.route.id], canAddTo, dates };
-  return { defaultProjectId: inboxId(), canAddTo, dates };
+  if (ui.route.type === 'label' && store.view.labels.has(ui.route.id)) return { defaultProjectId: inboxId(), defaultLabels: [ui.route.id], canAddTo, dates, autoReminder };
+  return { defaultProjectId: inboxId(), canAddTo, dates, autoReminder };
 }
 
 /**
@@ -288,6 +459,7 @@ function showWhereAdded(id) {
 function renderPreview() {
   const host = $('quick-preview');
   const context = quickContext();
+  barHighlight?.paint(); // ook na leegmaken (Toevoegen) of een ander scherm (ander standaardproject)
   return replace(host, context.defaultProjectId ? previewChips($('quick-input').value, { view: store.view, context }) : []);
 }
 
@@ -313,8 +485,8 @@ async function submitQuickAdd(e) {
 
 function navigate(route) {
   userNavigated = true; // daarna geen startpagina meer: je ging zelf ergens heen
-  ui.route = route;
-  if (!backend.demo) localStorage.setItem(ROUTE_KEY, JSON.stringify(route));
+  // met twee kolommen naast elkaar: naar de actieve kolom (core/split.js); anders gewoon het scherm
+  setPanes(isSplit() ? navigateIn(panes(), route) : { ...panes(), main: route, active: 'main' });
   document.body.classList.remove('nav-open');
   render();
 }
@@ -336,6 +508,42 @@ function layoutFor(route) {
 
 const handlers = {
   navigate,
+
+  /** Naast elkaar openen (core/split.js): `route` rechts, of zonder route hetzelfde als links. Op een smal scherm gewoon openen. */
+  openBeside(route = null) {
+    if (!splitWide()) { if (route) navigate(route); return; }
+    userNavigated = true;
+    setPanes(openBeside(panes(), route));
+    document.body.classList.remove('nav-open');
+    render();
+  },
+  /** Een kolom sluiten; links sluiten zet wat rechts stond links. */
+  closePane(pane = 'side') {
+    setPanes(closePane(panes(), pane));
+    render();
+  },
+  swapPanes() {
+    setPanes(swapPanes(panes()));
+    render();
+  },
+  /** Ctrl+\ en het menu Weergave van de desktop-app: naast elkaar aan of uit. */
+  toggleSplit() {
+    if (isSplit()) handlers.closePane('side');
+    else handlers.openBeside();
+  },
+  /**
+   * Met twee kolommen naast elkaar: een notitie openen in de kolom `pane` (in plaats van in een venster). Geeft false als er maar één
+   * kolom is; dan opent de aanroeper het gewone venster.
+   */
+  openNoteHere(pane, id, { created = false, from = null } = {}) {
+    if (!isSplit() || !store.view.notes.has(id)) return false;
+    const which = pane === 'side' ? 'side' : 'main';
+    if (created) createdNotes.add(id);
+    const now = panes();
+    setPanes({ ...now, [which]: noteRoute(id, from ?? now[which]), active: which });
+    render();
+    return true;
+  },
 
   /** Tekent het scherm opnieuw (voor onderdelen met eigen schermtoestand, zoals de gekozen maand van de kalender). */
   refresh: () => render(),
@@ -380,7 +588,9 @@ const handlers = {
    * een melding waar ze is. `template: false` laat de knop Sjabloon weg (het losse venster van de desktop-app).
    */
   async quickAdd(target = null, { template = true } = {}) {
-    const context = target ?? (ui.route.type === 'project' ? { projectId: ui.route.id } : ui.route.type === 'today' ? { due: 'today' } : ui.route.type === 'label' ? { labelIds: [ui.route.id] } : {});
+    // zonder doel: de lijst in de actieve kolom (met twee naast elkaar kan dat de rechter zijn)
+    const here = isSplit() && ui.active === 'side' ? ui.side : ui.route;
+    const context = target ?? (here.type === 'project' ? { projectId: here.id } : here.type === 'today' ? { due: 'today' } : here.type === 'label' ? { labelIds: [here.id] } : {});
     const id = await openQuickAddDialog({ store, actions, context, onTemplate: template ? (where) => handlers.tasksFromTemplate(where) : null });
     if (typeof id === 'string' && !desktopQuickAdd) showWhereAdded(id);
     return id;
@@ -398,6 +608,101 @@ const handlers = {
     if (!ok) return;
     const { entry } = await actions.track(task.content, () => actions.deleteTask(task.id));
     undoToast(t('undo.taskDeleted', { name: task.content }), entry);
+  },
+
+  /** De knop Opmerking bij een taak (zoals Todoist): het taakvenster, met de cursor in het veld voor een opmerking. */
+  openComments(task) {
+    const done = handlers.open(task);
+    setTimeout(() => {
+      const field = document.querySelector('dialog[open] .comment-form textarea');
+      field?.focus();
+      field?.scrollIntoView({ block: 'nearest' });
+    }, 60);
+    return done;
+  },
+
+  /** Het menu van een taak (rechtermuisknop of ⋯, ui/taskMenu.js), zoals Todoist. */
+  taskMenu(task, at) {
+    const now = store.view.tasks.get(task.id) ?? task;
+    openTaskMenu({
+      task: now, at, today: todayString(), readOnly: !canEditProject(store.view, now.project_id, store.userId),
+      on: {
+        open: () => handlers.open(now),
+        addAbove: () => handlers.addNextTo(now, 'above'),
+        addBelow: () => handlers.addNextTo(now, 'below'),
+        setDate: (date) => handlers.setTaskDay(now, date),
+        moreDates: () => handlers.reschedule(now),
+        setPriority: (p) => handlers.setTaskPriority(now, p),
+        move: () => handlers.moveTaskTo(now),
+        duplicate: () => handlers.duplicateTask(now),
+        copyLink: () => handlers.copyTaskLink(now),
+        remove: () => handlers.removeTask(now),
+      },
+    });
+  },
+
+  /**
+   * Taak erboven of eronder toevoegen (het menu van een taak): het venster Taak toevoegen in hetzelfde project en dezelfde sectie, en de
+   * nieuwe taak komt direct boven of onder deze, op hetzelfde niveau (ook als subtaak). In Vandaag en Aankomend krijgt ze dezelfde dag.
+   */
+  async addNextTo(task, where) {
+    const dated = ['today', 'upcoming'].includes(shownRoute().type) && task.due?.date;
+    const id = await handlers.quickAdd({ projectId: task.project_id, sectionId: task.section_id ?? null, ...(dated ? { due: task.due.date.slice(0, 10) } : {}) });
+    const made = typeof id === 'string' ? store.view.tasks.get(id) : null;
+    if (!made || made.project_id !== task.project_id) return; // naar een ander project getypt (#…): daar laten
+    const same = (x) => x.project_id === task.project_id && (x.section_id ?? null) === (task.section_id ?? null) && (x.parent_id ?? null) === (task.parent_id ?? null);
+    const siblings = [...store.view.tasks.values()].filter((x) => !x.checked && x.id !== id && same(x)).sort((a, b) => (a.order_key < b.order_key ? -1 : a.order_key > b.order_key ? 1 : 0));
+    const at = siblings.findIndex((x) => x.id === task.id);
+    const beforeId = where === 'above' ? task.id : siblings[at + 1]?.id ?? null;
+    await actions.moveTask(id, { project_id: task.project_id, section_id: task.section_id ?? null, parent_id: task.parent_id ?? null, beforeId });
+  },
+
+  /** Een snelle dag uit het menu van een taak (null = geen datum); het tijdstip en een herhaling blijven, zoals bij slepen. */
+  async setTaskDay(task, date) {
+    const next = date ? rescheduleDue(task.due, date) : null;
+    if (JSON.stringify(next) === JSON.stringify(task.due ?? null)) return;
+    const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { due: next }));
+    undoToast(next ? t('undo.taskDated', { name: task.content, date: formatDue(next, todayString()) }) : t('undo.taskDatedNone', { name: task.content }), entry);
+  },
+
+  async setTaskPriority(task, priority) {
+    if (task.priority === priority) return;
+    const { entry } = await actions.track(task.content, () => actions.updateTask(task.id, { priority }));
+    undoToast(t('undo.taskPriority', { name: task.content, p: priority }), entry);
+  },
+
+  /** Verplaatsen naar een ander project of een sectie (het menu van een taak). */
+  async moveTaskTo(task) {
+    const items = [];
+    for (const { project, depth } of editableProjectList(store.view, store.userId)) {
+      items.push({ value: `${project.id}|`, label: `${'   '.repeat(depth)}${project.name}` });
+      const sections = [...store.view.sections.values()].filter((s) => s.project_id === project.id && !s.is_archived).sort((a, b) => (a.order_key < b.order_key ? -1 : 1));
+      for (const s of sections) items.push({ value: `${project.id}|${s.id}`, label: `${'   '.repeat(depth + 1)}/ ${s.name}` });
+    }
+    const choice = await menuDialog({ title: t('taskMenu.moveTitle', { name: task.content }), items });
+    if (!choice) return;
+    const [projectId, sectionId] = choice.split('|');
+    if (projectId === task.project_id && (sectionId || null) === (task.section_id ?? null)) return;
+    const { entry } = await actions.track(task.content, () => actions.moveTask(task.id, { project_id: projectId, section_id: sectionId || null }));
+    const target = sectionId ? store.view.sections.get(sectionId)?.name : store.view.projects.get(projectId)?.name;
+    undoToast(t('dnd.movedToProject', { name: task.content, project: target ?? '' }), entry);
+  },
+
+  async duplicateTask(task) {
+    const done = await actions.duplicateTask(task.id, { label: task.content });
+    if (!done.ok) { toast(done.reason === 'too_many' ? t('task.duplicateTooMany') : t('task.duplicateGone'), { kind: 'error' }); return; }
+    undoToast(t('undo.taskDuplicated', { name: task.content }), done.entry);
+  },
+
+  async copyTaskLink(task) {
+    const link = taskLink(location.origin, task.id);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast(t('task.linkCopied'));
+    } catch {
+      // zonder toestemming van de browser (of in een WebView zonder klembord): de link om zelf te kopiëren
+      await promptDialog({ title: t('task.copyLink'), label: t('task.linkLabel'), value: link, okText: t('common.close'), hint: t('task.linkHint') });
+    }
   },
 
   /** Een andere dag kiezen voor een taak, zonder het taakvenster. */
@@ -460,7 +765,7 @@ const handlers = {
     const today = todayString();
     const ids = todayView(store.view, today).overdue.filter((x) => canEditProject(store.view, x.project_id, store.userId)).map((x) => x.id);
     if (ids.length === 0) return;
-    const picked = await dateDialog({ today, hasDue: false, count: ids.length, title: t('view.rescheduleTitle', { count: ids.length }) });
+    const picked = await dateDialog({ today, hasDue: false, count: ids.length, title: t('view.rescheduleTitle', { count: ids.length }), counts: dueCounts(store.view) });
     if (!picked?.date) return;
     const plan = planDate(store.view, ids, picked.date, (id, changes) => actions.planUpdateTask(id, changes));
     if (plan.commands.length === 0) return;
@@ -964,6 +1269,12 @@ function openPendingTask() {
 
 function openTaskFromHash() {
   if (location.hash) userNavigated = true; // een link (melding, snelkoppeling) gaat voor de startpagina
+  // #split: naast elkaar aan of uit (het menu Weergave van de desktop-app)
+  if (location.hash === '#split') {
+    history.replaceState(null, '', `${location.pathname}${location.search}`);
+    if (store?.ready) handlers.toggleSplit();
+    return;
+  }
   if (openShareFromHash()) return;
   // een uitnodigingslink (#invite=…): na het inloggen en de eerste sync vragen of je meedoet
   if (takeInviteFromHash()) {
@@ -1197,28 +1508,63 @@ async function boot() {
   setInterval(invalidate, 60_000); // "te laat" en de datum van vandaag schuiven mee met de klok
 
   bindList($('content'), handlers); // het gedrag van alle regels in de takenlijst, met één luisteraar
+  bindList($('side-content'), handlers, 'side'); // en in de rechter kolom, als er twee lijsten naast elkaar staan
+  for (const [el, pane] of [[$('main-pane'), 'main'], [$('side-pane'), 'side']]) {
+    el.addEventListener('pointerdown', () => setActivePane(pane), true);
+    el.addEventListener('focusin', () => setActivePane(pane));
+  }
+  // breder of smaller dan SPLIT_MIN_WIDTH: twee kolommen of één
+  globalThis.matchMedia?.(`(min-width: ${SPLIT_MIN_WIDTH}px)`).addEventListener?.('change', () => invalidate());
   selection = installSelection({ content: $('content'), store, actions, handlers }); // meerdere taken kiezen en bewerken (ui/selection.js)
   installSwipe({
     content: $('content'), store, handlers, selection,
     getPrefs: () => { const g = generalOf(mySettings(store.view, store.userId)); return { right: g.swipe_right, left: g.swipe_left }; },
   }); // vegen op een aanraakscherm: standaard afvinken of een datum, in te stellen (ui/swipe.js)
-  installFind({ store, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo }); // zoeken, filters en labels (ui/find.js)
+  // het opdrachtmenu in Ctrl+K, zoals Todoist (ui/searchDialog.js): zonder tekst allemaal, met tekst wat erop lijkt
+  const commands = () => [
+    { id: 'add', label: t('shortcuts.add'), icon: 'plus', keys: ['Q'], words: ['taak', 'task', 'nieuw', 'new'], run: () => handlers.quickAdd() },
+    { id: 'today', label: t('shortcuts.goToday'), icon: 'today', keys: ['G', 'T'], run: () => navigate({ type: 'today' }) },
+    { id: 'upcoming', label: t('shortcuts.goUpcoming'), icon: 'upcoming', keys: ['G', 'U'], run: () => navigate({ type: 'upcoming' }) },
+    { id: 'inbox', label: t('shortcuts.goInbox'), icon: 'inbox', keys: ['G', 'I'], run: () => inboxId() && navigate({ type: 'project', id: inboxId() }) },
+    { id: 'completed', label: t('cmd.goCompleted'), icon: 'completed', run: () => navigate({ type: 'completed' }) },
+    { id: 'notes', label: t('cmd.goNotes'), icon: 'note', run: () => navigate({ type: 'notes' }) },
+    { id: 'new-note', label: t('cmd.newNote'), icon: 'note', keys: ['N'], run: () => notesUi?.newNote() },
+    { id: 'productivity', label: t('cmd.goProductivity'), icon: 'chart', words: ['doel', 'goal', 'karma'], run: () => navigate({ type: 'productivity' }) },
+    { id: 'filters', label: t('cmd.goFilters'), icon: 'funnel', run: () => navigate({ type: 'filters' }) },
+    { id: 'labels', label: t('cmd.goLabels'), icon: 'tag', run: () => navigate({ type: 'labels' }) },
+    { id: 'project', label: t('cmd.addProject'), icon: 'plus', run: () => handlers.addProject() },
+    splitWide() && { id: 'split', label: t('shortcuts.split'), icon: 'split', keys: ['Ctrl', '\\'], words: ['split', 'kolom', 'column'], run: () => handlers.toggleSplit() },
+    { id: 'undo', label: t('shortcuts.undo'), icon: 'undo', keys: ['Ctrl', 'Z'], words: ['undo'], run: () => handlers.undoLast() },
+    { id: 'sync', label: t('cmd.sync'), icon: 'history', words: ['sync', 'verversen', 'refresh'], run: () => sync.requestSync(0) },
+    { id: 'theme', label: t('cmd.theme'), icon: 'palette', words: ['donker', 'licht', 'dark', 'light', 'kleur', 'color', 'thema'], run: () => handlers.settings('appearance') },
+    { id: 'settings', label: t('cmd.settings'), icon: 'settings', words: ['settings', 'instellingen'], run: () => handlers.settings() },
+    { id: 'shortcuts', label: t('cmd.shortcuts'), icon: 'keyboard', keys: ['?'], words: ['shortcuts', 'toetsen'], run: () => handlers.shortcuts() },
+    { id: 'help', label: t('cmd.help'), icon: 'help', words: ['help', 'uitleg'], run: () => navigate({ type: 'help' }) },
+  ].filter(Boolean);
+  installFind({ store, actions, handlers, navigate, getRoute: shownRoute, persist: !backend.demo, commands }); // zoeken, filters en labels (ui/find.js)
   // het productiviteitsoverzicht (ui/productivity.js): een eigen scherm, en de kop met de cijfers boven Voltooid
   productivity = installProductivity({ store, api, actions, handlers, navigate, getRoute: () => ui.route, persist: !backend.demo });
-  installCompleted({ store, handlers, getRoute: () => ui.route, header: productivity.completedHeader, api }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
-  installInbox({ store, actions, handlers, navigate, getRoute: () => ui.route, openNote: (id) => notesUi?.openNote(id) }); // meldingen bij samenwerken (ui/inbox.js)
-  notesUi = installNotes({ store, actions, handlers, getRoute: () => ui.route, cleanUp: !backend.demo, api }); // notities (ui/notes.js), onder Meldingen
+  installCompleted({ store, handlers, getRoute: shownRoute, header: productivity.completedHeader, api }); // het overzicht Voltooid (ui/completed.js), direct onder Binnenkort, vóór Meldingen (ui/inbox.js) en Filters en Labels
+  installInbox({ store, actions, handlers, navigate, getRoute: shownRoute, openNote: (id) => notesUi?.openNote(id) }); // meldingen bij samenwerken (ui/inbox.js)
+  notesUi = installNotes({ store, actions, handlers, getRoute: shownRoute, cleanUp: !backend.demo, api }); // notities (ui/notes.js), onder Meldingen
   activityUi = installActivity({ store, api, handlers, navigate, getRoute: () => ui.route }); // het activiteitenlogboek van een project (ui/activity.js)
   installHelp({ navigate, invalidate }); // de handleiding in de app (ui/help.js), via Instellingen › Handleiding of #help
   // slepen en verplaatsen van taken en projecten, ook met het toetsenbord (ui/dragdrop.js)
   createDragDrop({
-    content: $('content'), sidebar: $('sidebar'), actions, selection,
+    // beide kolommen: slepen werkt ook van de ene lijst naar de andere; elke kolom scrolt zelf
+    content: [$('content'), $('side-content')], sidebar: $('sidebar'), actions, selection,
+    scrollerAt: (x, y) => (isSplit() ? document.elementFromPoint(x, y)?.closest?.('#main-pane, #side-pane') ?? null : null),
     getContext: () => ({ view: store.view, userId: store.userId, showCompleted: (projectId) => ui.showCompleted.has(projectId) }),
   });
   bottomNav = installBottomNav({ store, handlers, getRoute: () => ui.route, inboxId }); // op een telefoon: de balk onderaan, Bladeren en de "+"
   $('quick-add').addEventListener('submit', submitQuickAdd);
   $('quick-input').addEventListener('input', renderPreview);
   // ook in de balk: suggesties (# / @ {) en meer regels plakken (ui/quickSuggest.js, ui/quickAdd.js)
+  // de herkende tekst gemarkeerd in de balk, zoals in Todoist (ui/quickHighlight.js)
+  barHighlight = highlightInput($('quick-input'), (text) => {
+    const context = quickContext();
+    return context.defaultProjectId ? parseQuickAddWithSpans(text, { view: store.view, now: new Date(), ...context }).spans : [];
+  });
   const barSuggest = attachQuickSuggest({ input: $('quick-input'), source: () => suggestSource(store, quickContext().defaultProjectId) });
   $('quick-add').after(barSuggest.node);
   $('quick-input').addEventListener('paste', async (e) => {
@@ -1245,6 +1591,9 @@ async function boot() {
     else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'z' && !isTyping(e.target) && !document.querySelector('dialog[open]') && store.ready) {
       e.preventDefault(); // buiten invoervelden: de laatste wijziging ongedaan maken (in een invoerveld blijft het eigen "ongedaan maken" van de browser)
       handlers.undoLast();
+    } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === '\\' || e.code === 'Backslash') && !document.querySelector('dialog[open]') && store.ready) {
+      e.preventDefault(); // twee lijsten naast elkaar aan of uit (core/split.js)
+      handlers.toggleSplit();
     } else if (shortcuts.handle(e)) e.preventDefault();
   });
 
@@ -1252,6 +1601,11 @@ async function boot() {
   const stickyHead = document.querySelector('.head-sticky');
   if (stickyHead && typeof ResizeObserver === 'function') {
     new ResizeObserver(() => document.documentElement.style.setProperty('--head-h', `${Math.round(stickyHead.getBoundingClientRect().height)}px`)).observe(stickyHead);
+  }
+  // en die van de rechter kolom (naast elkaar), zodat de weekstrook van Aankomend daar ook net onder de kop blijft staan
+  const sideHead = document.querySelector('#side-pane > .head-sticky');
+  if (sideHead && typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => $('side-pane').style.setProperty('--side-head-h', `${Math.round(sideHead.getBoundingClientRect().height)}px`)).observe(sideHead);
   }
   // De terugknop van de Android-app (MainActivity) vraagt eerst of de pagina zelf iets kan sluiten, in deze volgorde: het bovenste venster,
   // Bladeren, de selectie, en een ander scherm dan het hoofdscherm (de startpagina). Pas als dat alles niet zo is, gaat de app naar de achtergrond.

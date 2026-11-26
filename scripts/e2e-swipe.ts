@@ -55,8 +55,8 @@ export async function swipeScenario(c: any) {
     // naar links: een nieuwe datum
     await swipe('e2eveeg-links001', -220);
     await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Nieuwe datum voor "Veeg naar links"')`, 'het datumvenster');
-    const nextWeek = await evaluate<string>(`document.querySelectorAll('dialog[open] .menu-item')[3].dataset.date`);
-    await evaluate(`document.querySelectorAll('dialog[open] .menu-item')[3].click()`);
+    const nextWeek = await evaluate<string>(`document.querySelectorAll('dialog[open] .datepop-quickrow')[3].dataset.date`);
+    await evaluate(`document.querySelectorAll('dialog[open] .datepop-quickrow')[3].click()`);
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     for (let i = 0; i < 50 && task('e2eveeg-links001').due?.date !== nextWeek; i++) { await evaluate(`document.getElementById('sync-status').click()`); await sleep(100); }
     assert.equal(task('e2eveeg-links001').due?.date, nextWeek, 'op de gekozen dag');

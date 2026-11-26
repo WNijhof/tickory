@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { STATS_KEY, completionMark, createStatsFeed, dayCounts, dayStreaks, projectShare, summarize, validStats, weekStreaks, weekTotals } from './productivity.js';
+import { STATS_KEY, completionMark, createStatsFeed, dayCounts, dayStreaks, pendingDone, projectShare, summarize, validStats, weekStreaks, weekTotals, withPending } from './productivity.js';
 import { todayString } from './format.js';
 import { dayIn, tallyCompletions } from '../../shared/stats.js';
 
@@ -258,4 +258,19 @@ test('vakantie: een dag zonder gehaald doel in een vakantie breekt de reeks niet
   assert.equal(dayStreaks(counts, base).current, 2, 'zonder vakantie breekt woensdag de reeks');
   assert.equal(dayStreaks(counts, { ...base, vacations: [{ from: '2026-07-08', to: '2026-07-08' }] }).current, 4, 'met vakantie loopt de reeks door');
   assert.equal(dayStreaks(counts, { ...base, vacations: [{ from: '2026-07-08', to: null }] }).current, 4, 'een lopende vakantie ook');
+});
+
+test('net afgevinkt telt meteen mee in de balk (zoals Todoist), tot de server nieuwe cijfers geeft', () => {
+  assert.equal(pendingDone('3:10', '4:11'), 1, 'een taak afgevinkt: afgevinkt én completed_count gaan omhoog, het telt één keer');
+  assert.equal(pendingDone('3:10', '3:11'), 1, 'een terugkerende taak afgevinkt (alleen completed_count)');
+  assert.equal(pendingDone('3:10', '2:10'), 0, 'heropend: nooit negatief');
+  assert.equal(pendingDone(null, '4:10'), 0, 'niets bekend');
+  const s = {
+    today: { date: '2026-11-26', count: 4, goal: 5, met: false }, week: { start: '2026-11-23', count: 24, goal: 25, met: false },
+    days: [{ date: '2026-11-25', count: 2, today: false }, { date: '2026-11-26', count: 4, today: true }],
+  };
+  const t = withPending(s, 1);
+  assert.deepEqual([t.today.count, t.today.met, t.week.count, t.week.met, t.days[1].count, t.days[0].count], [5, true, 25, true, 5, 2]);
+  assert.equal(withPending(s, 0), s, 'niets extra: dezelfde samenvatting');
+  assert.equal(withPending(null, 2), null);
 });

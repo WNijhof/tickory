@@ -56,6 +56,9 @@ export function appMenu(t, state) {
     { label: t('view'), submenu: [
       { id: 'back', label: t('back'), accelerator: 'Alt+Left' }, { id: 'forward', label: t('forward'), accelerator: 'Alt+Right' },
       { type: 'separator' },
+      // twee lijsten of notities naast elkaar (client/core/split.js); de sneltoets Ctrl+\ regelt de web-app zelf
+      { id: 'split', label: t('split') },
+      { type: 'separator' },
       { id: 'reload', label: t('reload'), accelerator: 'CommandOrControl+R' },
       { id: 'resetZoom', label: t('resetZoom'), accelerator: 'CommandOrControl+0' },
       { id: 'zoomIn', label: t('zoomIn'), accelerator: 'CommandOrControl+Plus' },

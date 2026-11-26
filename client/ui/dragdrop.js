@@ -76,7 +76,16 @@ const sectionHeadSelector = (id) => `[data-move-section="${CSS.escape(id)}"] > .
  * meer gekozen zijn, dan gaan ze samen mee (tot `MAX_DRAG_GROUP` taken, en alleen waar ze alle passen); anders verplaatst alleen de
  * gesleepte taak en zegt een melding waarom.
  */
-export function createDragDrop({ content, sidebar, actions, getContext, selection = null }) {
+export function createDragDrop({ content: lists, sidebar, actions, getContext, selection = null, scrollerAt = () => null }) {
+  // `lists`: één lijst, of meer naast elkaar (core/split.js); slepen werkt in en tussen al die lijsten alsof het er één is
+  const roots = Array.isArray(lists) ? lists : [lists];
+  const content = {
+    contains: (node) => roots.some((r) => r.contains(node)),
+    querySelector: (sel) => roots.map((r) => r.querySelector(sel)).find(Boolean) ?? null,
+    querySelectorAll: (sel) => roots.flatMap((r) => [...r.querySelectorAll(sel)]),
+    addEventListener: (...args) => { for (const r of roots) r.addEventListener(...args); },
+    getBoundingClientRect: () => roots[0].getBoundingClientRect(),
+  };
   const undoToast = (text, entry) => (selection ? selection.undoToast(text, entry) : toast(text));
   // ---------- aankondigingen voor schermlezers ----------
   const live = h('div', { class: 'sr-only', role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true', id: 'dnd-live' });
@@ -481,11 +490,11 @@ export function createDragDrop({ content, sidebar, actions, getContext, selectio
       else if (drag.y > area.bottom - EDGE) dy = Math.ceil(((drag.y - (area.bottom - EDGE)) / EDGE) * 18);
       if (dy !== 0) {
         if (overSidebar) sidebar.scrollTop += dy;
-        else window.scrollBy(0, dy);
+        else (scrollerAt(drag.x, drag.y) ?? window).scrollBy(0, dy); // naast elkaar scrolt elke kolom zelf
         update();
       }
       // een bord dat breder is dan het scherm: bij de linker- of rechterrand schuift het zijwaarts
-      const board = overSidebar ? null : document.querySelector('.board');
+      const board = overSidebar ? null : (document.elementFromPoint?.(drag.x, drag.y)?.closest?.('.board') ?? document.querySelector('.board'));
       if (board && (drag.kind === 'task' || drag.kind === 'section')) {
         const b = board.getBoundingClientRect();
         let dx = 0;

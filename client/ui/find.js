@@ -32,7 +32,7 @@ export const isFindRoute = (route) => Boolean(route) && ROUTES.includes(route.ty
  *   navigate: (route: object) => void, getRoute: () => object, persist?: boolean,
  * }} options  `persist`: onthoud welke lijsten in de zijbalk zijn ingeklapt (niet in de demo)
  */
-export function installFind({ store, actions, handlers, navigate, getRoute, persist = true }) {
+export function installFind({ store, actions, handlers, navigate, getRoute, persist = true, commands = () => [] }) {
   const same = (route) => { const now = getRoute(); return now.type === route.type && (now.id ?? null) === (route.id ?? null); };
   const completedShown = new Set(); // labels waarvan de afgevinkte taken getoond worden
 
@@ -60,7 +60,7 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
       return;
     }
     // Bladeren (op een telefoon) blijft eronder open: annuleren brengt je daar terug; een keuze sluit het (ui/bottomNav.js)
-    const hit = await openSearchDialog({ store, initial });
+    const hit = await openSearchDialog({ store, initial, commands: commands() });
     if (hit) {
       document.body.classList.remove('nav-open');
       pick(hit);
@@ -69,6 +69,7 @@ export function installFind({ store, actions, handlers, navigate, getRoute, pers
 
   /** Wat er gebeurt met een gekozen treffer. */
   function pick(hit) {
+    if (hit.kind === 'command') { hit.run(); return; } // een opdracht uit het opdrachtmenu (ui/app.js)
     const view = store.view;
     const openTask = (id) => {
       const task = view.tasks.get(id);

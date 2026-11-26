@@ -49,6 +49,7 @@ import { repeatScenario } from './e2e-repeat.ts';
 import { inviteScenario } from './e2e-invite.ts';
 import { sessionScenario } from './e2e-session.ts';
 import { notesScenario } from './e2e-notes.ts';
+import { splitScenario } from './e2e-split.ts';
 import { oidcScenario } from './e2e-oidc.ts';
 import { boardDragScenario, boardTouchScenario, calendarDragScenario, calendarTouchScenario } from './e2e-views.ts';
 
@@ -321,7 +322,8 @@ try {
   await typeInto('#quick-input', 'Tandarts bellen morgen om 9 uur p1 @bellen');
   await waitFor(`document.querySelectorAll('#quick-preview .chip').length >= 4`, 'voorbeeld onder het invoerveld');
   const preview = await evaluate<string[]>(`[...document.querySelectorAll('#quick-preview .chip')].map((c) => c.textContent)`);
-  assert.deepEqual(preview, ['Tandarts bellen', 'morgen 09:00', '@bellen (nieuw)', 'P1']);
+  // met een tijd staat ook de automatische herinnering erbij (Instellingen › Herinneringen), zodat je ziet wat er komt
+  assert.deepEqual(preview, ['Tandarts bellen', 'morgen 09:00', '@bellen (nieuw)', 'P1', '🔔 30 minuten vooraf · automatisch']);
   await shot('quick-add-voorbeeld');
   await submit('#quick-add');
   await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
@@ -462,7 +464,7 @@ try {
   // rollen en activiteit (scripts/e2e-roles.ts); met E2E_ROLES_ONLY=1 alleen dat onderdeel (met eigen kopieën van de hulpjes van verderop)
   if (process.env.E2E_ROLES_ONLY) {
     const texts = (selector: string) => evaluate<string[]>(`[...document.querySelectorAll(${js(selector)})].map((e) => e.textContent)`);
-    const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.trim())`);
+    const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]') && !b.classList.contains('pane-button')).map((b) => b.textContent.trim())`);
     const openTask = async (content: string) => {
       await waitFor(`!document.querySelector('#task-dialog')`, 'het vorige bewerkvenster is weg');
       await evaluate(`[...document.querySelectorAll('.task')].find((l) => l.querySelector('.task-title').textContent === ${js(content)}).querySelector('.task-body').click()`);
@@ -519,6 +521,13 @@ try {
   // lijsten (scripts/e2e-lists.ts); met E2E_LISTS_ONLY=1 alleen dat onderdeel
   if (process.env.E2E_LISTS_ONLY) {
     try { await listsScenario({ ...notifyCtx(), startServer, stopServer }); console.log('ALLEEN LIJSTEN: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-lijsten'); process.exitCode = 1; }
+    browser.kill();
+    await stopServer();
+    process.exit(process.exitCode ?? 0);
+  }
+  // twee lijsten of notities naast elkaar (scripts/e2e-split.ts); met E2E_SPLIT_ONLY=1 alleen dat onderdeel
+  if (process.env.E2E_SPLIT_ONLY) {
+    try { await splitScenario(notifyCtx()); console.log('ALLEEN NAAST ELKAAR: GESLAAGD'); } catch (err) { console.error(err); if (consoleErrors.length) console.error(consoleErrors.slice(-10).join(' | ')); await shot('MISLUKT-naast-elkaar'); process.exitCode = 1; }
     browser.kill();
     await stopServer();
     process.exit(process.exitCode ?? 0);
@@ -695,7 +704,7 @@ try {
   /** Wat de app in het Engels zou tonen, uitgerekend met dezelfde code als de app (hier in Node). */
   const inEnglish = <T>(fn: () => T): T => { setLanguage('en'); try { return fn(); } finally { setLanguage('nl'); } };
   const texts = (selector: string) => evaluate<string[]>(`[...document.querySelectorAll(${js(selector)})].map((e) => e.textContent)`);
-  const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]')).map((b) => b.textContent.trim())`);
+  const buttons = (root = 'dialog[open]') => evaluate<string[]>(`[...document.querySelectorAll(${js(`${root} button`)})].filter((b) => !b.closest('[hidden]') && !b.classList.contains('pane-button')).map((b) => b.textContent.trim())`);
   const openMenu = async (label: string) => { await nav(label); await waitFor(`document.querySelector('dialog[open] .settings-menu')`, 'instellingenmenu'); };
   const openTask = async (content: string) => {
     // een zojuist gesloten venster verdwijnt pas een tel later uit de pagina; daarop wachten, anders lezen we het oude uit
@@ -870,7 +879,11 @@ try {
   await noDutch('today');
   await nav('Upcoming');
   await waitFor(`document.getElementById('view-title').textContent === 'Upcoming'`, 'scherm Upcoming');
-  assert.equal((await texts('.group-title'))[0], `Tomorrow · ${inEnglish(() => formatDueLong({ date: tomorrow }, today))}`);
+  // zoals Todoist: elke dag vanaf vandaag, ook lege dagen (ui/render.js)
+  const upcomingHeads = await texts('.group-title');
+  assert.ok(upcomingHeads.includes(`Today · ${inEnglish(() => formatDueLong({ date: today }, today))}`), 'Aankomend begint bij vandaag');
+  assert.ok(upcomingHeads.includes(`Tomorrow · ${inEnglish(() => formatDueLong({ date: tomorrow }, today))}`), 'en morgen staat erin');
+  assert.ok(await evaluate(`Boolean(document.querySelector('.upcoming-strip'))`), 'met de strook van de week');
   assert.deepEqual(await taskMeta('Tandarts bellen'), ['tomorrow 09:00', '@bellen', '🔔', 'Inbox']);
   await noDutch('upcoming');
   await shot('engels-binnenkort');
@@ -884,7 +897,7 @@ try {
   assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note').textContent`), en['date.examples']);
   await shot('engels-datumhint');
   await typeInto('#quick-input', 'Call the dentist tomorrow at 9am');
-  await waitFor(`document.querySelectorAll('#quick-preview .chip').length === 2`, 'een Engelse datum herkend');
+  await waitFor(`document.querySelectorAll('#quick-preview .chip').length >= 2`, 'een Engelse datum herkend'); // met een tijd ook de automatische herinnering
   assert.equal((await texts('#quick-preview .chip'))[0], 'Call the dentist');
   assert.match((await texts('#quick-preview .chip'))[1], /09:00/);
   assert.equal(await evaluate(`document.querySelector('#quick-preview .preview-note')`), null, 'bij een herkende datum geen uitleg');
@@ -908,7 +921,7 @@ try {
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Edit task');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prop-label')].filter((l) => !l.closest('[hidden]')).map((l) => l.textContent)`), ['Project', 'Section', 'Due date', 'Priority', 'Labels', 'Duration', 'Deadline']);
-  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'Repeat', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Save as template', 'Cancel', 'Save']);
+  assert.deepEqual((await buttons('#task-dialog')).filter(Boolean), ['Today', 'Tomorrow', 'This weekend', 'Next week', 'Repeat', 'No date', 'Add reminder', 'Add', 'Add a file', 'Post comment', 'Delete', 'Save as template', 'Close']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog [placeholder]')].map((e) => e.placeholder)`), ['Description', en['task.duePlaceholder'], 'e.g. calls, home', 'Add subtask', 'Write a comment…']);
   assert.deepEqual(await texts('#task-dialog select:not([aria-label]) option'), ['Inbox', 'Thuis', '(no section)']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .prio-option')].map((l) => [l.title, l.querySelector('input').checked])`), [['P1 – highest', true], ['P2', false], ['P3', false], ['P4 – none', false]], 'vier prioriteitsknoppen; de taak "Call the dentist" is P1');
@@ -942,7 +955,7 @@ try {
   assert.deepEqual(await taskMeta('Call the dentist'), ['15 Jan 2027 09:30', '0/1', '@calls', '🔔']);
   await openTask('Bring the forms');
   assert.equal(await evaluate(`document.querySelector('#task-dialog h2').textContent`), 'Subtask of: Call the dentist');
-  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  await clickText('Close', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'subtaak gesloten');
   await openTask('Call the dentist');
   assert.equal(await evaluate(`document.querySelector(${js(dueInput)}).value`), '2027-01-15T09:30', 'datum met tijd: de vorm die de herkenner weer leest');
@@ -969,7 +982,7 @@ try {
   await waitFor(`document.getElementById('view-title').textContent === 'Thuis'`, 'Thuis (Engels)');
   await openTask('Gordijnen ophangen');
   assert.deepEqual(await texts('#task-dialog select[aria-label="Assigned to"] option'), ['(no one)', 'Alice (you)', 'Bob']);
-  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  await clickText('Close', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten');
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (Engels)');
@@ -1100,7 +1113,8 @@ try {
   await shot('engels-telefoon-bewerken');
   await evaluate(`document.querySelector('#task-dialog').scrollTo(0, 9999)`);
   await shot('engels-telefoon-bewerken-onder');
-  await clickText('Cancel', `document.querySelector('#task-dialog')`);
+  // een onbekende datum: het kruisje sluit en laat de datum zoals hij was (Sluiten zou de melding geven en open blijven)
+  await evaluate(`document.querySelector('#task-dialog .task-top .icon-button').click()`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'bewerkvenster gesloten (telefoon)');
   await clickText('Shared');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Share: Thuis'`, 'deelvenster (telefoon)');
@@ -1239,7 +1253,7 @@ try {
 
   await openTask('Zonder tijd');
   await waitFor(`document.querySelector('#task-dialog section[aria-label="Herinneringen"] p.hint')?.textContent.includes('mét tijd')`, 'uitleg bij een taak zonder tijd');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
 
   // instellingen: automatische herinnering, tijdzone en meldingen op dit apparaat
@@ -1331,7 +1345,7 @@ try {
   await waitFor(`document.querySelector('#task-dialog[open] section[aria-label="Herinneringen"]')`, 'taakvenster');
   await evaluate(`(() => { const s = document.querySelector('#task-dialog select[aria-label="Wanneer?"]'); s.value = '1440'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
   await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`JSON.parse(sessionStorage.getItem('android-calls') || '[]').some((c) => c[0] === 'remindersChanged')`, 'Android is gewaarschuwd', 8000);
   await sleep(2500);
   assert.equal((await calls()).filter((c) => c[0] === 'remindersChanged').length, 1, 'één waarschuwing, niet één per wijziging');
@@ -1340,7 +1354,7 @@ try {
   await evaluate(`location.hash = ${js(`#task=${buren}`)}`);
   await waitFor(`document.querySelector('#task-dialog[open] textarea')?.value === 'Bellen met de buren'`, 'taak geopend vanuit de melding');
   assert.equal(await evaluate(`location.hash`), '', 'het adres is weer schoon');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
   // een onbekende of vreemde waarde in het adres doet niets
   await evaluate(`location.hash = '#task=<script>alert(1)</script>'`);
@@ -1544,7 +1558,7 @@ try {
   assert.equal(await evaluate(`getComputedStyle(${row('Wegwerptaak')}.querySelector('.check'), '::before').borderTopColor`), await cssColor('--p3'), 'de cirkel heeft de kleur van prioriteit 3 (blauw)');
   await evaluate(`${row('Wegwerptaak')}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
   assert.deepEqual(await evaluate(`[...${row('Wegwerptaak')}.querySelectorAll('.task-actions button')].map((b) => b.getAttribute('aria-label'))`),
-    ['Bewerken: Wegwerptaak', 'Andere dag kiezen voor: Wegwerptaak', 'Verwijderen: Wegwerptaak']);
+    ['Bewerken: Wegwerptaak', 'Andere dag kiezen voor: Wegwerptaak', 'Opmerking: Wegwerptaak', 'Meer: Wegwerptaak'], 'zoals Todoist: bewerken, datum, opmerking en ⋯');
   await evaluate(`${row('Wegwerptaak')}.querySelector('[data-act="date"]').click()`);
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Datum'`, 'dagkeuze (de kleine kalender)');
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .datepop-quick .datepop-rowlabel')].map((b) => b.textContent)`), ['Vandaag', 'Morgen', 'Dit weekend', 'Volgende week']);
@@ -1581,7 +1595,9 @@ try {
   await quickAdd('Wegwerptaak twee');
   await waitFor(row('Wegwerptaak twee'), 'tweede wegwerptaak');
   await evaluate(`${row('Wegwerptaak twee')}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
-  await evaluate(`${row('Wegwerptaak twee')}.querySelector('[data-act="delete"]').click()`);
+  // verwijderen staat in het menu achter ⋯, zoals bij Todoist (ui/taskMenu.js)
+  await evaluate(`${row('Wegwerptaak twee')}.querySelector('[data-act="more"]').click()`);
+  await evaluate(`document.querySelector('.pop-menu [data-fk="taskmenu:delete"]').click()`);
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taak verwijderen?'`, 'bevestiging');
   await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
   await waitFor(SYNCED, 'gesynchroniseerd');
@@ -1690,6 +1706,9 @@ try {
   // ---- 8g1e. notities zoals Anchor (scripts/e2e-notes.ts) ----
   await notesScenario({ ...notifyCtx(), startServer, stopServer, workDir });
 
+  // ---- 8g1f. twee lijsten of notities naast elkaar (scripts/e2e-split.ts) ----
+  await splitScenario(notifyCtx());
+
   // ---- 8g2. bijlagen (scripts/e2e-attachments.ts) ----
   await attachmentScenario({
     send, evaluate, waitFor, sleep, js, shot, step, serverState, startServer, stopServer, workDir, BASE, bobToken, alice, aliceToken: createSession(db, alice.id, 'Controle bijlagen').token,
@@ -1747,7 +1766,7 @@ try {
   await waitFor(`!document.querySelector('dialog')`, 'het zoekvenster is opgeruimd'); // pas daarna geeft de pagina de focus terug
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Sneltoetsen'`, 'overzicht van sneltoetsen');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak, project, filter of label een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Twee lijsten naast elkaar aan of uit', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak, project, filter of label een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
   await shot('sneltoetsen');
   await press('q');
   await sleep(150);
@@ -1812,7 +1831,8 @@ try {
   assert.deepEqual([serverTask('Pannen schoonmaken').project_id, serverTask('Pannen schoonmaken').section_id], [thuisId, keukenId], 'de taak komt in de sectie waaronder je op de knop drukte');
   for (const content of ['Pannen schoonmaken', 'Tandenborstel kopen']) {
     await evaluate(`${row(content)}.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))`);
-    await evaluate(`${row(content)}.querySelector('[data-act="delete"]').click()`);
+    await evaluate(`${row(content)}.querySelector('[data-act="more"]').click()`);
+    await evaluate(`document.querySelector('.pop-menu [data-fk="taskmenu:delete"]').click()`);
     await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Taak verwijderen?'`, 'bevestiging');
     await evaluate(`[...document.querySelectorAll('dialog[open]')].at(-1).querySelector('.button-danger').click()`);
     await waitFor(SYNCED, 'gesynchroniseerd');
@@ -1874,8 +1894,8 @@ try {
   await shot('engels-nieuwe-lijst');
   await press('?');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Keyboard shortcuts'`, 'sneltoetsen (Engels)');
-  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Close a window', 'Select the task under the pointer or focus', 'Select all tasks in view', 'Stop selecting', 'Undo the last change', 'Save the task in the task window', 'Move a task, project, filter or label one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
-  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+', '+', '+']);
+  assert.deepEqual(await texts('dialog[open] .shortcut dd'), ['Add task', 'Go to Today', 'Go to Upcoming', 'Go to Inbox', 'Show this overview', 'Search', 'Search', 'Two lists side by side on or off', 'Close a window', 'Select the task under the pointer or focus', 'Select all tasks in view', 'Stop selecting', 'Undo the last change', 'Save the task in the task window', 'Move a task, project, filter or label one place up or down', 'Put a task or project under the previous one (subtask) or take it out again']);
+  assert.deepEqual(await texts('dialog[open] .keys-then'), ['then', 'then', 'then', '+', '+', '+', '+', '+', '+', '+']);
   await noDutch('sneltoetsen', mine);
   await press('Escape');
   await noDialog();
@@ -2890,7 +2910,9 @@ try {
   await evaluate(`document.querySelector('[data-fk="find-head:labels"]').click()`);
   await waitFor(`document.getElementById('view-title').textContent === 'Labels'`, 'overzicht van labels');
   assert.ok((await texts('.manage-name')).includes('@bellen'));
-  assert.equal((await texts('.manage-detail'))[(await texts('.manage-name')).indexOf('@bellen')], countOf('bellen') === 1 ? '1 open taak' : `${countOf('bellen')} open taken`);
+  // het verwijderen van een ander apparaat kan nog onderweg zijn: wachten tot het aantal klopt
+  const bellenText = countOf('bellen') === 1 ? '1 open taak' : `${countOf('bellen')} open taken`;
+  await waitFor(`(() => { const names = [...document.querySelectorAll('.manage-name')].map((e) => e.textContent); return [...document.querySelectorAll('.manage-detail')][names.indexOf('@bellen')]?.textContent === ${js(bellenText)}; })()`, 'aantal taken bij @bellen');
   await click('.btn-add');
   await waitFor(`document.querySelector('dialog[open] h2')?.textContent === 'Nieuw label'`, 'labelvenster');
   for (const [typed, message] of [['', 'Geef het label een naam.'], ['BELLEN', 'Er bestaat al een label met deze naam.'], ['één', 'Er bestaat al een label met deze naam.'], ['E\u0301E\u0301N', 'Er bestaat al een label met deze naam.'], ['a, b', 'Een labelnaam mag geen komma of stuurtekens bevatten.']]) {
@@ -3024,7 +3046,7 @@ try {
   await waitFor(`document.body.classList.contains('ready') && document.getElementById('sync-status').textContent === 'Up to date'`, 'Engels na herladen', 15_000);
   assert.deepEqual(await texts('.nav-section-link'), ['Filters', 'Labels']);
   await openSearchWithSlash();
-  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).placeholder`), 'Search tasks, comments, projects, labels…');
+  assert.equal(await evaluate(`document.querySelector(${js(searchInput)}).placeholder`), 'Search or type a command…');
   assert.equal(await evaluate(`document.querySelector('#search-dialog .search-empty-title').textContent`), 'Search everything you have');
   await noDutch('zoekvenster', userTexts);
   await searchFor('wachtwoord wifi');
@@ -3264,7 +3286,7 @@ try {
   assert.deepEqual(await texts('#task-dialog .comment-author'), ['Alice', 'Bob']);
   assert.deepEqual(await evaluate(`[...document.querySelectorAll('#task-dialog .comment')].map((c) => c.querySelectorAll('.comment-tools button').length)`), [0, 2], 'Bob kan alleen zijn eigen opmerking wijzigen of verwijderen');
   await shot('bob-opmerkingen');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await noDialog();
   await nav('Inbox');
   await waitFor(`document.getElementById('view-title').textContent === 'Inbox'`, 'Inbox van Bob');

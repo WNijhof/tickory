@@ -1,5 +1,8 @@
 // Het zoekvenster: een invoerveld met direct eronder de treffers (taken, opmerkingen, projecten, secties, labels en filters),
 // met de gevonden woorden gemarkeerd. Bediening met het toetsenbord: pijltjes kiezen, Enter opent, Esc sluit.
+// Zoals het opdrachtmenu van Todoist (Ctrl+K) staan er ook opdrachten in: zonder tekst allemaal ("Naar Vandaag", "Taak toevoegen",
+// "Thema wijzigen" …), met tekst de opdrachten die erop lijken, boven de treffers. Een gekozen opdracht heeft kind 'command' en een
+// functie `run`; de aanroeper voert hem uit.
 // De zoekopdracht zelf staat in core/search.js (hoofdletters en accenten tellen niet mee).
 //
 // Dit bestand opent niets zelf: `openSearchDialog` geeft de gekozen treffer terug en de aanroeper (ui/find.js) weet hoe
@@ -9,6 +12,7 @@ import { formatDue, todayString } from '../core/format.js';
 import { t } from '../core/i18n.js';
 import { colorClass } from '../core/colors.js';
 import { markSegments, search } from '../core/search.js';
+import { foldText } from '../core/fold.js';
 import { h, openDialog, replace } from './dom.js';
 import { icon } from './icons.js';
 
@@ -27,12 +31,14 @@ function leadOf(hit) {
     case 'label': return h('span', { class: `search-lead ${colorClass(hit.color)}`, 'aria-hidden': 'true' }, icon('tag'));
     case 'filter': return h('span', { class: `search-lead ${colorClass(hit.color)}`, 'aria-hidden': 'true' }, icon('funnel'));
     case 'comment': return h('span', { class: 'search-lead', 'aria-hidden': 'true' }, icon('comment'));
+    case 'command': return h('span', { class: 'search-lead search-lead-command', 'aria-hidden': 'true' }, icon(hit.icon ?? 'chevronRight'));
     default: return h('span', { class: 'search-lead', 'aria-hidden': 'true' }, icon('subtasks'));
   }
 }
 
 /** De tweede regel onder de titel van een treffer: waar hij staat, of het stuk tekst waarin de woorden voorkomen. */
 function detailOf(hit, today) {
+  if (hit.kind === 'command') return [];
   if (hit.kind === 'comment') {
     return [h('span', { class: 'search-snippet' }, markedText(hit.text, hit.marks)), hit.project && h('span', { class: 'search-where' }, hit.project.name)];
   }
@@ -51,24 +57,31 @@ function detailOf(hit, today) {
 }
 
 /** De titel van een treffer: bij een treffer in de titel of naam met markering; anders (beschrijving, label, opmerking) gewoon de titel. */
-const titleOf = (hit) => (hit.kind === 'comment' ? hit.on.name : hit.where === 'title' || hit.where === 'name' ? markedText(hit.text, hit.marks) : hit.title);
+const titleOf = (hit) => (hit.kind === 'comment' ? hit.on.name : hit.kind === 'command' ? hit.title : hit.where === 'title' || hit.where === 'name' ? markedText(hit.text, hit.marks) : hit.title);
 
 const kindText = (kind) => ({
   task: t('search.kind.task'), project: t('search.kind.project'), section: t('search.kind.section'),
-  label: t('search.kind.label'), filter: t('search.kind.filter'), comment: t('search.kind.comment'),
+  label: t('search.kind.label'), filter: t('search.kind.filter'), comment: t('search.kind.comment'), command: t('search.kind.command'),
 }[kind]);
 
 /**
  * Opent het zoekvenster.
- * @param {{ store: import('../core/store.js').Store, initial?: string }} options
+ * @param {{ store: import('../core/store.js').Store, initial?: string, commands?: { id: string, label: string, icon?: string, keys?: string[], words?: string[], run: () => void }[] }} options
+ *   `commands`: de opdrachten (zoals het opdrachtmenu van Todoist); `keys` is de sneltoets die rechts staat, `words` zijn extra zoekwoorden
  * @returns {Promise<object | null>} de gekozen treffer (zie `search` in core/search.js), of null bij sluiten
  */
-export function openSearchDialog({ store, initial = '' }) {
+export function openSearchDialog({ store, initial = '', commands = [] }) {
+  /** De opdrachten die bij de tekst passen: zonder tekst allemaal, anders die waarvan de naam of een zoekwoord de tekst bevat. */
+  const commandHits = (text) => {
+    const q = foldText(text.trim());
+    const found = commands.filter((c) => !q || [c.label, ...(c.words ?? [])].some((w) => foldText(w).includes(q)));
+    return (q ? found.slice(0, 6) : found).map((c) => ({ kind: 'command', id: c.id, title: c.label, icon: c.icon, keys: c.keys ?? null, run: c.run }));
+  };
   let unsubscribe = () => {};
   return openDialog((finish, dialog) => {
     const listId = `search-list-${++optionNo}`;
     const input = h('input', {
-      class: 'search-input', type: 'text', role: 'combobox', value: initial, maxLength: 200, placeholder: t('search.placeholder'),
+      class: 'search-input', type: 'text', role: 'combobox', value: initial, maxLength: 200, placeholder: commands.length > 0 ? t('search.placeholderCommands') : t('search.placeholder'),
       'aria-label': t('search.label'), 'aria-autocomplete': 'list', 'aria-expanded': 'false', 'aria-controls': listId,
       autocomplete: 'off', autocapitalize: 'off', spellcheck: false, enterkeyhint: 'search', autofocus: true,
     });
@@ -102,7 +115,8 @@ export function openSearchDialog({ store, initial = '' }) {
 
     const draw = () => {
       const text = input.value;
-      hits = text.trim() === '' ? [] : search(store.view, text, { userId: store.userId, limit: 50 });
+      const found = text.trim() === '' ? [] : search(store.view, text, { userId: store.userId, limit: 50 });
+      hits = [...commandHits(text), ...found];
       options.clear();
       const today = todayString();
       replace(list, hits.map((hit, i) => {
@@ -116,7 +130,9 @@ export function openSearchDialog({ store, initial = '' }) {
         h('span', { class: 'search-main' },
           h('span', { class: 'search-title' }, titleOf(hit)),
           h('span', { class: 'search-detail' }, detailOf(hit, today))),
-        h('span', { class: 'search-kind' }, kindText(hit.kind)));
+        hit.kind === 'command' && hit.keys
+          ? h('span', { class: 'search-kind search-keys-hint' }, hit.keys.map((k) => h('kbd', {}, k)))
+          : h('span', { class: 'search-kind' }, kindText(hit.kind)));
         options.set(key, el);
         return el;
       }));
@@ -127,14 +143,14 @@ export function openSearchDialog({ store, initial = '' }) {
       if (text.trim() === '') {
         replace(empty, h('p', { class: 'search-empty-title' }, t('search.startTitle')), h('p', {}, t('search.startText')));
         status.textContent = '';
-      } else if (hits.length === 0) {
+      } else if (found.length === 0 && hits.length === 0) {
         replace(empty, h('p', { class: 'search-empty-title' }, t('search.noneTitle', { text: text.trim() })), h('p', {}, t('search.noneText')));
         status.textContent = t('search.none');
       } else {
         replace(empty);
-        status.textContent = hits.length >= 50 ? t('search.countMax', { count: hits.length }) : t('search.count', { count: hits.length });
+        status.textContent = found.length >= 50 ? t('search.countMax', { count: found.length }) : t('search.count', { count: found.length });
       }
-      empty.hidden = hits.length > 0;
+      empty.hidden = text.trim() !== '' && hits.length > 0; // zonder tekst: de uitleg, met de opdrachten eronder
     };
 
     input.addEventListener('input', () => { activeId = null; draw(); });

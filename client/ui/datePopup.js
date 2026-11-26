@@ -31,13 +31,16 @@ export function applyPicked(current, picked) {
 }
 
 /**
- * @param {{ today: string, due?: { date: string } | null, allowNone?: boolean, counts?: Map<string, number> | null }} options  `due`: de huidige datum (met of zonder tijd);
+ * @param {{ today: string, due?: { date: string } | null, allowNone?: boolean, counts?: Map<string, number> | null, title?: string | null, dayOnly?: boolean,
+ *   showNone?: boolean | null, noneLabel?: string | null, className?: string }} options  `due`: de huidige datum (met of zonder tijd);
+ *   `title`: een eigen kop (meer taken tegelijk); `dayOnly`: alleen een dag, zonder tijd en herhaling (meer taken tegelijk, die hun eigen
+ *   tijd en herhaling houden); `showNone`: "Geen datum" tonen ook zonder `due` (null: alleen met een datum); `noneLabel`: een eigen tekst daarvoor;
  *   `allowNone`: een keuze "Geen datum" erbij (zonder huidige datum is die er niet); `counts`: het aantal open taken per dag (core/dueCounts.js),
  *   voor een stipje bij die dagen en het aantal in het bijschrift
  * @returns {Promise<{ date: string | null, time: string, recurrence?: object | null } | null>} de keuze (`date` null = geen datum, `time` '' = geen tijd;
  *   `recurrence` alleen als je de herhaling koos (een regel) of wegdeed (null)), of null bij sluiten
  */
-export function pickDateTime({ today, due = null, allowNone = true, counts = null }) {
+export function pickDateTime({ today, due = null, allowNone = true, counts = null, title: heading = null, dayOnly = false, showNone = null, noneLabel = null, className = 'dialog-sheet' }) {
   const d = quickDates(today);
   let timeValue = due?.date.length > 10 ? due.date.slice(11, 16) : '';
   let selected = due?.date.slice(0, 10) ?? '';
@@ -171,7 +174,8 @@ export function pickDateTime({ today, due = null, allowNone = true, counts = nul
     const step = (n) => { shown = addMonths(shown, n); draw(false); };
     draw();
 
-    const quick = (label, day, fk, glyph) => h('button', { class: 'datepop-row datepop-quickrow', type: 'button', dataset: { fk }, onclick: () => choose(day) },
+    // `data-date`: de dag van de keuze ('' = geen datum), voor de tests en voor wie het venster van buiten bedient
+    const quick = (label, day, fk, glyph) => h('button', { class: 'datepop-row datepop-quickrow', type: 'button', dataset: { fk, date: day ?? '' }, onclick: () => choose(day) },
       icon(glyph), h('span', { class: 'datepop-rowlabel' }, label), day && h('span', { class: 'datepop-rowday' }, shortWeekday(day)));
 
     return h('form', {
@@ -181,22 +185,22 @@ export function pickDateTime({ today, due = null, allowNone = true, counts = nul
         choose(selected || null);
       },
     },
-    h('h2', {}, t('quick.date')),
+    h('h2', {}, heading ?? t('quick.date')),
     h('label', { class: 'datepop-fieldwrap' }, icon('calendar'), field),
     h('div', { class: 'datepop-quick', role: 'group', 'aria-label': t('task.quickDates') },
       quick(t('task.quickToday'), d.today, 'due-today', 'today'), quick(t('task.quickTomorrow'), d.tomorrow, 'due-tomorrow', 'sun'),
       quick(t('task.quickWeekend'), d.weekend, 'due-weekend', 'sofa'), quick(t('task.quickNextWeek'), d.nextWeek, 'due-nextweek', 'nextWeek'),
-      allowNone && due && quick(t('task.quickNone'), null, 'due-none', 'ban')),
+      allowNone && (showNone ?? Boolean(due)) && quick(noneLabel ?? t('task.quickNone'), null, 'due-none', 'ban')),
     h('div', { class: `datepop-cal${stacked ? ' datepop-cal-stacked' : ''}` },
       h('div', { class: 'datepop-nav' },
         h('button', { class: 'icon-button', type: 'button', 'aria-label': t('calendar.prevMonth'), onclick: () => step(-1), dataset: { fk: 'due-prev' } }, icon('chevronLeft')),
         title,
         h('button', { class: 'icon-button', type: 'button', 'aria-label': t('calendar.nextMonth'), onclick: () => step(1), dataset: { fk: 'due-next' } }, icon('chevronRight'))),
       head, stacked ? h('div', { class: 'datepop-scroll' }, grid) : grid, caption),
-    timeRow,
-    repeatRow,
+    !dayOnly && timeRow,
+    !dayOnly && repeatRow,
     h('div', { class: 'dialog-buttons' },
       h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel')),
       h('button', { type: 'submit', class: 'button button-primary', dataset: { fk: 'due-save' } }, t('common.save'))));
-  }, { className: 'dialog-sheet' });
+  }, { className });
 }

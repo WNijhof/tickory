@@ -1,5 +1,5 @@
 // Bouwt de zichtbare onderdelen uit de lokale toestand: de zijbalk, de kop en de takenlijst.
-// Geen eigen toestand behalve een bewaarplaats met getekende regels (zie `rowCache`); elke wijziging in de opslag tekent het
+// Geen eigen toestand behalve een bewaarplaats met getekende regels (zie `rowCaches`); elke wijziging in de opslag tekent het
 // scherm opnieuw, en een regel waarvan de gegevens niet veranderden wordt hergebruikt in plaats van opnieuw gebouwd.
 //
 // AANHAKEN VOOR LATERE ONDERDELEN (zoeken, filters, labels): de zijbalk heeft twee lege plekken met een vaste id, `#sidebar-search`
@@ -17,15 +17,16 @@
 import { isInboxId } from '../../shared/schema.js';
 import {
   archivedList, attachmentCounts, commentCounts, counts, favoriteProjects, foldRows, isArchivedProject, isShared, membersOf, navProjects, projectCommentCount, projectView,
-  mySettings, roleIn, subtaskCounts, subtasksOf, tasksWithReminder, todayView, upcomingView,
+  mySettings, roleIn, subtaskCounts, subtasksOf, tasksWithReminder, todayView, upcomingDays,
 } from '../core/selectors.js';
 import { comparator, groupRows, sortTasks } from '../core/listOptions.js';
 import { isDefaultOptions, optionsFor, viewKey } from '../../shared/viewOptions.js';
 import { applyDayOrder } from '../../shared/dayOrder.js';
-import { formatDayHeading } from '../core/format.js';
+import { addDays, daysBetween, formatDayHeading } from '../core/format.js';
+import { periodTitle, startOfCalendarWeek } from '../core/calendar.js';
 import { colorClass } from '../core/colors.js';
 import { rowModel } from '../core/rowModel.js';
-import { t } from '../core/i18n.js';
+import { getLocale, t } from '../core/i18n.js';
 import { VIEW_STYLES, boardColumns, viewStyleOf } from '../core/projectViews.js';
 import { passesPrio } from '../../shared/viewOptions.js';
 import { h } from './dom.js';
@@ -60,7 +61,8 @@ export function sidebar({ view, today, route, handlers, me = null }) {
     // `list` (inbox, favorite of tree) maakt van een project een plek om op te slepen en iets om te slepen (ui/dragdrop.js)
     return h('button', {
       class: `nav-item${active ? ' active' : ''}`, type: 'button', 'aria-current': active ? 'page' : null, dataset: { fk, ...(list ? { projectId: target.id, list } : {}) },
-      onclick: () => handlers.navigate(target),
+      // Ctrl+klik (Cmd op een Mac): naast elkaar openen, in de rechter kolom (core/split.js)
+      onclick: (e) => ((e.ctrlKey || e.metaKey) && handlers.openBeside ? handlers.openBeside(target) : handlers.navigate(target)),
     },
     lead,
     h('span', { class: 'nav-label' }, label),
@@ -123,9 +125,11 @@ const initialsOf = (name) => [...String(name ?? '?').trim()][0]?.toLocaleUpperCa
 /**
  * Getekende regels, per taak-id: { json (de gegevens waarmee ze getekend is), node, task (de nieuwste taak, voor de knoppen), model }.
  * De regels zelf hebben geen eigen gebeurtenissen: `bindList` luistert één keer op de hele lijst (zie hieronder). Dat scheelt bij
- * duizenden taken veel tijd bij het tekenen.
+ * duizenden taken veel tijd bij het tekenen. Per kolom ('main', en 'side' als er twee lijsten naast elkaar staan): dezelfde taak kan
+ * links en rechts in beeld zijn, en een element kan maar op één plek staan.
  */
-let rowCache = new Map();
+const rowCaches = { main: new Map(), side: new Map() };
+const cacheOf = (pane) => rowCaches[pane === 'side' ? 'side' : 'main'];
 
 /** Een element maken zonder omwegen (voor de regels, waar het om snelheid gaat). */
 function mk(tag, cls, ...kids) {
@@ -255,7 +259,7 @@ function buildRow(m, variant = '') {
   return li;
 }
 
-/** De snelle knoppen (bewerken, dag kiezen, verwijderen) van een regel; ze worden pas gemaakt als je de regel aanwijst of er met het toetsenbord in komt. */
+/** De snelle knoppen (bewerken, dag kiezen, opmerking, ⋯ meer) van een regel; ze worden pas gemaakt als je de regel aanwijst of er met het toetsenbord in komt. */
 function ensureActions(li, model) {
   if (model.readOnly || li.querySelector('.task-actions')) return; // een lezer heeft niets om snel te wijzigen
   const make = (act, iconName, label, title) => {
@@ -267,7 +271,9 @@ function ensureActions(li, model) {
   li.append(mk('span', 'task-actions',
     make('edit', 'pencil', t('task.actionEdit', { name: model.content }), t('task.edit')),
     make('date', 'calendar', t('task.actionDate', { name: model.content }), t('task.actionDateTitle')),
-    make('delete', 'trash', t('task.actionDelete', { name: model.content }), t('common.delete'))));
+    // zoals Todoist: een opmerking, en ⋯ voor de rest (verwijderen staat in dat menu, ui/taskMenu.js)
+    make('comment', 'comment', t('task.actionComment', { name: model.content }), t('task.actionCommentTitle')),
+    make('more', 'more', t('task.actionMore', { name: model.content }), t('task.actionMoreTitle'))));
 }
 
 /**
@@ -275,7 +281,8 @@ function ensureActions(li, model) {
  * Eén keer aanroepen; werkt voor alle regels, ook de latere.
  * @param {HTMLElement} container
  */
-export function bindList(container, handlers) {
+export function bindList(container, handlers, pane = 'main') {
+  const rowCache = { get: (id) => cacheOf(pane).get(id) };
   const rowOf = (target) => {
     const li = target.closest?.('li.task');
     const entry = li ? rowCache.get(li.dataset.id) : null;
@@ -321,6 +328,8 @@ export function bindList(container, handlers) {
     else if (act === 'move') handlers.moveCard(task);
     else if (act === 'date') handlers.reschedule(task);
     else if (act === 'delete') handlers.removeTask(task);
+    else if (act === 'comment') handlers.openComments?.(task);
+    else if (act === 'more') handlers.taskMenu?.(task, control.getBoundingClientRect(), entry.model);
     else if (act || !e.target.closest('button, a')) handlers.open(task); // "open", "edit", of een klik op de regel zelf
   });
   const reveal = (e) => {
@@ -329,6 +338,15 @@ export function bindList(container, handlers) {
   };
   container.addEventListener('mouseover', reveal);
   container.addEventListener('focusin', reveal);
+  // de rechtermuisknop (of de menutoets) op een taak: het menu van de taak, zoals Todoist (ui/taskMenu.js); op een link het menu van de browser
+  container.addEventListener('contextmenu', (e) => {
+    const hit = rowOf(e.target);
+    if (!hit || !handlers.taskMenu || e.target.closest?.('a[href]')) return;
+    e.preventDefault();
+    const r = hit.li.getBoundingClientRect();
+    const at = e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: r.left + 40, y: r.top + r.height / 2 };
+    handlers.taskMenu(hit.entry.task, at, hit.entry.model);
+  });
 }
 
 /** De beschrijving van een project met opmaak (Markdown), onder de titel; niets als er geen is. */
@@ -366,7 +384,7 @@ function rowsOf(list, pool, ctx) {
     const model = rowModel(task, { ...ctx, depth, hasChildren, collapsed, peek, reminder: ctx.reminders.has(task.id), showCompletedAt: ctx.variant === 'completed', readOnly: !canEditProject(ctx.view, task.project_id, ctx.me?.id) });
     const json = ctx.variant ? `${ctx.variant}|${JSON.stringify(model)}` : JSON.stringify(model);
     if (pool.has(task.id)) return buildRow(model, ctx.variant); // dezelfde taak staat al in beeld (twee lijsten van een filter): een eigen regel
-    let entry = rowCache.get(task.id);
+    let entry = cacheOf(ctx.pane).get(task.id);
     if (entry && entry.json === json) {
       entry.task = task;
     } else {
@@ -379,7 +397,8 @@ function rowsOf(list, pool, ctx) {
 
 /** Vergeet alle getekende regels. */
 export function resetRowCache() {
-  rowCache = new Map();
+  rowCaches.main = new Map();
+  rowCaches.side = new Map();
 }
 
 // ---------- groepen, lege staat en kop ----------
@@ -423,6 +442,57 @@ function sharedWith(view, projectId, me, userName) {
 const addInline = (handlers, target, label = t('quick.addTask')) =>
   h('button', { class: 'add-inline', type: 'button', onclick: () => handlers.quickAdd(target) }, icon('plus'), label);
 
+// ---------- Aankomend: de strook met de week (zoals Todoist) ----------
+
+/** Zoveel dagen staan er in Aankomend, en zoveel komen erbij met "Meer dagen tonen". */
+const UPCOMING_STEP = 28;
+/** Aankomend in deze sessie: hoeveel dagen (`span`) en welke week de strook toont (`week`, de eerste dag; null = deze week). */
+const upcomingState = { span: UPCOMING_STEP, week: null };
+
+/** Spring in de kolom van `from` naar de dag `date` (de kop van die dag komt bovenaan, onder de vaste kop). */
+function scrollToDay(from, date) {
+  const pane = from?.closest?.('#main-pane, #side-pane') ?? document;
+  const el = pane.querySelector(`.upcoming-day[data-day="${date}"]`);
+  if (el) el.scrollIntoView({ block: 'start', behavior: globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+}
+
+/**
+ * De strook bovenaan Aankomend: de maand, vorige/volgende week en Vandaag, en de zeven dagen van de week (een stip bij dagen met taken).
+ * Een dag aanklikken springt naar die dag in de lijst; ligt hij verder dan de lijst, dan komen er eerst dagen bij.
+ */
+function upcomingStrip({ today, week, busy, lastShown, handlers }) {
+  const thisWeek = startOfCalendarWeek(today);
+  const weekdayOf = (day) => new Intl.DateTimeFormat(getLocale(), { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${day}T12:00:00Z`)).replace('.', '');
+  const go = (date, el) => {
+    const pane = el.closest('#main-pane, #side-pane');
+    if (date > lastShown) {
+      upcomingState.span = daysBetween(today, date) + 8;
+      handlers.refresh();
+    }
+    scrollToDay(pane ?? el, date);
+  };
+  const shift = (n, el) => {
+    const pane = el.closest('#main-pane, #side-pane');
+    const next = addDays(week, 7 * n);
+    upcomingState.week = next < thisWeek ? thisWeek : next;
+    handlers.refresh();
+    const first = upcomingState.week < today ? today : upcomingState.week;
+    scrollToDay(pane, first);
+  };
+  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+  return h('div', { class: 'upcoming-strip', dataset: { fk: 'upcoming-strip' } },
+    h('div', { class: 'upcoming-strip-head' },
+      h('strong', { class: 'upcoming-month' }, periodTitle('month', days.find((d) => d >= today) ?? week, getLocale())),
+      h('div', { class: 'upcoming-nav' },
+        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('upcoming.prevWeek'), title: t('upcoming.prevWeek'), disabled: week <= thisWeek, dataset: { fk: 'upcoming-prev' }, onclick: (e) => shift(-1, e.currentTarget) }, icon('chevronLeft')),
+        h('button', { class: 'icon-button', type: 'button', 'aria-label': t('upcoming.nextWeek'), title: t('upcoming.nextWeek'), dataset: { fk: 'upcoming-next' }, onclick: (e) => shift(1, e.currentTarget) }, icon('chevronRight')),
+        h('button', { class: 'button button-small', type: 'button', dataset: { fk: 'upcoming-today' }, onclick: (e) => { upcomingState.week = null; handlers.refresh(); scrollToDay(e.currentTarget.isConnected ? e.currentTarget : document.querySelector('.upcoming-strip'), today); } }, t('nav.today')))),
+    h('div', { class: 'upcoming-days', role: 'group', 'aria-label': t('upcoming.weekLabel') }, days.map((day) => h('button', {
+      type: 'button', class: `upcoming-daybtn${day === today ? ' is-today' : ''}${busy.has(day) ? ' has-tasks' : ''}`, disabled: day < today,
+      'aria-label': formatDayHeading(day, today), dataset: { fk: `upcoming-day:${day}` }, onclick: (e) => go(day, e.currentTarget),
+    }, h('span', { class: 'upcoming-wd' }, weekdayOf(day)), h('span', { class: 'upcoming-dn' }, String(Number(day.slice(8)))), h('span', { class: 'upcoming-dot', 'aria-hidden': 'true' })))));
+}
+
 /** De knop "Sorteren" bovenaan een lijst: opent de keuze voor sorteren en groeperen; ze is gemarkeerd zolang er een eigen keuze geldt. */
 const onPhone = () => Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches);
 const optionsButton = (handlers, route, options) => h('button', {
@@ -436,18 +506,18 @@ const optionGroups = (groups, make) => groups.map((g) => group({ title: g.title,
 /**
  * @returns {{ title: string, count: number | null, lead: Node | null, actions: Node[], nodes: Node[] }}
  */
-export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null }) {
+export function mainView({ view, route, today, now, showCompleted, handlers, me = null, userName = () => null, pane = 'main' }) {
   const pool = new Map();
-  const ctx = { view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), attachments: attachmentCounts(view), reminders: tasksWithReminder(view, me?.id) };
+  const ctx = { pane, view, today, now, me, userName, subtasks: subtaskCounts(view), comments: commentCounts(view), attachments: attachmentCounts(view), reminders: tasksWithReminder(view, me?.id) };
   // een overzicht (taken uit verschillende projecten): subtaken uit te klappen; een project heeft zijn eigen boom
   const rows = (list, showProject, variant = '') => rowsOf(showProject && !variant ? withSubtasks(list, view) : list, pool, { ...ctx, showProject, variant });
   const finish = (result) => {
-    rowCache = pool; // alleen wat nu in beeld is, blijft bewaard
+    rowCaches[pane === 'side' ? 'side' : 'main'] = pool; // alleen wat nu in beeld is, blijft bewaard
     return result;
   };
 
   if (Object.hasOwn(viewHooks, route.type)) {
-    return finish(viewHooks[route.type]({ view, route, today, now, me, userName, handlers, rows, group, emptyState }));
+    return finish(viewHooks[route.type]({ view, route, today, now, me, userName, handlers, rows, group, emptyState, pane }));
   }
 
   if (route.type === 'today') {
@@ -501,19 +571,45 @@ export function mainView({ view, route, today, now, showCompleted, handlers, me 
         nodes: [calendarView({ calendarKey: 'upcoming', tasks: [...view.tasks.values()], view, today, handlers, showProject: true, addTarget: {}, canEdit: (task) => canEditProject(view, task.project_id, me?.id) })],
       });
     }
-    const days = upcomingView(view, today).map((d) => ({ ...d, tasks: d.tasks.filter((x) => passesPrio(x, opts.prio)) })).filter((d) => d.tasks.length > 0);
+    // zoals Todoist: de week bovenaan, dan Over tijd, dan elke dag (ook lege, om er iets op te zetten); de strook en "Meer dagen" breiden uit
+    const thisWeek = startOfCalendarWeek(today);
+    const week = upcomingState.week && upcomingState.week >= thisWeek ? upcomingState.week : thisWeek;
+    const span = Math.max(upcomingState.span, daysBetween(today, addDays(week, 6)) + 1);
+    const all = upcomingDays(view, today, span);
+    const keep = (list) => list.filter((x) => passesPrio(x, opts.prio));
+    const overdue = keep(all.overdue);
+    const days = all.days.map((d) => ({ ...d, tasks: keep(d.tasks) }));
     const lctx = { view, today, me, userName };
-    const grouped = groupRows(sortTasks(days.flatMap((d) => d.tasks), opts, lctx).map((task) => ({ task })), opts.group, lctx);
+    const sorted = (tasks) => sortTasks(tasks, opts, lctx).map((task) => ({ task }));
+    const total = overdue.length + days.reduce((sum, d) => sum + d.tasks.length, 0);
+    const grouped = groupRows(sorted([...overdue, ...days.flatMap((d) => d.tasks)]), opts.group, lctx);
+    const strip = upcomingStrip({ today, week, busy: new Set(days.filter((d) => d.tasks.length > 0).map((d) => d.date)), lastShown: days.at(-1).date, handlers });
     return finish({
       title: t('nav.upcoming'),
-      count: days.reduce((sum, d) => sum + d.tasks.length, 0),
+      count: total,
       lead: icon('upcoming'),
       actions: [optionsButton(handlers, route, opts), switcher],
-      nodes: days.length === 0
-        ? [emptyState({ title: t('view.upcomingEmptyTitle'), text: t('view.upcomingEmpty') })]
-        : grouped
-          ? optionGroups(grouped, (g) => rows(g.rows, true))
-          : days.map((d) => group({ title: formatDayHeading(d.date, today), rows: rows(sortTasks(d.tasks, opts, lctx).map((task) => ({ task })), true), total: d.tasks.length })),
+      nodes: grouped
+        ? [strip, ...optionGroups(grouped, (g) => rows(g.rows, true))]
+        : [
+          strip,
+          overdue.length > 0 && group({
+            title: t('view.overdue'), rows: rows(sorted(overdue), true), total: overdue.length,
+            extra: overdue.some((x) => canEditProject(view, x.project_id, me?.id)) && h('button', {
+              class: 'link-button group-action', type: 'button', dataset: { fk: 'upcoming-reschedule' }, onclick: () => handlers.rescheduleOverdue(),
+            }, t('view.reschedule')),
+          }),
+          ...days.map((d) => {
+            const el = group({ title: formatDayHeading(d.date, today), rows: rows(sorted(d.tasks), true), total: d.tasks.length, footer: addInline(handlers, { due: d.date }) });
+            el.dataset.day = d.date;
+            el.classList.add('upcoming-day');
+            return el;
+          }),
+          h('button', {
+            class: 'button button-ghost upcoming-more', type: 'button', dataset: { fk: 'upcoming-more' },
+            onclick: () => { upcomingState.span = span + UPCOMING_STEP; handlers.refresh(); },
+          }, t('upcoming.moreDays')),
+        ],
     });
   }
 

@@ -1,14 +1,13 @@
 // De keuzevensters bij een bulkactie (ui/selection.js): waarheen verplaatsen, welke datum, prioriteit, labels en toewijzen.
 // Elk venster geeft de keuze terug of null bij sluiten; wat er daarna gebeurt, regelt ui/selection.js.
 
-import { formatDate } from '../core/format.js';
 import { DURATION_CHOICES, formatDuration } from '../core/duration.js';
 import { foldText } from '../core/fold.js';
 import { t } from '../core/i18n.js';
-import { quickDates } from '../core/quickDates.js';
 import { byOrder, projectList } from '../core/selectors.js';
 import { colorClass } from '../core/colors.js';
 import { h, menuDialog, openDialog, replace } from './dom.js';
+import { pickDateTime } from './datePopup.js';
 
 /** Inspringen van een subproject: harde spaties (gewone spaties vallen weg). */
 const INDENT = String.fromCharCode(160, 160);
@@ -50,28 +49,16 @@ export function moveDialog({ view, count }) {
 }
 
 /**
- * Een dag: vandaag, morgen, dit weekend, volgende week, geen datum, of een eigen datum.
+ * Een dag voor één of meer taken: de datumkiezer zoals Todoist (ui/datePopup.js), met een tekstveld waarin je "volgende vrijdag" typt,
+ * de snelle keuzes (vandaag, morgen, dit weekend, volgende week, geen datum) en een maandkalender. Alleen de dag: elke taak houdt haar
+ * eigen tijd en herhaling.
  * @returns {Promise<{ date: string | null } | null>}
  */
-export function dateDialog({ today, hasDue, count, title = null, noneLabel = null }) {
-  const d = quickDates(today);
-  return openDialog((finish) => {
-    const item = (date, label) => h('button', { type: 'button', class: 'menu-item', dataset: { date: date ?? '' }, onclick: () => finish({ date }) }, date ? `${label} · ${formatDate(date, today)}` : label);
-    const custom = h('input', { class: 'field', type: 'date', 'aria-label': t('bulk.dateCustom'), min: '1900-01-01', max: '9999-12-31' });
-    return h('form', {
-      class: 'dialog-form',
-      onsubmit: (e) => {
-        e.preventDefault();
-        if (/^\d{4}-\d{2}-\d{2}$/.test(custom.value)) finish({ date: custom.value });
-      },
-    },
-    h('h2', {}, title ?? t('bulk.dateTitle', { count })),
-    h('div', { class: 'menu' },
-      item(d.today, t('task.quickToday')), item(d.tomorrow, t('task.quickTomorrow')), item(d.weekend, t('task.quickWeekend')), item(d.nextWeek, t('task.quickNextWeek')),
-      hasDue && item(null, noneLabel ?? t('task.quickNone'))),
-    h('label', { class: 'field-label' }, t('bulk.dateCustom'), h('span', { class: 'bulk-custom-date' }, custom, h('button', { type: 'submit', class: 'button button-primary' }, t('bulk.dateApply')))),
-    h('div', { class: 'dialog-buttons' }, h('button', { type: 'button', class: 'button', onclick: () => finish(null) }, t('common.cancel'))));
-  }, { className: 'dialog-bulk' });
+export async function dateDialog({ today, hasDue, count, title = null, noneLabel = null, counts = null }) {
+  const picked = await pickDateTime({
+    today, counts, title: title ?? t('bulk.dateTitle', { count }), dayOnly: true, showNone: Boolean(hasDue), noneLabel, className: 'dialog-sheet dialog-bulk',
+  });
+  return picked ? { date: picked.date } : null;
 }
 
 /** Een duur: de vaste keuzes van het taakvenster, en "geen duur" als een gekozen taak er een heeft. @returns {Promise<{ minutes: number | null } | null>} */

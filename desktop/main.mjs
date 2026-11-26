@@ -433,6 +433,7 @@ function runMenu(id) {
       pages?.setAlwaysOnTop(settings.floatOnTop);
       return refreshMenus();
     case 'newWindow': return settings.server && openWindow(`${settings.server}/`);
+    case 'split': return showMain('#split'); // naast elkaar aan of uit (client/core/split.js)
     case 'reload': return focused()?.webContents.reload();
     case 'back': return focused()?.webContents.navigationHistory.goBack();
     case 'forward': return focused()?.webContents.navigationHistory.goForward();

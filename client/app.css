@@ -259,7 +259,10 @@ button.chip-due-edit:hover { text-decoration: underline; }
 .preview .chip-due { color: var(--accent); }
 .chip-due.due-overdue { color: var(--danger); }
 .chip-due.due-today { color: var(--ok); }
-.chip-due.due-future { color: var(--future); }
+/* zoals Todoist: morgen oranje, de komende week paars, later grijs */
+.chip-due.due-tomorrow { color: var(--warn); }
+.chip-due.due-week { color: var(--future); }
+.chip-due.due-later { color: var(--text-soft); }
 .chip-deadline { color: var(--warn); }
 .chip-deadline.due-overdue { color: var(--danger); }
 .chip.prio-1 { color: var(--p1-text); }
@@ -1267,3 +1270,102 @@ li.task.swipe-back { transition: transform 0.18s ease-out; }
 .section-desc { margin: -2px 0 8px 32px; color: var(--text-soft); font-size: 0.88rem; line-height: 1.45; }
 .section-desc > :first-child { margin-top: 0; }
 .section-desc > :last-child { margin-bottom: 0; }
+
+/* ---------- twee lijsten of notities naast elkaar (core/split.js, ui/app.js) ----------
+   Op een breed scherm (vanaf SPLIT_MIN_WIDTH) staat rechts een tweede kolom (#side-pane). Dan scrolt elke kolom zelf en blijft de
+   kop van elke kolom bovenaan staan; de actieve kolom (waar de zijbalk op werkt) heeft een streep in de accentkleur bovenaan. */
+.side-pane[hidden] { display: none; }
+.side-title { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.015em; line-height: 1.2; min-width: 0; overflow-wrap: anywhere; margin: 0; }
+body.split .main, body.split .side-pane {
+  flex: 1 1 0; min-width: 0; max-width: none; margin: 0; padding: 0 24px 120px;
+  height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior: contain;
+}
+body.split .side-pane { border-left: 1px solid var(--line); }
+/* even hoog als de balk bovenaan links (.topbar, 56 px), zodat de titels van beide kolommen op één lijn staan */
+body.split .side-pane > .head-sticky { padding-top: 56px; }
+/* een rand en geen schaduw: de balk bovenaan links zou een schaduw aan de binnenkant bedekken; in beide kolommen even dik, dus niets verspringt */
+body.split .main > .head-sticky, body.split .side-pane > .head-sticky { border-top: 3px solid transparent; }
+body.split .pane-active > .head-sticky { border-top-color: var(--accent); }
+.pane-button .icon { width: 18px; height: 18px; }
+/* een open notitie in een kolom: de editor vult de kolom en scrolt zelf (ui/noteEditor.js) */
+body[data-route="note"] .main .view-head, body[data-route="note"] .quick-add, body[data-route="note"] #quick-preview { display: none; }
+.pane-note { display: flex; flex-direction: column; }
+body.split .pane-note { overflow: hidden; padding-bottom: 16px; }
+.pane-note > .content { flex: 1; min-height: 0; display: flex; padding-top: 4px; }
+.main.pane-note > .content { min-height: calc(100dvh - 90px); }
+.dialog-embedded.note-dialog {
+  flex: 1; width: auto; height: auto; min-height: 0; display: flex; overflow: hidden; position: relative;
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+
+/* ---------- herkende tekst gemarkeerd in Taak toevoegen (ui/quickHighlight.js), op elk scherm ----------
+   De spiegel (.quick-mirror, zie mobile.css) staat achter het veld; het omhulsel neemt de plek van het veld in. */
+.quick-row > .quick-input-wrap, .quick-add > .quick-input-wrap { flex: 1; min-width: 0; }
+.quick-input-wrap > .quick-input { position: relative; width: 100%; }
+.quick-input-wrap > .quick-highlighted { background: transparent; }
+
+/* ---------- het menu van een taak (ui/taskMenu.js), zoals Todoist: rechtermuisknop of ⋯ ---------- */
+.pop-menu {
+  position: fixed; z-index: 60; min-width: 250px; max-width: min(320px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto;
+  padding: 6px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line-strong); box-shadow: var(--shadow-pop);
+  display: flex; flex-direction: column;
+}
+.pop-menu:focus { outline: none; }
+.pop-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 8px;
+  background: none; color: var(--text); font: inherit; font-size: 0.92rem; text-align: left; cursor: pointer;
+}
+.pop-item .icon { width: 17px; height: 17px; color: var(--text-soft); flex: none; }
+.pop-item:hover, .pop-item:focus-visible, .pop-icon:hover, .pop-icon:focus-visible { background: var(--bg-hover); outline: none; }
+.pop-item:focus-visible, .pop-icon:focus-visible { box-shadow: inset 0 0 0 2px var(--focus, var(--accent)); }
+.pop-danger, .pop-danger .icon { color: var(--danger); }
+.pop-sep { height: 1px; background: var(--line); margin: 4px 2px; }
+.pop-group { padding: 4px 10px 6px; }
+.pop-title { font-size: 0.78rem; font-weight: 600; color: var(--text-soft); margin-bottom: 4px; }
+.pop-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.pop-icon {
+  width: 34px; height: 34px; border: 0; border-radius: 8px; background: none; color: var(--text-soft);
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0;
+}
+.pop-icon .icon { width: 18px; height: 18px; }
+.pop-icon.is-current { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* de kleuren van Todoist: vandaag groen, morgen oranje, weekend blauw, volgende week paars; de vlaggen in de kleur van de prioriteit */
+.pop-icon[data-fk="taskmenu:date-today"] { color: var(--ok); }
+.pop-icon[data-fk="taskmenu:date-tomorrow"] { color: var(--warn); }
+.pop-icon[data-fk="taskmenu:date-weekend"] { color: var(--p3); }
+.pop-icon[data-fk="taskmenu:date-nextweek"] { color: var(--future); }
+.pop-icon.prio-1 { color: var(--p1); }
+.pop-icon.prio-2 { color: var(--p2); }
+.pop-icon.prio-3 { color: var(--p3); }
+.pop-icon.prio-4 { color: var(--p4); }
+@media (max-width: 760px) {
+  .pop-item { min-height: 44px; }
+  .pop-icon { width: 44px; height: 44px; }
+}
+
+/* ---------- Aankomend zoals Todoist: de strook met de week bovenaan, en elke dag in de lijst (ui/render.js) ---------- */
+/* de strook blijft net onder de vaste kop staan, zoals bij Todoist */
+.upcoming-strip { position: sticky; top: var(--head-h, 0px); z-index: 1; background: var(--bg); padding: 2px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.side-pane .upcoming-strip { top: var(--side-head-h, 0px); }
+.upcoming-strip-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-height: 36px; }
+.upcoming-month { font-size: 1rem; }
+.upcoming-month::first-letter { text-transform: uppercase; }
+.upcoming-nav { margin-left: auto; display: flex; gap: 2px; align-items: center; }
+.upcoming-nav .icon-button:disabled { opacity: 0.4; cursor: default; }
+.upcoming-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.upcoming-daybtn {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 56px; padding: 6px 0; border: 0; border-radius: 8px;
+  background: none; color: var(--text); cursor: pointer; font: inherit;
+}
+.upcoming-daybtn:hover:not(:disabled) { background: var(--bg-hover); }
+.upcoming-daybtn:disabled { color: var(--text-soft); opacity: 0.55; cursor: default; }
+.upcoming-wd { font-size: 0.75rem; color: var(--text-soft); }
+.upcoming-dn { font-weight: 600; font-size: 0.95rem; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.upcoming-daybtn.is-today .upcoming-dn { background: var(--accent-fill); color: var(--accent-on-fill); }
+.upcoming-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.upcoming-daybtn.has-tasks .upcoming-dot { background: var(--text-soft); }
+/* springen naar een dag: de kop van de dag komt net onder de vaste kop */
+.upcoming-day { scroll-margin-top: calc(var(--head-h, 120px) + 118px); }
+.side-pane .upcoming-day { scroll-margin-top: calc(var(--side-head-h, 80px) + 118px); }
+.upcoming-day .group-head { min-height: 36px; }
+.upcoming-more { display: flex; margin: 18px auto 0; }

@@ -1,0 +1,2 @@
+- Venster Taak toevoegen: "met herinnering" aan het eind geeft de standaardherinnering en verdwijnt uit de titel.
+- Op een breed scherm (browser, desktop-app, grote tablet): twee lijsten of notities naast elkaar, een taakmenu, en Aankomend zoals Todoist.

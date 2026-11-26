@@ -238,7 +238,7 @@ async function scenario(c: any): Promise<void> {
     // datum: morgen
     await pick('Boodschappen doen', 'Fiets maken');
     await bulkButton('date');
-    await waitFor(`document.querySelector('dialog[open] .menu')`, 'datum kiezen');
+    await waitFor(`document.querySelector('dialog[open] [data-date]')`, 'datum kiezen'); // de datumkiezer zoals Todoist (ui/datePopup.js)
     await evaluate(`document.querySelector('dialog[open] [data-date]:not([data-date=""])').click()`); // vandaag
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     await settle();
@@ -277,7 +277,7 @@ async function scenario(c: any): Promise<void> {
     await pick('Boodschappen doen', 'Fiets maken');
     await more('Deadline');
     await waitFor(`document.querySelector('dialog[open] [data-date]')`, 'een deadline kiezen');
-    assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === 'Geen deadline')`), false, 'geen van beide heeft een deadline');
+    assert.equal(await evaluate(`[...document.querySelectorAll('dialog[open] [data-date]')].some((b) => b.textContent.includes('Geen deadline'))`), false, 'geen van beide heeft een deadline');
     await evaluate(`document.querySelector('dialog[open] [data-date]:not([data-date=""])').click()`); // vandaag
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     await settle();
@@ -324,8 +324,9 @@ async function scenario(c: any): Promise<void> {
     // deadline en duur weer weg
     await pick('Boodschappen doen', 'Fiets maken');
     await more('Deadline');
-    await waitFor(`[...document.querySelectorAll('dialog[open] .menu-item')].some((b) => b.textContent === 'Geen deadline')`, 'Geen deadline');
-    await dialogButton('Geen deadline');
+    // de datumkiezer zoals Todoist: de keuze Geen deadline staat bij de snelle keuzes
+    await waitFor(`document.querySelector('dialog[open] .datepop-quickrow[data-date=""]')?.textContent.includes('Geen deadline')`, 'Geen deadline');
+    await evaluate(`document.querySelector('dialog[open] .datepop-quickrow[data-date=""]').click()`);
     await waitFor(`!document.querySelector('dialog[open]')`, 'venster dicht');
     await pick('Boodschappen doen', 'Fiets maken');
     await more('Duur');

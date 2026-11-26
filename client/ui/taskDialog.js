@@ -68,7 +68,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         return;
       }
       descView.replaceChildren(renderMarkdown(text, {
-        onToggleTask: readOnly ? null : (index) => { description.value = toggleTask(description.value, index); showDescView(); },
+        onToggleTask: readOnly ? null : (index) => { description.value = toggleTask(description.value, index); showDescView(); persist(); },
       }));
       descView.hidden = false;
       description.hidden = true;
@@ -82,7 +82,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     };
     descView.addEventListener('click', (e) => { if (!e.target.closest('a, input')) editDesc(); });
     descView.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === descView) { e.preventDefault(); editDesc(); } });
-    description.addEventListener('blur', () => showDescView());
+    description.addEventListener('blur', () => { showDescView(); persist(); });
     description.addEventListener('input', () => grow(description));
     const check = h('button', { class: `check check-large prio-${task.priority}`, type: 'button', disabled: readOnly, title: readOnly ? t('readonly.cannotComplete') : null, onclick: () => completeFromDialog() });
     const drawCheck = () => {
@@ -107,6 +107,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         const time = task.due?.date.length > 10 ? task.due.date.slice(10) : '';
         due.value = date ? formatDateInput({ date: `${date}${time}` }) : '';
         due.dispatchEvent(new Event('input', { bubbles: true }));
+        persist();
       },
     }, label);
     const dates = quickDates(today());
@@ -128,6 +129,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         const next = applyPicked(current, picked);
         due.value = next ? formatDateInput(next) : '';
         due.dispatchEvent(new Event('input', { bubbles: true }));
+        persist();
       });
     }
 
@@ -137,7 +139,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       [1, 2, 3, 4].map((p) => h('label', { class: `prio-option prio-${p}`, title: priorityLabel(p) },
         h('input', {
           type: 'radio', name: 'priority', value: String(p), checked: p === task.priority, disabled: readOnly,
-          onchange: () => { priorityValue = p; check.className = `check check-large prio-${p}${check.classList.contains('task-done') ? ' task-done' : ''}`; },
+          onchange: () => { priorityValue = p; check.className = `check check-large prio-${p}${check.classList.contains('task-done') ? ' task-done' : ''}`; persist(); },
         }),
         h('span', {}, icon('check'), `P${p}`))));
 
@@ -167,7 +169,12 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     project.addEventListener('change', () => {
       fillSections(null);
       fillAssignees(project.value, assignee.value || null); // wie ook in het nieuwe project zit, blijft toegewezen
+      persist();
     });
+    section.addEventListener('change', () => persist());
+    assignee.addEventListener('change', () => persist());
+    duration.addEventListener('change', () => persist());
+    deadline.addEventListener('change', () => persist());
 
     // ---- labels als chips ----
     const labelBox = h('div', { class: 'label-chips' });
@@ -176,15 +183,17 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     const drawLabels = () => replace(labelBox,
       labelNames.map((name) => h('span', { class: `chip chip-label chip-removable ${colorClass([...view.labels.values()].find((l) => nameKey(l.name) === nameKey(name))?.color)}` },
         `@${name}`,
-        !readOnly && h('button', { class: 'chip-x', type: 'button', 'aria-label': t('task.removeLabel', { name }), onclick: () => { labelNames = labelNames.filter((x) => x !== name); drawLabels(); labelInput.focus(); } }, icon('close')))),
+        !readOnly && h('button', { class: 'chip-x', type: 'button', 'aria-label': t('task.removeLabel', { name }), onclick: () => { labelNames = labelNames.filter((x) => x !== name); drawLabels(); labelInput.focus(); persist(); } }, icon('close')))),
       labelInput);
-    const addLabels = () => {
+    /** De labels uit het invoerveld erbij; `store: false` alleen bij het sluiten (dan bewaart het sluiten zelf). */
+    const addLabels = ({ store: keep = true } = {}) => {
       for (const raw of labelInput.value.split(',')) {
         const name = raw.trim().replace(/^@/, '').trim();
         if (name && !labelNames.some((x) => nameKey(x) === nameKey(name))) labelNames.push(name);
       }
       labelInput.value = '';
       drawLabels();
+      if (keep) persist();
     };
     labelInput.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) || e.key === ',') {
@@ -198,6 +207,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
         labelNames.pop();
         drawLabels();
         labelInput.focus();
+        persist();
       }
     });
     labelInput.addEventListener('change', () => { if (labelInput.value.trim()) addLabels(); });
@@ -218,59 +228,101 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
     };
     due.addEventListener('input', showDueHint);
     showDueHint();
+    due.addEventListener('change', () => persist());
+    // de herhalingskiezer en het datumblad zetten de tekst in het veld terwijl je er niet in typt: dan meteen bewaren
+    due.addEventListener('input', () => { if (document.activeElement !== due) persist(); });
 
     const error = h('p', { class: 'error', role: 'alert' });
     const close = () => dialog.close();
 
-    /** Bewaart de wijzigingen. Geeft true terug als het gelukt is (en het venster dicht is). */
-    const save = async () => {
-      if (readOnly) { close(); return true; } // er is niets te bewaren
-      error.textContent = '';
+    // ---- meteen bewaren, zoals Todoist ----
+    // Een keuze (project, sectie, datum, prioriteit, labels, duur, deadline, toegewezen aan) gaat meteen naar de opslag; de titel en de
+    // beschrijving zodra je het veld verlaat, en alles wat nog openstaat bij het sluiten. Elke stap is met Ctrl+Z ongedaan te maken.
+    // `saved` is wat er nu bewaard is: een volgende stap vergelijkt daarmee, zodat alleen echte wijzigingen worden verstuurd.
+    const saved = {
+      content: task.content, description: task.description ?? '', priority: task.priority, deadline: task.deadline ?? '',
+      duration: task.duration ? String(task.duration) : '', dueText: initialDue, project: task.project_id, section: task.section_id ?? null,
+      assignee: task.assignee_id ?? null, labels: [...initialLabelNames],
+    };
+    let chain = Promise.resolve();
+
+    /** Eén stap bewaren. `final`: bij het sluiten; wat dan niet klopt (een lege titel, een onbekende datum) blijft zoals het was. */
+    async function persistNow(final) {
+      if (readOnly) return;
       const changes = {};
       const newContent = content.value.trim();
       if (!newContent) {
-        error.textContent = t('task.nameRequired');
-        content.focus();
-        return false;
-      }
-      if (newContent !== task.content) changes.content = newContent;
-      if (description.value !== (task.description ?? '')) changes.description = description.value;
-      if (priorityValue !== task.priority) changes.priority = priorityValue;
-      if (deadline.value !== (task.deadline ?? '')) changes.deadline = deadline.value || null;
-      if (duration.value !== (task.duration ? String(task.duration) : '')) changes.duration = duration.value ? Number(duration.value) : null;
+        if (final) content.value = saved.content;
+        else { error.textContent = t('task.nameRequired'); }
+      } else if (newContent !== saved.content) changes.content = newContent;
+      if (description.value !== saved.description) changes.description = description.value;
+      if (priorityValue !== saved.priority) changes.priority = priorityValue;
+      if (deadline.value !== saved.deadline) changes.deadline = deadline.value || null;
+      if (duration.value !== saved.duration) changes.duration = duration.value ? Number(duration.value) : null;
       const dueText = due.value.trim();
-      if (dueText !== initialDue) {
+      let dueOk = true;
+      if (dueText !== saved.dueText) {
         if (!dueText) {
           changes.due = null;
         } else {
           const parsed = parseDateText(dueText, new Date());
-          if (!parsed) {
-            error.textContent = t('task.dueError');
-            due.focus();
-            return false;
-          }
-          changes.due = parsed;
+          if (parsed) changes.due = parsed;
+          else { dueOk = false; if (!final) error.textContent = t('task.dueError'); }
         }
       }
-      // Een label dat nog in het invoerveld staat, telt mee.
-      if (labelInput.value.trim()) addLabels();
+      if (newContent && dueOk) error.textContent = '';
+      // Een label dat nog in het invoerveld staat, telt bij het sluiten mee.
+      if (final && labelInput.value.trim()) addLabels({ store: false });
       // Verhuist de taak naar een ander project, dan wijzen we pas na de verhuizing toe: de server controleert of de persoon
       // lid is van het project waar de taak dán in staat.
-      const projectChanges = !parent && project.value !== task.project_id;
+      const projectChanges = !parent && project.value !== saved.project;
+      const sectionChanges = !parent && (projectChanges || (section.value || null) !== saved.section);
       const assigneeValue = assignee.value || null;
-      const assigneeChanged = !assigneeField.hidden && assigneeValue !== (task.assignee_id ?? null);
+      const assigneeChanged = !assigneeField.hidden && assigneeValue !== saved.assignee;
       if (assigneeChanged && !projectChanges) changes.assignee_id = assigneeValue;
-      // alles wat hier verandert is één stap voor "Ongedaan maken"
-      const { entry } = await actions.track(task.content, async () => {
+      const labelsChanged = JSON.stringify(labelNames) !== JSON.stringify(saved.labels);
+      if (Object.keys(changes).length === 0 && !sectionChanges && !assigneeChanged && !labelsChanged) return;
+      // wat hier in één keer verandert is één stap voor "Ongedaan maken"
+      await actions.track(changes.content ?? saved.content, async () => {
         if (Object.keys(changes).length > 0) await actions.updateTask(task.id, changes);
-        if (!parent && (projectChanges || (section.value || null) !== (task.section_id ?? null))) {
-          await actions.moveTask(task.id, { project_id: project.value, section_id: section.value || null });
-        }
+        if (sectionChanges) await actions.moveTask(task.id, { project_id: project.value, section_id: section.value || null });
         if (assigneeChanged && projectChanges) await actions.assignTask(task.id, assigneeValue);
-        if (JSON.stringify(labelNames) !== JSON.stringify(initialLabelNames)) await actions.setTaskLabels(task.id, labelNames);
+        if (labelsChanged) await actions.setTaskLabels(task.id, labelNames);
       });
+      if ('content' in changes) saved.content = changes.content;
+      if ('description' in changes) saved.description = description.value;
+      if ('priority' in changes) saved.priority = priorityValue;
+      if ('deadline' in changes) saved.deadline = deadline.value;
+      if ('duration' in changes) saved.duration = duration.value;
+      if ('due' in changes) saved.dueText = dueText;
+      if (sectionChanges) { saved.project = project.value; saved.section = section.value || null; }
+      if (assigneeChanged) saved.assignee = assigneeValue;
+      if (labelsChanged) saved.labels = [...labelNames];
+    }
+    /** Bewaren, één stap tegelijk (een volgende wacht tot de vorige klaar is). */
+    const persist = (final = false) => (chain = chain.then(() => persistNow(final)).catch(() => {}));
+
+    /**
+     * Bewaren en sluiten (Sluiten, Ctrl+Enter, en voor afvinken of dupliceren). Een lege naam of een datum die niet te lezen is: de
+     * melding, en het venster blijft open (zo raak je niets kwijt zonder het te merken). Geeft true terug als het venster dicht is.
+     * Esc en het kruisje sluiten altijd; wat niet klopt blijft dan zoals het was.
+     */
+    const save = async () => {
+      if (!readOnly) {
+        const dueText = due.value.trim();
+        if (!content.value.trim()) {
+          error.textContent = t('task.nameRequired');
+          content.focus();
+          return false;
+        }
+        if (dueText && dueText !== saved.dueText && !parseDateText(dueText, new Date())) {
+          error.textContent = t('task.dueError');
+          due.focus();
+          return false;
+        }
+      }
+      await persist(true);
       close();
-      if (entry && onUndoable) onUndoable(t('undo.taskSaved', { name: newContent }), entry);
       return true;
     };
 
@@ -484,9 +536,8 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
           !readOnly && h('button', { type: 'button', class: 'button button-danger button-left', onclick: remove }, t('common.delete')),
           saveTemplate && h('button', { type: 'button', class: `button button-small${readOnly ? ' button-left' : ''}`, onclick: () => saveTemplate(current()) }, icon('template'), t('template.save.button')),
           h('button', { type: 'button', class: 'icon-button', 'aria-label': t('task.more'), title: t('task.more'), 'aria-haspopup': 'dialog', dataset: { fk: 'task-more' }, onclick: more }, icon('more')),
-          !readOnly && h('span', { class: 'save-tip' }, t('task.saveTip')),
-          h('button', { type: 'button', class: 'button', onclick: close }, readOnly ? t('common.close') : t('common.cancel')),
-          !readOnly && h('button', { type: 'submit', class: 'button button-primary' }, t('common.save')),
+          // alles wordt meteen bewaard (zoals Todoist); Sluiten (of Ctrl+Enter, Esc, het kruisje) sluit
+          h('button', { type: 'submit', class: 'button', dataset: { fk: 'task-close' } }, t('common.close')),
         ),
       ));
     // Op een telefoon staat het opmerkingenveld vast onderaan (zoals in Todoist), buiten het scrollende deel.
@@ -503,6 +554,7 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       }
     });
     content.addEventListener('input', () => grow(content));
+    content.addEventListener('blur', () => persist());
     // Enter in de titel bewaart niet en voegt geen regel toe (een titel is één regel)
     content.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) e.preventDefault();
@@ -511,7 +563,16 @@ export function openTaskDialog({ task, store, actions, today, toggle = null, onU
       drawCheck();
       drawSubtasks();
     });
+    // Esc: wat je nog aan het typen was (naam, beschrijving, datum) vervalt, zoals Todoist een bewerking afbreekt; keuzes die al
+    // bewaard zijn, blijven. Het kruisje, Sluiten en ernaast tikken bewaren wel.
+    dialog.addEventListener('cancel', () => {
+      content.value = saved.content;
+      description.value = saved.description;
+      due.value = saved.dueText;
+      labelInput.value = '';
+    });
     dialog.addEventListener('close', () => {
+      persist(true); // de titel of beschrijving waar je nog in stond, en een label in het invoerveld
       unsubscribe();
       reminders.dispose();
       comments.dispose();

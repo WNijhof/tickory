@@ -54,7 +54,7 @@ test('rowModel: een kale taak', () => {
 test('rowModel: de datum krijgt zijn status (te laat, vandaag, later) en herhaling wordt herkend', () => {
   assert.deepEqual(model({ due: { date: '2026-11-12' } }).due, { text: 'gisteren', status: 'overdue', repeats: false });
   assert.deepEqual(model({ due: { date: TODAY } }).due, { text: 'vandaag', status: 'today', repeats: false });
-  assert.deepEqual(model({ due: { date: '2026-11-14' } }).due, { text: 'morgen', status: 'future', repeats: false });
+  assert.deepEqual(model({ due: { date: '2026-11-14' } }).due, { text: 'morgen', status: 'tomorrow', repeats: false });
   assert.equal(model({ due: { date: '2026-11-13T09:00' } }).due.status, 'overdue', 'een tijdstip dat voorbij is');
   assert.equal(model({ due: { date: '2026-11-13T18:00' } }).due.status, 'today');
   const weekly = model({ due: { date: '2026-11-20', recurrence: { freq: 'weekly', byweekday: [5] } } }).due;

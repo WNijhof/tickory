@@ -3,7 +3,7 @@
 // hoeft dan na een wijziging alleen de regels opnieuw te tekenen die echt anders zijn.
 
 import { formatDuration } from './duration.js';
-import { dueStatus, formatDate, formatDue } from './format.js';
+import { dueTone, formatDate, formatDue } from './format.js';
 import { t } from './i18n.js';
 import { colorName } from './colors.js';
 import { completedTime } from './completed.js';
@@ -70,7 +70,7 @@ export function rowModel(task, { view, today, now, depth = 0, showProject = fals
     depth: Math.min(depth, 4),
     hasChildren,
     collapsed,
-    due: task.due ? { text: formatDue(task.due, today), status: dueStatus(task.due, today, now), repeats: Boolean(task.due.recurrence) } : null,
+    due: task.due ? { text: formatDue(task.due, today), status: dueTone(task.due, today, now), repeats: Boolean(task.due.recurrence) } : null,
     duration: task.duration ? { text: formatDuration(task.duration), minutes: task.duration } : null,
     deadline: task.deadline ? { text: t('task.deadlineChip', { date: formatDate(task.deadline, today) }), overdue: task.deadline < today } : null,
     subtasks: sub ? { done: sub.done, total: sub.total, text: `${sub.done}/${sub.total}`, label: t('task.subtasksLabel', { done: sub.done, total: sub.total }) } : null,

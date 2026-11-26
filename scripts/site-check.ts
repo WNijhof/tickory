@@ -1245,7 +1245,7 @@ if (wants('browser')) {
         assert.equal(await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-excerpt .mention').textContent`), '@Anna');
         await evaluate(`document.querySelector('.inbox-item[data-kind="mention"] .inbox-open').click()`);
         await waitFor(`document.querySelector('#task-dialog[open]') && document.querySelector('#task-dialog .comment-text .mention')?.textContent === '@Anna'`, 'de taak met de vermelding');
-        await evaluate(`[...document.querySelectorAll('#task-dialog button')].find((x) => x.textContent === 'Annuleren').click()`);
+        await evaluate(`[...document.querySelectorAll('#task-dialog button')].find((x) => x.textContent === 'Sluiten').click()`);
         await waitFor(`!document.querySelector('dialog[open]') && document.querySelector('[data-fk="nav-notifications"] .nav-count')?.textContent === '2'`, 'gelezen: nog twee ongelezen');
         await evaluate(`[...document.querySelectorAll('#view-actions button')].find((x) => x.textContent === 'Alles gelezen').click()`);
         await waitFor(`!document.querySelector('[data-fk="nav-notifications"] .nav-count') && document.querySelectorAll('.inbox-item.unread').length === 0`, 'alles gelezen in de demo');
@@ -1256,7 +1256,7 @@ if (wants('browser')) {
         b.reset();
         await typeInto('#quick-input', 'Loodgieter bellen morgen om 9 uur #Huishouden /Klusjes @bellen p1');
         await waitFor(`document.querySelectorAll('#quick-preview .chip').length >= 6`, 'voorbeeld onder het invoerveld');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#quick-preview .chip')].map((c) => c.textContent)`), ['Loodgieter bellen', 'morgen 09:00', '#Huishouden', '/Klusjes', '@bellen', 'P1']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('#quick-preview .chip')].map((c) => c.textContent)`), ['Loodgieter bellen', 'morgen 09:00', '#Huishouden', '/Klusjes', '@bellen', 'P1', '🔔 30 minuten vooraf · automatisch']); // met een tijd ook de automatische herinnering
         await submit('#quick-add');
         await waitFor(`document.getElementById('quick-input').value === ''`, 'invoerveld leeg');
         await nav('Huishouden');
@@ -1705,7 +1705,7 @@ if (wants('browser')) {
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Opmerking verwijderen?')`, 'bevestiging');
         await clickText('Verwijderen', `[...document.querySelectorAll('dialog[open]')].at(-1)`);
         await waitFor(`document.querySelectorAll('#task-dialog .comment').length === 2`, 'opmerking verwijderd');
-        await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+        await clickText('Sluiten', `document.querySelector('#task-dialog')`);
         await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
 
         // opmerkingen bij het project
@@ -1787,7 +1787,7 @@ if (wants('browser')) {
         await go('i', 'Inbox');
         await press('?', true);
         await waitFor(`[...document.querySelectorAll('dialog[open] h2')].some((e) => e.textContent === 'Sneltoetsen')`, 'overzicht van sneltoetsen');
-        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak, project, filter of label een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
+        assert.deepEqual(await evaluate(`[...document.querySelectorAll('dialog[open] .shortcut dd')].map((e) => e.textContent)`), ['Taak toevoegen', 'Naar Vandaag', 'Naar Aankomend', 'Naar de Inbox', 'Dit overzicht tonen', 'Zoeken', 'Zoeken', 'Twee lijsten naast elkaar aan of uit', 'Een venster sluiten', 'De taak onder de aanwijzer of focus selecteren', 'Alle taken in beeld selecteren', 'Selecteren stoppen', 'De laatste wijziging ongedaan maken', 'De taak opslaan in het taakvenster', 'Een taak, project, filter of label een plek omhoog of omlaag zetten', 'Een taak of project onder het vorige hangen (subtaak) of er weer uit halen']);
         await clickText('Sluiten', `document.querySelector('dialog[open]')`);
         await waitFor(`!document.querySelector('dialog[open]')`, 'venster gesloten');
         // in een invoerveld doen de toetsen niets

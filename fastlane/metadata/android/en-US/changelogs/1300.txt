@@ -1,0 +1,2 @@
+- Add task window: "with a reminder" at the end gives the default reminder and disappears from the title.
+- On a wide screen (browser, desktop app, large tablet): two lists or notes side by side, a task menu, and Upcoming like Todoist.

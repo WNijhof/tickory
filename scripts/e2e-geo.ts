@@ -146,7 +146,7 @@ export async function geoScenario(c: any) {
   const lines = await reminderLines();
   assert.ok(lines.includes('Bij vertrek: Thuis') && lines.includes('Bij aankomst: Werk'), `de regels: ${lines.join(' | ')}`);
   await shot('herinnering-op-een-plek');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
   await waitFor(SYNCED, 'gesynchroniseerd');
   const mine = locationReminders();
@@ -235,7 +235,7 @@ export async function geoScenario(c: any) {
   await clickText('Herinnering toevoegen', `document.querySelector('#task-dialog')`);
   await sleep(400);
   assert.deepEqual(await names(), [], 'na een weigering vragen we niet opnieuw bij de volgende herinnering');
-  await clickText('Annuleren', `document.querySelector('#task-dialog')`);
+  await clickText('Sluiten', `document.querySelector('#task-dialog')`);
   await waitFor(`!document.querySelector('dialog[open]')`, 'taakvenster gesloten');
   await waitFor(SYNCED, 'gesynchroniseerd');
   await waitFor(`JSON.parse(sessionStorage.getItem('android-calls') || '[]').some((x) => x[0] === 'remindersChanged')`, 'de app hoort van de nieuwe herinneringen op een plek', 8000);

@@ -8,8 +8,8 @@ services:
       PROXY_AUTH_ADD: "false"
 
   web:
-    # bij het indienen: vastpinnen op de digest (ghcr.io/wnijhof/tickory:0.12.6@sha256:…)
-    image: ghcr.io/wnijhof/tickory:0.12.6
+    # bij het indienen: vastpinnen op de digest (ghcr.io/wnijhof/tickory:0.13.0@sha256:…)
+    image: ghcr.io/wnijhof/tickory:0.13.0
     user: "1000:1000"
     init: true
     restart: on-failure

@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { INBOX_ID } from '../../shared/schema.js';
 import { emptyState } from './reducer.js';
 import { parseQuickAdd } from './quickadd.js';
-import { counts, projectList, projectView, todayView, upcomingView } from './selectors.js';
-import { addDays, daysBetween, dueStatus, formatDate, formatDateInput, formatDayHeading, formatDue, formatDueLong, todayString } from './format.js';
+import { counts, projectList, projectView, todayView, upcomingDays, upcomingView } from './selectors.js';
+import { addDays, daysBetween, dueStatus, dueTone, formatDate, formatDateInput, formatDayHeading, formatDue, formatDueLong, todayString } from './format.js';
 import { parseDateText } from './dateNl.js';
 
 const NU = new Date(2026, 10, 11, 9, 0, 0); // woensdag 11 november 2026
@@ -202,6 +202,11 @@ test('vandaag en binnenkort: te laat apart, gesorteerd op tijd en prioriteit, vo
   assert.deepEqual(t.overdue.map((x) => x.content), ['Gisteren']);
   assert.deepEqual(t.today.map((x) => x.content), ['Vandaag hoog', 'Vandaag laag', 'Vandaag 14:00']);
   assert.deepEqual(upcomingView(v, TODAY).map((d) => [d.date, d.tasks.map((x) => x.content)]), [['2026-11-12', ['Morgen']]]);
+  // Aankomend zoals Todoist: te laat apart, dan elke dag vanaf vandaag, ook lege dagen
+  const u = upcomingDays(v, TODAY, 3);
+  assert.deepEqual(u.overdue.map((x) => x.content), ['Gisteren']);
+  assert.deepEqual(u.days.map((d) => [d.date, d.tasks.map((x) => x.content)]), [[TODAY, ['Vandaag hoog', 'Vandaag laag', 'Vandaag 14:00']], ['2026-11-12', ['Morgen']], ['2026-11-13', []]]);
+  assert.equal(upcomingDays(v, TODAY, 200).days.find((d) => d.date === '2027-03-01').tasks[0].content, 'Ver weg');
   const n = counts(v, TODAY);
   assert.equal(n.today, 4);
   assert.equal(n.perProject.get(INBOX_ID), 6);
@@ -257,4 +262,15 @@ test('te laat: zonder tijd pas de volgende dag, met tijd zodra het tijdstip voor
   assert.equal(dueStatus({ date: `${TODAY}T08:00` }, TODAY, `${TODAY}T09:00`), 'overdue');
   assert.equal(dueStatus({ date: `${TODAY}T10:00` }, TODAY, `${TODAY}T09:00`), 'today');
   assert.equal(dueStatus({ date: '2026-11-12' }, TODAY), 'future');
+});
+
+test('de kleur van een datum zoals Todoist: te laat, vandaag, morgen, de komende week, later', () => {
+  const T = '2026-11-26';
+  assert.equal(dueTone(null, T), 'none');
+  assert.equal(dueTone({ date: '2026-11-25' }, T), 'overdue');
+  assert.equal(dueTone({ date: T }, T), 'today');
+  assert.equal(dueTone({ date: '2026-11-27T14:30' }, T), 'tomorrow');
+  assert.equal(dueTone({ date: '2026-11-28' }, T), 'week');
+  assert.equal(dueTone({ date: '2026-12-02' }, T), 'week', 'nog binnen zeven dagen');
+  assert.equal(dueTone({ date: '2026-12-03' }, T), 'later');
 });

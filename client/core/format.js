@@ -119,6 +119,19 @@ export function formatDateInput(due) {
  * @returns {'none' | 'overdue' | 'today' | 'future'}
  *   Een taak met tijdstip is pas te laat als dat tijdstip voorbij is; zonder tijdstip pas de dag erna.
  */
+/**
+ * De kleur van een datum in de lijst, zoals Todoist: te laat rood, vandaag groen, morgen oranje, de komende week paars, later grijs.
+ * (dueStatus blijft voor filters: daar telt alleen te laat, vandaag of later.)
+ * @returns {'none' | 'overdue' | 'today' | 'tomorrow' | 'week' | 'later'}
+ */
+export function dueTone(due, today, now = null) {
+  const status = dueStatus(due, today, now);
+  if (status !== 'future') return status;
+  const day = due.date.slice(0, 10);
+  if (day === addDays(today, 1)) return 'tomorrow';
+  return day <= addDays(today, 6) ? 'week' : 'later';
+}
+
 export function dueStatus(due, today, now = null) {
   if (!due) return 'none';
   const day = due.date.slice(0, 10);

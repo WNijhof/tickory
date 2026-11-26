@@ -151,6 +151,34 @@ export function completionMark(view) {
   return `${checked}:${total}`;
 }
 
+/**
+ * Hoeveel er sinds de laatste cijfers van de server op dit apparaat is afgevinkt: het verschil in completed_count tussen twee completionMark's (0 als
+ * er niets bekend is, nooit minder dan 0: weggehaalde afgevinkte taken tellen niet als heropend).
+ */
+export function pendingDone(then, now) {
+  if (typeof then !== 'string' || typeof now !== 'string') return 0;
+  // het tweede deel is completed_count: dat telt bij elke afvinking één op, ook bij een terugkerende taak (het eerste deel, het
+  // aantal afgevinkte taken, gaat bij een gewone taak óók omhoog: dat zou dubbel tellen)
+  const done = (mark) => Number(mark.split(':')[1]) || 0;
+  return Math.max(0, done(now) - done(then));
+}
+
+/**
+ * De samenvatting met wat er net is afgevinkt erbij, zodat de balk meteen meetelt zoals bij Todoist, nog voordat de server de nieuwe
+ * cijfers geeft (die komen even later en gaan dan voor).
+ */
+export function withPending(s, pending) {
+  if (!s || !(pending > 0)) return s;
+  const todayCount = s.today.count + pending;
+  const weekCount = s.week.count + pending;
+  return {
+    ...s,
+    today: { ...s.today, count: todayCount, met: s.today.goal > 0 && todayCount >= s.today.goal },
+    week: { ...s.week, count: weekCount, met: s.week.goal > 0 && weekCount >= s.week.goal },
+    days: s.days.map((d) => (d.today ? { ...d, count: d.count + pending } : d)),
+  };
+}
+
 // ---------- het laatste antwoord, ook zonder verbinding ----------
 
 /** Onder deze sleutel bewaart de app het laatste antwoord (per apparaat, alleen van de aangemelde gebruiker; afmelden wist het). */

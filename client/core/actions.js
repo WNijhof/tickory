@@ -124,7 +124,14 @@ export function createActions(store, { requestSync = () => {}, makeId = newId, m
   });
   /** Bij een nieuwe taak: de herinneringen die zijn opgegeven, en anders de automatische als de taak een tijd heeft. */
   const remindersForNewTask = (taskId, due, given) => {
-    if (given && given.length > 0) return given.map((spec) => reminderCommand(taskId, spec));
+    if (given && given.length > 0) {
+      // { type: 'auto' } ("met herinnering" zonder tijd, core/quickadd.js): de automatische herinnering uit de instellingen, en staat die
+      // uit, dan 30 minuten; alleen bij een taak met een tijd (zonder tijd is er geen moment om vanaf te rekenen)
+      const auto = autoReminder() >= 0 ? autoReminder() : 30;
+      const specs = given.flatMap((spec) => (spec.type !== 'auto' ? [spec] : hasTime(due?.date) ? [{ type: 'relative', minute_offset: auto }] : []));
+      const unique = specs.filter((spec, i) => specs.findIndex((x) => JSON.stringify(x) === JSON.stringify(spec)) === i); // "met herinnering" én !30m: één keer
+      return unique.map((spec) => reminderCommand(taskId, spec));
+    }
     const auto = autoReminder();
     return hasTime(due?.date) && auto >= 0 ? [reminderCommand(taskId, { type: 'relative', minute_offset: auto })] : [];
   };

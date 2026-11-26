@@ -99,6 +99,8 @@ export function openDialog(build, { wide = false, dismissable = true, onClose = 
         if (done) return;
         done = true;
         if (host.__embeddedFinish === finish) host.__embeddedFinish = null;
+        // net als bij een venster: wie op 'close' wacht (de editor van een notitie bewaart en ruimt dan op), hoort het
+        box.dispatchEvent(new Event('close'));
         onClose();
         box.remove();
         resolve(value);

@@ -72,7 +72,8 @@ export async function productivityScenario(c: any) {
   assert.match(table[6][0], /^(maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|zondag) \d{1,2} [a-z]+$/, `de dag voluit in het Nederlands: ${table[6][0]}`);
   assert.equal(table[6][1], `${before + 2} taken`);
   assert.equal(await evaluate(`document.querySelectorAll('.chart')[0].querySelector('caption').textContent`), 'De laatste 7 dagen (dagdoel 5)');
-  assert.ok(await evaluate(`[...document.querySelectorAll('.share-text')].map((e) => e.textContent).includes('Inbox')`), 'de Inbox staat bij de projecten');
+  // het getal telt meteen mee (core/productivity.js, withPending); de verdeling per project komt even later van de server
+  await waitFor(`[...document.querySelectorAll('.share-text')].map((e) => e.textContent).includes('Inbox')`, 'de Inbox staat bij de projecten');
   // de kleur volgt de accentkleur (geen eigen kleuren in het diagram)
   assert.equal(await evaluate(`getComputedStyle(document.querySelector('.bar-fill')).fill`), await evaluate(`getComputedStyle(document.querySelector('.stat-meter-fill')).backgroundColor`));
   // 4 of 12 weken, onthouden op dit apparaat
