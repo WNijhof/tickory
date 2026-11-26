@@ -12,7 +12,8 @@
 //     gebruiker bedoelde;
 //   - hetzelfde `uuid` nog eens geeft dezelfde taak terug (`repeated: true`) en maakt niets nieuws: de id's van de taak, de
 //     labels en de herinneringen en de uuid's van de commando's zijn afgeleid van gebruiker en uuid;
-//   - `dry_run: true` geeft alleen de voorvertoning (titel, datum, project, sectie, labels, prioriteit, herinneringen);
+//   - `dry_run: true` geeft alleen de voorvertoning (titel, datum, project, sectie, labels, prioriteit, herinneringen), en welke
+//     stukken van de tekst daarvoor gebruikt zijn (`spans`, om ze te markeren zoals Todoist);
 //   - `lang` ("nl" of "en", de taal van het apparaat) kiest de datumtaal: "nl" alleen Nederlands, "en" Engels en Nederlands.
 //     Zonder `lang` (een oudere app) geldt "en": dat leest Nederlands ook.
 //
@@ -23,7 +24,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { generalOf } from '../shared/general.js';
 import { createHash } from 'node:crypto';
-import { parseQuickAdd } from '../client/core/quickadd.js';
+import { parseQuickAddWithSpans } from '../client/core/quickadd.js';
 import { createActions } from '../client/core/actions.js';
 import { emptyState } from '../client/core/reducer.js';
 import { canEditProject } from '../client/core/access.js';
@@ -155,6 +156,8 @@ export interface QuickAddPreview {
   reminders: ({ type: 'relative'; minute_offset: number } | { type: 'absolute'; date: string })[];
   /** De herinnering is de automatische uit de instellingen (er stond geen `!…` in de tekst). */
   auto_reminder: boolean;
+  /** Welke stukken van `text` herkend zijn (posities in UTF-16), om ze tijdens het typen te markeren zoals Todoist. */
+  spans: { start: number; end: number; kind: string }[];
 }
 
 export interface QuickAddAnswer {
@@ -217,7 +220,7 @@ export async function quickAdd(db: DatabaseSync, userId: string, body: Record<st
   const defaultDue = input.due === 'today' ? { date: today, string: 'vandaag', lang: 'nl' } : input.due === 'tomorrow' ? { date: nextDay(today), string: 'morgen', lang: 'nl' } : null;
   // de voorkeur "datums herkennen" van de gebruiker (shared/general.js), zoals in de web-app
   const dates = generalOf(settings).date_recognition;
-  const parsed = inZone(tz, () => parseQuickAdd(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo, dates, language: input.lang }));
+  const { parsed, spans } = inZone(tz, () => parseQuickAddWithSpans(input.text, { view, now: new Date(moment), defaultProjectId: projectId as string, defaultSectionId: input.sectionId, defaultDue, canAddTo, dates, language: input.lang }));
   if (input.priority !== null && parsed.priority === 4) parsed.priority = input.priority; // getypt (p1 … p4) gaat voor
   if (!parsed.content) fail('INVALID_ARG', 'de taak heeft geen naam (alleen een datum, project of label)');
 
@@ -254,6 +257,7 @@ export async function quickAdd(db: DatabaseSync, userId: string, body: Record<st
       ? { type: 'absolute' as const, date: (c.args.due as { date: string }).date }
       : { type: 'relative' as const, minute_offset: c.args.minute_offset as number })),
     auto_reminder: parsed.reminders.length === 0 && commands.some((c) => c.type === 'reminder_add'),
+    spans,
   };
   const answer = { quick_add: QUICK_ADD_VERSION, repeated: false, preview, tz, typed_at: new Date(moment).toISOString() };
   if (input.dryRun) return { ...answer, dry_run: true, task: null };

@@ -12,5 +12,8 @@
     <color name="quick_surface">#1F2327</color>
     <color name="quick_stroke">#46505A</color>
     <color name="quick_chip">#2A3036</color>
+    <!-- Herkende tekst in het veld (datum, #project, @label …), gemarkeerd zoals bij Todoist. -->
+    <color name="quick_recognized">#123F3A</color>
+    <color name="quick_recognized_text">#2DD4BF</color>
     <color name="quick_chip_on">#123F3A</color>
 </resources>

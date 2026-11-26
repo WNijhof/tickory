@@ -379,6 +379,8 @@ test('voorvertoning (dry_run): maakt niets aan en verandert niets, heeft geen uu
     content: 'Tandarts bellen', due: { date: '2026-11-14T09:00', string: 'morgen om 9 uur', lang: 'nl' }, deadline: null, duration: null,
     project: { id: 'project-thuis-01', name: 'Thuis', inbox: false }, section: { id: 'section-klus-001', name: 'Klusjes' },
     labels: [{ name: 'bellen', new: false }, { name: 'nieuw', new: true }], priority: 2, reminders: [{ type: 'relative', minute_offset: 30 }], auto_reminder: true,
+    // welke tekst herkend is: 'morgen om 9 uur', '#Thuis', '/Klusjes', '@bellen', '@nieuw' en 'p2'
+    spans: [{ start: 16, end: 31, kind: 'date' }, { start: 32, end: 38, kind: 'project' }, { start: 39, end: 47, kind: 'section' }, { start: 48, end: 55, kind: 'label' }, { start: 56, end: 62, kind: 'label' }, { start: 63, end: 65, kind: 'priority' }],
   });
   assert.deepEqual({ tasks: count(db, 'tasks'), labels: count(db, 'labels'), reminders: count(db, 'reminders'), log: count2(db), rev: rev(db) }, before);
   // een voorvertoning met een uuid onthoudt dat uuid niet: daarna echt toevoegen werkt gewoon

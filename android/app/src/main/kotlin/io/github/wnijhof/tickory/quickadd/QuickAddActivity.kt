@@ -9,8 +9,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.Spanned
+import android.text.TextPaint
 import android.text.TextWatcher
 import android.text.format.DateFormat
+import android.text.style.CharacterStyle
+import android.text.style.UpdateAppearance
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -35,6 +39,7 @@ import io.github.wnijhof.tickory.core.ApiClient
 import io.github.wnijhof.tickory.core.DeepLink
 import io.github.wnijhof.tickory.core.DueText
 import io.github.wnijhof.tickory.core.Ids
+import io.github.wnijhof.tickory.core.PreviewSpan
 import io.github.wnijhof.tickory.core.QueuedQuickAdd
 import io.github.wnijhof.tickory.core.QuickAddChoice
 import io.github.wnijhof.tickory.core.QuickAddChoices
@@ -477,16 +482,22 @@ class QuickAddActivity : ComponentActivity() {
             return
         }
         val seq = previewSeq
-        val body = QuickAddQueue.previewBody(input.text.toString().trim().take(QuickAddQueue.MAX_TEXT), projectId, dueChoice(), priority, typedAt(AppClock.now()), ZoneId.systemDefault().id, getString(R.string.language_code))
+        val typed = input.text.toString()
+        // de server rekent posities in de tekst zonder witruimte vooraan; in het veld staat die er misschien wel
+        val lead = typed.length - typed.trimStart().length
+        val body = QuickAddQueue.previewBody(typed.trim().take(QuickAddQueue.MAX_TEXT), projectId, dueChoice(), priority, typedAt(AppClock.now()), ZoneId.systemDefault().id, getString(R.string.language_code))
         previewExecutor.execute {
             val token = TokenVault.load(app)
             val result = if (token == null) null else ApiClient(origin, 4_000, 6_000, Session.userAgent).quickAdd(token, body)
-            runOnUiThread { if (seq == previewSeq && !isFinishing && !isDestroyed) showPreview((result as? QuickAddResult.Ok)?.preview) }
+            runOnUiThread {
+                if (seq == previewSeq && !isFinishing && !isDestroyed && input.text.toString() == typed) showPreview((result as? QuickAddResult.Ok)?.preview, lead)
+            }
         }
     }
 
-    private fun showPreview(p: QuickAddPreview?) {
+    private fun showPreview(p: QuickAddPreview?, lead: Int = 0) {
         preview.removeAllViews()
+        markRecognized(p?.spans ?: emptyList(), lead)
         if (p == null) {
             previewScroll.visibility = View.GONE
             return
@@ -521,12 +532,39 @@ class QuickAddActivity : ComponentActivity() {
         previewScroll.visibility = View.VISIBLE
     }
 
+    /**
+     * Markeert in het veld de tekst die de server herkende (de datum, #project, @label, p1 …), zoals Todoist: een gekleurde achtergrond
+     * en accentkleur. De vorige markering gaat eerst weg; zonder voorvertoning (leeg, geen verbinding) blijft er niets gemarkeerd.
+     * Typ je verder, dan schuift de markering mee tot de volgende voorvertoning hem vervangt.
+     */
+    private fun markRecognized(spans: List<PreviewSpan>, lead: Int) {
+        val text = input.text ?: return
+        for (old in text.getSpans(0, text.length, RecognizedSpan::class.java)) text.removeSpan(old)
+        if (spans.isEmpty()) return
+        val background = getColor(R.color.quick_recognized)
+        val foreground = getColor(R.color.quick_recognized_text)
+        for (s in spans) {
+            val start = lead + s.start
+            val end = lead + s.end
+            if (start < 0 || end > text.length || end <= start) continue
+            text.setSpan(RecognizedSpan(s.kind, background, foreground), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
     /** "30 min ervoor", "2 uur ervoor", "1 dag ervoor", "op het tijdstip". */
     private fun offsetText(minutes: Int): String = when {
         minutes <= 0 -> getString(R.string.quick_reminder_at_time)
         minutes % 1440 == 0 -> resources.getQuantityString(R.plurals.quick_reminder_days, minutes / 1440, minutes / 1440)
         minutes % 60 == 0 -> getString(R.string.quick_reminder_hours, minutes / 60)
         else -> getString(R.string.quick_reminder_minutes, minutes)
+    }
+
+    /** De markering van herkende tekst ([kind] zoals de server het noemt: date, project, label …). */
+    class RecognizedSpan(val kind: String, private val background: Int, private val foreground: Int) : CharacterStyle(), UpdateAppearance {
+        override fun updateDrawState(tp: TextPaint) {
+            tp.bgColor = background
+            tp.color = foreground
+        }
     }
 
     companion object {

@@ -1,0 +1,2 @@
+- Widgets: tap a task to edit it in a small window (title, description, date, priority, labels, project), as with Todoist.
+- Add task window: the recognised date, project and labels are highlighted as you type.

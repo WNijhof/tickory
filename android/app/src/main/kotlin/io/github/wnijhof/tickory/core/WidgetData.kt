@@ -32,6 +32,13 @@ data class WidgetTask(
     val doneSubtasks: Int = 0,
     /** De datum zoals de server hem stuurt (JSON van `due`, met herhaling en tekst), zodat Herplannen de herhaling bewaart. */
     val dueJson: String? = null,
+    /**
+     * De beschrijving zoals hij is, om hem in het venster van de taak te bewerken; "" = geen beschrijving, null = niet bekend (langer
+     * dan [WidgetParser.MAX_SEARCH_DESCRIPTION] tekens, of bewaard door een oudere versie): dan alleen in de app te bewerken.
+     */
+    val description: String? = "",
+    /** De titel zoals hij is, als die anders is dan [content] (meer regels, of langer dan wat de widget toont); anders null. */
+    val rawContent: String? = null,
 )
 
 /** @property readOnly de gebruiker is in dit project lezer (alleen lezen): de widget toont dan geen cirkel om af te vinken */
@@ -222,14 +229,16 @@ object WidgetParser {
             val projectId = o.text("project_id")?.takeIf { Ids.isSafeId(it) } ?: continue
             val due = o.obj("due")
             val content = o.text("content") ?: ""
-            val description = (o.text("description") ?: "").take(MAX_SEARCH_DESCRIPTION)
+            val fullDescription = o.text("description") ?: ""
+            val description = fullDescription.take(MAX_SEARCH_DESCRIPTION)
+            val title = SyncParser.cleanTitle(o.text("content"))
             tasks.add(
                 WidgetTask(
                     id = id,
                     projectId = projectId,
                     sectionId = o.text("section_id")?.takeIf { Ids.isSafeId(it) },
                     parentId = o.text("parent_id")?.takeIf { Ids.isSafeId(it) },
-                    content = SyncParser.cleanTitle(o.text("content")),
+                    content = title,
                     due = due?.text("date"),
                     recurring = due?.obj("recurrence") != null,
                     priority = o.whole("priority")?.toInt()?.takeIf { it in 1..4 } ?: 4,
@@ -244,6 +253,8 @@ object WidgetParser {
                     comments = minOf(commentCount[id] ?: 0, 100),
                     doneSubtasks = doneKids[id] ?: 0,
                     dueJson = due?.let { Json.stringify(it) },
+                    description = fullDescription.takeIf { it.length <= MAX_SEARCH_DESCRIPTION },
+                    rawContent = content.takeIf { it != title && it.length <= SyncParser.MAX_CONTENT },
                 ),
             )
             if (tasks.size >= MAX_TASKS) break
@@ -311,6 +322,7 @@ object WidgetCodec {
                     "due" to it.due, "recurring" to it.recurring, "priority" to it.priority.toLong(), "labels" to it.labelIds, "order" to it.orderKey,
                     "search" to it.search, "deadline" to it.deadline, "assignee" to it.assigneeId, "reminder" to it.hasReminder,
                     "reminders" to it.reminders.toLong(), "desc" to it.hasDescription, "comments" to it.comments.toLong(), "doneKids" to it.doneSubtasks.toLong(), "dueJson" to it.dueJson,
+                    "descText" to it.description, "rawContent" to it.rawContent,
                 )
             },
             "projects" to s.projects.map { mapOf("id" to it.id, "name" to it.name, "parent" to it.parentId, "archived" to it.archived, "order" to it.orderKey, "readOnly" to it.readOnly) },
@@ -346,6 +358,8 @@ object WidgetCodec {
                 search = o.text("search") ?: "", deadline = o.flag("deadline"), assigneeId = o.text("assignee"), hasReminder = o.flag("reminder"),
                 reminders = o.whole("reminders")?.toInt() ?: 0, hasDescription = o.flag("desc"), comments = o.whole("comments")?.toInt() ?: 0,
                 doneSubtasks = o.whole("doneKids")?.toInt() ?: 0, dueJson = o.text("dueJson"),
+                // een oudere versie bewaarde de beschrijving niet: zonder beschrijving is dat "", anders onbekend tot de volgende verversing
+                description = o.text("descText") ?: if (o.flag("desc")) null else "", rawContent = o.text("rawContent"),
             )
         }
         val projects = objects("projects").mapNotNull { o ->

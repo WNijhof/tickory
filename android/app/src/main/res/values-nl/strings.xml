@@ -243,6 +243,27 @@
     <string name="popup_title">Taak</string>
     <string name="popup_complete">Voltooien</string>
     <string name="popup_completed">Voltooid</string>
+    <string name="popup_content_hint">Naam van de taak</string>
+    <string name="popup_description_hint">Beschrijving</string>
+    <string name="popup_description_in_app">Bewerk de beschrijving in de app</string>
+    <string name="popup_date">Datum</string>
+    <string name="popup_no_date">Geen datum</string>
+    <string name="popup_labels">Labels</string>
+    <string name="popup_no_labels">Geen</string>
+    <string name="popup_row_description">%1$s: %2$s. Tik om te wijzigen.</string>
+    <string name="popup_project_description">Project: %1$s. Tik om de taak te verplaatsen.</string>
+    <string name="popup_move_to">Verplaatsen naar</string>
+    <string name="popup_read_only">Dit project kun je alleen bekijken</string>
+    <string name="popup_subtasks">Subtaken %1$d/%2$d</string>
+    <string name="popup_saving">Opslaan…</string>
+    <string name="popup_saved">Opgeslagen</string>
+    <string name="popup_save_failed">Niet opgeslagen: geen verbinding met de server. Probeer het opnieuw, of ga nog een keer terug om je wijzigingen weg te gooien.</string>
+    <string name="popup_discarded">Wijzigingen niet opgeslagen</string>
+    <string name="popup_save_failed_later">Je wijzigingen aan de taak zijn niet opgeslagen: geen verbinding met de server</string>
+    <plurals name="popup_comments">
+        <item quantity="one">%d opmerking</item>
+        <item quantity="other">%d opmerkingen</item>
+    </plurals>
     <string name="quick_added">Toegevoegd</string>
     <string name="quick_added_offline">Toegevoegd, wordt verstuurd zodra er verbinding is</string>
     <string name="quick_draft_saved">Niet toegevoegd: je tekst staat er de volgende keer nog</string>

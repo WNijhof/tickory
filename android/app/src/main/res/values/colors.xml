@@ -13,6 +13,9 @@
     <color name="quick_surface">#FFFFFF</color>
     <color name="quick_stroke">#C4CCD4</color>
     <color name="quick_chip">#EEF2F5</color>
+    <!-- Herkende tekst in het veld (datum, #project, @label …), gemarkeerd zoals bij Todoist. -->
+    <color name="quick_recognized">#D5EEEA</color>
+    <color name="quick_recognized_text">#0F766E</color>
     <color name="quick_chip_on">#D5EEEA</color>
 
     <!-- Accentkleur van het pictogram in een melding; in licht en donker gelijk. -->

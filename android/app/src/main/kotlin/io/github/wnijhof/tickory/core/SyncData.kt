@@ -52,6 +52,9 @@ sealed class CommandStatus {
 object SyncParser {
     const val MAX_TITLE_LENGTH = 200
 
+    /** Zo lang mag de titel van een taak op de server zijn. */
+    const val MAX_CONTENT = 4000
+
     /**
      * De taken en herinneringen uit een sync-antwoord, of null als het antwoord onbruikbaar is (geen JSON-object, of
      * de lijsten "tasks" en "reminders" ontbreken). Bij null moet de aanroeper het bestaande plan laten staan.

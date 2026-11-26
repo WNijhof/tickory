@@ -47,7 +47,79 @@ const DURATION_HOURS = 'u|uur|h|hr|hrs|hours?';
 const DURATION_MINS = 'm|min|mins|minuut|minuten|minutes?';
 const DURATION_TOKEN = new RegExp(String.raw`(?<![\p{L}\p{N}=])=(\d+(?:[.,]\d+)?\s?(?:${DURATION_HOURS})(?:\s?\d{1,2}(?:\s?(?:${DURATION_MINS}))?)?|\d+\s?(?:${DURATION_MINS})?)(?![\p{L}\p{N}])`, 'iu');
 
-const cut = (text, start, end) => `${text.slice(0, start)} ${text.slice(end)}`.replace(/\s+/g, ' ').trim();
+// ---------- bijhouden waar elk teken vandaan kwam ----------
+// De herkenner knipt stukken uit de tekst. Om te kunnen zeggen welke woorden van wat je typte herkend zijn, loopt naast de tekst
+// `s` een lijst `map` mee: voor elk teken de plek [van, tot) in de oorspronkelijke tekst. `map` is null als dat niet lukt
+// (NFC per letter gaf iets anders dan NFC van het geheel); dan werkt alles gewoon, alleen zonder markering.
+
+const WS = /\s/u;
+
+/** De tekst in NFC, met witruimte samengevoegd en zonder witruimte eromheen, zoals de herkenner hem leest. */
+function track(text) {
+  let s = '';
+  let map = [];
+  for (const m of text.matchAll(/\P{M}\p{M}*|\p{M}+/gsu)) {
+    const n = m[0].normalize('NFC');
+    s += n;
+    for (let k = 0; k < n.length; k++) map.push([m.index, m.index + m[0].length]);
+  }
+  const whole = normalizeText(text);
+  if (s !== whole) {
+    s = whole;
+    map = null;
+  }
+  return collapse({ s, map });
+}
+
+/** Elke reeks witruimte één spatie, en geen witruimte aan het begin en het eind (zoals .replace(/\s+/g, ' ').trim()). */
+function collapse({ s, map }) {
+  let out = '';
+  const outMap = map ? [] : null;
+  for (let i = 0; i < s.length; i++) {
+    if (WS.test(s[i])) {
+      if (out.length === 0 || out[out.length - 1] === ' ') continue;
+      out += ' ';
+    } else {
+      out += s[i];
+    }
+    outMap?.push(map[i]);
+  }
+  if (out.endsWith(' ')) {
+    out = out.slice(0, -1);
+    outMap?.pop();
+  }
+  return { s: out, map: outMap };
+}
+
+/** Haalt [start, end) weg, met een spatie in de plaats (zoals de herkenner altijd knipte). */
+const cutTracked = (t, start, end) => replaceTracked(t, start, end, ' ');
+
+/** Zet `insert` in de plaats van [start, end); de nieuwe tekens wijzen terug naar het stuk dat ze vervangen. */
+function replaceTracked(t, start, end, insert) {
+  const s = `${t.s.slice(0, start)}${insert}${t.s.slice(end)}`;
+  if (!t.map) return collapse({ s, map: null });
+  const from = t.map[start] ?? t.map[t.map.length - 1] ?? [0, 0];
+  const to = t.map[end - 1] ?? from;
+  const origin = [Math.min(from[0], to[0]), Math.max(from[1], to[1])];
+  return collapse({ s, map: [...t.map.slice(0, start), ...Array.from(insert, () => origin), ...t.map.slice(end)] });
+}
+
+/**
+ * Waar [start, end) van de huidige tekst in de oorspronkelijke tekst stond, als aaneengesloten stukken zonder witruimte eromheen.
+ * Twee stukken met alleen witruimte ertussen worden één stuk ("morgen om 9"); met iets anders ertussen blijven ze los.
+ */
+function pieces(t, start, end, original) {
+  const ranges = [];
+  for (let i = Math.max(0, start); i < Math.min(end, t.s.length); i++) if (!WS.test(t.s[i])) ranges.push(t.map[i]);
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const out = [];
+  for (const [a, b] of ranges) {
+    const last = out[out.length - 1];
+    if (last && (a <= last[1] || !original.slice(last[1], a).trim())) last[1] = Math.max(last[1], b);
+    else out.push([a, b]);
+  }
+  return out;
+}
 
 /**
  * @param {string} text
@@ -85,58 +157,80 @@ export function findTimeRange(text) {
   return { start: `${String(h1).padStart(2, '0')}:${String(m1 ?? '00').padStart(2, '0')}`, minutes: b - a, index: m.index, length: m[0].length };
 }
 
-export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, defaultLabels = [], canAddTo = () => true, dates = true, language = getLanguage() }) {
-  let rest = normalizeText(text).replace(/\s+/g, ' ').trim();
+export function parseQuickAdd(text, context) {
+  return parseQuickAddWithSpans(text, context).parsed;
+}
+
+/**
+ * Als parseQuickAdd, en daarnaast welke stukken van `text` herkend zijn (zoals Todoist ze markeert tijdens het typen): de datum, het
+ * project, de labels enzovoort. Elk stuk is `{ start, end, kind }` met posities in `text` zoals gegeven (UTF-16, net als in Java
+ * en Kotlin); `kind` is 'date', 'deadline', 'duration', 'reminder', 'project', 'section', 'label' of 'priority'. Een datum die
+ * door een eerder weggehaald stuk heen loopt ("morgen #Thuis om 9") wordt meer stukken.
+ * @returns {{ parsed: object, spans: { start: number, end: number, kind: string }[] }}
+ */
+export function parseQuickAddWithSpans(text, { view, now = new Date(), defaultProjectId, defaultSectionId = null, defaultDue = null, defaultLabels = [], canAddTo = () => true, dates = true, language = getLanguage() }) {
+  const original = String(text);
+  const spans = [];
+  let t = track(original);
+  const mark = (start, end, kind) => {
+    if (t.map) spans.push(...pieces(t, start, end, original).map(([a, b]) => ({ start: a, end: b, kind })));
+  };
+  const cutAt = (start, end, kind) => {
+    mark(start, end, kind);
+    t = cutTracked(t, start, end);
+  };
+  let rest;
   const out = { content: '', project_id: defaultProjectId, section_id: defaultSectionId, labels: defaultLabels.filter((id) => view.labels.has(id)), newLabels: [], priority: 4, due: defaultDue, deadline: null, reminders: [] };
 
   // prioriteit
-  const prio = new RegExp(`${START}(?:p|!!)([1-4])${END}`, 'iu').exec(rest);
+  const prio = new RegExp(`${START}(?:p|!!)([1-4])${END}`, 'iu').exec(t.s);
   if (prio) {
     out.priority = Number(prio[1]);
-    rest = cut(rest, prio.index, prio.index + prio[0].length);
+    cutAt(prio.index, prio.index + prio[0].length, 'priority');
   }
 
   // project
   // `canAddTo`: alleen projecten waar je een taak in kunt zetten (niet een project dat je alleen leest, zie core/access.js)
-  const project = matchNamed(rest, '#', [...view.projects.values()].filter((p) => !p.is_archived && canAddTo(p.id)));
+  const project = matchNamed(t.s, '#', [...view.projects.values()].filter((p) => !p.is_archived && canAddTo(p.id)));
   if (project) {
     out.project_id = project.item.id;
     if (project.item.id !== defaultProjectId) out.section_id = null; // de standaardsectie hoort bij een ander project
-    rest = cut(rest, project.start, project.end);
+    cutAt(project.start, project.end, 'project');
   }
 
   // sectie (binnen het gekozen project)
-  const section = matchNamed(rest, '/', [...view.sections.values()].filter((s) => s.project_id === out.project_id && !s.is_archived));
+  const section = matchNamed(t.s, '/', [...view.sections.values()].filter((s) => s.project_id === out.project_id && !s.is_archived));
   if (section) {
     out.section_id = section.item.id;
-    rest = cut(rest, section.start, section.end);
+    cutAt(section.start, section.end, 'section');
   }
 
   // labels
   // Een label met een spatie of een ander teken dat in een gewoon woord niet voorkomt ("Uitgaan met Zoë", "a.b") wordt op naam gevonden,
   // zoals bij projecten: de langste passende naam wint. Alle andere labels volgen hieronder, op het woord na de @.
   const odd = [...view.labels.values()].filter((l) => !/^[\p{L}\p{N}_-]+$/u.test(normalizeText(l.name).trim()));
-  for (let m = matchNamed(rest, '@', odd); m; m = matchNamed(rest, '@', odd)) {
+  for (let m = matchNamed(t.s, '@', odd); m; m = matchNamed(t.s, '@', odd)) {
     if (!out.labels.includes(m.item.id)) out.labels.push(m.item.id);
-    rest = cut(rest, m.start, m.end);
+    cutAt(m.start, m.end, 'label');
   }
   // via nameKey: "@ÉÉN" is het label "één", en "@Zoë" ook als de ë ontleed is getypt
   const known = new Map([...view.labels.values()].map((l) => [nameKey(l.name), l.id]));
   const labelRe = new RegExp(`${START}@([\\p{L}\\p{N}_-]+)`, 'gu');
-  rest = rest.replace(labelRe, (_, name) => {
+  const labelHits = [...t.s.matchAll(labelRe)];
+  for (const [, name] of labelHits) {
     const id = known.get(nameKey(name));
     if (id) {
       if (!out.labels.includes(id)) out.labels.push(id);
     } else if (!out.newLabels.some((n) => nameKey(n) === nameKey(name))) {
       out.newLabels.push(name);
     }
-    return '';
-  }).replace(/\s+/g, ' ').trim();
+  }
+  cutAll(labelHits, 'label');
 
   // herinneringen; wat niet te begrijpen is, blijft gewoon in de titel staan
   const UNITS = 'minuten|minuut|minutes|minute|mins|min|mv|m|uren|uur|uv|u|hours|hour|hrs|hr|h|dagen|dag|days|day|dv|d|weken|weeks|week|w';
   const reminderRe = new RegExp(`${START}!(?:\\(([^()]{1,80})\\)|(\\d{1,4} ?(?:${UNITS})|0))${END}`, 'giu');
-  rest = rest.replace(reminderRe, (whole, phrase, code) => {
+  const reminderHits = [...t.s.matchAll(reminderRe)].filter(([, phrase, code]) => {
     let spec = null;
     const offset = parseOffsetNl(phrase ?? code);
     if (offset !== null) {
@@ -145,10 +239,11 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
       const when = parseDateText(phrase, now, language);
       if (when && !when.recurrence && hasTime(when.date)) spec = { type: 'absolute', due: { date: when.date } };
     }
-    if (!spec) return whole;
+    if (!spec) return false; // blijft in de titel staan
     addReminder(spec);
-    return '';
-  }).replace(/\s+/g, ' ').trim();
+    return true;
+  });
+  cutAll(reminderHits, 'reminder');
 
   // herinneringen in gewone taal: "met herinnering 10 minuten vooraf", "herinner me een kwartier ervoor", "met een herinnering om
   // 13:30", "with a reminder 30 minutes before", "remind me at 9am". Wat erna komt moet een herinnering zijn (een tijd vooraf of een
@@ -156,51 +251,54 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   // "met herinnering morgen om 8 uur" niet de datum van de taak wordt. Alleen een tijd ("om 13:30") hoort bij de dag van de taak.
   const atTaskDay = [];
   if (dates) {
-    for (let m = SPOKEN_REMINDER.exec(rest); m; m = SPOKEN_REMINDER.exec(rest)) {
+    for (let m = SPOKEN_REMINDER.exec(t.s); m; m = SPOKEN_REMINDER.exec(t.s)) {
       const bare = BARE_REMINDER.test(m[0]);
       if (bare && m.index === 0) continue;
-      const found = spokenReminder(rest.slice(m.index + m[0].length), now, language, bare);
+      const found = spokenReminder(t.s.slice(m.index + m[0].length), now, language, bare);
       if (!found) continue;
       if (found.time) atTaskDay.push(found.time);
       else addReminder(found.spec);
-      rest = cut(rest, m.index, m.index + m[0].length + found.length);
+      cutAt(m.index, m.index + m[0].length + found.length, 'reminder');
       SPOKEN_REMINDER.lastIndex = 0;
     }
   }
 
   // deadline tussen accolades; blijft staan als de tekst geen datum is
-  const dl = /\{([^{}]+)\}/u.exec(rest);
+  const dl = /\{([^{}]+)\}/u.exec(t.s);
   if (dl) {
     const due = parseDateText(dl[1], now, language);
     if (due && !due.recurrence) {
       out.deadline = due.date.slice(0, 10);
-      rest = cut(rest, dl.index, dl.index + dl[0].length);
+      cutAt(dl.index, dl.index + dl[0].length, 'deadline');
     }
   }
 
   // duur: =45m, =1u30, =1,5u (alleen als het een duur is; anders blijft de tekst staan)
-  const du = DURATION_TOKEN.exec(rest);
+  const du = DURATION_TOKEN.exec(t.s);
   if (du) {
     const minutes = parseDuration(du[1]);
     if (minutes !== null) {
       out.duration = minutes;
-      rest = cut(rest, du.index, du.index + du[0].length);
+      cutAt(du.index, du.index + du[0].length, 'duration');
     }
   }
 
   // een tijdsbereik ("9:00-10:30", "18-19 uur", "van 9 tot 10:30"): het begin wordt de tijd, het verschil de duur (zoals Todoist).
   // "9-10" alleen is in het Nederlands een datum (9 oktober), dus pas met een dubbele punt, "uur" of "van … tot".
   // `dates: false` (Instellingen › Algemeen): geen datums in gewone taal; een {deadline} en een !herinnering blijven werken
-  const range = dates ? findTimeRange(rest) : null;
+  const range = dates ? findTimeRange(t.s) : null;
   if (range) {
     const at = language === 'en' ? 'at' : 'om';
-    rest = `${rest.slice(0, range.index)}${at} ${range.start}${rest.slice(range.index + range.length)}`.replace(/\s+/g, ' ').trim();
+    // "om 09:00" komt in de plaats van het bereik; die tekens wijzen terug naar het hele bereik, zodat het als datum gemarkeerd wordt
+    t = replaceTracked(t, range.index, range.index + range.length, `${at} ${range.start}`);
     if (out.duration === undefined) out.duration = range.minutes;
   }
 
   // datum of herhaling in gewone taal
+  rest = t.s;
   const parsed = dates ? parseDue(rest, now, language) : null;
   if (parsed) {
+    if (parsed.due && parsed.range) mark(parsed.range[0], parsed.range[1], 'date');
     rest = parsed.content;
     if (parsed.due) out.due = parsed.due;
   }
@@ -214,7 +312,13 @@ export function parseQuickAdd(text, { view, now = new Date(), defaultProjectId, 
   }
 
   out.content = rest;
-  return out;
+  spans.sort((a, b) => a.start - b.start || a.end - b.end);
+  return { parsed: out, spans };
+
+  /** Haalt alle gevonden stukken weg, van achter naar voren, zodat de plekken ervoor blijven kloppen. */
+  function cutAll(hits, kind) {
+    for (const m of [...hits].reverse()) cutAt(m.index, m.index + m[0].length, kind);
+  }
 
   function addReminder(spec) {
     const same = (r) => r.type === spec.type && (spec.type === 'absolute' ? r.due.date === spec.due.date : r.minute_offset === spec.minute_offset);

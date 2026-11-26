@@ -361,7 +361,8 @@
             android:exported="false"
             android:label="@string/popup_title"
             android:taskAffinity=""
-            android:theme="@style/Theme.Tickory.QuickAdd" />
+            android:theme="@style/Theme.Tickory.QuickAdd"
+            android:windowSoftInputMode="stateHidden|adjustResize" />
 
         <activity
             android:name=".widget.WidgetConfigActivity"

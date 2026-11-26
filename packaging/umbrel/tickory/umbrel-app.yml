@@ -2,7 +2,7 @@ manifestVersion: 1
 id: tickory
 category: files
 name: Tickory
-version: "0.12.5"
+version: "0.12.6"
 tagline: Your own to-do list and notes, a free Todoist alternative
 description: >-
   Tickory is a to-do list and notes app you host yourself: for you, your family or a small team.
@@ -17,8 +17,8 @@ description: >-
 
   Sign in with the username "umbrel" and the password shown here; you create the other accounts in the app.
 releaseNotes: >-
-  Quick add understands many more ways to type a reminder: "reminder 10 minutes before", "notify me an hour ahead of time",
-  numbers in words ("forty-five minutes") and, in Dutch, "melding 10 minuten voor tijd" or "geef me een seintje".
+  On Android, tapping a task in a widget opens a small window to edit it right there (title, description, date, priority,
+  labels, project), as with Todoist. The small Add task window highlights the recognised date, project and labels as you type.
 developer: WNijhof
 website: https://wnijhof.github.io/tickory/en/
 dependencies: []

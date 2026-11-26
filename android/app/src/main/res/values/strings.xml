@@ -242,6 +242,27 @@
     <string name="popup_title">Task</string>
     <string name="popup_complete">Complete</string>
     <string name="popup_completed">Completed</string>
+    <string name="popup_content_hint">Task name</string>
+    <string name="popup_description_hint">Description</string>
+    <string name="popup_description_in_app">Edit the description in the app</string>
+    <string name="popup_date">Date</string>
+    <string name="popup_no_date">No date</string>
+    <string name="popup_labels">Labels</string>
+    <string name="popup_no_labels">None</string>
+    <string name="popup_row_description">%1$s: %2$s. Tap to change.</string>
+    <string name="popup_project_description">Project: %1$s. Tap to move the task.</string>
+    <string name="popup_move_to">Move to</string>
+    <string name="popup_read_only">You can only view this project</string>
+    <string name="popup_subtasks">Subtasks %1$d/%2$d</string>
+    <string name="popup_saving">Saving…</string>
+    <string name="popup_saved">Saved</string>
+    <string name="popup_save_failed">Not saved: no connection to the server. Try again, or go back once more to discard your changes.</string>
+    <string name="popup_discarded">Changes not saved</string>
+    <string name="popup_save_failed_later">Your changes to the task were not saved: no connection to the server</string>
+    <plurals name="popup_comments">
+        <item quantity="one">%d comment</item>
+        <item quantity="other">%d comments</item>
+    </plurals>
     <string name="quick_added">Added</string>
     <string name="quick_added_offline">Added; it will be sent as soon as there is a connection</string>
     <string name="quick_draft_saved">Not added: your text will still be here next time</string>

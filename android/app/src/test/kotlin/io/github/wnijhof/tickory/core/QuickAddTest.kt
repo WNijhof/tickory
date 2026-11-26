@@ -184,6 +184,11 @@ class QuickAddTest {
         val recurring = QuickAddParser.preview("""{"quick_add":1,"preview":{"content":"x","due":{"date":"2026-11-17T20:00","string":"elke dinsdag om 20:00","recurrence":{"freq":"weekly"}},"project":{"id":"p-1","name":"Inbox","inbox":true},"labels":[],"priority":4,"reminders":[]}}""")!!
         assertTrue(recurring.due!!.recurring)
         assertTrue(recurring.inbox)
+        assertEquals("een oudere server: geen markering", emptyList<PreviewSpan>(), recurring.spans)
+        // welke tekst herkend is: wat niet klopt (onbekende soort, omgekeerd, negatief, te ver) valt weg
+        val marked = QuickAddParser.preview("""{"quick_add":1,"preview":{"content":"x","project":{"id":"p-1","name":"Inbox","inbox":true},"labels":[],"priority":4,"reminders":[],
+            "spans":[{"start":2,"end":8,"kind":"date"},{"start":9,"end":15,"kind":"project"},{"start":1,"end":3,"kind":"vreemd"},{"start":5,"end":5,"kind":"label"},{"start":-1,"end":2,"kind":"label"},{"start":1,"end":9999,"kind":"label"},"x"]}}""")!!
+        assertEquals(listOf(PreviewSpan(2, 8, "date"), PreviewSpan(9, 15, "project")), marked.spans)
         for (bad in listOf(null, "", "{}", """{"error_code":"NOT_FOUND","error":"onbekend pad"}""", """{"quick_add":0}""")) assertFalse(bad ?: "null", QuickAddParser.isQuickAdd(bad))
         assertNull(QuickAddParser.preview("""{"quick_add":1,"preview":{"content":"x","project":{"id":"a b","name":"x"}}}"""))
         assertTrue(QuickAddParser.isDay("2026-11-14"))

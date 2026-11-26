@@ -1,0 +1,2 @@
+- Widgets: tik op een taak om hem in een klein venster te bewerken (titel, beschrijving, datum, prioriteit, labels, project), zoals bij Todoist.
+- Venster Taak toevoegen: de herkende datum, het project en de labels worden gemarkeerd terwijl je typt.

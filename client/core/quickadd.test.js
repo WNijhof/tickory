@@ -1,7 +1,7 @@
 // Snel toevoegen: een tijdsbereik (core/quickadd.js, findTimeRange en parseQuickAdd).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findTimeRange, parseQuickAdd } from './quickadd.js';
+import { findTimeRange, parseQuickAdd, parseQuickAddWithSpans } from './quickadd.js';
 
 test('tijdsbereik: met een dubbele punt, "uur" of "van … tot" wordt het een tijd met een duur; "9-10" alleen is een datum', () => {
   assert.deepEqual(findTimeRange('Vergadering 9:00-10:30'), { start: '09:00', minutes: 90, index: 12, length: 10 });
@@ -137,4 +137,32 @@ test('herinneringen in gewone taal: meer beginwoorden ("herinnering", "melding",
   assert.deepEqual([en('Reminder emails to customers').content, en('Reminder emails to customers').reminders], ['Reminder emails to customers', []]);
   // ook tussen haakjes
   assert.deepEqual(nl('Bellen morgen om 9 uur !(10 minuten voor tijd)').reminders, rel(10));
+});
+
+test('welke tekst is herkend (om te markeren zoals Todoist): posities in de tekst zoals getypt, per soort', () => {
+  const view = {
+    projects: new Map([['inbox', { id: 'inbox', name: 'Inbox' }], ['p1', { id: 'p1', name: 'Thuis' }], ['p2', { id: 'p2', name: 'Mijn Werk' }]]),
+    sections: new Map(), labels: new Map([['l1', { id: 'l1', name: 'bellen' }]]), tasks: new Map(), members: new Map(),
+  };
+  const now = new Date(2026, 10, 16, 8, 0);
+  const marked = (text, extra = {}) => parseQuickAddWithSpans(text, { view, now, defaultProjectId: 'inbox', language: 'nl', ...extra }).spans.map((s) => [s.kind, text.slice(s.start, s.end)]);
+  assert.deepEqual(marked('Tandarts bellen morgen om 9 uur #Thuis @bellen p1'), [['date', 'morgen om 9 uur'], ['project', '#Thuis'], ['label', '@bellen'], ['priority', 'p1']]);
+  // een datum met een project ertussen: twee stukken, het project apart
+  assert.deepEqual(marked('morgen #Thuis om 9 uur iets'), [['date', 'morgen'], ['project', '#Thuis'], ['date', 'om 9 uur']]);
+  // het tijdsbereik hoort bij de datum
+  assert.deepEqual(marked('Vergadering 9:00-10:30 vrijdag'), [['date', '9:00-10:30 vrijdag']]);
+  assert.deepEqual(marked('Feest {vrijdag} !30m =45m'), [['deadline', '{vrijdag}'], ['reminder', '!30m'], ['duration', '=45m']]);
+  assert.deepEqual(marked('Bellen met herinnering 10 minuten vooraf morgen'), [['reminder', 'met herinnering 10 minuten vooraf'], ['date', 'morgen']]);
+  // witruimte en een project met een spatie: de posities blijven die van de getypte tekst
+  assert.deepEqual(marked('  Boodschappen   elke maandag  #Mijn Werk'), [['date', 'elke maandag'], ['project', '#Mijn Werk']]);
+  // een ontleed getypte é (NFD) verschuift niets
+  assert.deepEqual(marked('Cafe\u0301 morgen'), [['date', 'morgen']]);
+  assert.deepEqual(marked('call mom tomorrow at 9am', { language: 'en' }), [['date', 'tomorrow at 9am']]);
+  // niet herkend, of datums herkennen uit: niets gemarkeerd (behalve wat nog wel werkt)
+  assert.deepEqual(marked('niets herkend hier'), []);
+  assert.deepEqual(marked('~morgen bellen'), []);
+  assert.deepEqual(marked('Bellen morgen p2', { dates: false }), [['priority', 'p2']]);
+  // de uitkomst is dezelfde als die van parseQuickAdd
+  const text = 'Tandarts morgen om 9 uur #Thuis @nieuw p1 !30m';
+  assert.deepEqual(parseQuickAddWithSpans(text, { view, now, defaultProjectId: 'inbox', language: 'nl' }).parsed, parseQuickAdd(text, { view, now, defaultProjectId: 'inbox', language: 'nl' }));
 });

@@ -203,6 +203,12 @@ data class PreviewDue(val date: String, val string: String?, val recurring: Bool
 /** Een herinnering in de voorvertoning: [minuteOffset] vooraf, of op het tijdstip [date]. */
 data class PreviewReminder(val minuteOffset: Int?, val date: String?)
 
+/**
+ * Een stuk van de verstuurde tekst dat de server herkende ([start] tot [end], posities in de tekst zoals verstuurd), om het in het veld
+ * te markeren zoals Todoist. [kind]: date, deadline, duration, reminder, project, section, label of priority.
+ */
+data class PreviewSpan(val start: Int, val end: Int, val kind: String)
+
 /** Wat de server zegt dat de tekst wordt (`dry_run`), om als kleine labels onder het invoerveld te tonen. */
 data class QuickAddPreview(
     val content: String,
@@ -215,9 +221,15 @@ data class QuickAddPreview(
     val labels: List<Pair<String, Boolean>>,
     val priority: Int,
     val reminders: List<PreviewReminder>,
+    /** Welke stukken van de tekst herkend zijn; leeg bij een oudere server. */
+    val spans: List<PreviewSpan> = emptyList(),
 )
 
 object QuickAddParser {
+    private val SPAN_KINDS = setOf("date", "deadline", "duration", "reminder", "project", "section", "label", "priority")
+    private val MAX_SPAN_END = QuickAddQueue.MAX_TEXT.toLong()
+    private const val MAX_SPANS = 200
+
     /** Is dit een antwoord van het eindpunt (ook bij een weigering)? Een oudere server kent het niet en antwoordt zonder `quick_add`. */
     fun isQuickAdd(body: String?): Boolean = Json.parseObject(body)?.whole("quick_add")?.let { it >= 1 } == true
 
@@ -245,6 +257,13 @@ object QuickAddParser {
                     else -> null
                 }
             },
+            spans = (p.list("spans") ?: emptyList()).mapNotNull { e ->
+                val o = Json.asObject(e) ?: return@mapNotNull null
+                val start = o.whole("start") ?: return@mapNotNull null
+                val end = o.whole("end") ?: return@mapNotNull null
+                val kind = o.text("kind")?.takeIf { it in SPAN_KINDS } ?: return@mapNotNull null
+                if (start < 0 || end <= start || end > MAX_SPAN_END) null else PreviewSpan(start.toInt(), end.toInt(), kind)
+            }.take(MAX_SPANS),
         )
     }
 

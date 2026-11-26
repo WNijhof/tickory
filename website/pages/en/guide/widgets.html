@@ -70,7 +70,7 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
 <h2>Completing and opening</h2>
 <ul>
   <li><strong>Tap the circle</strong> to complete a task. It disappears from all widgets right away. The circle and the row are at least 48 points big, the smallest tap target Android recommends.</li>
-  <li><strong>Tap the title</strong> to open the task in the app.</li>
+  <li><strong>Tap the title</strong> to <a href="#edit-task">edit the task in a small window</a>, without opening the app.</li>
   <li><strong>Tap +</strong> to open the <a href="#small-window">small Add task window</a>. In Today the <em>Today</em> button is already on, in a project the task goes into that project, in the other lists into the project you chose last time.</li>
   <li><strong>Tap the logo</strong> (or <em>more tasks</em> at the bottom) to open the app on what the widget shows: the widget of a project opens that project, and likewise for a label or filter, Today or Upcoming. Tap <strong>the title with the arrow</strong> to choose another overview. <strong>Reschedule</strong>, next to <em>Overdue</em>, opens Today in the app, where you can move all overdue tasks to another day at once.</li>
 </ul>
@@ -83,11 +83,22 @@ description: The widgets of the Tickory Android app: Today, Project or list, Upc
   <li>The reminders and notifications of a completed task expire right away, also without internet.</li>
 </ul>
 
+<h2 id="edit-task">Editing a task from the widget</h2>
+<p>Tapping a task opens a small window at the bottom of the screen, as with Todoist. You change the task right there:</p>
+<ul>
+  <li>At the top is the <strong>project</strong> (and the section). Tap it to move the task to another project.</li>
+  <li>Tap the <strong>title</strong> or the <strong>description</strong> to change them.</li>
+  <li>Tap <strong>Date</strong> for Today, Tomorrow, This weekend, Next week, No date or a date from the calendar. A time and a repeat stay as they were.</li>
+  <li>Tap <strong>Priority</strong> or <strong>Labels</strong> to choose them.</li>
+  <li><strong>Complete</strong> completes the task. <strong>Open in the app</strong> opens the task in the app, for subtasks, comments, reminders and the rest. The bottom of the window shows how many subtasks and comments the task has.</li>
+</ul>
+<p>Saving is automatic: <strong>back</strong>, <strong>tapping outside</strong> or <strong>Done</strong> on the keyboard saves your changes and closes the window. Editing needs a connection. If saving does not work, the window stays open and says why: try again, or go back once more to discard your changes. In a project you can only read, you can view the task but not change it. If the description is very long (more than 4000 characters), you change it in the app.</p>
+
 <h2 id="small-window">The small Add task window</h2>
 <p>The <strong>+</strong> of a widget, the <em>Add task</em> button widget and the <a href="android-app.html#tile">quick settings tile</a> open a small window at the bottom of the screen, over whatever is already there, as with Todoist. The full app does not open. The keyboard comes up straight away.</p>
 <ul>
   <li><strong>Type the task</strong> as in the app: <em>Water the plants #Home @garden p1</em>. <code>#project</code>, <code>/section</code>, <code>@label</code>, <code>p1</code> to <code>p4</code> and <code>!30m</code> work the same as in <a href="adding-tasks.html">Adding tasks</a>: your server recognises them, with the same rules as the app. Dates in plain language are recognised in the language of the phone: <em>tomorrow</em>, <em>friday at 9am</em> (on a Dutch phone <em>morgen</em>, <em>vrijdag om 9 uur</em>).</li>
-  <li>With a connection you see shortly after typing, below the field, <strong>what it will be</strong>: the title, the date, the project, the labels (a new label marked <em>(new)</em>), the priority and the reminder. Without a connection you do not see this; adding still works.</li>
+  <li>With a connection you see shortly after typing, below the field, <strong>what it will be</strong>: the title, the date, the project, the labels (a new label marked <em>(new)</em>), the priority and the reminder. In the field the recognised text gets a <strong>coloured background</strong>, as with Todoist: in <em>Call the dentist tomorrow at 9am #Home</em> that is <em>tomorrow at 9am</em> and <em>#Home</em>. So you see straight away which words become the date. Without a connection you do not see this; adding still works.</li>
   <li>Below the field you choose the <strong>project</strong> (only projects you can add to; the window remembers your choice for next time), <strong>Today</strong> or <strong>Tomorrow</strong>, and a <strong>priority</strong>. What you type wins: <em>vrijdag</em> in the text beats the Tomorrow button, <em>p1</em> beats the chosen priority.</li>
   <li><strong>Add</strong> or <strong>Enter</strong> adds the task and closes the window. Turn on <strong>Add another</strong> to type the next one straight away; the project and the day then stay as they are.</li>
   <li><strong>Paste a list</strong> (a shopping list from a note or an email): the window asks whether each line should become a <strong>task of its own</strong>. Bullets such as <code>-</code>, <code>*</code>, <code>1.</code> and <code>- [ ]</code> are dropped, and so are empty lines; dates, <code>#project</code>, <code>@labels</code> and <code>p1</code> are recognised per line, and the chosen project, day and priority apply to every line. Choose <em>As one task</em> to put the lines one after the other in the field.</li>

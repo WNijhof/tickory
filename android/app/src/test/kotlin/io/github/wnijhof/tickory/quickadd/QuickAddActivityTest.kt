@@ -84,6 +84,7 @@ class QuickAddActivityTest : WidgetTestBase() {
     private val QuickAddActivity.priority get() = findViewById<Button>(R.id.quick_priority)
     private val QuickAddActivity.add get() = findViewById<Button>(R.id.quick_add)
     private val QuickAddActivity.status get() = findViewById<TextView>(R.id.quick_status)
+    private val QuickAddActivity.marked get() = input.text.let { t -> t.getSpans(0, t.length, QuickAddActivity.RecognizedSpan::class.java).sortedBy { t.getSpanStart(it) }.map { t.substring(t.getSpanStart(it), t.getSpanEnd(it)) to it.kind } }
     private val QuickAddActivity.chips get() = findViewById<LinearLayout>(R.id.quick_preview).let { row -> (0 until row.childCount).map { (row.getChildAt(it) as TextView).text.toString() } }
 
     private fun worker(): SyncWorker =
@@ -452,6 +453,8 @@ class QuickAddActivityTest : WidgetTestBase() {
             assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.quick_preview_scroll).visibility)
             assertEquals(listOf("Tandarts bellen", "morgen 09:00", "Deadline vr 20 nov", "#Werk", "@bellen", "@nieuw (nieuw)", "P1", "Herinnering 30 min ervoor"), activity.chips)
             assertEquals("Wordt: Tandarts bellen, morgen 09:00, Deadline vr 20 nov, #Werk, @bellen, @nieuw (nieuw), P1, Herinnering 30 min ervoor", activity.findViewById<View>(R.id.quick_preview).contentDescription)
+            // de herkende tekst gemarkeerd in het veld, zoals Todoist (een stuk buiten de tekst valt weg)
+            assertEquals(listOf("morgen 9 uur" to "date", "#Werk" to "project", "@bellen" to "label", "@nieuw" to "label", "p1" to "priority", "{vrijdag}" to "deadline", "!30m" to "reminder"), activity.marked)
 
             // in het project dat je al koos: geen label voor het project
             activity.setProject("werk")
@@ -461,6 +464,15 @@ class QuickAddActivityTest : WidgetTestBase() {
             activity.input.setText("")
             idle(500)
             assertEquals(View.GONE, activity.findViewById<View>(R.id.quick_preview_scroll).visibility)
+            // met witruimte vooraan: de server rekent zonder, het veld met
+            activity.input.setText("  Tandarts bellen morgen 9 uur #Werk @bellen @nieuw p1 {vrijdag} !30m")
+            idle(500)
+            assertEquals("morgen 9 uur" to "date", activity.marked.first())
+            // zonder verbinding: geen voorvertoning en ook geen markering meer
+            online = false
+            activity.input.setText("Iets morgen")
+            idle(500)
+            assertEquals(emptyList<Pair<String, String>>(), activity.marked)
         }
     }
 
@@ -543,6 +555,8 @@ class QuickAddActivityTest : WidgetTestBase() {
     private companion object {
         const val PREVIEW = """{"quick_add":1,"dry_run":true,"repeated":false,"task":null,"preview":{"content":"Tandarts bellen","due":{"date":"2026-11-14T09:00","string":"morgen om 9 uur","lang":"nl"},
             "deadline":"2026-11-20","duration":null,"project":{"id":"werk","name":"Werk","inbox":false},"section":null,
-            "labels":[{"name":"bellen","new":false},{"name":"nieuw","new":true}],"priority":1,"reminders":[{"type":"relative","minute_offset":30}],"auto_reminder":false}}"""
+            "labels":[{"name":"bellen","new":false},{"name":"nieuw","new":true}],"priority":1,"reminders":[{"type":"relative","minute_offset":30}],"auto_reminder":false,
+            "spans":[{"start":16,"end":28,"kind":"date"},{"start":29,"end":34,"kind":"project"},{"start":35,"end":42,"kind":"label"},{"start":43,"end":49,"kind":"label"},
+            {"start":50,"end":52,"kind":"priority"},{"start":53,"end":62,"kind":"deadline"},{"start":63,"end":67,"kind":"reminder"},{"start":60,"end":999,"kind":"date"}]}}"""
     }
 }

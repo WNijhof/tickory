@@ -1,6 +1,6 @@
 # Concept voor de merge request op https://gitlab.com/fdroid/fdroiddata (bestand metadata/io.github.wnijhof.tickory.yml).
 # De beschrijving, het icoon, de schermafbeeldingen en de wijzigingen per versie leest F-Droid uit fastlane/ in deze repo.
-# Let op de versiecode: build.gradle.kts rekent hem uit package.json uit (major*10000 + minor*100 + patch, 0.12.5 = 1205).
+# Let op de versiecode: build.gradle.kts rekent hem uit package.json uit (major*10000 + minor*100 + patch, 0.12.6 = 1206).
 # F-Droid kan dat niet zelf aflezen; VercodeOperation hieronder rekent hem uit de tag. Laat de reviewers het nakijken.
 Categories:
   - Time
@@ -16,9 +16,9 @@ RepoType: git
 Repo: https://github.com/WNijhof/tickory.git
 
 Builds:
-  - versionName: 0.12.5
-    versionCode: 1205
-    commit: v0.12.5
+  - versionName: 0.12.6
+    versionCode: 1206
+    commit: v0.12.6
     subdir: android/app
     gradle:
       - yes
@@ -28,5 +28,5 @@ UpdateCheckMode: Tags ^v\d+\.\d+\.\d+$
 VercodeOperation:
   - '%c'
 UpdateCheckData: package.json|"version":\s*"(\d+)\.(\d+)\.(\d+)"|.|"version":\s*"([\d.]+)"
-CurrentVersion: 0.12.5
-CurrentVersionCode: 1205
+CurrentVersion: 0.12.6
+CurrentVersionCode: 1206
